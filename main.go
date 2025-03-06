@@ -524,7 +524,7 @@ func getReleaseIdentifier(release Release, alias string) string {
 }
 
 func findLatestStable() (Release, error) {
-	releases, err := getReleases()
+	releases, err := getCachedReleases(false)
 	if err != nil {
 		return Release{}, err
 	}
@@ -537,7 +537,7 @@ func findLatestStable() (Release, error) {
 }
 
 func findLatestNightly() (Release, error) {
-	releases, err := getReleases()
+	releases, err := getCachedReleases(false)
 	if err != nil {
 		return Release{}, err
 	}
@@ -550,7 +550,7 @@ func findLatestNightly() (Release, error) {
 }
 
 func findSpecificVersion(version string) (Release, error) {
-	releases, err := getReleases()
+	releases, err := getCachedReleases(false)
 	if err != nil {
 		return Release{}, err
 	}
