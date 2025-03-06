@@ -34,18 +34,18 @@ jobs:
                   go-version: "^1.23.6"
 
             # Build artifacts for multiple platforms.
-            - name: Build nvsw artifacts
+            - name: Build nvs artifacts
               if: ${{ steps.release.outputs.release_created }}
               run: |
                   mkdir -p build
                   # Build for darwin-arm64.
-                  env GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvsw-darwin-arm64 ./main.go
+                  env GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvs-darwin-arm64 ./main.go
                   # Build for darwin-amd64.
-                  env GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvsw-darwin-amd64 ./main.go
+                  env GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvs-darwin-amd64 ./main.go
                   # Build for linux-amd64.
-                  env GOOS=linux GOARCH=amd64 go build -ldflags "-X main.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvsw-linux-amd64 ./main.go
+                  env GOOS=linux GOARCH=amd64 go build -ldflags "-X main.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvs-linux-amd64 ./main.go
                   # Build for windows-amd64.
-                  env GOOS=windows GOARCH=amd64 go build -ldflags "-X main.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvsw-windows-amd64.exe ./main.go
+                  env GOOS=windows GOARCH=amd64 go build -ldflags "-X main.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvs-windows-amd64.exe ./main.go
 
             # Upload release artifacts.
             - name: Upload Release Artifacts
@@ -53,7 +53,7 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
               run: |
-                  gh release upload "${{ steps.release.outputs.tag_name }}" ./build/nvsw-darwin-arm64
-                  gh release upload "${{ steps.release.outputs.tag_name }}" ./build/nvsw-darwin-amd64
-                  gh release upload "${{ steps.release.outputs.tag_name }}" ./build/nvsw-linux-amd64
-                  gh release upload "${{ steps.release.outputs.tag_name }}" ./build/nvsw-windows-amd64.exe
+                  gh release upload "${{ steps.release.outputs.tag_name }}" ./build/nvs-darwin-arm64
+                  gh release upload "${{ steps.release.outputs.tag_name }}" ./build/nvs-darwin-amd64
+                  gh release upload "${{ steps.release.outputs.tag_name }}" ./build/nvs-linux-amd64
+                  gh release upload "${{ steps.release.outputs.tag_name }}" ./build/nvs-windows-amd64.exe

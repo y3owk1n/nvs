@@ -1,4 +1,4 @@
-module github.com/y3owk1n/nvsw
+module github.com/y3owk1n/nvs
 
 go 1.23.6
 
