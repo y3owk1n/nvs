@@ -141,14 +141,21 @@ var installCmd = &cobra.Command{
 	Short: "Install a Neovim version",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		versionArg := args[0]
-		release, err := resolveVersion(versionArg)
+		alias := args[0]
+		release, err := resolveVersion(alias)
 		if err != nil {
 			logrus.Fatalf("Error resolving version: %v", err)
 		}
 
-		if isInstalled(release.TagName) {
-			fmt.Printf("Version %s is already installed\n", release.TagName)
+		// For "stable" and "nightly", preserve the alias,
+		// otherwise, use the actual release tag as the folder name.
+		installName := alias
+		if alias != "stable" && alias != "nightly" {
+			installName = release.TagName
+		}
+
+		if isInstalled(installName) {
+			fmt.Printf("Version %s is already installed\n", installName)
 			return
 		}
 
@@ -163,8 +170,8 @@ var installCmd = &cobra.Command{
 			logrus.Fatalf("Error getting checksum URL: %v", err)
 		}
 
-		fmt.Printf("Installing Neovim %s...\n", release.TagName)
-		if err := downloadAndInstall(release.TagName, assetURL, checksumURL); err != nil {
+		fmt.Printf("Installing Neovim %s...\n", alias)
+		if err := downloadAndInstall(installName, assetURL, checksumURL); err != nil {
 			logrus.Fatalf("Installation failed: %v", err)
 		}
 		fmt.Println("\nInstallation successful!")
@@ -176,21 +183,14 @@ var useCmd = &cobra.Command{
 	Short: "Switch to a specific version",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		versionArg := args[0]
-		targetVersion := versionArg
-		if versionArg == "stable" || versionArg == "nightly" {
-			release, err := resolveVersion(versionArg)
-			if err != nil {
-				logrus.Fatalf("Error resolving version: %v", err)
-			}
-			targetVersion = release.TagName
-		}
-
+		alias := args[0]
+		targetVersion := alias
+		// For specific version names (other than "stable" or "nightly") you could resolve or validate further if needed.
 		if !isInstalled(targetVersion) {
 			logrus.Fatalf("Version %s is not installed", targetVersion)
 		}
 
-		// Update the "current" symlink inside the versions directory.
+		// Update the "current" symlink.
 		symlinkPath := filepath.Join(versionsDir, "current")
 		versionPath := filepath.Join(versionsDir, targetVersion)
 		if err := updateSymlink(versionPath, symlinkPath); err != nil {
@@ -198,14 +198,12 @@ var useCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Switched to Neovim %s\n", targetVersion)
-		// Find the Neovim executable.
 		nvimExec := findNvimBinary(versionPath)
 		if nvimExec == "" {
 			fmt.Printf("Warning: Could not find Neovim binary in %s. Please check the installation structure.\n", versionPath)
 			return
 		}
 
-		// Create (or update) a global symlink in the global bin directory.
 		targetBin := filepath.Join(globalBinDir, "nvim")
 		if _, err := os.Lstat(targetBin); err == nil {
 			os.Remove(targetBin)
@@ -215,7 +213,7 @@ var useCmd = &cobra.Command{
 		}
 		fmt.Printf("Global Neovim binary updated: %s -> %s\n", targetBin, nvimExec)
 
-		// Only show the PATH message if the global bin directory is not already in PATH.
+		// If the global bin directory is not in PATH, advise the user.
 		pathEnv := os.Getenv("PATH")
 		if !strings.Contains(pathEnv, globalBinDir) {
 			fmt.Printf("Add this to your PATH: %s\n", globalBinDir)
