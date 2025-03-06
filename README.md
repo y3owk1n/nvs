@@ -185,7 +185,7 @@ Then, reload your configuration:
 source ~/.config/fish/config.fish
 ```
 
-## Shell Completions 🧩
+## 🧩 Shell Completions
 
 nvsw supports generating shell completions using Cobra’s built‐in functionality. You can easily enable command completions for your favorite shell by following the instructions below.
 
@@ -243,14 +243,14 @@ Then, reload your configuration:
 source ~/.config/fish/config.fish
 ```
 
-## Configuration & Data 📂
+## 📂 Configuration & Data
 
 **nvsw** stores its configuration, downloaded versions, and cache in the ~/.nvsw directory.
 
 > [!note]
 > Remember: Homebrew will not delete this directory upon uninstallation, you must delete it manually if you want a full cleanup.
 
-## 🤝C ontributing
+## 🤝 Contributing
 
 Contributions are always welcome! Here's how you can help:
 
