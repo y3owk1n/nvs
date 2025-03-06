@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/y3owk1n/nvs/compare/v1.2.1...v1.3.0) (2025-03-06)
+
+
+### Features
+
+* add config switcher/opener ([#26](https://github.com/y3owk1n/nvs/issues/26)) ([ef22f3d](https://github.com/y3owk1n/nvs/commit/ef22f3db733de3d9cdc3157ff2dd207b0a6a0d76))
+
 ## [1.2.1](https://github.com/y3owk1n/nvs/compare/v1.2.0...v1.2.1) (2025-03-06)
 
 
