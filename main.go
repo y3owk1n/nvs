@@ -137,9 +137,10 @@ var rootCmd = &cobra.Command{
 }
 
 var installCmd = &cobra.Command{
-	Use:   "install <version|stable|nightly>",
-	Short: "Install a Neovim version",
-	Args:  cobra.ExactArgs(1),
+	Use:     "install <version|stable|nightly>",
+	Aliases: []string{"i"},
+	Short:   "Install a Neovim version",
+	Args:    cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		alias := args[0]
 		release, err := resolveVersion(alias)
@@ -181,10 +182,11 @@ var installCmd = &cobra.Command{
 }
 
 var upgradeCmd = &cobra.Command{
-	Use:   "upgrade [stable|nightly]",
-	Short: "Upgrade installed stable and/or nightly versions",
-	Long:  "Upgrades the installed stable and/or nightly versions. If no argument is provided, both stable and nightly are upgraded (if installed).",
-	Args:  cobra.MaximumNArgs(1),
+	Use:     "upgrade [stable|nightly]",
+	Aliases: []string{"up"},
+	Short:   "Upgrade installed stable and/or nightly versions",
+	Long:    "Upgrades the installed stable and/or nightly versions. If no argument is provided, both stable and nightly are upgraded (if installed).",
+	Args:    cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		// Determine which alias/aliases to upgrade.
 		var aliases []string
@@ -303,8 +305,9 @@ func findNvimBinary(dir string) string {
 }
 
 var listInstalledCmd = &cobra.Command{
-	Use:   "list-installed",
-	Short: "List installed versions",
+	Use:     "list-installed",
+	Aliases: []string{"ls"},
+	Short:   "List installed versions",
 	Run: func(cmd *cobra.Command, args []string) {
 		versions, err := listInstalledVersions()
 		if err != nil {
@@ -382,9 +385,10 @@ var currentCmd = &cobra.Command{
 }
 
 var uninstallCmd = &cobra.Command{
-	Use:   "uninstall <version>",
-	Short: "Uninstall a specific version",
-	Args:  cobra.ExactArgs(1),
+	Use:     "uninstall <version>",
+	Aliases: []string{"rm", "remove", "un"},
+	Short:   "Uninstall a specific version",
+	Args:    cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		versionArg := args[0]
 		versionPath := filepath.Join(versionsDir, versionArg)
