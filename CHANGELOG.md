@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0](https://github.com/y3owk1n/nvs/compare/v1.0.2...v1.1.0) (2025-03-06)
+
+
+### Features
+
+* add some shorthands for common commands ([#19](https://github.com/y3owk1n/nvs/issues/19)) ([0a06aa1](https://github.com/y3owk1n/nvs/commit/0a06aa1312beba978a44fdccc5a63cf27b2b1ea1))
+* add upgrade command for stable and nightly ([#17](https://github.com/y3owk1n/nvs/issues/17)) ([95823c5](https://github.com/y3owk1n/nvs/commit/95823c5c78fed7bcd19ca13db3df45ce1fd62b22))
+* **listCmd:** add indicator for the one that being used in the list ([#13](https://github.com/y3owk1n/nvs/issues/13)) ([c3f6e6b](https://github.com/y3owk1n/nvs/commit/c3f6e6bc5fe230c79fc5a6e57b5535ae03dbdd1a))
+* **listRemoteCmd:** only show annotations for stable and nightly ([#15](https://github.com/y3owk1n/nvs/issues/15)) ([d71401b](https://github.com/y3owk1n/nvs/commit/d71401b40d478483da88feeda8d43c7984fdb96d))
+* remain stable namespaces when installing and using stable ([#16](https://github.com/y3owk1n/nvs/issues/16)) ([7d54bfe](https://github.com/y3owk1n/nvs/commit/7d54bfe095a41c8ba54c0275514fe6f89764b9e4))
+* update list command to list-installed for more clarity ([#18](https://github.com/y3owk1n/nvs/issues/18)) ([0a1625d](https://github.com/y3owk1n/nvs/commit/0a1625df1688cf98ceaef9e88acdaad0bcf19dca))
+
 ## [1.0.2](https://github.com/y3owk1n/nvs/compare/v1.0.1...v1.0.2) (2025-03-06)
 
 
