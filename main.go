@@ -170,11 +170,73 @@ var installCmd = &cobra.Command{
 			logrus.Fatalf("Error getting checksum URL: %v", err)
 		}
 
+		releaseIdentifier := getReleaseIdentifier(release, alias)
+
 		fmt.Printf("Installing Neovim %s...\n", alias)
-		if err := downloadAndInstall(installName, assetURL, checksumURL); err != nil {
+		if err := downloadAndInstall(installName, assetURL, checksumURL, releaseIdentifier); err != nil {
 			logrus.Fatalf("Installation failed: %v", err)
 		}
 		fmt.Println("\nInstallation successful!")
+	},
+}
+
+var upgradeCmd = &cobra.Command{
+	Use:   "upgrade [stable|nightly]",
+	Short: "Upgrade installed stable and/or nightly versions",
+	Long:  "Upgrades the installed stable and/or nightly versions. If no argument is provided, both stable and nightly are upgraded (if installed).",
+	Args:  cobra.MaximumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		// Determine which alias/aliases to upgrade.
+		var aliases []string
+		if len(args) == 0 {
+			aliases = []string{"stable", "nightly"}
+		} else {
+			if args[0] != "stable" && args[0] != "nightly" {
+				logrus.Fatalf("Upgrade can only be performed for 'stable' or 'nightly'")
+			}
+			aliases = []string{args[0]}
+		}
+
+		// Loop over each alias and upgrade if installed.
+		for _, alias := range aliases {
+			if !isInstalled(alias) {
+				logrus.Infof("Alias '%s' is not installed. Skipping upgrade.", alias)
+				continue
+			}
+
+			// Resolve the remote release using the cache.
+			release, err := resolveVersion(alias)
+			if err != nil {
+				logrus.Errorf("Error resolving %s: %v", alias, err)
+				continue
+			}
+
+			remoteIdentifier := getReleaseIdentifier(release, alias)
+			installedIdentifier, err := getInstalledReleaseIdentifier(alias)
+			if err == nil && installedIdentifier == remoteIdentifier {
+				fmt.Printf("%s is already up-to-date (%s)\n", alias, installedIdentifier)
+				continue
+			}
+
+			assetURL, assetPattern, err := getAssetURL(release)
+			if err != nil {
+				logrus.Errorf("Error getting asset URL for %s: %v", alias, err)
+				continue
+			}
+
+			checksumURL, err := getChecksumURL(release, assetPattern)
+			if err != nil {
+				logrus.Errorf("Error getting checksum URL for %s: %v", alias, err)
+				continue
+			}
+
+			fmt.Printf("Upgrading %s to new identifier %s...\n", alias, remoteIdentifier)
+			if err := downloadAndInstall(alias, assetURL, checksumURL, remoteIdentifier); err != nil {
+				logrus.Errorf("Upgrade failed for %s: %v", alias, err)
+				continue
+			}
+			fmt.Printf("Upgrade successful for %s!\n", alias)
+		}
 	},
 }
 
@@ -363,6 +425,7 @@ var resetCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(installCmd)
+	rootCmd.AddCommand(upgradeCmd)
 	rootCmd.AddCommand(useCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(listRemoteCmd)
@@ -440,6 +503,16 @@ func getReleases() ([]Release, error) {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 	return releases, nil
+}
+
+func getReleaseIdentifier(release Release, alias string) string {
+	if alias == "nightly" {
+		if strings.HasPrefix(release.TagName, "nightly-") {
+			return strings.TrimPrefix(release.TagName, "nightly-")
+		}
+		return release.PublishedAt
+	}
+	return release.TagName
 }
 
 func findLatestStable() (Release, error) {
@@ -527,7 +600,16 @@ func getChecksumURL(release Release, assetPattern string) (string, error) {
 	return "", nil
 }
 
-func downloadAndInstall(version, assetURL, checksumURL string) error {
+func getInstalledReleaseIdentifier(alias string) (string, error) {
+	versionFile := filepath.Join(versionsDir, alias, "version.txt")
+	data, err := os.ReadFile(versionFile)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(data)), nil
+}
+
+func downloadAndInstall(installName, assetURL, checksumURL, releaseIdentifier string) error {
 	tmpFile, err := os.CreateTemp("", "nvim-*.archive")
 	if err != nil {
 		return fmt.Errorf("failed to create temporary file: %w", err)
@@ -546,9 +628,14 @@ func downloadAndInstall(version, assetURL, checksumURL string) error {
 		logrus.Info("Checksum verified successfully")
 	}
 
-	versionDir := filepath.Join(versionsDir, version)
+	versionDir := filepath.Join(versionsDir, installName)
 	if err := extractArchive(tmpFile, versionDir); err != nil {
 		return fmt.Errorf("extraction error: %w", err)
+	}
+
+	versionFile := filepath.Join(versionDir, "version.txt")
+	if err := os.WriteFile(versionFile, []byte(releaseIdentifier), 0644); err != nil {
+		return fmt.Errorf("failed to write version file: %w", err)
 	}
 	return nil
 }

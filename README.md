@@ -19,6 +19,8 @@
   Switch between installed versions in a snap. nvs updates a global symlink so your preferred version is always just a command away.
 - **Remote Version Listing:**
   List all available remote releases (stable, nightly, etc.) with cached results to avoid GitHub rate limits ⚡. Need fresh data? Just add the `force` flag.
+- **Upgrade for Stable and Nightly:**
+  Easily upgrade your installed stable and/or nightly versions. The upgrade command checks if you’re already on the latest version and only performs an upgrade if needed.
 - **Uninstallation & Reset:**
   Remove individual versions or reset your entire configuration with ease. (Full cleanup? See the caveats! ⚠️)
 - **Cross-Platform (Maybe):**
@@ -116,6 +118,19 @@ Display the currently active Neovim version.
 
 ```bash
 nvs current
+```
+
+#### upgrade
+
+Upgrade installed stable and/or nightly versions. If no argument is provided, both stable and nightly are upgraded (if installed).
+
+> [!note]
+> The upgrade command checks if the installed release is already up-to-date by comparing a stored identifier (release tag for stable, commit hash or published date for nightly). If no upgrade is needed, you'll be informed that you're on the latest version.
+
+```bash
+nvs upgrade         # Upgrades both stable and nightly if installed
+nvs upgrade stable  # Upgrades only the stable release if installed
+nvs upgrade nightly # Upgrades only the nightly release if installed
 ```
 
 #### uninstall
