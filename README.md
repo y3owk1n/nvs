@@ -28,8 +28,6 @@
 - **Global Symlink Management:**
   Automatically creates a consistent global binary in `~/.nvs/bin` for a seamless experience.
 
----
-
 ## 🚀 Installation
 
 ### From Source
