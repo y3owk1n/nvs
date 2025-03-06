@@ -55,7 +55,7 @@ func GetCachedReleases(force bool, cachePath string) ([]Release, error) {
 				if err == nil {
 					var releases []Release
 					if err = json.Unmarshal(data, &releases); err == nil {
-						logrus.Info("Using cached releases")
+						logrus.Debug("Using cached releases")
 						return releases, nil
 					}
 				}
