@@ -141,14 +141,14 @@ nvs reset
 
 ## 🔗 Adding nvs to Your PATH
 
-To easily run the Neovim binary provided by nvs, you need to add the global bin directory (`~/.nvms/bin`) to your PATH. Below are instructions for common shells:
+To easily run the Neovim binary provided by nvs, you need to add the global bin directory (`~/.nvs/bin`) to your PATH. Below are instructions for common shells:
 
 ### Bash
 
 Add the following line to your `~/.bashrc` (or `~/.bash_profile` on macOS):
 
 ```bash
-export PATH="$HOME/.nvms/bin:$PATH"
+export PATH="$HOME/.nvs/bin:$PATH"
 ```
 
 Then, reload your configuration:
@@ -162,7 +162,7 @@ source ~/.bashrc   # or source ~/.bash_profile
 Add the following line to your `~/.zshrc`:
 
 ```bash
-export PATH="$HOME/.nvms/bin:$PATH"
+export PATH="$HOME/.nvs/bin:$PATH"
 ```
 
 Then, reload your configuration:
@@ -176,7 +176,7 @@ source ~/.zshrc
 Add the following line to your `~/.config/fish/config.fish`:
 
 ```bash
-set -gx PATH $HOME/.nvms/bin $PATH
+set -gx PATH $HOME/.nvs/bin $PATH
 ```
 
 Then, reload your configuration:
