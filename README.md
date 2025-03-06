@@ -11,6 +11,10 @@
 > [!note]
 > I only have a mac and it's working perfectly fine for my use case. If it's not working for other OS, feel free to help fixing that or share it as an issue. I'll try to look into it.
 
+## 🌟 Showcase
+
+<https://github.com/user-attachments/assets/71546cf9-e0de-4ba6-a05c-15a6e69cebb2>
+
 ## 🌟 Features
 
 - **Easy Installation:**
