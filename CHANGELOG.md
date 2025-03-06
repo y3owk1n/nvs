@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/y3owk1n/nvsw/compare/v1.0.0...v1.0.1) (2025-03-06)
+
+
+### Bug Fixes
+
+* **build:** target main to capture version changes ([#5](https://github.com/y3owk1n/nvsw/issues/5)) ([2896bab](https://github.com/y3owk1n/nvsw/commit/2896babb856365c32c5c37fa634b97efe7c43d53))
+
 ## 1.0.0 (2025-03-06)
 
 
