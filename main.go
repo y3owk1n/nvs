@@ -89,8 +89,8 @@ func init() {
 		logrus.Fatalf("Failed to get user home directory: %v", err)
 	}
 	// Base configuration directory.
-	baseDir := filepath.Join(home, ".nvms")
-	// Versions are stored under ~/.nvms/versions.
+	baseDir := filepath.Join(home, ".nvsw")
+	// Versions are stored under ~/.nvsw/versions.
 	versionsDir = filepath.Join(baseDir, "versions")
 	if err := os.MkdirAll(versionsDir, 0755); err != nil {
 		logrus.Fatalf("Failed to create versions directory: %v", err)
@@ -327,17 +327,17 @@ var uninstallCmd = &cobra.Command{
 	},
 }
 
-// resetCmd deletes the entire ~/.nvms directory (removing symlinks, versions, cache, etc.).
+// resetCmd deletes the entire ~/.nvsw directory (removing symlinks, versions, cache, etc.).
 var resetCmd = &cobra.Command{
 	Use:   "reset",
 	Short: "Reset all data (remove symlinks, downloaded versions, cache, etc.)",
-	Long:  "WARNING: This command will delete the entire ~/.nvms directory and all its contents. Use with caution.",
+	Long:  "WARNING: This command will delete the entire ~/.nvsw directory and all its contents. Use with caution.",
 	Run: func(cmd *cobra.Command, args []string) {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			logrus.Fatalf("Failed to get home directory: %v", err)
 		}
-		baseDir := filepath.Join(home, ".nvms")
+		baseDir := filepath.Join(home, ".nvsw")
 		fmt.Printf("WARNING: This will delete all data in %s. Are you sure? (y/N): ", baseDir)
 		var answer string
 		fmt.Scanln(&answer)
