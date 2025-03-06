@@ -19,7 +19,7 @@ jobs:
               with:
                   go-version: "^1.23.6"
 
-            - name: Build project and prepare release artifact
+            - name: Make sure build does not error out
               run: |
                   env GOOS=darwin GOARCH=arm64 go build -ldflags "-X github.com/y3owk1n/nvsw.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvsw-darwin-arm64 ./main.go
                   env GOOS=darwin GOARCH=amd64 go build -ldflags "-X github.com/y3owk1n/nvsw.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvsw-darwin-amd64 ./main.go
