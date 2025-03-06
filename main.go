@@ -288,22 +288,22 @@ var listRemoteCmd = &cobra.Command{
 		}
 
 		for _, r := range releases {
+			// For prereleases (nightly builds)
 			if r.Prerelease {
-				var commit string
-				if strings.HasPrefix(r.TagName, "nightly-") {
-					commit = strings.TrimPrefix(r.TagName, "nightly-")
-				} else if r.TagName == "nightly" {
-					commit = "published on " + r.PublishedAt
+				if r.TagName == "nightly" {
+					fmt.Printf("%-10s (nightly: published on %s)\n", r.TagName, r.PublishedAt)
 				} else {
-					commit = r.TagName
+					// Fallback for any other prerelease tag format.
+					fmt.Println(r.TagName)
 				}
-				fmt.Printf("%-10s (nightly commit: %s)\n", r.TagName, commit)
 			} else {
-				tagToShow := r.TagName
+				// For stable releases: annotate only if the tag is exactly "stable"
 				if r.TagName == "stable" {
-					tagToShow = stableTag
+					fmt.Printf("%-10s (stable version: %s)\n", r.TagName, stableTag)
+				} else {
+					// For specific version releases, just print the tag name.
+					fmt.Println(r.TagName)
 				}
-				fmt.Printf("%-10s (stable version: %s)\n", r.TagName, tagToShow)
 			}
 		}
 	},
