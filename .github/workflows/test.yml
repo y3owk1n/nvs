@@ -21,7 +21,7 @@ jobs:
 
             - name: Make sure build does not error out
               run: |
-                  env GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvs-darwin-arm64 ./main.go
-                  env GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvs-darwin-amd64 ./main.go
-                  env GOOS=linux GOARCH=amd64 go build -ldflags "-X main.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvs-linux-amd64 ./main.go
-                  env GOOS=windows GOARCH=amd64 go build -ldflags "-X main.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvs-windows-amd64.exe ./main.go
+                  env GOOS=darwin GOARCH=arm64 go build -ldflags "-X github.com/y3owk1n/nvs/cmd.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvs-darwin-arm64 ./main.go
+                  env GOOS=darwin GOARCH=amd64 go build -ldflags "-X github.com/y3owk1n/nvs/cmd.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvs-darwin-amd64 ./main.go
+                  env GOOS=linux GOARCH=amd64 go build -ldflags "-X github.com/y3owk1n/nvs/cmd.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvs-linux-amd64 ./main.go
+                  env GOOS=windows GOARCH=amd64 go build -ldflags "-X github.com/y3owk1n/nvs/cmd.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvs-windows-amd64.exe ./main.go
