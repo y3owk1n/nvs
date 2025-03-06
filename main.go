@@ -46,6 +46,7 @@ type Release struct {
 	Prerelease  bool    `json:"prerelease"`
 	Assets      []Asset `json:"assets"`
 	PublishedAt string  `json:"published_at"`
+	CommitHash  string  `json:"target_commitish"`
 }
 
 // Asset represents an asset in a release.
@@ -354,7 +355,8 @@ var listRemoteCmd = &cobra.Command{
 			// For prereleases (nightly builds)
 			if r.Prerelease {
 				if r.TagName == "nightly" {
-					fmt.Printf("%-10s (nightly: published on %s)\n", r.TagName, r.PublishedAt)
+					shortCommit := r.CommitHash[:10]
+					fmt.Printf("%-10s (nightly: published on %s, commit: %s)\n", r.TagName, r.PublishedAt, shortCommit)
 				} else {
 					// Fallback for any other prerelease tag format.
 					fmt.Println(r.TagName)
@@ -514,7 +516,9 @@ func getReleaseIdentifier(release Release, alias string) string {
 		if strings.HasPrefix(release.TagName, "nightly-") {
 			return strings.TrimPrefix(release.TagName, "nightly-")
 		}
-		return release.PublishedAt
+
+		shortCommit := release.CommitHash[:10]
+		return shortCommit
 	}
 	return release.TagName
 }
