@@ -8,8 +8,6 @@
 
 **nvsw** (Neovim Version Switcher) is a cross-platform CLI tool written in Go 🏗️ that makes it super easy to install, switch between, and manage multiple versions of Neovim on your machine. Whether you’re testing a cutting‑edge nightly build 🌙 or sticking with the stable release 🔒, nvsw has got your back!
 
----
-
 ## Features 🌟
 
 - **Easy Installation:**
