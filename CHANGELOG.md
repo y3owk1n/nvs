@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/y3owk1n/nvs/compare/v1.3.0...v1.3.1) (2025-03-06)
+
+
+### Bug Fixes
+
+* **releases.GetCachedReleases:** lower down log level for cache release notification ([#31](https://github.com/y3owk1n/nvs/issues/31)) ([7c3086f](https://github.com/y3owk1n/nvs/commit/7c3086f2a435517bd3a9ca3a8002b1593d234435))
+
 ## [1.3.0](https://github.com/y3owk1n/nvs/compare/v1.2.1...v1.3.0) (2025-03-06)
 
 
