@@ -1,0 +1,59 @@
+on:
+    push:
+        branches:
+            - main
+
+permissions:
+    contents: write
+    pull-requests: write
+
+name: release-please
+
+jobs:
+    release-please:
+        runs-on: ubuntu-latest
+        steps:
+            # Create a release using the release-please action.
+            - uses: googleapis/release-please-action@v4
+              id: release
+              with:
+                  token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+                  release-type: go
+
+            # Checkout the repository.
+            - uses: actions/checkout@v4
+              if: ${{ steps.release.outputs.release_created }}
+              with:
+                  repository: ${{ github.event.pull_request.head.repo.full_name }}
+                  ref: ${{ github.head_ref }}
+
+            # Set up Go.
+            - uses: actions/setup-go@v5
+              if: ${{ steps.release.outputs.release_created }}
+              with:
+                  go-version: "^1.23.6"
+
+            # Build artifacts for multiple platforms.
+            - name: Build nvsw artifacts
+              if: ${{ steps.release.outputs.release_created }}
+              run: |
+                  mkdir -p build
+                  # Build for darwin-arm64.
+                  env GOOS=darwin GOARCH=arm64 go build -ldflags "-X github.com/y3owk1n/nvsw.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvsw-darwin-arm64 ./main.go
+                  # Build for darwin-amd64.
+                  env GOOS=darwin GOARCH=amd64 go build -ldflags "-X github.com/y3owk1n/nvsw.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvsw-darwin-amd64 ./main.go
+                  # Build for linux-amd64.
+                  env GOOS=linux GOARCH=amd64 go build -ldflags "-X github.com/y3owk1n/nvsw.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvsw-linux-amd64 ./main.go
+                  # Build for windows-amd64.
+                  env GOOS=windows GOARCH=amd64 go build -ldflags "-X github.com/y3owk1n/nvsw.Version=${{ steps.release.outputs.tag_name }}" -o ./build/nvsw-windows-amd64.exe ./main.go
+
+            # Upload release artifacts.
+            - name: Upload Release Artifacts
+              if: ${{ steps.release.outputs.release_created }}
+              env:
+                  GITHUB_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+              run: |
+                  gh release upload "${{ steps.release.outputs.tag_name }}" ./build/nvsw-darwin-arm64
+                  gh release upload "${{ steps.release.outputs.tag_name }}" ./build/nvsw-darwin-amd64
+                  gh release upload "${{ steps.release.outputs.tag_name }}" ./build/nvsw-linux-amd64
+                  gh release upload "${{ steps.release.outputs.tag_name }}" ./build/nvsw-windows-amd64.exe
