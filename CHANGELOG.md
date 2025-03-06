@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/y3owk1n/nvs/compare/v1.2.0...v1.2.1) (2025-03-06)
+
+
+### Bug Fixes
+
+* use cached releases instead to avoid potential api rate limit issue ([#22](https://github.com/y3owk1n/nvs/issues/22)) ([bbf9375](https://github.com/y3owk1n/nvs/commit/bbf9375f0579ed29c99cbe026fcd0c8386da877f))
+
 ## [1.2.0](https://github.com/y3owk1n/nvs/compare/v1.1.0...v1.2.0) (2025-03-06)
 
 
