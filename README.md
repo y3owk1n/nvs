@@ -6,7 +6,7 @@
 
 ## 👀 Overview
 
-**nvs** (Neovim Version Switcher) is a lightweight cross-platform (maybe, only tested on mac) CLI tool written in Go 🏗️ that makes it super easy to install, switch between, and manage multiple versions of Neovim on your machine. Whether you’re testing a cutting‑edge nightly build 🌙 or sticking with the stable release 🔒, nvs has got your back!
+**nvs** (Neovim Version Switcher/Manager) is a lightweight cross-platform (maybe, only tested on mac) CLI tool written in Go 🏗️ that makes it super easy to install, switch between, and manage multiple versions of Neovim on your machine. Whether you’re testing a cutting‑edge nightly build 🌙 or sticking with the stable release 🔒, nvs has got your back!
 
 > [!note]
 > I only have a mac and it's working perfectly fine for my use case. If it's not working for other OS, feel free to help fixing that or share it as an issue. I'll try to look into it.
