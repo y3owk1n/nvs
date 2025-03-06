@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/y3owk1n/nvs/compare/v1.0.1...v1.0.2) (2025-03-06)
+
+
+### Bug Fixes
+
+* rename nvsw -&gt; nvs ([#9](https://github.com/y3owk1n/nvs/issues/9)) ([e894271](https://github.com/y3owk1n/nvs/commit/e894271958304947a1ad2e8749766ae38cd5e539))
+
 ## [1.0.1](https://github.com/y3owk1n/nvsw/compare/v1.0.0...v1.0.1) (2025-03-06)
 
 
