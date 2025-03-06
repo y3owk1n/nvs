@@ -250,8 +250,19 @@ var listCmd = &cobra.Command{
 		if err != nil {
 			logrus.Fatalf("Error listing versions: %v", err)
 		}
+
+		// Try to determine the current version.
+		current, err := getCurrentVersion()
+		if err != nil {
+			logrus.Warn("No current version set or unable to determine the current version")
+		}
+
 		for _, v := range versions {
-			fmt.Println(v)
+			if v == current {
+				fmt.Printf("%s (current)\n", v)
+			} else {
+				fmt.Println(v)
+			}
 		}
 	},
 }
