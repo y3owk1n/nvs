@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/y3owk1n/nvs/compare/v1.1.0...v1.2.0) (2025-03-06)
+
+
+### Features
+
+* use commit hash as nightly identifier ([#20](https://github.com/y3owk1n/nvs/issues/20)) ([7529a21](https://github.com/y3owk1n/nvs/commit/7529a2116754624f2fd50f72331b0fae990d89d4))
+
 ## [1.1.0](https://github.com/y3owk1n/nvs/compare/v1.0.2...v1.1.0) (2025-03-06)
 
 
