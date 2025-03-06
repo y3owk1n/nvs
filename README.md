@@ -71,7 +71,7 @@ brew install y3owk1n/tap/nvs
 **nvs** uses a clean subcommand interface. Run nvs --help for full details.
 
 > [!note]
-> Remember to add `nvws` to your path. See next section about how.
+> Remember to add `nvs` to your path. See next section about how.
 
 ### Commands
 
