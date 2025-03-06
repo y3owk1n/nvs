@@ -1,12 +1,12 @@
-# nvsw (Neovim Version Switcher)
+# nvs (Neovim Version Switcher)
 
 **Neovim Version Switcher** – Easily install, switch, and manage multiple versions of Neovim like a boss 🚀
 
-[![GitHub release](https://img.shields.io/github/release/y3owk1n/nvsw.svg)](https://github.com/y3owk1n/nvsw/releases) [![License](https://img.shields.io/github/license/y3owk1n/nvsw.svg)](LICENSE)
+[![GitHub release](https://img.shields.io/github/release/y3owk1n/nvs.svg)](https://github.com/y3owk1n/nvs/releases) [![License](https://img.shields.io/github/license/y3owk1n/nvs.svg)](LICENSE)
 
 ## 👀 Overview
 
-**nvsw** (Neovim Version Switcher) is a lightweight cross-platform (maybe, only tested on mac) CLI tool written in Go 🏗️ that makes it super easy to install, switch between, and manage multiple versions of Neovim on your machine. Whether you’re testing a cutting‑edge nightly build 🌙 or sticking with the stable release 🔒, nvsw has got your back!
+**nvs** (Neovim Version Switcher) is a lightweight cross-platform (maybe, only tested on mac) CLI tool written in Go 🏗️ that makes it super easy to install, switch between, and manage multiple versions of Neovim on your machine. Whether you’re testing a cutting‑edge nightly build 🌙 or sticking with the stable release 🔒, nvs has got your back!
 
 > [!note]
 > I only have a mac and it's working perfectly fine for my use case. If it's not working for other OS, feel free to help fixing that or share it as an issue. I'll try to look into it.
@@ -16,7 +16,7 @@
 - **Easy Installation:**
   Download and install Neovim versions directly from GitHub with a single command.
 - **Version Switching:**
-  Switch between installed versions in a snap. nvsw updates a global symlink so your preferred version is always just a command away.
+  Switch between installed versions in a snap. nvs updates a global symlink so your preferred version is always just a command away.
 - **Remote Version Listing:**
   List all available remote releases (stable, nightly, etc.) with cached results to avoid GitHub rate limits ⚡. Need fresh data? Just add the `force` flag.
 - **Uninstallation & Reset:**
@@ -24,7 +24,7 @@
 - **Cross-Platform (Maybe):**
   Works on macOS (Intel & Apple Silicon), Linux, and Windows. (Maybe, not exactly tested yet, as i only have a mac)
 - **Global Symlink Management:**
-  Automatically creates a consistent global binary in `~/.nvsw/bin` for a seamless experience.
+  Automatically creates a consistent global binary in `~/.nvs/bin` for a seamless experience.
 
 ---
 
@@ -35,24 +35,24 @@
 Make sure you have [Go](https://golang.org/dl/) (v1.23 or later) installed. Then run:
 
 ```bash
-git clone https://github.com/y3owk1n/nvsw.git
-cd nvsw
+git clone https://github.com/y3owk1n/nvs.git
+cd nvs
 mkdir -p build
 # Build for darwin-arm64.
-env GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.Version=local-build" -o ./build/nvsw-darwin-arm64 ./main.go
+env GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.Version=local-build" -o ./build/nvs-darwin-arm64 ./main.go
 # Build for darwin-amd64.
-env GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.Version=local-build" -o ./build/nvsw-darwin-amd64 ./main.go
+env GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.Version=local-build" -o ./build/nvs-darwin-amd64 ./main.go
 # Build for linux-amd64.
-env GOOS=linux GOARCH=amd64 go build -ldflags "-X main.Version=local-build" -o ./build/nvsw-linux-amd64 ./main.go
+env GOOS=linux GOARCH=amd64 go build -ldflags "-X main.Version=local-build" -o ./build/nvs-linux-amd64 ./main.go
 # Build for windows-amd64.
-env GOOS=windows GOARCH=amd64 go build -ldflags "-X main.Version=local-build" -o ./build/nvsw-windows-amd64.exe ./main.go
+env GOOS=windows GOARCH=amd64 go build -ldflags "-X main.Version=local-build" -o ./build/nvs-windows-amd64.exe ./main.go
 ````
 
 Move the binary to your PATH or run it directly.
 
 ### Homebrew
 
-Install nvsw via Homebrew! Simply add our tap:
+Install nvs via Homebrew! Simply add our tap:
 
 ```bash
 brew tap y3owk1n/tap
@@ -61,12 +61,12 @@ brew tap y3owk1n/tap
 Then install with:
 
 ```bash
-brew install y3owk1n/tap/nvsw
+brew install y3owk1n/tap/nvs
 ```
 
 ## 💻 Usage
 
-**nvsw** uses a clean subcommand interface. Run nvsw --help for full details.
+**nvs** uses a clean subcommand interface. Run nvs --help for full details.
 
 > [!note]
 > Remember to add `nvws` to your path. See next section about how.
@@ -78,19 +78,19 @@ brew install y3owk1n/tap/nvsw
 Install a specific Neovim version.
 
 ```bash
-nvsw install stable    # Install the latest stable release 🔒
-nvsw install nightly   # Install the latest nightly release 🌙
-nvsw install v0.10.3   # Install a specific version
+nvs install stable    # Install the latest stable release 🔒
+nvs install nightly   # Install the latest nightly release 🌙
+nvs install v0.10.3   # Install a specific version
 ```
 
 #### use
 
-Switch to a particular version. This updates a global symlink in ~/.nvsw/bin so that you can simply run nvim.
+Switch to a particular version. This updates a global symlink in ~/.nvs/bin so that you can simply run nvim.
 
 ```bash
-nvsw use stable
-nvsw use nightly
-nvsw use v0.10.3
+nvs use stable
+nvs use nightly
+nvs use v0.10.3
 ```
 
 #### list
@@ -98,7 +98,7 @@ nvsw use v0.10.3
 List installed versions.
 
 ```bash
-nvsw list
+nvs list
 ```
 
 #### list-remote
@@ -106,8 +106,8 @@ nvsw list
 List available remote releases (cached for 5 minutes to avoid rate limiting). Use the force flag to refresh the cache.
 
 ```bash
-nvsw list-remote
-nvsw list-remote force
+nvs list-remote
+nvs list-remote force
 ```
 
 #### current
@@ -115,7 +115,7 @@ nvsw list-remote force
 Display the currently active Neovim version.
 
 ```bash
-nvsw current
+nvs current
 ```
 
 #### uninstall
@@ -123,9 +123,9 @@ nvsw current
 Uninstall an installed version.
 
 ```bash
-nvsw uninstall stable
-nvsw uninstall nightly
-nvsw uninstall v0.10.3
+nvs uninstall stable
+nvs uninstall nightly
+nvs uninstall v0.10.3
 ```
 
 #### reset
@@ -133,15 +133,15 @@ nvsw uninstall v0.10.3
 Reset to factory state.
 
 > [!warning]
-> This command deletes the entire nvsw configuration (removes ~/.nvsw, including downloaded versions, symlinks, and cache). Use with caution.
+> This command deletes the entire nvs configuration (removes ~/.nvs, including downloaded versions, symlinks, and cache). Use with caution.
 
 ```bash
-nvsw reset
+nvs reset
 ```
 
-## 🔗 Adding nvsw to Your PATH
+## 🔗 Adding nvs to Your PATH
 
-To easily run the Neovim binary provided by nvsw, you need to add the global bin directory (`~/.nvms/bin`) to your PATH. Below are instructions for common shells:
+To easily run the Neovim binary provided by nvs, you need to add the global bin directory (`~/.nvms/bin`) to your PATH. Below are instructions for common shells:
 
 ### Bash
 
@@ -187,14 +187,14 @@ source ~/.config/fish/config.fish
 
 ## 🧩 Shell Completions
 
-nvsw supports generating shell completions using Cobra’s built‐in functionality. You can easily enable command completions for your favorite shell by following the instructions below.
+nvs supports generating shell completions using Cobra’s built‐in functionality. You can easily enable command completions for your favorite shell by following the instructions below.
 
 ### Bash
 
 To enable Bash completions, add the following line to your `~/.bashrc` (or `~/.bash_profile` on macOS):
 
 ```bash
-source <(nvsw completion bash)
+source <(nvs completion bash)
 ```
 
 Then, reload your configuration:
@@ -211,10 +211,10 @@ For Zsh users, first ensure that completion is enabled by adding the following t
 autoload -U compinit && compinit
 ```
 
-Then add the following line to generate and load nvsw completions:
+Then add the following line to generate and load nvs completions:
 
 ```bash
-source <(nvsw completion zsh)
+source <(nvs completion zsh)
 ```
 
 Then, reload your configuration:
@@ -228,13 +228,13 @@ source ~/.zshrc
 Fish shell users can generate completions with:
 
 ```bash
-nvsw completion fish | source
+nvs completion fish | source
 ```
 
 To make the completions permanent, save them to your completions directory:
 
 ```bash
-nvsw completion fish > ~/.config/fish/completions/nvsw.fish
+nvs completion fish > ~/.config/fish/completions/nvs.fish
 ```
 
 Then, reload your configuration:
@@ -245,7 +245,7 @@ source ~/.config/fish/config.fish
 
 ## 📂 Configuration & Data
 
-**nvsw** stores its configuration, downloaded versions, and cache in the ~/.nvsw directory.
+**nvs** stores its configuration, downloaded versions, and cache in the ~/.nvs directory.
 
 > [!note]
 > Remember: Homebrew will not delete this directory upon uninstallation, you must delete it manually if you want a full cleanup.
@@ -264,4 +264,4 @@ Contributions are always welcome! Here's how you can help:
 
 This project is licensed under the MIT License. Feel free to use, modify, and distribute it as you see fit.
 
-Enjoy using nvsw, and may your Neovim sessions be ever lit! ✨
+Enjoy using nvs, and may your Neovim sessions be ever lit! ✨

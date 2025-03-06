@@ -89,8 +89,8 @@ func init() {
 		logrus.Fatalf("Failed to get user home directory: %v", err)
 	}
 	// Base configuration directory.
-	baseDir := filepath.Join(home, ".nvsw")
-	// Versions are stored under ~/.nvsw/versions.
+	baseDir := filepath.Join(home, ".nvs")
+	// Versions are stored under ~/.nvs/versions.
 	versionsDir = filepath.Join(baseDir, "versions")
 	if err := os.MkdirAll(versionsDir, 0755); err != nil {
 		logrus.Fatalf("Failed to create versions directory: %v", err)
@@ -130,7 +130,7 @@ func main() {
 // -------------------- Cobra Commands Setup --------------------
 
 var rootCmd = &cobra.Command{
-	Use:     "nvsw",
+	Use:     "nvs",
 	Short:   "Neovim version switcher",
 	Long:    "A CLI tool to install, switch, list, uninstall, and reset Neovim versions.",
 	Version: Version,
@@ -327,17 +327,17 @@ var uninstallCmd = &cobra.Command{
 	},
 }
 
-// resetCmd deletes the entire ~/.nvsw directory (removing symlinks, versions, cache, etc.).
+// resetCmd deletes the entire ~/.nvs directory (removing symlinks, versions, cache, etc.).
 var resetCmd = &cobra.Command{
 	Use:   "reset",
 	Short: "Reset all data (remove symlinks, downloaded versions, cache, etc.)",
-	Long:  "WARNING: This command will delete the entire ~/.nvsw directory and all its contents. Use with caution.",
+	Long:  "WARNING: This command will delete the entire ~/.nvs directory and all its contents. Use with caution.",
 	Run: func(cmd *cobra.Command, args []string) {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			logrus.Fatalf("Failed to get home directory: %v", err)
 		}
-		baseDir := filepath.Join(home, ".nvsw")
+		baseDir := filepath.Join(home, ".nvs")
 		fmt.Printf("WARNING: This will delete all data in %s. Are you sure? (y/N): ", baseDir)
 		var answer string
 		fmt.Scanln(&answer)
@@ -411,7 +411,7 @@ func getReleases() ([]Release, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	req.Header.Set("User-Agent", "nvsw")
+	req.Header.Set("User-Agent", "nvs")
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch releases: %w", err)
