@@ -1,12 +1,12 @@
 # nvs (Neovim Version Switcher)
 
-**Neovim Version Switcher** – Easily install, switch, and manage multiple versions of Neovim like a boss 🚀
+**Neovim Version Switcher** – Easily install, switch, and manage multiple versions and config of Neovim like a boss 🚀
 
 [![GitHub release](https://img.shields.io/github/release/y3owk1n/nvs.svg)](https://github.com/y3owk1n/nvs/releases) [![License](https://img.shields.io/github/license/y3owk1n/nvs.svg)](LICENSE)
 
 ## 👀 Overview
 
-**nvs** (Neovim Version Switcher/Manager) is a lightweight cross-platform (maybe, only tested on mac) CLI tool written in Go 🏗️ that makes it super easy to install, switch between, and manage multiple versions of Neovim on your machine. Whether you’re testing a cutting‑edge nightly build 🌙 or sticking with the stable release 🔒, nvs has got your back!
+**nvs** (Neovim Version Switcher/Manager) is a lightweight cross-platform (maybe, only tested on mac) CLI tool written in Go 🏗️ that makes it super easy to install, switch between, and manage multiple versions of Neovim and config on your machine. Whether you’re testing a cutting‑edge nightly build 🌙 or sticking with the stable release 🔒, nvs has got your back!
 
 > [!note]
 > I only have a mac and it's working perfectly fine for my use case. If it's not working for other OS, feel free to help fixing that or share it as an issue. I'll try to look into it.
@@ -17,6 +17,8 @@
   Download and install Neovim versions directly from GitHub with a single command.
 - **Version Switching:**
   Switch between installed versions in a snap. nvs updates a global symlink so your preferred version is always just a command away.
+- **Config Switching:**
+  Easily toggle between Neovim configurations by scanning ~/.config (including symlinks) and setting NVIM_APPNAME interactively or via a direct subcommand argument.
 - **Remote Version Listing:**
   List all available remote releases (stable, nightly, etc.) with cached results to avoid GitHub rate limits ⚡. Need fresh data? Just add the `force` flag.
 - **Upgrade for Stable and Nightly:**
@@ -129,6 +131,18 @@ Upgrade installed stable and/or nightly versions. If no argument is provided, bo
 nvs upgrade         # Upgrades both stable and nightly if installed
 nvs upgrade stable  # Upgrades only the stable release if installed
 nvs upgrade nightly # Upgrades only the nightly release if installed
+```
+
+#### config
+
+Switch between multiple configs. If no argument is provided, it will promp a select UI, else it will just open with specified name.
+
+> [!note]
+> It only scan the `~/.config` directory with names contain `nvim` in it. E.g. nvim, nvim-test, nvim-vanilla, ...
+
+```bash
+nvs config
+nvs config nvim-test
 ```
 
 #### uninstall
