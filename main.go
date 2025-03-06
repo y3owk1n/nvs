@@ -302,8 +302,8 @@ func findNvimBinary(dir string) string {
 	return binaryPath
 }
 
-var listCmd = &cobra.Command{
-	Use:   "list",
+var listInstalledCmd = &cobra.Command{
+	Use:   "list-installed",
 	Short: "List installed versions",
 	Run: func(cmd *cobra.Command, args []string) {
 		versions, err := listInstalledVersions()
@@ -427,7 +427,7 @@ func init() {
 	rootCmd.AddCommand(installCmd)
 	rootCmd.AddCommand(upgradeCmd)
 	rootCmd.AddCommand(useCmd)
-	rootCmd.AddCommand(listCmd)
+	rootCmd.AddCommand(listInstalledCmd)
 	rootCmd.AddCommand(listRemoteCmd)
 	rootCmd.AddCommand(currentCmd)
 	rootCmd.AddCommand(uninstallCmd)

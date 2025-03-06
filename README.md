@@ -95,12 +95,12 @@ nvs use nightly
 nvs use v0.10.3
 ```
 
-#### list
+#### list-installed
 
 List installed versions.
 
 ```bash
-nvs list
+nvs list-installed
 ```
 
 #### list-remote
