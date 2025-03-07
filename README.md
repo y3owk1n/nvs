@@ -6,7 +6,7 @@
 
 ## 👀 Overview
 
-**nvs** (Neovim Version Switcher/Manager) is a lightweight cross-platform (maybe, only tested on mac) CLI tool written in Go 🏗️ that makes it super easy to install, switch between, and manage multiple versions of Neovim and config on your machine. Whether you’re testing a cutting‑edge nightly build 🌙 or sticking with the stable release 🔒, nvs has got your back!
+**nvs** (Neovim Version Switcher/Manager) is a lightweight cross-platform CLI tool written in Go 🏗️ that makes it super easy to install, switch between, and manage multiple versions of Neovim and config on your machine. Whether you’re testing a cutting‑edge nightly build 🌙 or sticking with the stable release 🔒, nvs has got your back!
 
 > [!note]
 > I only have a mac and it's working perfectly fine for my use case. If it's not working for other OS, feel free to help fixing that or share it as an issue. I'll try to look into it.
@@ -30,7 +30,7 @@
 - **Uninstallation & Reset:**
   Remove individual versions or reset your entire configuration with ease. (Full cleanup? See the caveats! ⚠️)
 - **Cross-Platform (Maybe):**
-  Works on macOS (Intel & Apple Silicon), Linux, and Windows. (Maybe, not exactly tested yet, as i only have a mac)
+  Works on macOS (Intel & Apple Silicon), Linux, and Windows.
 - **Global Symlink Management:**
   Automatically creates a consistent global binary in `~/.nvs/bin` for a seamless experience.
 
@@ -44,14 +44,21 @@ Make sure you have [Go](https://golang.org/dl/) (v1.23 or later) installed. Then
 git clone https://github.com/y3owk1n/nvs.git
 cd nvs
 mkdir -p build
+mkdir -p build
 # Build for darwin-arm64
 env GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-darwin-arm64 ./main.go
+
 # Build for darwin-amd64
 env GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-darwin-amd64 ./main.go
+
+# Build for linux-arm64
+env GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-linux-arm64 ./main.go
+
 # Build for linux-amd64
 env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-linux-amd64 ./main.go
+
 # Build for windows-amd64
-env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-windows-amd64.exe ./main.go
+env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-windows64.exe ./main.go
 ````
 
 Move the binary to your PATH or run it directly.
@@ -100,6 +107,9 @@ nvs use nightly
 nvs use v0.10.3
 nvs use 0.10.3
 ```
+
+> [!warning]
+> If you're using windows, I think you will need `administrator` privilege terminal for nvs to symlink.
 
 #### list-installed
 
@@ -180,7 +190,9 @@ nvs reset
 
 To easily run the Neovim binary provided by nvs, you need to add the global bin directory (`~/.nvs/bin`) to your PATH. Below are instructions for common shells:
 
-### Bash
+### Macos Or Linux
+
+#### Bash
 
 Add the following line to your `~/.bashrc` (or `~/.bash_profile` on macOS):
 
@@ -194,7 +206,7 @@ Then, reload your configuration:
 source ~/.bashrc   # or source ~/.bash_profile
 ```
 
-### Zsh
+#### Zsh
 
 Add the following line to your `~/.zshrc`:
 
@@ -208,7 +220,7 @@ Then, reload your configuration:
 source ~/.zshrc
 ```
 
-### Fish
+#### Fish
 
 Add the following line to your `~/.config/fish/config.fish`:
 
@@ -221,6 +233,19 @@ Then, reload your configuration:
 ```bash
 source ~/.config/fish/config.fish
 ```
+
+### Windows
+
+> [!note]
+>
+
+Open an elevated Command Prompt (Run as administrator) and type:
+
+```bash
+setx PATH "%PATH%;C:\Users\YourName\.nvs\bin"
+```
+
+You may need to open a new Command Prompt session to see the updated PATH and try running `nvim`.
 
 ## 🧩 Shell Completions
 
