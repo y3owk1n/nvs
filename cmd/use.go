@@ -23,6 +23,15 @@ var useCmd = &cobra.Command{
 			logrus.Fatalf("Version %s is not installed", targetVersion)
 		}
 
+		// Check if the current symlink already points to the target version.
+		currentSymlink := filepath.Join(versionsDir, "current")
+		if current, err := os.Readlink(currentSymlink); err == nil {
+			if filepath.Base(current) == targetVersion {
+				fmt.Printf("Already using Neovim %s\n", targetVersion)
+				return
+			}
+		}
+
 		// Update the "current" symlink.
 		symlinkPath := filepath.Join(versionsDir, "current")
 		versionPath := filepath.Join(versionsDir, targetVersion)
