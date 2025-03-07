@@ -52,10 +52,16 @@ var listRemoteCmd = &cobra.Command{
 		// Combine the groups in order: nightly, stable, then others.
 		combined := append(append(groupNightly, groupStable...), groupOthers...)
 
+		current, err := utils.GetCurrentVersion(versionsDir)
+		if err != nil {
+			current = ""
+		}
+
 		// Create a modern table using tablewriter.
 		table := tablewriter.NewWriter(os.Stdout)
-		table.SetHeader([]string{"Tag", "Type", "Details"})
+		table.SetHeader([]string{"Tag", "Type", "Details", "Status"})
 		table.SetHeaderColor(
+			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
 			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
 			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
 			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
@@ -68,24 +74,38 @@ var listRemoteCmd = &cobra.Command{
 
 		// Append rows with release details.
 		for _, r := range combined {
+			var typ, details string
 			if r.Prerelease {
 				if r.TagName == "nightly" {
+					typ = "Nightly"
 					shortCommit := ""
 					if len(r.CommitHash) >= 10 {
 						shortCommit = r.CommitHash[:10]
 					}
-					details := fmt.Sprintf("Published: %s, Commit: %s", utils.TimeFormat(r.PublishedAt), shortCommit)
-					table.Append([]string{r.TagName, "Nightly", details})
+					details = fmt.Sprintf("Published: %s, Commit: %s", utils.TimeFormat(r.PublishedAt), shortCommit)
 				} else {
 					table.Append([]string{r.TagName, "Nightly", ""})
 				}
 			} else {
-				details := ""
 				if r.TagName == "stable" {
+					typ = "Stable"
 					details = fmt.Sprintf("Stable version: %s", stableTag)
+				} else {
+					typ = "Exact"
 				}
-				table.Append([]string{r.TagName, "Stable", details})
 			}
+
+			key := r.TagName
+			localStatus := ""
+			if utils.IsInstalled(versionsDir, key) {
+				if key == current {
+					localStatus = "Current"
+				} else {
+					localStatus = "Installed"
+				}
+			}
+
+			table.Append([]string{r.TagName, typ, details, localStatus})
 		}
 
 		table.Render()

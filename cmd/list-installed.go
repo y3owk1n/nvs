@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 
+	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -38,15 +39,21 @@ var listInstalledCmd = &cobra.Command{
 		table.SetRowLine(true)
 		table.SetCenterSeparator("│")
 		table.SetColumnSeparator("│")
-		table.SetAutoWrapText(true)
+		table.SetAutoWrapText(false)
 
 		// Append rows with installed version details.
 		for _, v := range versions {
-			status := "Installed"
+			var row []string
 			if v == current {
-				status = "Current"
+				// Emphasize the current version with a green arrow and bold text.
+				row = []string{
+					color.New(color.Bold, color.FgHiGreen).Sprintf("→ %s", v),
+					color.New(color.Bold, color.FgHiGreen).Sprintf("Current"),
+				}
+			} else {
+				row = []string{v, "Installed"}
 			}
-			table.Append([]string{v, status})
+			table.Append(row)
 		}
 
 		table.Render()
