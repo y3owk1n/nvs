@@ -4,10 +4,10 @@ on:
         tags-ignore:
             - "release-please--*" # Exclude tags containing "staging"
 
-name: test build
+name: CI
 
 jobs:
-    test:
+    ci:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
