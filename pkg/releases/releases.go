@@ -157,17 +157,17 @@ func GetAssetURL(release Release) (string, string, error) {
 	case "linux":
 		switch runtime.GOARCH {
 		case "amd64":
-			patterns = []string{"linux-x86_64.tar.gz"}
+			patterns = []string{"linux-x86_64.tar.gz", "linux-64.tar.gz"}
 		case "arm64":
-			patterns = []string{"linux-arm64.tar.gz"}
+			patterns = []string{"linux-arm64.tar.gz", "linux-64.tar.gz"}
 		default:
 			return "", "", fmt.Errorf("unsupported architecture: %s", runtime.GOARCH)
 		}
 	case "darwin":
 		if runtime.GOARCH == "arm64" {
-			patterns = []string{"macos-arm64.tar.gz"}
+			patterns = []string{"macos-arm64.tar.gz", "macos.tar.gz"}
 		} else {
-			patterns = []string{"macos-x86_64.tar.gz"}
+			patterns = []string{"macos-x86_64.tar.gz", "macos.tar.gz"}
 		}
 	case "windows":
 		patterns = []string{"win64.zip"}
