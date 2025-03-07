@@ -101,6 +101,16 @@ func GetReleases() ([]Release, error) {
 	return releases, nil
 }
 
+func NormalizeVersion(version string) string {
+	if version == "stable" || version == "nightly" {
+		return version
+	}
+	if !strings.HasPrefix(version, "v") {
+		return "v" + version
+	}
+	return version
+}
+
 func FindLatestStable(cachePath string) (Release, error) {
 	releases, err := GetCachedReleases(false, cachePath)
 	if err != nil {

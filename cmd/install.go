@@ -16,7 +16,8 @@ var installCmd = &cobra.Command{
 	Short:   "Install a Neovim version",
 	Args:    cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		alias := args[0]
+		alias := releases.NormalizeVersion(args[0])
+
 		// Pass the cache file path to resolve the version.
 		release, err := releases.ResolveVersion(alias, cacheFilePath)
 		if err != nil {

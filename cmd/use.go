@@ -8,6 +8,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/pkg/releases"
 	"github.com/y3owk1n/nvs/pkg/utils"
 )
 
@@ -16,7 +17,8 @@ var useCmd = &cobra.Command{
 	Short: "Switch to a specific version",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		alias := args[0]
+		alias := releases.NormalizeVersion(args[0])
+
 		targetVersion := alias
 		// For specific version names (other than "stable" or "nightly") you could resolve or validate further if needed.
 		if !utils.IsInstalled(versionsDir, targetVersion) {
