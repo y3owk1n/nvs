@@ -59,9 +59,8 @@ var listRemoteCmd = &cobra.Command{
 
 		// Create a modern table using tablewriter.
 		table := tablewriter.NewWriter(os.Stdout)
-		table.SetHeader([]string{"Tag", "Type", "Details", "Status"})
+		table.SetHeader([]string{"Tag", "Details", "Status"})
 		table.SetHeaderColor(
-			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
 			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
 			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
 			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
@@ -70,14 +69,13 @@ var listRemoteCmd = &cobra.Command{
 		table.SetRowLine(true)
 		table.SetCenterSeparator("│")
 		table.SetColumnSeparator("│")
-		table.SetAutoWrapText(true)
+		table.SetAutoWrapText(false)
 
 		// Append rows with release details.
 		for _, r := range combined {
-			var typ, details string
+			var details string
 			if r.Prerelease {
 				if r.TagName == "nightly" {
-					typ = "Nightly"
 					shortCommit := ""
 					if len(r.CommitHash) >= 10 {
 						shortCommit = r.CommitHash[:10]
@@ -88,10 +86,7 @@ var listRemoteCmd = &cobra.Command{
 				}
 			} else {
 				if r.TagName == "stable" {
-					typ = "Stable"
 					details = fmt.Sprintf("Stable version: %s", stableTag)
-				} else {
-					typ = "Exact"
 				}
 			}
 
@@ -105,7 +100,7 @@ var listRemoteCmd = &cobra.Command{
 				}
 			}
 
-			table.Append([]string{r.TagName, typ, details, localStatus})
+			table.Append([]string{r.TagName, details, localStatus})
 		}
 
 		table.Render()
