@@ -11,9 +11,10 @@ import (
 	"github.com/y3owk1n/nvs/pkg/utils"
 )
 
-var listRemoteCmd = &cobra.Command{
-	Use:   "list-remote [force]",
-	Short: "List available remote versions (cached for 5 minutes)",
+var listCmd = &cobra.Command{
+	Use:     "list [force]",
+	Aliases: []string{"ls"},
+	Short:   "List available remote versions (cached for 5 minutes or force) with status",
 	Run: func(cmd *cobra.Command, args []string) {
 		force := len(args) > 0 && args[0] == "force"
 		releasesResult, err := releases.GetCachedReleases(force, cacheFilePath)
@@ -59,7 +60,7 @@ var listRemoteCmd = &cobra.Command{
 
 		// Create a modern table using tablewriter.
 		table := tablewriter.NewWriter(os.Stdout)
-		table.SetHeader([]string{"Tag", "Details", "Status"})
+		table.SetHeader([]string{"Tag", "Status", "Details"})
 		table.SetHeaderColor(
 			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
 			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
@@ -71,9 +72,15 @@ var listRemoteCmd = &cobra.Command{
 		table.SetColumnSeparator("│")
 		table.SetAutoWrapText(false)
 
+		// ANSI color codes for status
+		green := "\033[32m"
+		yellow := "\033[33m"
+		reset := "\033[0m"
+
 		// Append rows with release details.
 		for _, r := range combined {
 			var details string
+			// Check for prereleases (nightly)
 			if r.Prerelease {
 				if r.TagName == "nightly" {
 					shortCommit := ""
@@ -82,9 +89,13 @@ var listRemoteCmd = &cobra.Command{
 					}
 					details = fmt.Sprintf("Published: %s, Commit: %s", utils.TimeFormat(r.PublishedAt), shortCommit)
 				} else {
-					table.Append([]string{r.TagName, "Nightly", ""})
+					// For other prereleases, add a simple row.
+					row := []string{r.TagName, "Nightly", ""}
+					table.Append(row)
+					continue
 				}
 			} else {
+				// Stable release.
 				if r.TagName == "stable" {
 					details = fmt.Sprintf("Stable version: %s", stableTag)
 				}
@@ -92,15 +103,28 @@ var listRemoteCmd = &cobra.Command{
 
 			key := r.TagName
 			localStatus := ""
+			// Determine if version is installed.
 			if utils.IsInstalled(versionsDir, key) {
 				if key == current {
 					localStatus = "Current"
 				} else {
 					localStatus = "Installed"
 				}
+			} else {
+				localStatus = "Not Installed"
 			}
 
-			table.Append([]string{r.TagName, details, localStatus})
+			row := []string{r.TagName, localStatus, details}
+
+			// Colorize the entire row if installed.
+			switch localStatus {
+			case "Current":
+				row = utils.ColorizeRow(row, green, reset)
+			case "Installed":
+				row = utils.ColorizeRow(row, yellow, reset)
+			}
+
+			table.Append(row)
 		}
 
 		table.Render()
@@ -108,5 +132,5 @@ var listRemoteCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(listRemoteCmd)
+	rootCmd.AddCommand(listCmd)
 }
