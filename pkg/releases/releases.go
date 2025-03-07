@@ -157,7 +157,7 @@ func GetAssetURL(release Release) (string, string, error) {
 	case "linux":
 		switch runtime.GOARCH {
 		case "amd64":
-			patterns = []string{"linux64.tar.gz"}
+			patterns = []string{"linux-x86_64.tar.gz"}
 		case "arm64":
 			patterns = []string{"linux-arm64.tar.gz"}
 		default:
@@ -165,9 +165,9 @@ func GetAssetURL(release Release) (string, string, error) {
 		}
 	case "darwin":
 		if runtime.GOARCH == "arm64" {
-			patterns = []string{"macos-arm64.tar.gz", "macos.tar.gz", "macos-arm64.zip", "macos.zip"}
+			patterns = []string{"macos-arm64.tar.gz"}
 		} else {
-			patterns = []string{"macos.tar.gz", "macos.zip"}
+			patterns = []string{"macos-x86_64.tar.gz"}
 		}
 	case "windows":
 		patterns = []string{"win64.zip"}
