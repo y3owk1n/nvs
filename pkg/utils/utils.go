@@ -146,3 +146,11 @@ func TimeFormat(iso string) string {
 	}
 	return t.Format("2006-01-02")
 }
+
+func ColorizeRow(row []string, color, reset string) []string {
+	colored := make([]string, len(row))
+	for i, cell := range row {
+		colored[i] = fmt.Sprintf("%s%s%s", color, cell, reset)
+	}
+	return colored
+}

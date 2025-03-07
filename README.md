@@ -111,24 +111,16 @@ nvs use 0.10.3
 > [!warning]
 > If you're using windows, I think you will need `administrator` privilege terminal for nvs to symlink.
 
-#### list-installed
-
-List installed versions.
-
-```bash
-nvs list-installed
-```
-
 #### list-remote
 
-List available remote releases (cached for 5 minutes to avoid rate limiting). Use the force flag to refresh the cache.
+List available remote releases and installed status (cached for 5 minutes to avoid rate limiting). Use the force flag to refresh the cache.
 
 > [!note]
 > The list will be filtered out for only nightly, stable, all version that are above v0.5.0.
 
 ```bash
-nvs list-remote
-nvs list-remote force
+nvs list
+nvs list force
 ```
 
 #### current
