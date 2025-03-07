@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/y3owk1n/nvs/compare/v1.5.0...v1.5.1) (2025-03-07)
+
+
+### Bug Fixes
+
+* add better description for list ([#55](https://github.com/y3owk1n/nvs/issues/55)) ([5674c83](https://github.com/y3owk1n/nvs/commit/5674c8324773dd7f3ff6c82861cbb7a5cc0cfdd2))
+
 ## [1.5.0](https://github.com/y3owk1n/nvs/compare/v1.4.0...v1.5.0) (2025-03-07)
 
 
