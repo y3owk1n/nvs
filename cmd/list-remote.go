@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 	"text/tabwriter"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/pkg/releases"
+	"github.com/y3owk1n/nvs/pkg/utils"
 )
 
 var listRemoteCmd = &cobra.Command{
@@ -44,7 +44,7 @@ var listRemoteCmd = &cobra.Command{
 					if len(r.CommitHash) >= 10 {
 						shortCommit = r.CommitHash[:10]
 					}
-					details := fmt.Sprintf("Published: %s, Commit: %s", timeFormat(r.PublishedAt), shortCommit)
+					details := fmt.Sprintf("Published: %s, Commit: %s", utils.TimeFormat(r.PublishedAt), shortCommit)
 					fmt.Fprintf(w, "%s\tNightly\t%s\n", r.TagName, details)
 				} else {
 					// Fallback for any other prerelease tag format.
@@ -63,15 +63,6 @@ var listRemoteCmd = &cobra.Command{
 
 		w.Flush()
 	},
-}
-
-// timeFormat is a helper to format the published date in a more user-friendly way.
-func timeFormat(iso string) string {
-	t, err := time.Parse(time.RFC3339, iso)
-	if err != nil {
-		return iso
-	}
-	return t.Format("2006-01-02")
 }
 
 func init() {
