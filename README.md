@@ -44,14 +44,14 @@ Make sure you have [Go](https://golang.org/dl/) (v1.23 or later) installed. Then
 git clone https://github.com/y3owk1n/nvs.git
 cd nvs
 mkdir -p build
-# Build for darwin-arm64.
-env GOOS=darwin GOARCH=arm64 go build -ldflags "-X github.com/y3owk1n/nvs/cmd.Version=local-build" -o ./build/nvs-darwin-arm64 ./main.go
-# Build for darwin-amd64.
-env GOOS=darwin GOARCH=amd64 go build -ldflags "-X github.com/y3owk1n/nvs/cmd.Version=local-build" -o ./build/nvs-darwin-amd64 ./main.go
-# Build for linux-amd64.
-env GOOS=linux GOARCH=amd64 go build -ldflags "-X github.com/y3owk1n/nvs/cmd.Version=local-build" -o ./build/nvs-linux-amd64 ./main.go
-# Build for windows-amd64.
-env GOOS=windows GOARCH=amd64 go build -ldflags "-X github.com/y3owk1n/nvs/cmd.Version=local-build" -o ./build/nvs-windows-amd64.exe ./main.go
+# Build for darwin-arm64
+env GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-darwin-arm64 ./main.go
+# Build for darwin-amd64
+env GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-darwin-amd64 ./main.go
+# Build for linux-amd64
+env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-linux-amd64 ./main.go
+# Build for windows-amd64
+env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-windows-amd64.exe ./main.go
 ````
 
 Move the binary to your PATH or run it directly.
@@ -87,6 +87,7 @@ Install a specific Neovim version.
 nvs install stable    # Install the latest stable release 🔒
 nvs install nightly   # Install the latest nightly release 🌙
 nvs install v0.10.3   # Install a specific version
+nvs install 0.10.3    # Or without the v keyword
 ```
 
 #### use
@@ -97,6 +98,7 @@ Switch to a particular version. This updates a global symlink in ~/.nvs/bin so t
 nvs use stable
 nvs use nightly
 nvs use v0.10.3
+nvs use 0.10.3
 ```
 
 #### list-installed
@@ -157,6 +159,7 @@ Uninstall an installed version.
 nvs uninstall stable
 nvs uninstall nightly
 nvs uninstall v0.10.3
+nvs uninstall 0.10.3
 ```
 
 #### reset
@@ -164,7 +167,7 @@ nvs uninstall v0.10.3
 Reset to factory state.
 
 > [!warning]
-> This command deletes the entire nvs configuration (removes ~/.nvs, including downloaded versions, symlinks, and cache). Use with caution.
+> This command will delete all data in ~/.nvs including items inside the bin directory, but will preserve the bin directory structure. Use with caution.
 
 ```bash
 nvs reset
