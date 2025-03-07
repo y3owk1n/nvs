@@ -17,30 +17,63 @@ import (
 
 var client = &http.Client{Timeout: 15 * time.Second}
 
+type progressReader struct {
+	reader   io.Reader
+	total    int64
+	current  int64
+	callback func(progress int)
+}
+
+func (pr *progressReader) Read(p []byte) (int, error) {
+	n, err := pr.reader.Read(p)
+	pr.current += int64(n)
+	if pr.total > 0 && pr.callback != nil {
+		percent := int(float64(pr.current) / float64(pr.total) * 100)
+		pr.callback(percent)
+	}
+	return n, err
+}
+
 // DownloadAndInstall downloads the asset, verifies its checksum (if available),
 // extracts the archive to the proper directory and writes a version file.
-func DownloadAndInstall(versionsDir, installName, assetURL, checksumURL, releaseIdentifier string) error {
+func DownloadAndInstall(versionsDir, installName, assetURL, checksumURL, releaseIdentifier string, progressCallback func(progress int), phaseCallback func(phase string)) error {
 	tmpFile, err := os.CreateTemp("", "nvim-*.archive")
 	if err != nil {
 		return fmt.Errorf("failed to create temporary file: %w", err)
 	}
 	defer os.Remove(tmpFile.Name())
 
-	if err := downloadFile(assetURL, tmpFile); err != nil {
+	if phaseCallback != nil {
+		phaseCallback("Downloading asset...")
+	}
+
+	if err := downloadFile(assetURL, tmpFile, progressCallback); err != nil {
 		return fmt.Errorf("download error: %w", err)
 	}
 
+	if phaseCallback != nil {
+		phaseCallback("Verifying checksum...")
+	}
+
 	if checksumURL != "" {
-		logrus.Info("Verifying checksum...")
+		logrus.Debug("Verifying checksum...")
 		if err := verifyChecksum(tmpFile, checksumURL); err != nil {
 			return fmt.Errorf("checksum verification failed: %w", err)
 		}
-		logrus.Info("Checksum verified successfully")
+		logrus.Debug("Checksum verified successfully")
+	}
+
+	if phaseCallback != nil {
+		phaseCallback("Extracting Archive...")
 	}
 
 	versionDir := filepath.Join(versionsDir, installName)
 	if err := archive.ExtractArchive(tmpFile, versionDir); err != nil {
 		return fmt.Errorf("extraction error: %w", err)
+	}
+
+	if phaseCallback != nil {
+		phaseCallback("Writing version file...")
 	}
 
 	versionFile := filepath.Join(versionDir, "version.txt")
@@ -50,7 +83,7 @@ func DownloadAndInstall(versionsDir, installName, assetURL, checksumURL, release
 	return nil
 }
 
-func downloadFile(url string, dest *os.File) error {
+func downloadFile(url string, dest *os.File, callback func(progress int)) error {
 	logrus.Debugf("Downloading asset from URL: %s", url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -64,12 +97,16 @@ func downloadFile(url string, dest *os.File) error {
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("download failed with status %d", resp.StatusCode)
 	}
-	n, err := io.Copy(dest, resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to copy download content: %w", err)
+
+	total := resp.ContentLength
+	pr := &progressReader{
+		reader:   resp.Body,
+		total:    total,
+		callback: callback,
 	}
-	if n == 0 {
-		return fmt.Errorf("downloaded file is empty; check asset URL: %s", url)
+
+	if _, err := io.Copy(dest, pr); err != nil {
+		return fmt.Errorf("failed to copy download content: %w", err)
 	}
 	return nil
 }

@@ -2,7 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"time"
 
+	"github.com/briandowns/spinner"
+	"github.com/fatih/color"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/pkg/installer"
@@ -45,7 +48,7 @@ var upgradeCmd = &cobra.Command{
 			remoteIdentifier := releases.GetReleaseIdentifier(release, alias)
 			installedIdentifier, err := releases.GetInstalledReleaseIdentifier(versionsDir, alias)
 			if err == nil && installedIdentifier == remoteIdentifier {
-				fmt.Printf("%s is already up-to-date (%s)\n", alias, installedIdentifier)
+				color.Yellow("%s is already up-to-date (%s)", alias, installedIdentifier)
 				continue
 			}
 
@@ -61,12 +64,34 @@ var upgradeCmd = &cobra.Command{
 				continue
 			}
 
-			fmt.Printf("Upgrading %s to new identifier %s...\n", alias, remoteIdentifier)
-			if err := installer.DownloadAndInstall(versionsDir, alias, assetURL, checksumURL, remoteIdentifier); err != nil {
+			color.Cyan("Upgrading %s to new identifier %s...", alias, remoteIdentifier)
+
+			// Create a modern spinner UI similar to GitHub CLI.
+			s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+			s.Suffix = " 0%"
+			s.Start()
+
+			// Call the installer function with a progress callback.
+			err = installer.DownloadAndInstall(
+				versionsDir,
+				alias,
+				assetURL,
+				checksumURL,
+				remoteIdentifier,
+				func(progress int) {
+					s.Suffix = fmt.Sprintf(" %d%%", progress)
+				},
+				func(phase string) {
+					s.Prefix = phase + " "
+					s.Suffix = ""
+				},
+			)
+			s.Stop()
+			if err != nil {
 				logrus.Errorf("Upgrade failed for %s: %v", alias, err)
 				continue
 			}
-			fmt.Printf("Upgrade successful for %s!\n", alias)
+			color.Green("Upgrade successful for %s!", alias)
 		}
 	},
 }

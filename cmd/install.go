@@ -2,7 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"time"
 
+	"github.com/briandowns/spinner"
+	"github.com/fatih/color"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/pkg/installer"
@@ -16,20 +19,23 @@ var installCmd = &cobra.Command{
 	Short:   "Install a Neovim version",
 	Args:    cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		// Normalize the version string.
 		alias := releases.NormalizeVersion(args[0])
+		color.Cyan("Resolving version %s...", alias)
 
-		// Pass the cache file path to resolve the version.
+		// Resolve the version (using the cache file).
 		release, err := releases.ResolveVersion(alias, cacheFilePath)
 		if err != nil {
 			logrus.Fatalf("Error resolving version: %v", err)
 		}
 
+		// Determine the installation folder name.
 		installName := alias
 		if alias != "stable" && alias != "nightly" {
 			installName = release.TagName
 		}
 		if utils.IsInstalled(versionsDir, installName) {
-			fmt.Printf("Version %s is already installed\n", installName)
+			color.Yellow("Version %s is already installed", installName)
 			return
 		}
 
@@ -43,11 +49,35 @@ var installCmd = &cobra.Command{
 		}
 
 		releaseIdentifier := releases.GetReleaseIdentifier(release, alias)
-		fmt.Printf("Installing Neovim %s...\n", alias)
-		if err := installer.DownloadAndInstall(versionsDir, installName, assetURL, checksumURL, releaseIdentifier); err != nil {
+		color.Cyan("Installing Neovim %s...", alias)
+
+		// Create a spinner with a modern look, similar to GitHub CLI.
+		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+		s.Suffix = " 0%"
+		s.Start()
+
+		// Call the installer function that reports progress.
+		// This function is assumed to accept a callback that receives progress (0-100).
+		err = installer.DownloadAndInstall(
+			versionsDir,
+			installName,
+			assetURL,
+			checksumURL,
+			releaseIdentifier,
+			func(progress int) {
+				s.Suffix = fmt.Sprintf(" %d%%", progress)
+			},
+			func(phase string) {
+				s.Prefix = phase + " "
+				s.Suffix = ""
+			},
+		)
+		if err != nil {
+			s.Stop()
 			logrus.Fatalf("Installation failed: %v", err)
 		}
-		fmt.Println("\nInstallation successful!")
+		s.Stop()
+		color.Green("\nInstallation successful!")
 	},
 }
 
