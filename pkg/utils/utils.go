@@ -2,10 +2,11 @@ package utils
 
 import (
 	"fmt"
-	"io/fs"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -56,15 +57,27 @@ func GetCurrentVersion(versionsDir string) (string, error) {
 // FindNvimBinary searches for an executable named "nvim" or starting with "nvim-".
 func FindNvimBinary(dir string) string {
 	var binaryPath string
-	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+	filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
-			return nil
+			return nil // skip error
 		}
-		if !d.IsDir() && (d.Name() == "nvim" || strings.HasPrefix(d.Name(), "nvim-")) {
-			info, err := d.Info()
-			if err == nil && info.Mode()&0111 != 0 {
-				binaryPath = path
-				return filepath.SkipDir
+		if !d.IsDir() {
+			name := d.Name()
+			if runtime.GOOS == "windows" {
+				// Check for nvim.exe or files starting with nvim- (with .exe extension)
+				if name == "nvim.exe" || (strings.HasPrefix(name, "nvim-") && filepath.Ext(name) == ".exe") {
+					binaryPath = path
+					return io.EOF // break early
+				}
+			} else {
+				// Unix-like systems: check for "nvim" or names starting with "nvim-"
+				if name == "nvim" || strings.HasPrefix(name, "nvim-") {
+					info, err := d.Info()
+					if err == nil && info.Mode()&0111 != 0 {
+						binaryPath = path
+						return io.EOF // break early
+					}
+				}
 			}
 		}
 		return nil
