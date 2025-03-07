@@ -121,6 +121,14 @@ nvs list-remote
 nvs list-remote force
 ```
 
+#### current
+
+Display the currently active Neovim version.
+
+```bash
+nvs current
+```
+
 #### upgrade
 
 Upgrade installed stable and/or nightly versions. If no argument is provided, both stable and nightly are upgraded (if installed).
