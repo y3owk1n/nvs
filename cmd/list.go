@@ -14,7 +14,7 @@ import (
 var listCmd = &cobra.Command{
 	Use:     "list [force]",
 	Aliases: []string{"ls"},
-	Short:   "List available remote versions (cached for 5 minutes or force) with status",
+	Short:   "List available remote versions with installation status (cached for 5 minutes or force)",
 	Run: func(cmd *cobra.Command, args []string) {
 		force := len(args) > 0 && args[0] == "force"
 		releasesResult, err := releases.GetCachedReleases(force, cacheFilePath)
