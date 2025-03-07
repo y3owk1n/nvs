@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.5.0](https://github.com/y3owk1n/nvs/compare/v1.4.0...v1.5.0) (2025-03-07)
+
+
+### Features
+
+* add current cmd to show current using version ([#46](https://github.com/y3owk1n/nvs/issues/46)) ([a9333a3](https://github.com/y3owk1n/nvs/commit/a9333a3d4338ce14df3d7357fbd349ae039a51a2))
+* merge list-installed and list-remote to just list ([#53](https://github.com/y3owk1n/nvs/issues/53)) ([68da105](https://github.com/y3owk1n/nvs/commit/68da105b31712b44d483f55858d0845d81679aee))
+
+
+### Bug Fixes
+
+* **listRemoteCmd:** remove "type" column ([#50](https://github.com/y3owk1n/nvs/issues/50)) ([6ff5cc1](https://github.com/y3owk1n/nvs/commit/6ff5cc17515e6cb37e32b17a83ce99ee91e932c7))
+* **releases.GetAssetURL:** add more pattern for matching on macos and linux older versions ([#52](https://github.com/y3owk1n/nvs/issues/52)) ([71805e5](https://github.com/y3owk1n/nvs/commit/71805e5fb6283dbea9d296e6e69435a03000b607))
+* **releases.GetAssetUrl:** change to exact patterns for macos and linux ([#47](https://github.com/y3owk1n/nvs/issues/47)) ([8c9610e](https://github.com/y3owk1n/nvs/commit/8c9610e06cbac246a3fed2992addce9af4dc8cf4))
+* **releases:** filter releases to v0.5.0 and above ([#44](https://github.com/y3owk1n/nvs/issues/44)) ([1918d9e](https://github.com/y3owk1n/nvs/commit/1918d9e71bf63f54dd19a930ec08660da07478ee))
+* **utils.FindNvimBinary:** windows needs to consider .exe also as their binary ([#49](https://github.com/y3owk1n/nvs/issues/49)) ([54f9450](https://github.com/y3owk1n/nvs/commit/54f9450cff363b8e2fb600b853877a37a129e2b2))
+
 ## [1.4.0](https://github.com/y3owk1n/nvs/compare/v1.3.1...v1.4.0) (2025-03-07)
 
 
