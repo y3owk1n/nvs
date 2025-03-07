@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.4.0](https://github.com/y3owk1n/nvs/compare/v1.3.1...v1.4.0) (2025-03-07)
+
+
+### Features
+
+* add spinner and better UI for install and upgrade ([#41](https://github.com/y3owk1n/nvs/issues/41)) ([5e5934d](https://github.com/y3owk1n/nvs/commit/5e5934d5af943445db6383fb808f3c18f9327b70))
+* keep .nvs/bin structure during reset to avoid needs to relink path ([#36](https://github.com/y3owk1n/nvs/issues/36)) ([5489e7d](https://github.com/y3owk1n/nvs/commit/5489e7d9fa0b35c7bb12b69c243bc2bcf1697f5a))
+* make list nicer with table ([#35](https://github.com/y3owk1n/nvs/issues/35)) ([e7f7ad4](https://github.com/y3owk1n/nvs/commit/e7f7ad4c66b52c9011649574c8cdac5a04f780b2))
+* normalise version to support 0.0.0 or v0.0.0 ([#40](https://github.com/y3owk1n/nvs/issues/40)) ([ecb0c68](https://github.com/y3owk1n/nvs/commit/ecb0c68d6240d69eaed841460f41e659a3b8b073))
+* update table ui with more details ([#43](https://github.com/y3owk1n/nvs/issues/43)) ([6848e52](https://github.com/y3owk1n/nvs/commit/6848e529598e97b1aad32d822c8a9050c18a36d6))
+* use tablewriter for table UI ([#39](https://github.com/y3owk1n/nvs/issues/39)) ([7666dfa](https://github.com/y3owk1n/nvs/commit/7666dfa125b8f241f1e753a3e60cc3db83fdc159))
+
+
+### Bug Fixes
+
+* abort switching if trying to switch to current version ([#37](https://github.com/y3owk1n/nvs/issues/37)) ([cc33f2b](https://github.com/y3owk1n/nvs/commit/cc33f2b6f9503dc7a3586dc06ae4de1f36f5b1ca))
+
+
+### Performance Improvements
+
+* optimise build for smaller binary ([#33](https://github.com/y3owk1n/nvs/issues/33)) ([058b34b](https://github.com/y3owk1n/nvs/commit/058b34b96f13f2fc3333618af9f3a79e9a6822d8))
+
 ## [1.3.1](https://github.com/y3owk1n/nvs/compare/v1.3.0...v1.3.1) (2025-03-06)
 
 
