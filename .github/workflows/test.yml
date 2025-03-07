@@ -7,7 +7,7 @@ on:
 name: test build
 
 jobs:
-    build:
+    test:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -19,20 +19,23 @@ jobs:
               with:
                   go-version: "^1.23.6"
 
-            - name: Make sure build does not error out
+            - name: Install dependencies
+              run: go get .
+
+            - name: Ensure go.mod is up to date
+              run: go mod tidy
+
+            - name: Check code formatting
               run: |
-                  mkdir -p build
-                  # Build for darwin-arm64
-                  env GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-darwin-arm64 ./main.go
+                  fmt_out=$(go fmt ./...)
+                  if [ -n "$fmt_out" ]; then
+                    echo "The following files are not formatted:"
+                    echo "$fmt_out"
+                    exit 1
+                  fi
 
-                  # Build for darwin-amd64
-                  env GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-darwin-amd64 ./main.go
+            - name: Run vet
+              run: go vet ./...
 
-                  # Build for linux-arm64
-                  env GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-linux-arm64 ./main.go
-
-                  # Build for linux-amd64
-                  env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-linux-amd64 ./main.go
-
-                  # Build for windows-amd64
-                  env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-windows64.exe ./main.go
+            - name: Run test
+              run: go test ./...
