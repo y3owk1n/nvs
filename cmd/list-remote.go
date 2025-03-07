@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 
+	"github.com/olekukonko/tablewriter"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/pkg/releases"
@@ -23,21 +23,51 @@ var listRemoteCmd = &cobra.Command{
 
 		stableRelease, err := releases.FindLatestStable(cacheFilePath)
 		stableTag := ""
-
 		if err == nil {
 			stableTag = stableRelease.TagName
 		} else {
 			stableTag = "stable"
 		}
 
-		// Use tabwriter to format table output.
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		// Print header.
-		fmt.Fprintln(w, "TAG\tTYPE\tDETAILS")
-		fmt.Fprintln(w, "----\t----\t-------")
+		// Group releases into three slices:
+		// - Nightly releases (prereleases)
+		// - Stable release (tag equals "stable")
+		// - Other versions (non-prerelease and not "stable")
+		var groupNightly []releases.Release
+		var groupStable []releases.Release
+		var groupOthers []releases.Release
 
 		for _, r := range releasesResult {
-			// For prereleases (nightly builds)
+			if r.Prerelease {
+				groupNightly = append(groupNightly, r)
+			} else {
+				if r.TagName == "stable" {
+					groupStable = append(groupStable, r)
+				} else {
+					groupOthers = append(groupOthers, r)
+				}
+			}
+		}
+
+		// Combine the groups in order: nightly, stable, then others.
+		combined := append(append(groupNightly, groupStable...), groupOthers...)
+
+		// Create a modern table using tablewriter.
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetHeader([]string{"Tag", "Type", "Details"})
+		table.SetHeaderColor(
+			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
+			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
+			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
+		)
+		table.SetBorder(true)
+		table.SetRowLine(true)
+		table.SetCenterSeparator("│")
+		table.SetColumnSeparator("│")
+		table.SetAutoWrapText(true)
+
+		// Append rows with release details.
+		for _, r := range combined {
 			if r.Prerelease {
 				if r.TagName == "nightly" {
 					shortCommit := ""
@@ -45,23 +75,20 @@ var listRemoteCmd = &cobra.Command{
 						shortCommit = r.CommitHash[:10]
 					}
 					details := fmt.Sprintf("Published: %s, Commit: %s", utils.TimeFormat(r.PublishedAt), shortCommit)
-					fmt.Fprintf(w, "%s\tNightly\t%s\n", r.TagName, details)
+					table.Append([]string{r.TagName, "Nightly", details})
 				} else {
-					// Fallback for any other prerelease tag format.
-					fmt.Fprintf(w, "%s\tNightly\t\n", r.TagName)
+					table.Append([]string{r.TagName, "Nightly", ""})
 				}
 			} else {
 				details := ""
-				// For stable releases: annotate only if the tag is exactly "stable"
 				if r.TagName == "stable" {
 					details = fmt.Sprintf("Stable version: %s", stableTag)
 				}
-				// For specific version releases, just print the tag name.
-				fmt.Fprintf(w, "%s\tStable\t%s\n", r.TagName, details)
+				table.Append([]string{r.TagName, "Stable", details})
 			}
 		}
 
-		w.Flush()
+		table.Render()
 	},
 }
 
