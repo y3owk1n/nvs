@@ -110,3 +110,17 @@ func LaunchNvimWithConfig(configName string) {
 		logrus.Fatalf("Failed to launch nvim: %v", err)
 	}
 }
+
+func ClearDirectory(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		path := filepath.Join(dir, entry.Name())
+		if err := os.RemoveAll(path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
