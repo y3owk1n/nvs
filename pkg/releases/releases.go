@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/sirupsen/logrus"
 )
 
@@ -98,7 +99,7 @@ func GetReleases() ([]Release, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&releases); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
-	return releases, nil
+	return FilterReleases(releases, "0.5.0")
 }
 
 func NormalizeVersion(version string) string {
@@ -211,4 +212,34 @@ func GetReleaseIdentifier(release Release, alias string) string {
 		return release.CommitHash[:10]
 	}
 	return release.TagName
+}
+
+func FilterReleases(releases []Release, minVersion string) ([]Release, error) {
+	constraints, err := semver.NewConstraint(">=" + minVersion)
+	if err != nil {
+		return nil, fmt.Errorf("invalid version constraint: %w", err)
+	}
+
+	var filtered []Release
+	for _, r := range releases {
+		// Keep "stable" and "nightly" tags
+		if r.TagName == "stable" || r.TagName == "nightly" {
+			filtered = append(filtered, r)
+			continue
+		}
+
+		// Normalize version: remove 'v' prefix if present
+		versionStr := strings.TrimPrefix(r.TagName, "v")
+
+		v, err := semver.NewVersion(versionStr)
+		if err != nil {
+			fmt.Printf("Skipping invalid version: %s\n", r.TagName)
+			continue
+		}
+
+		if constraints.Check(v) {
+			filtered = append(filtered, r)
+		}
+	}
+	return filtered, nil
 }

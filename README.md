@@ -113,17 +113,12 @@ nvs list-installed
 
 List available remote releases (cached for 5 minutes to avoid rate limiting). Use the force flag to refresh the cache.
 
+> [!note]
+> The list will be filtered out for only nightly, stable, all version that are above v0.5.0.
+
 ```bash
 nvs list-remote
 nvs list-remote force
-```
-
-#### current
-
-Display the currently active Neovim version.
-
-```bash
-nvs current
 ```
 
 #### upgrade

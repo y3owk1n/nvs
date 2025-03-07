@@ -3,6 +3,7 @@ module github.com/y3owk1n/nvs
 go 1.23.6
 
 require (
+	github.com/Masterminds/semver v1.5.0
 	github.com/briandowns/spinner v1.23.2
 	github.com/fatih/color v1.18.0
 	github.com/h2non/filetype v1.1.3
