@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -123,4 +124,12 @@ func ClearDirectory(dir string) error {
 		}
 	}
 	return nil
+}
+
+func TimeFormat(iso string) string {
+	t, err := time.Parse(time.RFC3339, iso)
+	if err != nil {
+		return iso
+	}
+	return t.Format("2006-01-02")
 }
