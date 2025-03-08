@@ -6,7 +6,6 @@ on:
 name: CI
 permissions:
     contents: read
-
 jobs:
     lint:
         name: lint
@@ -27,7 +26,6 @@ jobs:
               uses: golangci/golangci-lint-action@v6
               with:
                   version: v1.64
-
     go-checks:
         name: ${{ matrix.check }}
         strategy:
@@ -44,9 +42,9 @@ jobs:
             - uses: actions/setup-go@v5
               with:
                   go-version: ${{ matrix.go }}
-
-            - name: Check code formatting
-              if: ${{ matrix.check == 'formatting' }}
+            - name: Check code formatting (Unix)
+              if: ${{ matrix.check == 'formatting' && matrix.os != 'windows-latest' }}
+              shell: bash
               run: |
                   fmt_out=$(go fmt ./...)
                   if [ -n "$fmt_out" ]; then
@@ -54,11 +52,19 @@ jobs:
                     echo "$fmt_out"
                     exit 1
                   fi
-
+            - name: Check code formatting (Windows)
+              if: ${{ matrix.check == 'formatting' && matrix.os == 'windows-latest' }}
+              shell: pwsh
+              run: |
+                  $fmt_out = & go fmt ./...
+                  if ($fmt_out) {
+                      Write-Host "The following files are not formatted:"
+                      Write-Host $fmt_out
+                      exit 1
+                  }
             - name: Run vet
               if: ${{ matrix.check == 'vet' }}
               run: go vet ./...
-
             - name: Run test
               if: ${{ matrix.check == 'test' }}
               run: go test ./... -v
