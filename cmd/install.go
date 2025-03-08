@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
-	"github.com/fatih/color"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/pkg/installer"
@@ -21,21 +20,19 @@ var installCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		// Normalize the version string.
 		alias := releases.NormalizeVersion(args[0])
-		color.Cyan("Resolving version %s...", alias)
+		fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Resolving version %s...", alias)))
 
-		// Resolve the version (using the cache file).
 		release, err := releases.ResolveVersion(alias, cacheFilePath)
 		if err != nil {
 			logrus.Fatalf("Error resolving version: %v", err)
 		}
 
-		// Determine the installation folder name.
 		installName := alias
 		if alias != "stable" && alias != "nightly" {
 			installName = release.TagName
 		}
 		if utils.IsInstalled(versionsDir, installName) {
-			color.Yellow("Version %s is already installed", installName)
+			fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText(fmt.Sprintf("Version %s is already installed.", installName)))
 			return
 		}
 
@@ -49,15 +46,12 @@ var installCmd = &cobra.Command{
 		}
 
 		releaseIdentifier := releases.GetReleaseIdentifier(release, alias)
-		color.Cyan("Installing Neovim %s...", alias)
+		fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Installing Neovim %s...", alias)))
 
-		// Create a spinner with a modern look, similar to GitHub CLI.
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Suffix = " 0%"
 		s.Start()
 
-		// Call the installer function that reports progress.
-		// This function is assumed to accept a callback that receives progress (0-100).
 		err = installer.DownloadAndInstall(
 			versionsDir,
 			installName,
@@ -72,12 +66,11 @@ var installCmd = &cobra.Command{
 				s.Suffix = ""
 			},
 		)
+		s.Stop()
 		if err != nil {
-			s.Stop()
 			logrus.Fatalf("Installation failed: %v", err)
 		}
-		s.Stop()
-		color.Green("\nInstallation successful!")
+		fmt.Printf("%s %s\n", utils.SuccessIcon(), utils.WhiteText("Installation successful!"))
 	},
 }
 

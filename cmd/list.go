@@ -17,40 +17,32 @@ var listCmd = &cobra.Command{
 	Short:   "List available remote versions with installation status (cached for 5 minutes or force)",
 	Run: func(cmd *cobra.Command, args []string) {
 		force := len(args) > 0 && args[0] == "force"
+
+		fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText("Fetching available versions..."))
+
 		releasesResult, err := releases.GetCachedReleases(force, cacheFilePath)
 		if err != nil {
 			logrus.Fatalf("Error fetching releases: %v", err)
 		}
 
 		stableRelease, err := releases.FindLatestStable(cacheFilePath)
-		stableTag := ""
+		stableTag := "stable"
 		if err == nil {
 			stableTag = stableRelease.TagName
-		} else {
-			stableTag = "stable"
 		}
 
-		// Group releases into three slices:
-		// - Nightly releases (prereleases)
-		// - Stable release (tag equals "stable")
-		// - Other versions (non-prerelease and not "stable")
-		var groupNightly []releases.Release
-		var groupStable []releases.Release
-		var groupOthers []releases.Release
+		var groupNightly, groupStable, groupOthers []releases.Release
 
 		for _, r := range releasesResult {
 			if r.Prerelease {
 				groupNightly = append(groupNightly, r)
+			} else if r.TagName == "stable" {
+				groupStable = append(groupStable, r)
 			} else {
-				if r.TagName == "stable" {
-					groupStable = append(groupStable, r)
-				} else {
-					groupOthers = append(groupOthers, r)
-				}
+				groupOthers = append(groupOthers, r)
 			}
 		}
 
-		// Combine the groups in order: nightly, stable, then others.
 		combined := append(append(groupNightly, groupStable...), groupOthers...)
 
 		current, err := utils.GetCurrentVersion(versionsDir)
@@ -58,7 +50,6 @@ var listCmd = &cobra.Command{
 			current = ""
 		}
 
-		// Create a modern table using tablewriter.
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetHeader([]string{"Tag", "Status", "Details"})
 		table.SetHeaderColor(
@@ -72,38 +63,30 @@ var listCmd = &cobra.Command{
 		table.SetColumnSeparator("│")
 		table.SetAutoWrapText(false)
 
-		// ANSI color codes for status
 		green := "\033[32m"
 		yellow := "\033[33m"
 		reset := "\033[0m"
 
-		// Append rows with release details.
 		for _, r := range combined {
 			var details string
-			// Check for prereleases (nightly)
+
 			if r.Prerelease {
 				if r.TagName == "nightly" {
 					shortCommit := releases.GetReleaseIdentifier(r, "nightly")
 					details = fmt.Sprintf("Published: %s, Commit: %s", utils.TimeFormat(r.PublishedAt), shortCommit)
 				} else {
-					// For other prereleases, add a simple row.
 					row := []string{r.TagName, "Nightly", ""}
 					table.Append(row)
 					continue
 				}
-			} else {
-				// Stable release.
-				if r.TagName == "stable" {
-					details = fmt.Sprintf("Stable version: %s", stableTag)
-				}
+			} else if r.TagName == "stable" {
+				details = fmt.Sprintf("Stable version: %s", stableTag)
 			}
 
 			key := r.TagName
 			localStatus := ""
 			upgradeIndicator := ""
-			upgradeIcon := "(↑)"
 
-			// Determine if version is installed.
 			if utils.IsInstalled(versionsDir, key) {
 				release, err := releases.ResolveVersion(key, cacheFilePath)
 				if err != nil {
@@ -115,10 +98,10 @@ var listCmd = &cobra.Command{
 				if err != nil {
 					installedIdentifier = ""
 				}
-				// Compare installed identifier with remote.
 				remoteIdentifier := releases.GetReleaseIdentifier(release, key)
+
 				if installedIdentifier != "" && installedIdentifier != remoteIdentifier {
-					upgradeIndicator = " " + upgradeIcon
+					upgradeIndicator = " (" + utils.Upgrade + ")"
 				}
 				if key == current {
 					localStatus = "Current" + upgradeIndicator
@@ -131,7 +114,6 @@ var listCmd = &cobra.Command{
 
 			row := []string{r.TagName, localStatus, details}
 
-			// Colorize the entire row if installed.
 			switch localStatus {
 			case "Current" + upgradeIndicator:
 				row = utils.ColorizeRow(row, green, reset)

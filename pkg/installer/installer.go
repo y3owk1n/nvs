@@ -34,8 +34,6 @@ func (pr *progressReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// DownloadAndInstall downloads the asset, verifies its checksum (if available),
-// extracts the archive to the proper directory and writes a version file.
 func DownloadAndInstall(versionsDir, installName, assetURL, checksumURL, releaseIdentifier string, progressCallback func(progress int), phaseCallback func(phase string)) error {
 	tmpFile, err := os.CreateTemp("", "nvim-*.archive")
 	if err != nil {

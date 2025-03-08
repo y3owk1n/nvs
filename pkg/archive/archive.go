@@ -13,7 +13,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// ExtractArchive detects the archive format and extracts it accordingly.
 func ExtractArchive(src *os.File, dest string) error {
 	if _, err := src.Seek(0, io.SeekStart); err != nil {
 		return fmt.Errorf("failed to seek to start of file: %w", err)
@@ -71,7 +70,7 @@ func extractTarGz(src *os.File, dest string) error {
 	for {
 		header, err := tr.Next()
 		if err == io.EOF {
-			break // end of archive
+			break
 		}
 		if err != nil {
 			return fmt.Errorf("error reading tar archive: %w", err)
