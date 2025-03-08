@@ -61,4 +61,4 @@ jobs:
 
             - name: Run test
               if: ${{ matrix.check == 'test' }}
-              run: go test ./...
+              run: go test ./... -v

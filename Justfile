@@ -17,7 +17,7 @@ build:
     env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-windows64.exe ./main.go
 
 test:
-	go test ./...
+	go test ./... -v
 
 vet:
 	go vet ./...

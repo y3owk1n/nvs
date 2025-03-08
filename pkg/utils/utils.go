@@ -82,7 +82,7 @@ func FindNvimBinary(dir string) string {
 		}
 		return nil
 	})
-	if err != nil {
+	if err != nil && err != io.EOF {
 		logrus.Fatalf("Failed to walk through nvim directory: %v", err)
 	}
 
