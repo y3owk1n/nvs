@@ -57,7 +57,7 @@ func GetCurrentVersion(versionsDir string) (string, error) {
 // FindNvimBinary searches for an executable named "nvim" or starting with "nvim-".
 func FindNvimBinary(dir string) string {
 	var binaryPath string
-	filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil // skip error
 		}
@@ -82,6 +82,10 @@ func FindNvimBinary(dir string) string {
 		}
 		return nil
 	})
+	if err != nil {
+		logrus.Fatalf("Failed to walk through nvim directory: %v", err)
+	}
+
 	return binaryPath
 }
 

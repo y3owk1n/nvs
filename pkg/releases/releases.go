@@ -70,7 +70,10 @@ func GetCachedReleases(force bool, cachePath string) ([]Release, error) {
 	}
 	data, err := json.Marshal(releases)
 	if err == nil {
-		os.WriteFile(cachePath, data, 0644)
+		err := os.WriteFile(cachePath, data, 0644)
+		if err != nil {
+			logrus.Fatalf("Failed to write file to cache: %v", err)
+		}
 	}
 	return releases, nil
 }

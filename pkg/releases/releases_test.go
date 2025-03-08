@@ -71,7 +71,9 @@ func writeCacheFile(t *testing.T, releases []Release) string {
 		t.Fatalf("failed to write cache file: %v", err)
 	}
 	// Update mod time so the cache is considered fresh.
-	os.Chtimes(cachePath, time.Now(), time.Now())
+	if err := os.Chtimes(cachePath, time.Now(), time.Now()); err != nil {
+		t.Fatalf("failed to update mod time: %v", err)
+	}
 	return cachePath
 }
 
