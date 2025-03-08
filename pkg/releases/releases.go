@@ -72,7 +72,7 @@ func GetCachedReleases(force bool, cachePath string) ([]Release, error) {
 	if err == nil {
 		err := os.WriteFile(cachePath, data, 0644)
 		if err != nil {
-			logrus.Fatalf("Failed to write file to cache: %v", err)
+			return nil, fmt.Errorf("failed to write file to cache: %v", err)
 		}
 	}
 	return releases, nil
