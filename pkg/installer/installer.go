@@ -51,11 +51,11 @@ func DownloadAndInstall(versionsDir, installName, assetURL, checksumURL, release
 		return fmt.Errorf("download error: %w", err)
 	}
 
-	if phaseCallback != nil {
-		phaseCallback("Verifying checksum...")
-	}
-
 	if checksumURL != "" {
+		if phaseCallback != nil {
+			phaseCallback("Verifying checksum...")
+		}
+
 		logrus.Debug("Verifying checksum...")
 		if err := verifyChecksum(tmpFile, checksumURL); err != nil {
 			return fmt.Errorf("checksum verification failed: %w", err)
