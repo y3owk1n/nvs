@@ -6,21 +6,21 @@
 
 ## 👀 Overview
 
-**nvs** (Neovim Version Switcher/Manager) is a lightweight cross-platform CLI tool written in Go 🏗️ that makes it super easy to install, switch between, and manage multiple versions of Neovim and config on your machine. Whether you’re testing a cutting‑edge nightly build 🌙 or sticking with the stable release 🔒, nvs has got your back!
+**nvs** (Neovim Version Switcher/Manager) is a lightweight cross-platform CLI tool written in Go 🏗️ that makes it super easy to install, switch between, and manage multiple versions of Neovim and config on your machine. Whether you’re testing a cutting‑edge nightly build 🌙 or sticking with the stable release 🔒, **nvs** has got your back!
 
 > [!note]
 > I only have a mac and it's working perfectly fine for my use case. If it's not working for other OS, feel free to help fixing that or share it as an issue. I'll try to look into it.
 
 ## 🌟 Showcase
 
-<https://github.com/user-attachments/assets/ee8f35a1-80e8-4e66-b49c-9782943d39ed>
+<https://github.com/user-attachments/assets/6658a5e5-599e-4366-889f-b5f6368b8d2f>
 
 ## 🌟 Features
 
 - **Easy Installation:**
   Download and install Neovim versions directly from GitHub with a single command.
 - **Version Switching:**
-  Switch between installed versions in a snap. nvs updates a global symlink so your preferred version is always just a command away.
+  Switch between installed versions in a snap. **nvs** updates a global symlink so your preferred version is always just a command away.
 - **Config Switching:**
   Easily toggle between Neovim configurations by scanning ~/.config (including symlinks) and setting NVIM_APPNAME interactively or via a direct subcommand argument.
 - **Remote Version Listing:**
@@ -29,7 +29,7 @@
   Easily upgrade your installed stable and/or nightly versions. The upgrade command checks if you’re already on the latest version and only performs an upgrade if needed.
 - **Uninstallation & Reset:**
   Remove individual versions or reset your entire configuration with ease. (Full cleanup? See the caveats! ⚠️)
-- **Cross-Platform (Maybe):**
+- **Cross-Platform:**
   Works on macOS (Intel & Apple Silicon), Linux, and Windows.
 - **Global Symlink Management:**
   Automatically creates a consistent global binary in `~/.nvs/bin` for a seamless experience.
@@ -44,7 +44,7 @@ Make sure you have [Go](https://golang.org/dl/) (v1.23 or later) installed. Then
 git clone https://github.com/y3owk1n/nvs.git
 cd nvs
 mkdir -p build
-mkdir -p build
+
 # Build for darwin-arm64
 env GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-darwin-arm64 ./main.go
 
@@ -65,7 +65,7 @@ Move the binary to your PATH or run it directly.
 
 ### Homebrew
 
-Install nvs via Homebrew! Simply add our tap:
+Install **nvs** via Homebrew! Simply add our tap:
 
 ```bash
 brew tap y3owk1n/tap
@@ -79,7 +79,7 @@ brew install y3owk1n/tap/nvs
 
 ## 💻 Usage
 
-**nvs** uses a clean subcommand interface. Run nvs --help for full details.
+**nvs** uses a clean subcommand interface. Run `nvs --help` for full details.
 
 > [!note]
 > Remember to add `nvs` to your path. See next section about how.
@@ -95,6 +95,9 @@ nvs install stable    # Install the latest stable release 🔒
 nvs install nightly   # Install the latest nightly release 🌙
 nvs install v0.10.3   # Install a specific version
 nvs install 0.10.3    # Or without the v keyword
+
+# or with shorthand
+nvs i stable
 ```
 
 #### use
@@ -109,7 +112,7 @@ nvs use 0.10.3
 ```
 
 > [!warning]
-> If you're using windows, I think you will need `administrator` privilege terminal for nvs to symlink.
+> If you're using windows, I think you will need `administrator` privilege terminal for **nvs** to symlink.
 
 #### list-remote
 
@@ -121,6 +124,10 @@ List available remote releases and installed status (cached for 5 minutes to avo
 ```bash
 nvs list
 nvs list force
+
+# or with shorthand
+nvs ls
+nvs ls force
 ```
 
 #### current
@@ -142,6 +149,11 @@ Upgrade installed stable and/or nightly versions. If no argument is provided, bo
 nvs upgrade         # Upgrades both stable and nightly if installed
 nvs upgrade stable  # Upgrades only the stable release if installed
 nvs upgrade nightly # Upgrades only the nightly release if installed
+
+# or with shorthand
+nvs up
+nvs up stable
+nvs up nightly
 ```
 
 #### config
@@ -154,6 +166,10 @@ Switch between multiple configs. If no argument is provided, it will promp a sel
 ```bash
 nvs config
 nvs config nvim-test
+
+# or with shorthand
+nvs c
+nvs conf
 ```
 
 #### uninstall
@@ -165,6 +181,11 @@ nvs uninstall stable
 nvs uninstall nightly
 nvs uninstall v0.10.3
 nvs uninstall 0.10.3
+
+# or with shorthand
+nvs rm stable
+nvs remove nightly
+nvs un 0.10.3
 ```
 
 #### reset
@@ -178,9 +199,9 @@ Reset to factory state.
 nvs reset
 ```
 
-## 🔗 Adding nvs to Your PATH
+## 🔗 Adding **nvs** to Your PATH
 
-To easily run the Neovim binary provided by nvs, you need to add the global bin directory (`~/.nvs/bin`) to your PATH. Below are instructions for common shells:
+To easily run the Neovim binary provided by **nvs**, you need to add the global bin directory (`~/.nvs/bin`) to your PATH. Below are instructions for common shells:
 
 ### Macos Or Linux
 
@@ -228,9 +249,6 @@ source ~/.config/fish/config.fish
 
 ### Windows
 
-> [!note]
->
-
 Open an elevated Command Prompt (Run as administrator) and type:
 
 ```bash
@@ -241,7 +259,7 @@ You may need to open a new Command Prompt session to see the updated PATH and tr
 
 ## 🧩 Shell Completions
 
-nvs supports generating shell completions using Cobra’s built‐in functionality. You can easily enable command completions for your favorite shell by following the instructions below.
+**nvs** supports generating shell completions using Cobra’s built‐in functionality. You can easily enable command completions for your favorite shell by following the instructions below.
 
 ### Bash
 
@@ -265,7 +283,7 @@ For Zsh users, first ensure that completion is enabled by adding the following t
 autoload -U compinit && compinit
 ```
 
-Then add the following line to generate and load nvs completions:
+Then add the following line to generate and load **nvs** completions:
 
 ```bash
 source <(nvs completion zsh)
@@ -318,4 +336,4 @@ Contributions are always welcome! Here's how you can help:
 
 This project is licensed under the MIT License. Feel free to use, modify, and distribute it as you see fit.
 
-Enjoy using nvs, and may your Neovim sessions be ever lit! ✨
+Enjoy using **nvs**, and may your Neovim sessions be ever lit! ✨
