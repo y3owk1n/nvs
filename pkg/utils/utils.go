@@ -13,6 +13,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var (
+	userHomeDir = os.UserHomeDir
+	lookPath    = exec.LookPath
+	fatalf      = logrus.Fatalf
+)
+
 // IsInstalled checks if a version is installed by verifying the existence of the version directory.
 func IsInstalled(versionsDir, version string) bool {
 	_, err := os.Stat(filepath.Join(versionsDir, version))
@@ -100,9 +106,9 @@ func GetInstalledReleaseIdentifier(versionsDir, alias string) (string, error) {
 }
 
 func LaunchNvimWithConfig(configName string) {
-	home, err := os.UserHomeDir()
+	home, err := userHomeDir()
 	if err != nil {
-		logrus.Fatalf("Failed to get home directory: %v", err)
+		fatalf("Failed to get home directory: %v", err)
 	}
 	configDir := filepath.Join(home, ".config", configName)
 
@@ -115,9 +121,9 @@ func LaunchNvimWithConfig(configName string) {
 	os.Setenv("NVIM_APPNAME", configName)
 	fmt.Printf("Switched NVIM_APPNAME to %s\n", configName)
 
-	nvimExec, err := exec.LookPath("nvim")
+	nvimExec, err := lookPath("nvim")
 	if err != nil {
-		logrus.Fatalf("nvim not found in PATH: %v", err)
+		fatalf("nvim not found in PATH: %v", err)
 	}
 	launch := exec.Command(nvimExec)
 	launch.Env = append(os.Environ(), "NVIM_APPNAME="+configName)
@@ -125,7 +131,7 @@ func LaunchNvimWithConfig(configName string) {
 	launch.Stdout = os.Stdout
 	launch.Stderr = os.Stderr
 	if err := launch.Run(); err != nil {
-		logrus.Fatalf("Failed to launch nvim: %v", err)
+		fatalf("Failed to launch nvim: %v", err)
 	}
 }
 

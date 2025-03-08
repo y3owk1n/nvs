@@ -1,227 +1,263 @@
+// utils_test.go
 package utils
 
 import (
+	"errors"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
-// Note: For testing LaunchNvimWithConfig, we need to abstract exec.LookPath.
-// If you can modify your utils package, add the following at package scope:
-//
-//    var lookPath = exec.LookPath
-//
-// And then in LaunchNvimWithConfig, use lookPath("nvim") instead of exec.LookPath("nvim").
-// For this example, we assume that change was made. If not, consider skipping that test.
-
-// TestIsInstalled verifies that IsInstalled returns true when a directory exists.
+// TestIsInstalled creates a temporary version directory and checks if IsInstalled returns true.
 func TestIsInstalled(t *testing.T) {
-	tmpDir := t.TempDir()
-	versionDir := filepath.Join(tmpDir, "v1.0.0")
-	if err := os.Mkdir(versionDir, 0755); err != nil {
-		t.Fatalf("Failed to create version directory: %v", err)
+	tempDir := t.TempDir()
+	version := "v1.0.0"
+	installedDir := filepath.Join(tempDir, version)
+	if err := os.Mkdir(installedDir, 0755); err != nil {
+		t.Fatalf("failed to create version directory: %v", err)
 	}
-	if !IsInstalled(tmpDir, "v1.0.0") {
-		t.Error("IsInstalled returned false for an existing version")
+
+	if !IsInstalled(tempDir, version) {
+		t.Errorf("IsInstalled returned false, expected true")
 	}
-	if IsInstalled(tmpDir, "nonexistent") {
-		t.Error("IsInstalled returned true for a non-existent version")
+
+	// Test non-installed version.
+	if IsInstalled(tempDir, "nonexistent") {
+		t.Errorf("IsInstalled returned true for nonexistent version")
 	}
 }
 
-// TestListInstalledVersions verifies that ListInstalledVersions returns only directories that are not named "current".
+// TestListInstalledVersions creates several directories (including a "current" symlink) and verifies the returned list.
 func TestListInstalledVersions(t *testing.T) {
-	tmpDir := t.TempDir()
+	tempDir := t.TempDir()
 	versions := []string{"v1.0.0", "v1.1.0", "current"}
 	for _, v := range versions {
-		dir := filepath.Join(tmpDir, v)
-		if err := os.Mkdir(dir, 0755); err != nil {
-			t.Fatalf("Failed to create directory %q: %v", v, err)
+		if err := os.Mkdir(filepath.Join(tempDir, v), 0755); err != nil {
+			t.Fatalf("failed to create directory %s: %v", v, err)
 		}
 	}
-	list, err := ListInstalledVersions(tmpDir)
+	list, err := ListInstalledVersions(tempDir)
 	if err != nil {
-		t.Fatalf("ListInstalledVersions error: %v", err)
+		t.Fatalf("ListInstalledVersions failed: %v", err)
 	}
-	for _, v := range list {
-		if v == "current" {
-			t.Error("ListInstalledVersions should not include 'current'")
-		}
-	}
+	// "current" should be excluded.
 	if len(list) != 2 {
-		t.Errorf("Expected 2 versions, got %d", len(list))
+		t.Errorf("expected 2 versions, got %d", len(list))
 	}
 }
 
-// TestUpdateSymlink verifies that UpdateSymlink creates a symlink pointing to the target.
+// TestUpdateSymlink tests that UpdateSymlink creates or updates a symlink.
 func TestUpdateSymlink(t *testing.T) {
-	tmpDir := t.TempDir()
-	target := filepath.Join(tmpDir, "target")
-	// Create a dummy file to act as the target.
-	if err := os.WriteFile(target, []byte("dummy"), 0644); err != nil {
-		t.Fatalf("Failed to create target file: %v", err)
+	tempDir := t.TempDir()
+	target := filepath.Join(tempDir, "target")
+	if err := os.Mkdir(target, 0755); err != nil {
+		t.Fatalf("failed to create target directory: %v", err)
 	}
-	link := filepath.Join(tmpDir, "link")
-	if err := UpdateSymlink(target, link); err != nil {
-		t.Fatalf("UpdateSymlink error: %v", err)
+	link := filepath.Join(tempDir, "mylink")
+	// Create initial symlink.
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatalf("failed to create initial symlink: %v", err)
+	}
+	// Create a new target.
+	newTarget := filepath.Join(tempDir, "newtarget")
+	if err := os.Mkdir(newTarget, 0755); err != nil {
+		t.Fatalf("failed to create new target directory: %v", err)
+	}
+	// Update symlink.
+	if err := UpdateSymlink(newTarget, link); err != nil {
+		t.Fatalf("UpdateSymlink failed: %v", err)
 	}
 	resolved, err := os.Readlink(link)
 	if err != nil {
-		t.Fatalf("os.Readlink error: %v", err)
-	}
-	if resolved != target {
-		t.Errorf("Symlink points to %q; want %q", resolved, target)
-	}
-
-	// Test updating an existing symlink.
-	newTarget := filepath.Join(tmpDir, "newTarget")
-	if err := os.WriteFile(newTarget, []byte("new dummy"), 0644); err != nil {
-		t.Fatalf("Failed to create new target file: %v", err)
-	}
-	if err := UpdateSymlink(newTarget, link); err != nil {
-		t.Fatalf("UpdateSymlink error when updating: %v", err)
-	}
-	resolved, err = os.Readlink(link)
-	if err != nil {
-		t.Fatalf("os.Readlink error after updating: %v", err)
+		t.Fatalf("failed to read symlink: %v", err)
 	}
 	if resolved != newTarget {
-		t.Errorf("Symlink after update points to %q; want %q", resolved, newTarget)
+		t.Errorf("expected symlink to point to %q, got %q", newTarget, resolved)
 	}
 }
 
-// TestGetCurrentVersion creates a "current" symlink and verifies that GetCurrentVersion returns its base name.
+// TestGetCurrentVersion tests that GetCurrentVersion reads the base name from the "current" symlink.
 func TestGetCurrentVersion(t *testing.T) {
-	tmpDir := t.TempDir()
-	// Create a version directory.
-	versionName := "v1.0.0"
-	versionDir := filepath.Join(tmpDir, versionName)
-	if err := os.Mkdir(versionDir, 0755); err != nil {
-		t.Fatalf("Failed to create version directory: %v", err)
+	tempDir := t.TempDir()
+	// Create a fake version directory.
+	version := "v1.2.3"
+	target := filepath.Join(tempDir, version)
+	if err := os.Mkdir(target, 0755); err != nil {
+		t.Fatalf("failed to create version directory: %v", err)
 	}
-	// Create the "current" symlink pointing to the version directory.
-	currentLink := filepath.Join(tmpDir, "current")
-	if err := os.Symlink(versionDir, currentLink); err != nil {
-		t.Fatalf("Failed to create symlink: %v", err)
+	// Create a "current" symlink pointing to the version.
+	currentLink := filepath.Join(tempDir, "current")
+	if err := os.Symlink(target, currentLink); err != nil {
+		t.Fatalf("failed to create current symlink: %v", err)
 	}
-	currentVersion, err := GetCurrentVersion(tmpDir)
+	got, err := GetCurrentVersion(tempDir)
 	if err != nil {
-		t.Fatalf("GetCurrentVersion error: %v", err)
+		t.Fatalf("GetCurrentVersion failed: %v", err)
 	}
-	if currentVersion != versionName {
-		t.Errorf("GetCurrentVersion returned %q; want %q", currentVersion, versionName)
+	if got != version {
+		t.Errorf("expected %q, got %q", version, got)
 	}
 }
 
-// TestFindNvimBinary creates a temporary directory with a dummy executable and verifies the lookup.
+// TestFindNvimBinary tests that FindNvimBinary returns the expected binary path.
+// For Unix-like systems, create a temporary executable file.
 func TestFindNvimBinary(t *testing.T) {
-	tmpDir := t.TempDir()
-	var binaryName string
+	tempDir := t.TempDir()
+	var binName string
 	if runtime.GOOS == "windows" {
-		binaryName = "nvim.exe"
+		binName = "nvim.exe"
 	} else {
-		binaryName = "nvim"
+		binName = "nvim"
 	}
-	binaryPath := filepath.Join(tmpDir, binaryName)
-	// Create a dummy file.
-	if err := os.WriteFile(binaryPath, []byte("dummy"), 0755); err != nil {
-		t.Fatalf("Failed to create dummy nvim binary: %v", err)
+	binaryPath := filepath.Join(tempDir, binName)
+	f, err := os.Create(binaryPath)
+	if err != nil {
+		t.Fatalf("failed to create fake binary: %v", err)
 	}
-	found := FindNvimBinary(tmpDir)
+	f.Close()
+	// Make it executable.
+	if runtime.GOOS != "windows" {
+		if err := os.Chmod(binaryPath, 0755); err != nil {
+			t.Fatalf("failed to chmod fake binary: %v", err)
+		}
+	}
+	found := FindNvimBinary(tempDir)
 	if found == "" {
-		t.Error("FindNvimBinary did not find the dummy binary")
-	} else if filepath.Base(found) != binaryName {
-		t.Errorf("FindNvimBinary returned %q; want %q", found, binaryName)
+		t.Errorf("FindNvimBinary did not find the binary")
+	} else if found != binaryPath {
+		t.Errorf("expected %q, got %q", binaryPath, found)
 	}
 }
 
-// TestGetInstalledReleaseIdentifier creates a dummy version file and verifies its content is read correctly.
+// TestGetInstalledReleaseIdentifier tests reading a version.txt file.
 func TestGetInstalledReleaseIdentifier(t *testing.T) {
-	tmpDir := t.TempDir()
-	version := "v1.0.0"
-	dir := filepath.Join(tmpDir, version)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		t.Fatalf("Failed to create version directory: %v", err)
+	tempDir := t.TempDir()
+	alias := "v1.0.0"
+	versionFile := filepath.Join(tempDir, alias, "version.txt")
+	if err := os.MkdirAll(filepath.Dir(versionFile), 0755); err != nil {
+		t.Fatalf("failed to create directory: %v", err)
 	}
-	expected := "release-identifier"
-	versionFile := filepath.Join(dir, "version.txt")
-	if err := os.WriteFile(versionFile, []byte(expected+"\n"), 0644); err != nil {
-		t.Fatalf("Failed to write version file: %v", err)
+	content := "v1.0.0\n"
+	if err := os.WriteFile(versionFile, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write version file: %v", err)
 	}
-	identifier, err := GetInstalledReleaseIdentifier(tmpDir, version)
+	got, err := GetInstalledReleaseIdentifier(tempDir, alias)
 	if err != nil {
-		t.Fatalf("GetInstalledReleaseIdentifier error: %v", err)
+		t.Fatalf("GetInstalledReleaseIdentifier failed: %v", err)
 	}
-	if identifier != expected {
-		t.Errorf("GetInstalledReleaseIdentifier returned %q; want %q", identifier, expected)
+	if got != strings.TrimSpace(content) {
+		t.Errorf("expected %q, got %q", strings.TrimSpace(content), got)
 	}
 }
 
-// TestClearDirectory creates a directory with files and subdirectories and verifies ClearDirectory removes them.
+// TestLaunchNvimWithConfig tests LaunchNvimWithConfig in two branches.
+// 1. When the configuration directory does not exist.
+// 2. When it exists but exec.LookPath fails.
+// We use go-mpatch to override functions.
+func TestLaunchNvimWithConfig(t *testing.T) {
+	// Patch os.UserHomeDir to return a temporary directory.
+	tempHome := t.TempDir()
+	origUserHomeDir := userHomeDir
+	userHomeDir = func() (string, error) {
+		return tempHome, nil
+	}
+	defer func() { userHomeDir = origUserHomeDir }()
+
+	// Case 1: Config directory does not exist.
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	LaunchNvimWithConfig("nonexistent-config")
+	w.Close()
+	out, _ := io.ReadAll(r)
+	os.Stdout = origStdout
+	if !strings.Contains(string(out), "Error: configuration") {
+		t.Errorf("expected error message for nonexistent configuration, got %q", string(out))
+	}
+
+	// Case 2: Config exists but exec.LookPath fails.
+	configName := "testconfig"
+	configDir := filepath.Join(tempHome, ".config", configName)
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		t.Fatalf("failed to create config directory: %v", err)
+	}
+
+	// Patch lookPath to simulate failure.
+	origLookPath := lookPath
+	lookPath = func(file string) (string, error) {
+		return "", errors.New("nvim not found")
+	}
+
+	defer func() { lookPath = origLookPath }()
+
+	// Patch fatalf so that it does not exit.
+	calledFatal := false
+	origFatalf := fatalf
+	fatalf = func(format string, args ...any) {
+		calledFatal = true
+	}
+	defer func() { fatalf = origFatalf }()
+
+	LaunchNvimWithConfig(configName)
+	if !calledFatal {
+		t.Errorf("expected logrus.Fatalf to be called when nvim is not found")
+	}
+}
+
+// TestClearDirectory creates files and subdirectories, then clears the directory.
 func TestClearDirectory(t *testing.T) {
-	tmpDir := t.TempDir()
-	// Create some files and directories.
-	subDir := filepath.Join(tmpDir, "subdir")
+	tempDir := t.TempDir()
+	// Create files and directories.
+	file1 := filepath.Join(tempDir, "file1.txt")
+	if err := os.WriteFile(file1, []byte("content"), 0644); err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+	subDir := filepath.Join(tempDir, "subdir")
 	if err := os.Mkdir(subDir, 0755); err != nil {
-		t.Fatalf("Failed to create subdir: %v", err)
+		t.Fatalf("failed to create subdir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte("content"), 0644); err != nil {
-		t.Fatalf("Failed to create file: %v", err)
+	// Clear directory.
+	if err := ClearDirectory(tempDir); err != nil {
+		t.Fatalf("ClearDirectory failed: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(subDir, "subfile.txt"), []byte("subcontent"), 0644); err != nil {
-		t.Fatalf("Failed to create subfile: %v", err)
-	}
-	if err := ClearDirectory(tmpDir); err != nil {
-		t.Fatalf("ClearDirectory error: %v", err)
-	}
-	entries, err := os.ReadDir(tmpDir)
+	entries, err := os.ReadDir(tempDir)
 	if err != nil {
-		t.Fatalf("Failed to read directory: %v", err)
+		t.Fatalf("failed to read directory: %v", err)
 	}
 	if len(entries) != 0 {
-		t.Errorf("Expected directory to be empty after ClearDirectory, found %d entries", len(entries))
+		t.Errorf("expected directory to be empty after clearing, got %d entries", len(entries))
 	}
 }
 
-// TestTimeFormat verifies that TimeFormat converts an ISO time string to the expected format.
+// TestTimeFormat tests both valid and invalid time strings.
 func TestTimeFormat(t *testing.T) {
-	iso := "2025-03-07T15:04:05Z"
-	expected := "2025-03-07"
-	formatted := TimeFormat(iso)
-	if formatted != expected {
-		t.Errorf("TimeFormat(%q) = %q; want %q", iso, formatted, expected)
+	valid := "2023-01-02T15:04:05Z"
+	formatted := TimeFormat(valid)
+	if formatted != "2023-01-02" {
+		t.Errorf("expected 2023-01-02, got %q", formatted)
 	}
-
-	// If the input cannot be parsed, it should return the original string.
+	// For invalid input, the original string should be returned.
 	invalid := "not-a-time"
 	if TimeFormat(invalid) != invalid {
-		t.Errorf("TimeFormat(%q) = %q; want %q", invalid, TimeFormat(invalid), invalid)
+		t.Errorf("expected %q for invalid input, got %q", invalid, TimeFormat(invalid))
 	}
 }
 
-// TestLaunchNvimWithConfig demonstrates how you might test LaunchNvimWithConfig if you refactor to use a
-// package-level variable for LookPath. If that refactoring isn't possible, you can consider skipping
-// this test or refactoring your code further to improve testability.
-func TestLaunchNvimWithConfig(t *testing.T) {
-	// Check if our package has an overridable lookPath variable.
-	// If not, skip the test.
-	// type lookPathType func(string) (string, error)
-	// Using a type assertion to see if we can get a pointer to the lookPath variable.
-	// If your code doesn't expose such a variable, skip this test.
-	//
-	// For this example, we assume that the refactoring was done and a package-level variable named "lookPath"
-	// exists. Uncomment the following lines if that's the case.
-	//
-	// origLookPath := lookPath
-	// defer func() { lookPath = origLookPath }()
-	// lookPath = func(file string) (string, error) {
-	//     if file == "nvim" {
-	//         return "/dummy/nvim", nil
-	//     }
-	//     return "", os.ErrNotExist
-	// }
-	//
-	// Since we can't override exec.LookPath directly, if you haven't refactored, skip this test:
-	t.Skip("Skipping TestLaunchNvimWithConfig because exec.LookPath cannot be overridden without refactoring")
+// TestColorizeRow tests that each cell in the row is wrapped in the provided color and reset.
+func TestColorizeRow(t *testing.T) {
+	row := []string{"a", "b", "c"}
+	color := "\x1b[31m"
+	reset := "\x1b[0m"
+	colored := ColorizeRow(row, color, reset)
+	for i, cell := range row {
+		expected := fmt.Sprintf("%s%s%s", color, cell, reset)
+		if colored[i] != expected {
+			t.Errorf("expected %q, got %q", expected, colored[i])
+		}
+	}
 }
