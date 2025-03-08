@@ -206,7 +206,7 @@ func TestTimeFormat(t *testing.T) {
 func TestLaunchNvimWithConfig(t *testing.T) {
 	// Check if our package has an overridable lookPath variable.
 	// If not, skip the test.
-	type lookPathType func(string) (string, error)
+	// type lookPathType func(string) (string, error)
 	// Using a type assertion to see if we can get a pointer to the lookPath variable.
 	// If your code doesn't expose such a variable, skip this test.
 	//

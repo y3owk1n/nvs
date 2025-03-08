@@ -23,7 +23,10 @@ var resetCmd = &cobra.Command{
 		baseDir := filepath.Join(home, ".nvs")
 		fmt.Printf("WARNING: This will delete all data in %s, including items inside the bin directory, but will preserve the bin directory structure. Are you sure? (y/N): ", baseDir)
 		var answer string
-		fmt.Scanln(&answer)
+		_, err = fmt.Scanln(&answer)
+		if err != nil {
+			logrus.Fatalf("Failed to read input: %v", err)
+		}
 		if strings.ToLower(answer) != "y" {
 			fmt.Println("Reset cancelled.")
 			return
