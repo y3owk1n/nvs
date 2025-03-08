@@ -18,6 +18,7 @@ var configCmd = &cobra.Command{
 	Short:   "Switch Neovim configuration",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 1 {
+			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Launching Neovim with configuration: %s", args[0])))
 			utils.LaunchNvimWithConfig(args[0])
 			return
 		}
@@ -38,7 +39,7 @@ var configCmd = &cobra.Command{
 			entryPath := filepath.Join(configDir, entry.Name())
 			isDir := false
 			if entry.Type()&os.ModeSymlink != 0 {
-				// For symlink, resolve the target.
+				// Resolve symlink target
 				resolvedPath, err := os.Readlink(entryPath)
 				if err != nil {
 					logrus.Warnf("Failed to resolve symlink for %s: %v", entry.Name(), err)
@@ -61,11 +62,10 @@ var configCmd = &cobra.Command{
 		}
 
 		if len(nvimConfigs) == 0 {
-			fmt.Println("No Neovim configuration directories found in ~/.config")
+			fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText("No Neovim configuration directories found in ~/.config"))
 			return
 		}
 
-		// Use promptui for an interactive selection.
 		prompt := promptui.Select{
 			Label: "Select Neovim configuration",
 			Items: nvimConfigs,
@@ -74,12 +74,13 @@ var configCmd = &cobra.Command{
 		_, selectedConfig, err := prompt.Run()
 		if err != nil {
 			if err == promptui.ErrInterrupt {
-				fmt.Println("Selection cancelled.")
+				fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText("Selection cancelled."))
 				return
 			}
 			logrus.Fatalf("Prompt failed: %v", err)
 		}
 
+		fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Launching Neovim with configuration: %s", selectedConfig)))
 		utils.LaunchNvimWithConfig(selectedConfig)
 	},
 }

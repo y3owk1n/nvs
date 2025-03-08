@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
-	"github.com/fatih/color"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/pkg/installer"
@@ -20,7 +19,6 @@ var upgradeCmd = &cobra.Command{
 	Long:    "Upgrades the installed stable and/or nightly versions. If no argument is provided, both stable and nightly are upgraded (if installed).",
 	Args:    cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		// Determine which alias/aliases to upgrade.
 		var aliases []string
 		if len(args) == 0 {
 			aliases = []string{"stable", "nightly"}
@@ -31,14 +29,12 @@ var upgradeCmd = &cobra.Command{
 			aliases = []string{args[0]}
 		}
 
-		// Loop over each alias and upgrade if installed.
 		for _, alias := range aliases {
 			if !utils.IsInstalled(versionsDir, alias) {
 				logrus.Infof("Alias '%s' is not installed. Skipping upgrade.", alias)
 				continue
 			}
 
-			// Resolve the remote release using the cache.
 			release, err := releases.ResolveVersion(alias, cacheFilePath)
 			if err != nil {
 				logrus.Errorf("Error resolving %s: %v", alias, err)
@@ -48,7 +44,7 @@ var upgradeCmd = &cobra.Command{
 			remoteIdentifier := releases.GetReleaseIdentifier(release, alias)
 			installedIdentifier, err := releases.GetInstalledReleaseIdentifier(versionsDir, alias)
 			if err == nil && installedIdentifier == remoteIdentifier {
-				color.Yellow("%s is already up-to-date (%s)", alias, installedIdentifier)
+				fmt.Printf("%s %s is already up-to-date (%s)\n", utils.WarningIcon(), alias, installedIdentifier)
 				continue
 			}
 
@@ -64,14 +60,12 @@ var upgradeCmd = &cobra.Command{
 				continue
 			}
 
-			color.Cyan("Upgrading %s to new identifier %s...", alias, remoteIdentifier)
+			fmt.Printf("%s %s upgrading to new identifier %s...\n", utils.InfoIcon(), utils.WhiteText(alias), remoteIdentifier)
 
-			// Create a modern spinner UI similar to GitHub CLI.
 			s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 			s.Suffix = " 0%"
 			s.Start()
 
-			// Call the installer function with a progress callback.
 			err = installer.DownloadAndInstall(
 				versionsDir,
 				alias,
@@ -91,7 +85,7 @@ var upgradeCmd = &cobra.Command{
 				logrus.Errorf("Upgrade failed for %s: %v", alias, err)
 				continue
 			}
-			color.Green("Upgrade successful for %s!", alias)
+			fmt.Printf("%s %s upgraded successfully!\n", utils.SuccessIcon(), utils.WhiteText(alias))
 		}
 	},
 }

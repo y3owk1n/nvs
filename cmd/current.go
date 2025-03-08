@@ -23,14 +23,15 @@ var currentCmd = &cobra.Command{
 		case "stable":
 			stable, err := releases.FindLatestStable(cacheFilePath)
 			if err != nil {
-				fmt.Printf("stable (%s)\n", current)
+				fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("stable (%s)", current)))
 			} else {
-				fmt.Printf("stable\n  Version: %s\n", stable.TagName)
+				fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText("stable"))
+				fmt.Printf("  %s\n", utils.WhiteText(fmt.Sprintf("Version: %s", stable.TagName)))
 			}
 		case "nightly":
 			nightly, err := releases.FindLatestNightly(cacheFilePath)
 			if err != nil {
-				fmt.Printf("nightly (%s)\n", current)
+				fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("nightly (%s)", current)))
 			} else {
 				shortCommit := nightly.CommitHash
 				if len(shortCommit) > 10 {
@@ -40,10 +41,13 @@ var currentCmd = &cobra.Command{
 				if t, err := time.Parse(time.RFC3339, nightly.PublishedAt); err == nil {
 					publishedStr = t.Format("2006-01-02")
 				}
-				fmt.Printf("nightly\n  Published: %s\n  Commit: %s\n", publishedStr, shortCommit)
+
+				fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText("nightly"))
+				fmt.Printf("  %s\n", utils.WhiteText(fmt.Sprintf("Published: %s", publishedStr)))
+				fmt.Printf("  %s\n", utils.WhiteText(fmt.Sprintf("Commit: %s", shortCommit)))
 			}
 		default:
-			fmt.Printf("%s\n", current)
+			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(current))
 		}
 	},
 }

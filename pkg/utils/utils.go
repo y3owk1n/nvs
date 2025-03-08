@@ -19,13 +19,11 @@ var (
 	fatalf      = logrus.Fatalf
 )
 
-// IsInstalled checks if a version is installed by verifying the existence of the version directory.
 func IsInstalled(versionsDir, version string) bool {
 	_, err := os.Stat(filepath.Join(versionsDir, version))
 	return !os.IsNotExist(err)
 }
 
-// ListInstalledVersions returns a list of installed version directories.
 func ListInstalledVersions(versionsDir string) ([]string, error) {
 	entries, err := os.ReadDir(versionsDir)
 	if err != nil {
@@ -40,7 +38,6 @@ func ListInstalledVersions(versionsDir string) ([]string, error) {
 	return versions, nil
 }
 
-// UpdateSymlink updates a symlink to point to the target.
 func UpdateSymlink(target, link string) error {
 	if _, err := os.Lstat(link); err == nil {
 		if err := os.Remove(link); err != nil {
@@ -50,7 +47,6 @@ func UpdateSymlink(target, link string) error {
 	return os.Symlink(target, link)
 }
 
-// GetCurrentVersion returns the currently active version by reading the "current" symlink.
 func GetCurrentVersion(versionsDir string) (string, error) {
 	link := filepath.Join(versionsDir, "current")
 	target, err := os.Readlink(link)
@@ -60,23 +56,20 @@ func GetCurrentVersion(versionsDir string) (string, error) {
 	return filepath.Base(target), nil
 }
 
-// FindNvimBinary searches for an executable named "nvim" or starting with "nvim-".
 func FindNvimBinary(dir string) string {
 	var binaryPath string
 	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
-			return nil // skip error
+			return nil
 		}
 		if !d.IsDir() {
 			name := d.Name()
 			if runtime.GOOS == "windows" {
-				// Check for nvim.exe or files starting with nvim- (with .exe extension)
 				if name == "nvim.exe" || (strings.HasPrefix(name, "nvim-") && filepath.Ext(name) == ".exe") {
 					binaryPath = path
 					return io.EOF // break early
 				}
 			} else {
-				// Unix-like systems: check for "nvim" or names starting with "nvim-"
 				if name == "nvim" || strings.HasPrefix(name, "nvim-") {
 					info, err := d.Info()
 					if err == nil && info.Mode()&0111 != 0 {
@@ -95,7 +88,6 @@ func FindNvimBinary(dir string) string {
 	return binaryPath
 }
 
-// GetInstalledReleaseIdentifier reads the version.txt file from an installed version.
 func GetInstalledReleaseIdentifier(versionsDir, alias string) (string, error) {
 	versionFile := filepath.Join(versionsDir, alias, "version.txt")
 	data, err := os.ReadFile(versionFile)
@@ -119,7 +111,6 @@ func LaunchNvimWithConfig(configName string) {
 	}
 
 	os.Setenv("NVIM_APPNAME", configName)
-	fmt.Printf("Switched NVIM_APPNAME to %s\n", configName)
 
 	nvimExec, err := lookPath("nvim")
 	if err != nil {

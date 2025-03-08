@@ -16,7 +16,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Release represents a GitHub release.
 type Release struct {
 	TagName     string  `json:"tag_name"`
 	Prerelease  bool    `json:"prerelease"`
@@ -25,7 +24,6 @@ type Release struct {
 	CommitHash  string  `json:"target_commitish"`
 }
 
-// Asset represents an asset in a release.
 type Asset struct {
 	Name               string `json:"name"`
 	BrowserDownloadURL string `json:"browser_download_url"`
@@ -36,7 +34,6 @@ var (
 	releasesCacheTTL = 5 * time.Minute
 )
 
-// ResolveVersion determines which release to use based on the alias.
 func ResolveVersion(version, cachePath string) (Release, error) {
 	switch version {
 	case "stable":
@@ -63,7 +60,7 @@ func GetCachedReleases(force bool, cachePath string) ([]Release, error) {
 			}
 		}
 	}
-	logrus.Info("Fetching fresh releases from GitHub")
+	logrus.Debug("Fetching fresh releases from GitHub")
 	releases, err := GetReleases()
 	if err != nil {
 		return nil, err
@@ -225,13 +222,11 @@ func FilterReleases(releases []Release, minVersion string) ([]Release, error) {
 
 	var filtered []Release
 	for _, r := range releases {
-		// Keep "stable" and "nightly" tags
 		if r.TagName == "stable" || r.TagName == "nightly" {
 			filtered = append(filtered, r)
 			continue
 		}
 
-		// Normalize version: remove 'v' prefix if present
 		versionStr := strings.TrimPrefix(r.TagName, "v")
 
 		v, err := semver.NewVersion(versionStr)

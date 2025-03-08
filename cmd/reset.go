@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,14 +22,18 @@ var resetCmd = &cobra.Command{
 			logrus.Fatalf("Failed to get home directory: %v", err)
 		}
 		baseDir := filepath.Join(home, ".nvs")
-		fmt.Printf("WARNING: This will delete all data in %s, including items inside the bin directory, but will preserve the bin directory structure. Are you sure? (y/N): ", baseDir)
-		var answer string
-		_, err = fmt.Scanln(&answer)
+
+		fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText("WARNING: This will delete all data in "+baseDir+", including items inside the bin directory, but will preserve the bin directory structure."))
+		fmt.Printf("%s ", utils.WhiteText("Are you sure? (y/N): "))
+
+		reader := bufio.NewReader(os.Stdin)
+		input, err := reader.ReadString('\n')
 		if err != nil {
 			logrus.Fatalf("Failed to read input: %v", err)
 		}
-		if strings.ToLower(answer) != "y" {
-			fmt.Println("Reset cancelled.")
+		input = strings.TrimSpace(input)
+		if strings.ToLower(input) != "y" {
+			fmt.Println(utils.InfoIcon(), utils.WhiteText("Reset cancelled."))
 			return
 		}
 
@@ -45,13 +50,12 @@ var resetCmd = &cobra.Command{
 					logrus.Fatalf("Failed to clear bin directory: %v", err)
 				}
 			} else {
-				// Remove all other entries.
 				if err := os.RemoveAll(fullPath); err != nil {
 					logrus.Fatalf("Failed to remove %s: %v", fullPath, err)
 				}
 			}
 		}
-		logrus.Info("Reset successful. All data has been cleared, but the bin structure has been preserved.")
+		fmt.Println(utils.SuccessIcon(), utils.WhiteText("Reset successful. All data has been cleared, but the bin structure has been preserved."))
 	},
 }
 

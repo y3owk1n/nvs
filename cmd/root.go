@@ -19,7 +19,6 @@ var (
 	Version       = "v0.0.0"
 )
 
-// Execute sets up the root command and executes it.
 func Execute() {
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
@@ -35,7 +34,6 @@ func initConfig() {
 		logrus.SetLevel(logrus.InfoLevel)
 	}
 
-	// Handle interrupt signals gracefully.
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt)
 	go func() {

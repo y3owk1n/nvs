@@ -19,13 +19,17 @@ var uninstallCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		versionArg := releases.NormalizeVersion(args[0])
 		versionPath := filepath.Join(versionsDir, versionArg)
+
 		if !utils.IsInstalled(versionsDir, versionArg) {
 			logrus.Fatalf("Version %s is not installed", versionArg)
 		}
+
 		if err := os.RemoveAll(versionPath); err != nil {
 			logrus.Fatalf("Failed to uninstall version %s: %v", versionArg, err)
 		}
-		fmt.Printf("Uninstalled version %s\n", versionArg)
+
+		successMsg := fmt.Sprintf("Uninstalled version %s", versionArg)
+		fmt.Printf("%s %s\n", utils.SuccessIcon(), utils.WhiteText(successMsg))
 	},
 }
 
