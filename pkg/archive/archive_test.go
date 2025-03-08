@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -422,6 +423,9 @@ func TestExtractArchive_SeekError(t *testing.T) {
 // TestExtractZip_DestNotWritable creates a valid zip archive and attempts to extract it
 // into a destination directory with no write permissions.
 func TestExtractZip_DestNotWritable(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping non-writable destination test on Windows")
+	}
 	entries := []zipEntry{
 		{Name: "file.txt", Body: "data", IsDir: false, Mode: 0644},
 	}
@@ -444,6 +448,9 @@ func TestExtractZip_DestNotWritable(t *testing.T) {
 // TestExtractTarGz_DestNotWritable creates a valid tar.gz archive and attempts to extract it
 // into a destination directory with no write permissions.
 func TestExtractTarGz_DestNotWritable(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping non-writable destination test on Windows")
+	}
 	entries := []tarEntry{
 		{Name: "file.txt", Body: "data", Mode: 0644, TypeFlag: tar.TypeReg},
 	}
