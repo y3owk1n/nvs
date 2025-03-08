@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.6.0](https://github.com/y3owk1n/nvs/compare/v1.5.2...v1.6.0) (2025-03-08)
+
+
+### Features
+
+* add upgrade indicator for listCmd table ([#63](https://github.com/y3owk1n/nvs/issues/63)) ([8200e7d](https://github.com/y3owk1n/nvs/commit/8200e7d4d50a977fcb57d67ad7835d1a6039bebf))
+* improve currentCmd UI ([#65](https://github.com/y3owk1n/nvs/issues/65)) ([ba807fe](https://github.com/y3owk1n/nvs/commit/ba807fea7ccaea0cf0a570991415ddca6e2b822b))
+* standardize UI across all commands ([#66](https://github.com/y3owk1n/nvs/issues/66)) ([4953905](https://github.com/y3owk1n/nvs/commit/4953905601e37974bc9f7b854fcac84d83d73063))
+
 ## [1.5.2](https://github.com/y3owk1n/nvs/compare/v1.5.1...v1.5.2) (2025-03-08)
 
 
