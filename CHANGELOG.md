@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.2](https://github.com/y3owk1n/nvs/compare/v1.5.1...v1.5.2) (2025-03-08)
+
+
+### Bug Fixes
+
+* do not run verifying checksum if no checksumURL passed ([#59](https://github.com/y3owk1n/nvs/issues/59)) ([4723269](https://github.com/y3owk1n/nvs/commit/4723269f833f5267e3b40098c595e6fcd7437215))
+* return err instead of log if failed to write to cache ([#61](https://github.com/y3owk1n/nvs/issues/61)) ([a15ae75](https://github.com/y3owk1n/nvs/commit/a15ae75aa833b7909e1b0264970da66b8bcef6d9))
+
 ## [1.5.1](https://github.com/y3owk1n/nvs/compare/v1.5.0...v1.5.1) (2025-03-07)
 
 
