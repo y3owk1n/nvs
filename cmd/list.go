@@ -83,10 +83,7 @@ var listCmd = &cobra.Command{
 			// Check for prereleases (nightly)
 			if r.Prerelease {
 				if r.TagName == "nightly" {
-					shortCommit := ""
-					if len(r.CommitHash) >= 10 {
-						shortCommit = r.CommitHash[:10]
-					}
+					shortCommit := releases.GetReleaseIdentifier(r, "nightly")
 					details = fmt.Sprintf("Published: %s, Commit: %s", utils.TimeFormat(r.PublishedAt), shortCommit)
 				} else {
 					// For other prereleases, add a simple row.
@@ -103,12 +100,30 @@ var listCmd = &cobra.Command{
 
 			key := r.TagName
 			localStatus := ""
+			upgradeIndicator := ""
+			upgradeIcon := "(↑)"
+
 			// Determine if version is installed.
 			if utils.IsInstalled(versionsDir, key) {
+				release, err := releases.ResolveVersion(key, cacheFilePath)
+				if err != nil {
+					logrus.Errorf("Error resolving %s: %v", key, err)
+					continue
+				}
+
+				installedIdentifier, err := utils.GetInstalledReleaseIdentifier(versionsDir, key)
+				if err != nil {
+					installedIdentifier = ""
+				}
+				// Compare installed identifier with remote.
+				remoteIdentifier := releases.GetReleaseIdentifier(release, key)
+				if installedIdentifier != "" && installedIdentifier != remoteIdentifier {
+					upgradeIndicator = " " + upgradeIcon
+				}
 				if key == current {
-					localStatus = "Current"
+					localStatus = "Current" + upgradeIndicator
 				} else {
-					localStatus = "Installed"
+					localStatus = "Installed" + upgradeIndicator
 				}
 			} else {
 				localStatus = "Not Installed"
@@ -118,9 +133,9 @@ var listCmd = &cobra.Command{
 
 			// Colorize the entire row if installed.
 			switch localStatus {
-			case "Current":
+			case "Current" + upgradeIndicator:
 				row = utils.ColorizeRow(row, green, reset)
-			case "Installed":
+			case "Installed" + upgradeIndicator:
 				row = utils.ColorizeRow(row, yellow, reset)
 			}
 
