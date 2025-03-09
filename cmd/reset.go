@@ -26,7 +26,7 @@ var resetCmd = &cobra.Command{
 		baseDir := filepath.Join(home, ".nvs")
 		logrus.Debugf("Base directory resolved: %s", baseDir)
 
-		fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText("WARNING: This will delete all data in "+baseDir+", including items inside the bin directory, but will preserve the bin directory structure."))
+		fmt.Printf("%s %s\n\n", utils.WarningIcon(), fmt.Sprintf("WARNING: This will delete all data in %s, including items inside the bin directory, but will preserve the bin directory structure.", utils.CyanText(baseDir)))
 		fmt.Printf("%s ", "Are you sure? (y/N): ")
 
 		reader := bufio.NewReader(os.Stdin)

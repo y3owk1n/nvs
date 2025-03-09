@@ -31,7 +31,7 @@ var useCmd = &cobra.Command{
 		currentSymlink := filepath.Join(versionsDir, "current")
 		if current, err := os.Readlink(currentSymlink); err == nil {
 			if filepath.Base(current) == targetVersion {
-				fmt.Printf("%s Already using Neovim %s\n", utils.WarningIcon(), targetVersion)
+				fmt.Printf("%s Already using Neovim %s\n", utils.WarningIcon(), utils.CyanText(targetVersion))
 				logrus.Debugf("Already using version: %s", targetVersion)
 				return
 			}
@@ -45,7 +45,7 @@ var useCmd = &cobra.Command{
 
 		nvimExec := utils.FindNvimBinary(versionPath)
 		if nvimExec == "" {
-			fmt.Printf("%s Could not find Neovim binary in %s. Please check the installation structure.\n", utils.ErrorIcon(), versionPath)
+			fmt.Printf("%s Could not find Neovim binary in %s. Please check the installation structure.\n", utils.ErrorIcon(), utils.CyanText(versionPath))
 			logrus.Errorf("Neovim binary not found in: %s", versionPath)
 			return
 		}
@@ -60,11 +60,11 @@ var useCmd = &cobra.Command{
 		}
 
 		logrus.Debugf("Global Neovim binary updated: %s -> %s", targetBin, nvimExec)
-		switchMsg := fmt.Sprintf("Switched to Neovim %s", targetVersion)
+		switchMsg := fmt.Sprintf("Switched to Neovim %s", utils.CyanText(targetVersion))
 		fmt.Printf("%s %s\n", utils.SuccessIcon(), utils.WhiteText(switchMsg))
 
 		if pathEnv := os.Getenv("PATH"); !strings.Contains(pathEnv, globalBinDir) {
-			fmt.Printf("%s Run `nvs path` or manually add this directory to your PATH for convenience: %s\n", utils.WarningIcon(), globalBinDir)
+			fmt.Printf("%s Run `nvs path` or manually add this directory to your PATH for convenience: %s\n", utils.WarningIcon(), utils.CyanText(globalBinDir))
 			logrus.Debugf("Global bin directory not found in PATH: %s", globalBinDir)
 		}
 	},

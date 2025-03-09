@@ -35,7 +35,8 @@ var upgradeCmd = &cobra.Command{
 			logrus.Debugf("Processing alias: %s", alias)
 
 			if !utils.IsInstalled(versionsDir, alias) {
-				logrus.Debugf("Alias '%s' is not installed. Skipping upgrade.", alias)
+				logrus.Debugf("'%s' is not installed. Skipping upgrade.", alias)
+				fmt.Printf("%s %s %s\n", utils.WarningIcon(), utils.CyanText(alias), utils.WhiteText("is not installed. Skipping upgrade."))
 				continue
 			}
 
@@ -50,7 +51,7 @@ var upgradeCmd = &cobra.Command{
 			installedIdentifier, err := releases.GetInstalledReleaseIdentifier(versionsDir, alias)
 			if err == nil && installedIdentifier == remoteIdentifier {
 				logrus.Debugf("%s is already up-to-date (%s)", alias, installedIdentifier)
-				fmt.Printf("%s %s is already up-to-date (%s)\n", utils.WarningIcon(), utils.WhiteText(alias), utils.WhiteText(installedIdentifier))
+				fmt.Printf("%s %s %s %s\n", utils.WarningIcon(), utils.CyanText(alias), utils.WhiteText("is already up-to-date"), utils.CyanText("("+installedIdentifier+")"))
 				continue
 			}
 
@@ -68,7 +69,7 @@ var upgradeCmd = &cobra.Command{
 				continue
 			}
 
-			fmt.Printf("%s %s upgrading to new identifier %s...\n", utils.InfoIcon(), utils.WhiteText(alias), utils.WhiteText(remoteIdentifier))
+			fmt.Printf("%s %s %s %s...\n", utils.InfoIcon(), utils.CyanText(alias), utils.WhiteText("upgrading to new identifier"), utils.CyanText(remoteIdentifier))
 			logrus.Debugf("Starting upgrade for %s to identifier %s", alias, remoteIdentifier)
 
 			s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
@@ -96,7 +97,7 @@ var upgradeCmd = &cobra.Command{
 				logrus.Errorf("Upgrade failed for %s: %v", alias, err)
 				continue
 			}
-			fmt.Printf("%s %s upgraded successfully!\n", utils.SuccessIcon(), utils.WhiteText(alias))
+			fmt.Printf("%s %s %s\n", utils.SuccessIcon(), utils.CyanText(alias), utils.WhiteText("upgraded successfully!"))
 			logrus.Debugf("%s upgraded successfully", alias)
 		}
 	},

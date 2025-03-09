@@ -21,7 +21,7 @@ var configCmd = &cobra.Command{
 
 		if len(args) == 1 {
 			logrus.Debugf("Launching Neovim with provided configuration: %s", args[0])
-			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Launching Neovim with configuration: %s", args[0])))
+			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Launching Neovim with configuration: %s", utils.CyanText(args[0]))))
 			utils.LaunchNvimWithConfig(args[0])
 			return
 		}
@@ -74,7 +74,7 @@ var configCmd = &cobra.Command{
 
 		if len(nvimConfigs) == 0 {
 			logrus.Debug("No Neovim configurations found in ~/.config")
-			fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText("No Neovim configuration directories found in ~/.config"))
+			fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText(fmt.Sprintf("No Neovim configuration found in %s", utils.CyanText("~/.config"))))
 			return
 		}
 
@@ -96,7 +96,7 @@ var configCmd = &cobra.Command{
 		}
 
 		logrus.Debugf("User selected configuration: %s", selectedConfig)
-		fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Launching Neovim with configuration: %s", selectedConfig)))
+		fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Launching Neovim with configuration: %s", utils.CyanText(selectedConfig))))
 		utils.LaunchNvimWithConfig(selectedConfig)
 	},
 }

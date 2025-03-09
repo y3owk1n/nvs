@@ -22,7 +22,7 @@ var installCmd = &cobra.Command{
 
 		alias := releases.NormalizeVersion(args[0])
 		logrus.Debugf("Normalized version: %s", alias)
-		fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Resolving version %s...", alias)))
+		fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Resolving version %s...", utils.CyanText(alias))))
 
 		release, err := releases.ResolveVersion(alias, cacheFilePath)
 		if err != nil {
@@ -38,7 +38,7 @@ var installCmd = &cobra.Command{
 
 		if utils.IsInstalled(versionsDir, installName) {
 			logrus.Debugf("Version %s is already installed, skipping installation", installName)
-			fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText(fmt.Sprintf("Version %s is already installed.", installName)))
+			fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText(fmt.Sprintf("Version %s is already installed.", utils.CyanText(installName))))
 			return
 		}
 
@@ -56,7 +56,7 @@ var installCmd = &cobra.Command{
 
 		releaseIdentifier := releases.GetReleaseIdentifier(release, alias)
 		logrus.Debugf("Determined release identifier: %s", releaseIdentifier)
-		fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Installing Neovim %s...", alias)))
+		fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Installing Neovim %s...", utils.CyanText(alias))))
 
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Suffix = " 0%"
@@ -83,7 +83,7 @@ var installCmd = &cobra.Command{
 			logrus.Fatalf("Installation failed: %v", err)
 		}
 		logrus.Debug("Installation successful")
-		fmt.Printf("%s %s\n", utils.SuccessIcon(), utils.WhiteText("Installation successful!"))
+		fmt.Printf("%s %s\n", utils.SuccessIcon(), utils.CyanText("Installation successful!"))
 	},
 }
 

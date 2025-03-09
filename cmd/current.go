@@ -30,7 +30,7 @@ var currentCmd = &cobra.Command{
 				logrus.Warnf("Error fetching latest stable release: %v", err)
 				fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("stable (%s)", current)))
 			} else {
-				fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText("stable"))
+				fmt.Printf("%s %s\n", utils.InfoIcon(), utils.CyanText("stable"))
 				fmt.Printf("  %s\n", utils.WhiteText(fmt.Sprintf("Version: %s", stable.TagName)))
 				logrus.Debugf("Latest stable version: %s", stable.TagName)
 			}
@@ -50,7 +50,7 @@ var currentCmd = &cobra.Command{
 					publishedStr = t.Format("2006-01-02")
 				}
 
-				fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText("nightly"))
+				fmt.Printf("%s %s\n", utils.InfoIcon(), utils.CyanText("nightly"))
 				fmt.Printf("  %s\n", utils.WhiteText(fmt.Sprintf("Published: %s", publishedStr)))
 				fmt.Printf("  %s\n", utils.WhiteText(fmt.Sprintf("Commit: %s", shortCommit)))
 				logrus.Debugf("Latest nightly commit: %s, Published: %s", shortCommit, publishedStr)

@@ -22,7 +22,7 @@ var pathCmd = &cobra.Command{
 		if runtime.GOOS == "windows" {
 			logrus.Debug("Detected Windows OS")
 			fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText("Automatic PATH setup is not implemented for Windows."))
-			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Please add %s to your PATH environment variable manually.", globalBinDir)))
+			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Please add %s to your PATH environment variable manually.", utils.CyanText(globalBinDir))))
 			return
 		}
 
@@ -30,14 +30,14 @@ var pathCmd = &cobra.Command{
 		logrus.Debug("Current PATH: ", pathEnv)
 		if strings.Contains(pathEnv, globalBinDir) {
 			logrus.Debug("PATH already contains globalBinDir")
-			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Your PATH already contains %s.", globalBinDir)))
+			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Your PATH already contains %s.", utils.CyanText(globalBinDir))))
 			return
 		}
 
 		if os.Getenv("NIX_SHELL") != "" {
 			logrus.Debug("Detected Nix shell environment")
 			fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText("It appears your shell is managed by Nix. Automatic PATH modifications may not work as expected."))
-			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Please update your Nix configuration manually to include %s in your PATH.", globalBinDir)))
+			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Please update your Nix configuration manually to include %s in your PATH.", utils.CyanText(globalBinDir))))
 			return
 		}
 
@@ -62,7 +62,7 @@ var pathCmd = &cobra.Command{
 			exportCmd = fmt.Sprintf("set -gx PATH $PATH %s", globalBinDir)
 		default:
 			logrus.Debug("Unsupported shell: ", shellName)
-			fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText(fmt.Sprintf("Shell '%s' is not automatically supported. Please add %s to your PATH manually.", shellName, globalBinDir)))
+			fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText(fmt.Sprintf("Shell '%s' is not automatically supported. Please add %s to your PATH manually.", utils.CyanText(shellName), utils.CyanText(globalBinDir))))
 			return
 		}
 
@@ -73,10 +73,10 @@ var pathCmd = &cobra.Command{
 			logrus.Debug("Detected Nix-managed shell")
 			if data, err := os.ReadFile(rcFile); err == nil {
 				if strings.Contains(string(data), globalBinDir) {
-					fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText(fmt.Sprintf("%s already contains the PATH setting.", rcFile)))
+					fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText(fmt.Sprintf("%s already contains the PATH setting.", utils.CyanText(rcFile))))
 				} else {
-					fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText(fmt.Sprintf("Your shell (%s) is managed by Nix and %s does not appear to contain the PATH setting.", shell, rcFile)))
-					fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Please update your Nix configuration manually to include %s in your PATH.", globalBinDir)))
+					fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText(fmt.Sprintf("Your shell (%s) is managed by Nix and %s does not appear to contain the PATH setting.", utils.CyanText(shell), utils.CyanText(rcFile))))
+					fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Please update your Nix configuration manually to include %s in your PATH.", utils.CyanText(globalBinDir))))
 				}
 			} else {
 				logrus.Errorf("Unable to read %s: %v", rcFile, err)
@@ -84,10 +84,8 @@ var pathCmd = &cobra.Command{
 			return
 		}
 
-		fmt.Printf("%s %s\n\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("The following diff will be applied to %s:", rcFile)))
-		fmt.Printf("%s %s\n", utils.WhiteText("------ changes start ------"), utils.WhiteText(""))
-		fmt.Printf("%s\n", utils.WhiteText(fmt.Sprintf("+ %s\n+ %s", exportCmdComment, exportCmd)))
-		fmt.Printf("%s %s\n", utils.WhiteText("------ changes end ------"), utils.WhiteText(""))
+		fmt.Printf("%s %s\n\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("The following diff will be applied to %s:", utils.CyanText(rcFile))))
+		fmt.Printf("%s\n", utils.GreenText(fmt.Sprintf("+ %s\n+ %s", exportCmdComment, exportCmd)))
 		fmt.Printf("\nDo you want to proceed? (y/N): ")
 
 		reader := bufio.NewReader(os.Stdin)
@@ -124,8 +122,8 @@ var pathCmd = &cobra.Command{
 				}
 			}
 		}
-		fmt.Printf("%s %s\n", utils.SuccessIcon(), utils.WhiteText(fmt.Sprintf("Done applying changes to %s:", rcFile)))
-		fmt.Printf("%s Please restart your terminal or source %s to apply changes.\n", utils.WarningIcon(), utils.WhiteText(rcFile))
+		fmt.Printf("%s %s\n", utils.SuccessIcon(), utils.WhiteText(fmt.Sprintf("Done applying changes to %s:", utils.CyanText(rcFile))))
+		fmt.Printf("%s Please restart your terminal or source %s to apply changes.\n", utils.WarningIcon(), utils.CyanText(rcFile))
 	},
 }
 
