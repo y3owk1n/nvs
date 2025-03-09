@@ -37,3 +37,11 @@ func UpgradeIcon() string {
 func WhiteText(text string) string {
 	return color.New(color.FgWhite).Sprint(text)
 }
+
+func CyanText(text string) string {
+	return color.New(color.FgCyan).Sprint(text)
+}
+
+func GreenText(text string) string {
+	return color.New(color.FgGreen).Sprint(text)
+}

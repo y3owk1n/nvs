@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -63,15 +64,12 @@ var listCmd = &cobra.Command{
 			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
 			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
 		)
-		table.SetBorder(true)
-		table.SetRowLine(true)
-		table.SetCenterSeparator("│")
-		table.SetColumnSeparator("│")
+		table.SetTablePadding("1")
+		table.SetBorder(false)
+		table.SetRowLine(false)
+		table.SetCenterSeparator("")
+		table.SetColumnSeparator("")
 		table.SetAutoWrapText(false)
-
-		green := "\033[32m"
-		yellow := "\033[33m"
-		reset := "\033[0m"
 
 		for _, r := range combined {
 			var details string
@@ -124,9 +122,11 @@ var listCmd = &cobra.Command{
 
 			switch localStatus {
 			case "Current" + upgradeIndicator:
-				row = utils.ColorizeRow(row, green, reset)
+				row = utils.ColorizeRow(row, color.New(color.FgGreen))
 			case "Installed" + upgradeIndicator:
-				row = utils.ColorizeRow(row, yellow, reset)
+				row = utils.ColorizeRow(row, color.New(color.FgYellow))
+			default:
+				row = utils.ColorizeRow(row, color.New(color.FgWhite))
 			}
 
 			table.Append(row)
