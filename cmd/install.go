@@ -19,6 +19,7 @@ var installCmd = &cobra.Command{
 	Args:    cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		logrus.Debug("Starting installation command")
+
 		alias := releases.NormalizeVersion(args[0])
 		logrus.Debugf("Normalized version: %s", alias)
 		fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Resolving version %s...", alias)))
