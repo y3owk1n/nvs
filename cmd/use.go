@@ -51,13 +51,12 @@ var useCmd = &cobra.Command{
 			logrus.Fatalf("Failed to create symlink in global bin: %v", err)
 		}
 
-		successMsg := fmt.Sprintf("Global Neovim binary updated: %s -> %s", targetBin, nvimExec)
+		logrus.Debugf("Global Neovim binary updated: %s -> %s", targetBin, nvimExec)
 		switchMsg := fmt.Sprintf("Switched to Neovim %s", targetVersion)
-		fmt.Printf("%s %s\n", utils.SuccessIcon(), utils.WhiteText(successMsg))
-		fmt.Printf("%s %s\n", utils.SuccessIcon(), utils.WhiteText(switchMsg))
+		fmt.Printf("%s %s\n", utils.SuccessIcon(), switchMsg)
 
 		if pathEnv := os.Getenv("PATH"); !strings.Contains(pathEnv, globalBinDir) {
-			fmt.Printf("%s Add this directory to your PATH for convenience: %s\n", utils.WarningIcon(), globalBinDir)
+			fmt.Printf("%s Run `nvs path` or manually add this directory to your PATH for convenience: %s\n", utils.WarningIcon(), globalBinDir)
 		}
 	},
 }
