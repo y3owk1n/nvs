@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/sirupsen/logrus"
 )
 
@@ -148,10 +149,10 @@ func TimeFormat(iso string) string {
 	return t.Format("2006-01-02")
 }
 
-func ColorizeRow(row []string, color, reset string) []string {
+func ColorizeRow(row []string, c *color.Color) []string {
 	colored := make([]string, len(row))
 	for i, cell := range row {
-		colored[i] = fmt.Sprintf("%s%s%s", color, cell, reset)
+		colored[i] = c.Sprint(cell)
 	}
 	return colored
 }

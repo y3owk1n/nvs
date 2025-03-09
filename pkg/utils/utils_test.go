@@ -3,13 +3,14 @@ package utils
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/fatih/color"
 )
 
 // TestIsInstalled creates a temporary version directory and checks if IsInstalled returns true.
@@ -248,14 +249,13 @@ func TestTimeFormat(t *testing.T) {
 	}
 }
 
-// TestColorizeRow tests that each cell in the row is wrapped in the provided color and reset.
+// TestColorizeRow tests that each cell in the row is wrapped in the provided color formatting.
 func TestColorizeRow(t *testing.T) {
 	row := []string{"a", "b", "c"}
-	color := "\x1b[31m"
-	reset := "\x1b[0m"
-	colored := ColorizeRow(row, color, reset)
+	c := color.New(color.FgRed)
+	colored := ColorizeRow(row, c)
 	for i, cell := range row {
-		expected := fmt.Sprintf("%s%s%s", color, cell, reset)
+		expected := c.Sprint(cell)
 		if colored[i] != expected {
 			t.Errorf("expected %q, got %q", expected, colored[i])
 		}
