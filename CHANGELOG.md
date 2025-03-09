@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.7.0](https://github.com/y3owk1n/nvs/compare/v1.6.0...v1.7.0) (2025-03-09)
+
+
+### Features
+
+* add automatic path setup command ([#68](https://github.com/y3owk1n/nvs/issues/68)) ([a004820](https://github.com/y3owk1n/nvs/commit/a004820148d140cbdfc9a0213b5129672bcd921e))
+* add more detailed debug statement for better --verbose visualisation ([#73](https://github.com/y3owk1n/nvs/issues/73)) ([8768ea1](https://github.com/y3owk1n/nvs/commit/8768ea188aa1739fe0145bda2a08d99273e52afc))
+
+
+### Bug Fixes
+
+* ensure new line if ctrl-c pressed for cancelling operations ([#71](https://github.com/y3owk1n/nvs/issues/71)) ([f3b9275](https://github.com/y3owk1n/nvs/commit/f3b9275d0f8f991583b80b8956a107a6ecd57d19))
+* updates text coloring to ensure consistency ([#72](https://github.com/y3owk1n/nvs/issues/72)) ([53a1b89](https://github.com/y3owk1n/nvs/commit/53a1b89f72a6a7eb20d88e2f5959342a647ae8e4))
+
 ## [1.6.0](https://github.com/y3owk1n/nvs/compare/v1.5.2...v1.6.0) (2025-03-08)
 
 
