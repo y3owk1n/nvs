@@ -86,6 +86,14 @@ brew install y3owk1n/tap/nvs
 
 ### Commands
 
+#### path
+
+Best effort to automatically add the global binary directory to your PATH.
+
+```bash
+nvs path
+```
+
 #### install
 
 Install a specific Neovim version.
@@ -114,7 +122,7 @@ nvs use 0.10.3
 > [!warning]
 > If you're using windows, I think you will need `administrator` privilege terminal for **nvs** to symlink.
 
-#### list-remote
+#### list
 
 List available remote releases and installed status (cached for 5 minutes to avoid rate limiting). Use the force flag to refresh the cache.
 
@@ -202,6 +210,9 @@ nvs reset
 ## 🔗 Adding **nvs** to Your PATH
 
 To easily run the Neovim binary provided by **nvs**, you need to add the global bin directory (`~/.nvs/bin`) to your PATH. Below are instructions for common shells:
+
+> [!note]
+> We have provided `nvs setup-path`  for the best effort to automatically setup the path for you in common shells. If it does not work, you need to set it up manually.
 
 ### Macos Or Linux
 
