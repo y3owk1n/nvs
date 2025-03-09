@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.7.1](https://github.com/y3owk1n/nvs/compare/v1.7.0...v1.7.1) (2025-03-09)
+
+
+### Bug Fixes
+
+* add cyan colors to variables ([#78](https://github.com/y3owk1n/nvs/issues/78)) ([42937ef](https://github.com/y3owk1n/nvs/commit/42937efaeca129001b454948cdc6af089a54fbab))
+* **cmd.list:** make table compact ([#74](https://github.com/y3owk1n/nvs/issues/74)) ([7f24383](https://github.com/y3owk1n/nvs/commit/7f24383341b18214faf2839c498649690f196d75))
+* **cmd.root:** move ctrl+c interuption to debug level ([#76](https://github.com/y3owk1n/nvs/issues/76)) ([e731d64](https://github.com/y3owk1n/nvs/commit/e731d64343dd6968da7186dc0875f8eae50a7a74))
+* **utils.LaunchNvimWithConfig:** update error printing with icon ([#77](https://github.com/y3owk1n/nvs/issues/77)) ([81f3428](https://github.com/y3owk1n/nvs/commit/81f3428956c60f07d677c19a19add587a551aaf6))
+
 ## [1.7.0](https://github.com/y3owk1n/nvs/compare/v1.6.0...v1.7.0) (2025-03-09)
 
 
