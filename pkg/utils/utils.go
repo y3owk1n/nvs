@@ -107,7 +107,7 @@ func LaunchNvimWithConfig(configName string) {
 
 	info, err := os.Stat(configDir)
 	if os.IsNotExist(err) || !info.IsDir() {
-		fmt.Printf("Error: configuration '%s' does not exist in ~/.config\n", configName)
+		fmt.Printf("%s %s\n", ErrorIcon(), WhiteText(fmt.Sprintf("configuration '%s' does not exist in %s", CyanText(configName), CyanText("~/.config"))))
 		return
 	}
 
