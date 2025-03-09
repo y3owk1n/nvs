@@ -40,7 +40,7 @@ func initConfig() {
 	go func() {
 		<-sigCh
 		fmt.Println()
-		logrus.Info("Interrupt received, canceling operations...")
+		logrus.Debug("Interrupt received, canceling operations...")
 		cancel()
 		os.Exit(1)
 	}()
