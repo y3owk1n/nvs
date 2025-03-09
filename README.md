@@ -212,7 +212,7 @@ nvs reset
 To easily run the Neovim binary provided by **nvs**, you need to add the global bin directory (`~/.nvs/bin`) to your PATH. Below are instructions for common shells:
 
 > [!note]
-> We have provided `nvs setup-path`  for the best effort to automatically setup the path for you in common shells. If it does not work, you need to set it up manually.
+> We have provided `nvs path` command for the best effort to automatically setup the path for you in common shells. If it does not work, you need to set it up manually.
 
 ### Macos Or Linux
 
