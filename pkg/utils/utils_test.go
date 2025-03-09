@@ -177,7 +177,7 @@ func TestLaunchNvimWithConfig(t *testing.T) {
 	w.Close()
 	out, _ := io.ReadAll(r)
 	os.Stdout = origStdout
-	if !strings.Contains(string(out), "Error: configuration") {
+	if !strings.Contains(string(out), "✖ configuration") {
 		t.Errorf("expected error message for nonexistent configuration, got %q", string(out))
 	}
 
