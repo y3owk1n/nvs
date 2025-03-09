@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -38,6 +39,7 @@ func initConfig() {
 	signal.Notify(sigCh, os.Interrupt)
 	go func() {
 		<-sigCh
+		fmt.Println()
 		logrus.Info("Interrupt received, canceling operations...")
 		cancel()
 		os.Exit(1)
