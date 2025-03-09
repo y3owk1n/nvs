@@ -44,7 +44,7 @@ var upgradeCmd = &cobra.Command{
 			remoteIdentifier := releases.GetReleaseIdentifier(release, alias)
 			installedIdentifier, err := releases.GetInstalledReleaseIdentifier(versionsDir, alias)
 			if err == nil && installedIdentifier == remoteIdentifier {
-				fmt.Printf("%s %s is already up-to-date (%s)\n", utils.WarningIcon(), alias, installedIdentifier)
+				fmt.Printf("%s %s is already up-to-date (%s)\n", utils.WarningIcon(), utils.WhiteText(alias), utils.WhiteText(installedIdentifier))
 				continue
 			}
 
@@ -60,7 +60,7 @@ var upgradeCmd = &cobra.Command{
 				continue
 			}
 
-			fmt.Printf("%s %s upgrading to new identifier %s...\n", utils.InfoIcon(), utils.WhiteText(alias), remoteIdentifier)
+			fmt.Printf("%s %s upgrading to new identifier %s...\n", utils.InfoIcon(), utils.WhiteText(alias), utils.WhiteText(remoteIdentifier))
 
 			s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 			s.Suffix = " 0%"

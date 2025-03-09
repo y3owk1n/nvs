@@ -71,10 +71,11 @@ var pathCmd = &cobra.Command{
 		}
 
 		fmt.Printf("%s %s\n\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("The following diff will be applied to %s:", rcFile)))
-		fmt.Printf("%s %s\n", utils.WhiteText("--- current"), utils.WhiteText(""))
-		fmt.Printf("%s %s\n", utils.SuccessIcon(), utils.WhiteText(fmt.Sprintf("+++ new\n@@\n\n+ %s\n+ %s", exportCmdComment, exportCmd)))
+		fmt.Printf("%s %s\n", utils.WhiteText("------ changes start ------"), utils.WhiteText(""))
+		fmt.Printf("%s\n", utils.WhiteText(fmt.Sprintf("+ %s\n+ %s", exportCmdComment, exportCmd)))
+		fmt.Printf("%s %s\n", utils.WhiteText("------ changes end ------"), utils.WhiteText(""))
 		fmt.Print("\n")
-		fmt.Printf("%s %s ", utils.InfoIcon(), utils.WhiteText("Do you want to proceed? (y/N): "))
+		fmt.Printf("%s ", "Do you want to proceed? (y/N): ")
 
 		reader := bufio.NewReader(os.Stdin)
 		input, err := reader.ReadString('\n')
@@ -106,13 +107,13 @@ var pathCmd = &cobra.Command{
 				if _, err := f.WriteString("\n" + exportCmdComment + "\n" + exportCmd + "\n"); err != nil {
 					logrus.Fatalf("Failed to update %s: %v", rcFile, err)
 				}
-				fmt.Printf("%s Updated %s with PATH setting.\n", utils.SuccessIcon(), rcFile)
+				fmt.Printf("%s Updated %s with PATH setting.", utils.SuccessIcon(), utils.WhiteText(rcFile))
 			} else {
-				fmt.Printf("%s %s already contains the PATH setting.\n", utils.WarningIcon(), rcFile)
+				fmt.Printf("%s %s already contains the PATH setting.\n", utils.WarningIcon(), utils.WhiteText(rcFile))
 			}
 		}
 
-		fmt.Printf("\n%s Please restart your terminal or source %s to apply changes.\n", utils.SuccessIcon(), rcFile)
+		fmt.Printf("\n%s Please restart your terminal or source %s to apply changes.\n", utils.WarningIcon(), utils.WhiteText(rcFile))
 	},
 }
 
