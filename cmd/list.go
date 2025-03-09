@@ -18,18 +18,21 @@ var listCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		force := len(args) > 0 && args[0] == "force"
 
+		logrus.Debug("Fetching available versions...")
 		fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText("Fetching available versions..."))
 
 		releasesResult, err := releases.GetCachedReleases(force, cacheFilePath)
 		if err != nil {
 			logrus.Fatalf("Error fetching releases: %v", err)
 		}
+		logrus.Debugf("Fetched %d releases", len(releasesResult))
 
 		stableRelease, err := releases.FindLatestStable(cacheFilePath)
 		stableTag := "stable"
 		if err == nil {
 			stableTag = stableRelease.TagName
 		}
+		logrus.Debugf("Latest stable release: %s", stableTag)
 
 		var groupNightly, groupStable, groupOthers []releases.Release
 
@@ -43,12 +46,15 @@ var listCmd = &cobra.Command{
 			}
 		}
 
+		logrus.Debugf("Nightly: %d, Stable: %d, Others: %d", len(groupNightly), len(groupStable), len(groupOthers))
+
 		combined := append(append(groupNightly, groupStable...), groupOthers...)
 
 		current, err := utils.GetCurrentVersion(versionsDir)
 		if err != nil {
 			current = ""
 		}
+		logrus.Debugf("Current version: %s", current)
 
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetHeader([]string{"Tag", "Status", "Details"})
@@ -111,6 +117,8 @@ var listCmd = &cobra.Command{
 			} else {
 				localStatus = "Not Installed"
 			}
+
+			logrus.Debugf("Version: %s, Status: %s", key, localStatus)
 
 			row := []string{r.TagName, localStatus, details}
 
