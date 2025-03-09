@@ -34,7 +34,7 @@ var uninstallCmd = &cobra.Command{
 			logrus.Fatalf("Failed to uninstall version %s: %v", versionArg, err)
 		}
 
-		successMsg := fmt.Sprintf("Uninstalled version: %s", versionArg)
+		successMsg := fmt.Sprintf("Uninstalled version: %s", utils.CyanText(versionArg))
 		logrus.Debug(successMsg)
 		fmt.Printf("%s %s\n", utils.SuccessIcon(), utils.WhiteText(successMsg))
 	},
