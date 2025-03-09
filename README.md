@@ -13,7 +13,7 @@
 
 ## 🌟 Showcase
 
-<https://github.com/user-attachments/assets/6658a5e5-599e-4366-889f-b5f6368b8d2f>
+<https://github.com/user-attachments/assets/df307bfa-058d-4b23-b4bf-a23bdcba458f>
 
 ## 🌟 Features
 
