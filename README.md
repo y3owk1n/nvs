@@ -44,21 +44,13 @@ You can install **nvs** with a single command that downloads and executes our in
 > Always review remote scripts before execution. Before running any script from the internet, inspect its contents to ensure its safety.
 
 ```bash
-# Using curl
 curl -fsSL https://raw.githubusercontent.com/y3owk1n/nvs/main/install.sh | bash
-
-# Using wget
-wget -qO- https://raw.githubusercontent.com/y3owk1n/nvs/main/install.sh | bash
 ```
 
 We have also included an `uninstall script` if you would like to uninstall it
 
 ```bash
-# Using curl
 curl -fsSL https://raw.githubusercontent.com/y3owk1n/nvs/main/uninstall.sh | bash
-
-# Using wget
-wget -qO- https://raw.githubusercontent.com/y3owk1n/nvs/main/uninstall.sh | bash
 ```
 
 ### Homebrew
