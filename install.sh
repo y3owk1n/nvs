@@ -108,7 +108,7 @@ log_info "Download URL: ${YELLOW}$DOWNLOAD_URL${RESET}"
 download_file() {
 	local url="$1"
 	local output="$2"
-	log_info "Downloading binary: ${YELLOW}$url${RESET}"
+	log_info "Downloading binary from: ${YELLOW}$url${RESET}"
 	curl -L --progress-bar -o "$output" "$url"
 }
 
@@ -119,10 +119,11 @@ download_file "$DOWNLOAD_URL" "$TMP_FILE"
 # --- Checksum Verification ---
 CHECKSUM_URL="https://github.com/${REPO}/releases/latest/download/${ASSET}.sha256"
 TMP_CHECKSUM=$(mktemp)
-log_info "Downloading checksum: ${YELLOW}$CHECKSUM_URL${RESET}"
+log_info "Downloading checksum from: ${YELLOW}$CHECKSUM_URL${RESET}"
 # Attempt to download the checksum file using curl with --fail.
 if curl -L --fail --progress-bar -o "$TMP_CHECKSUM" "$CHECKSUM_URL"; then
 	log_info "Extracting expected checksum from the checksum file..."
+
 	EXPECTED_CHECKSUM=$(awk '{ print $1 }' "$TMP_CHECKSUM")
 	log_info "Expected checksum: ${YELLOW}$EXPECTED_CHECKSUM${RESET}"
 
@@ -143,8 +144,9 @@ if curl -L --fail --progress-bar -o "$TMP_CHECKSUM" "$CHECKSUM_URL"; then
 	fi
 	rm -f "$TMP_CHECKSUM"
 else
-	log_error "Checksum file not found at ${YELLOW}$CHECKSUM_URL${RESET}. Skipping checksum verification."
+	log_error "Checksum file not found at ${YELLOW}$CHECKSUM_URL${RESET}. Aborting installation."
 	rm -f "$TMP_CHECKSUM"
+	exit 1
 fi
 # --- End Checksum Verification ---
 
