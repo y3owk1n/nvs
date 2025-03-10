@@ -1,9 +1,40 @@
 #!/usr/bin/env bash
 set -e
 
+# ANSI color codes for styling output
+RED='\033[1;31m'
+GREEN='\033[1;32m'
+BLUE='\033[1;34m'
+CYAN='\033[1;36m'
+YELLOW='\033[1;33m'
+RESET='\033[0m'
+
+# Function to display a header banner.
+function header() {
+	echo -e "${CYAN}========================================${RESET}"
+	echo -e "${CYAN}          NVS Uninstaller             ${RESET}"
+	echo -e "${CYAN}========================================${RESET}"
+}
+
+# Functions for printing messages with colors.
+function info() {
+	echo -e "${BLUE}[INFO]${RESET} $1"
+}
+
+function success() {
+	echo -e "${GREEN}[SUCCESS]${RESET} $1"
+}
+
+function error() {
+	echo -e "${RED}[ERROR]${RESET} $1"
+}
+
+# Print header at the start.
+header
+
 BIN_NAME="nvs" # Base name for the binary
 
-# Detect OS and set installation directory.
+# Detect OS and set the installation directory.
 OS="$(uname -s)"
 INSTALL_DIR=""
 
@@ -15,7 +46,7 @@ MINGW* | CYGWIN* | MSYS*)
 	INSTALL_DIR="$HOME/AppData/Local/Programs"
 	;;
 *)
-	echo "Unsupported OS: $OS"
+	error "Unsupported OS: $OS"
 	exit 1
 	;;
 esac
@@ -26,17 +57,16 @@ if [[ "$OS" == MINGW* || "$OS" == CYGWIN* || "$OS" == MSYS* ]]; then
 	TARGET_PATH="${INSTALL_DIR}/${BIN_NAME}.exe"
 fi
 
-echo "Removing installed binary at ${TARGET_PATH}..."
+info "Removing installed binary at ${YELLOW}${TARGET_PATH}${RESET}..."
 if [ -f "${TARGET_PATH}" ]; then
 	if [ ! -w "${INSTALL_DIR}" ]; then
-		echo "Elevated privileges required. Prompting for sudo..."
+		info "Elevated privileges required. Prompting for sudo..."
 		sudo rm -f "${TARGET_PATH}"
 	else
 		rm -f "${TARGET_PATH}"
 	fi
-	echo "Uninstallation complete."
-	echo "Try running the following to verify the uninstallation, the binary should be removed from bin."
-	echo "nvs help"
+	success "Uninstallation complete."
+	echo -e "${CYAN}To verify, run:${RESET} ${YELLOW}nvs help${RESET}"
 else
-	echo "No installed binary found at ${TARGET_PATH}."
+	info "No installed binary found at ${YELLOW}${TARGET_PATH}${RESET}."
 fi
