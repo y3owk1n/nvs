@@ -36,7 +36,46 @@
 
 ## 🚀 Installation
 
-### From Source
+### Install with `install.sh`
+
+You can install **nvs** with a single command that downloads and executes our installation script. The script automatically detects your operating system and architecture and installs the appropriate binary.
+
+> [!warning]
+> Always review remote scripts before execution. Before running any script from the internet, inspect its contents to ensure its safety.
+
+```bash
+# Using curl
+curl -fsSL https://raw.githubusercontent.com/y3owk1n/nvs/main/install.sh | bash
+
+# Using wget
+wget -qO- https://raw.githubusercontent.com/y3owk1n/nvs/main/install.sh | bash
+```
+
+We have also included an `uninstall script` if you would like to uninstall it
+
+```bash
+# Using curl
+curl -fsSL https://raw.githubusercontent.com/y3owk1n/nvs/main/uninstall.sh | bash
+
+# Using wget
+wget -qO- https://raw.githubusercontent.com/y3owk1n/nvs/main/uninstall.sh | bash
+```
+
+### Homebrew
+
+Install **nvs** via Homebrew! Simply add our tap:
+
+```bash
+brew tap y3owk1n/tap
+```
+
+Then install with:
+
+```bash
+brew install y3owk1n/tap/nvs
+```
+
+### Building From Source
 
 Make sure you have [Go](https://golang.org/dl/) (v1.23 or later) installed. Then run:
 
@@ -62,20 +101,6 @@ env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.c
 ````
 
 Move the binary to your PATH or run it directly.
-
-### Homebrew
-
-Install **nvs** via Homebrew! Simply add our tap:
-
-```bash
-brew tap y3owk1n/tap
-```
-
-Then install with:
-
-```bash
-brew install y3owk1n/tap/nvs
-```
 
 ## 💻 Usage
 
