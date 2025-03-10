@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.2](https://github.com/y3owk1n/nvs/compare/v1.7.1...v1.7.2) (2025-03-10)
+
+
+### Bug Fixes
+
+* add checksum for releases ([#82](https://github.com/y3owk1n/nvs/issues/82)) ([2cc9d6d](https://github.com/y3owk1n/nvs/commit/2cc9d6d7d776a802379e7f1e3f0d5ec2ec45cf33))
+
 ## [1.7.1](https://github.com/y3owk1n/nvs/compare/v1.7.0...v1.7.1) (2025-03-09)
 
 
