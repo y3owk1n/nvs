@@ -53,14 +53,23 @@ jobs:
                   # Build for windows-amd64
                   env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=${{ steps.release.outputs.tag_name }}" -trimpath -o ./build/nvs-windows64.exe ./main.go
 
-            # Upload release artifacts.
+            # Generate SHA256 checksum files for each artifact
+            - name: Generate Checksums
+              if: ${{ steps.release.outputs.release_created }}
+              run: |
+                  cd build
+                  for file in nvs-*; do
+                      shasum -a 256 "$file" | awk '{print $1}' > "$file.sha256"
+                  done
+                  ls -l
+
+            # Upload release artifacts and their respective checksum files
             - name: Upload Release Artifacts
               if: ${{ steps.release.outputs.release_created }}
               env:
                   GITHUB_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
               run: |
-                  gh release upload "${{ steps.release.outputs.tag_name }}" ./build/nvs-darwin-arm64
-                  gh release upload "${{ steps.release.outputs.tag_name }}" ./build/nvs-darwin-amd64
-                  gh release upload "${{ steps.release.outputs.tag_name }}" ./build/nvs-linux-arm64
-                  gh release upload "${{ steps.release.outputs.tag_name }}" ./build/nvs-linux-amd64
-                  gh release upload "${{ steps.release.outputs.tag_name }}" ./build/nvs-windows64.exe
+                  for file in build/nvs-*; do
+                      gh release upload "${{ steps.release.outputs.tag_name }}" "$file"
+                      gh release upload "${{ steps.release.outputs.tag_name }}" "$file.sha256"
+                  done
