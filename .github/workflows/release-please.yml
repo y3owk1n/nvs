@@ -70,6 +70,8 @@ jobs:
                   GITHUB_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
               run: |
                   for file in build/nvs-*; do
-                      gh release upload "${{ steps.release.outputs.tag_name }}" "$file"
-                      gh release upload "${{ steps.release.outputs.tag_name }}" "$file.sha256"
+                      if [[ "$file" != *.sha256 ]]; then
+                          gh release upload "${{ steps.release.outputs.tag_name }}" "$file"
+                          gh release upload "${{ steps.release.outputs.tag_name }}" "$file.sha256"
+                      fi
                   done
