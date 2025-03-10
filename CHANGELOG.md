@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.3](https://github.com/y3owk1n/nvs/compare/v1.7.2...v1.7.3) (2025-03-10)
+
+
+### Bug Fixes
+
+* make sure checksum is not uploaded twice ([#84](https://github.com/y3owk1n/nvs/issues/84)) ([b21fbc7](https://github.com/y3owk1n/nvs/commit/b21fbc7d68fd2ff2499c981e1c614ca42c39e166))
+
 ## [1.7.2](https://github.com/y3owk1n/nvs/compare/v1.7.1...v1.7.2) (2025-03-10)
 
 
