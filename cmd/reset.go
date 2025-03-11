@@ -15,7 +15,7 @@ import (
 var resetCmd = &cobra.Command{
 	Use:   "reset",
 	Short: "Reset all data (remove symlinks, downloaded versions, cache, etc.)",
-	Long:  "WARNING: This command will remove all data in your configuration and cache directories and clear the contents of your binary directory. Use with caution.",
+	Long:  "WARNING: This command will remove all data in your configuration and cache directories and remove the symlinked nvim binary. Use with caution.",
 	Run: func(cmd *cobra.Command, args []string) {
 		logrus.Debug("Starting reset command")
 
@@ -68,7 +68,7 @@ var resetCmd = &cobra.Command{
 			"WARNING: This will delete all data in the following directories:\n"+
 				"- Config: %s\n"+
 				"- Cache: %s\n"+
-				"and clear the contents of the binary directory (preserving its structure): %s",
+				"and remove the symlinked nvim binary in the binary directory: %s",
 			utils.CyanText(baseConfigDir), utils.CyanText(baseCacheDir), utils.CyanText(baseBinDir))
 		fmt.Printf("%s %s\n\n", utils.WarningIcon(), warningMsg)
 		fmt.Printf("%s ", "Are you sure? (y/N): ")
@@ -111,9 +111,11 @@ var resetCmd = &cobra.Command{
 			logrus.Warnf("Cache directory not found or unreadable: %s", baseCacheDir)
 		}
 
-		logrus.Debugf("Clearing contents of binary directory: %s", baseBinDir)
-		if err := utils.ClearDirectory(baseBinDir); err != nil {
-			logrus.Fatalf("Failed to clear binary directory: %v", err)
+		// Remove the nvim symlinked binary only, not the whole directory.
+		symlinkPath := filepath.Join(baseBinDir, "nvim")
+		logrus.Debugf("Removing symlinked binary: %s", symlinkPath)
+		if err := os.Remove(symlinkPath); err != nil && !os.IsNotExist(err) {
+			logrus.Fatalf("Failed to remove symlink %s: %v", symlinkPath, err)
 		}
 
 		fmt.Println(utils.SuccessIcon(), utils.WhiteText("Reset successful. All data has been cleared."))
