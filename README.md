@@ -207,7 +207,7 @@ nvs i stable
 
 #### use
 
-Switch to a particular version. This updates a global symlink in ~/.nvs/bin so that you can simply run nvim.
+Switch to a particular version. This updates a global symlink in your designated bin directory so that you can simply run nvim.
 
 ```bash
 nvs use stable
@@ -266,7 +266,7 @@ nvs up nightly
 Switch between multiple configs. If no argument is provided, it will promp a select UI, else it will just open with specified name.
 
 > [!note]
-> It only scan the `~/.config` directory with names contain `nvim` in it. E.g. nvim, nvim-test, nvim-vanilla, ...
+> **nvs** scans your configuration directory (e.g. ~/.config) for entries containing "nvim" in the name. Examples include nvim, nvim-test, or nvim-vanilla.
 
 ```bash
 nvs config
