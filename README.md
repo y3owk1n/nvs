@@ -2,14 +2,45 @@
 
 **Neovim Version Switcher** – Easily install, switch, and manage multiple versions and config of Neovim like a boss 🚀
 
-[![GitHub release](https://img.shields.io/github/release/y3owk1n/nvs.svg)](https://github.com/y3owk1n/nvs/releases) [![License](https://img.shields.io/github/license/y3owk1n/nvs.svg)](LICENSE)
+[![CI](https://github.com/y3owk1n/nvs/actions/workflows/ci.yml/badge.svg)](https://github.com/y3owk1n/nvs/actions/workflows/ci.yml) [![GitHub release](https://img.shields.io/github/release/y3owk1n/nvs.svg)](https://github.com/y3owk1n/nvs/releases) [![License](https://img.shields.io/github/license/y3owk1n/nvs.svg)](LICENSE)
 
 ## 👀 Overview
 
 **nvs** (Neovim Version Switcher/Manager) is a lightweight cross-platform CLI tool written in Go 🏗️ that makes it super easy to install, switch between, and manage multiple versions of Neovim and config on your machine. Whether you’re testing a cutting‑edge nightly build 🌙 or sticking with the stable release 🔒, **nvs** has got your back!
 
-> [!note]
-> I only have a mac and it's working perfectly fine for my use case. If it's not working for other OS, feel free to help fixing that or share it as an issue. I'll try to look into it.
+```bash
+$ nvs use stable
+✓ Switched to Neovim stable
+
+$ nvim -v
+NVIM v0.10.4
+Build type: Release
+LuaJIT 2.1.1713484068
+Run "nvim -V1 -v" for more info
+
+$ nvs use nightly
+✓ Switched to Neovim nightly
+
+$ nvim -v
+NVIM v0.11.0-dev-1961+g7e2b75760f
+Build type: RelWithDebInfo
+LuaJIT 2.1.1741571767
+Run "nvim -V1 -v" for more info
+
+$ nvs install 0.10.0
+ℹ Resolving version v0.10.0...
+ℹ Installing Neovim v0.10.0...
+✓ Installation successful!
+
+$ nvs use 0.10.0
+✓ Switched to Neovim v0.10.0
+
+$ nvim -v
+NVIM v0.10.0
+Build type: Release
+LuaJIT 2.1.1713484068
+Run "nvim -V1 -v" for more info
+```
 
 ## 🌟 Showcase
 
@@ -22,23 +53,21 @@
 - **Version Switching:**
   Switch between installed versions in a snap. **nvs** updates a global symlink so your preferred version is always just a command away.
 - **Config Switching:**
-  Easily toggle between Neovim configurations by scanning ~/.config (including symlinks) and setting NVIM_APPNAME interactively or via a direct subcommand argument.
+  Easily toggle between Neovim configurations by scanning `~/.config` (including symlinks) and setting `NVIM_APPNAME` interactively or via a direct subcommand argument.
 - **Remote Version Listing:**
   List all available remote releases (stable, nightly, etc.) with cached results to avoid GitHub rate limits ⚡. Need fresh data? Just add the `force` flag.
 - **Upgrade for Stable and Nightly:**
   Easily upgrade your installed stable and/or nightly versions. The upgrade command checks if you’re already on the latest version and only performs an upgrade if needed.
 - **Uninstallation & Reset:**
-  Remove individual versions or reset your entire configuration with ease. The reset command now clears data in the OS-appropriate configuration and cache directories (or their environment variable overrides) and remove the nvim symlinked binary from bin. (Full cleanup? See the caveats! ⚠️)
+  Remove individual versions or reset your entire configuration with ease.
 - **Cross-Platform:**
   Works on macOS (Intel & Apple Silicon), Linux, and Windows.
-- **Global Symlink Management:**
-  Automatically creates a consistent global binary in your designated bin directory for a seamless experience.
 - **Verbose Logging:**
   Run with the `--verbose` flag to see detailed logs during directory initialization, reset, and other operations.
 
 ## 🚀 Installation
 
-### Install with `install.sh`
+### Install with our install script
 
 You can install **nvs** with a single command that downloads and executes our installation script. The script automatically detects your operating system and architecture and installs the appropriate binary.
 
@@ -54,6 +83,9 @@ We have also included an `uninstall script` if you would like to uninstall it
 ```bash
 curl -fsSL https://raw.githubusercontent.com/y3owk1n/nvs/main/uninstall.sh | bash
 ```
+
+> [!note]
+> You can upgrade by just running the same installation script again.
 
 ### Homebrew
 
@@ -111,28 +143,25 @@ Move the binary to your PATH or run it directly.
   Override with the `NVS_BIN_DIR` environment variable.
 
 > [!note]
-> All these directories will be created upon running any command (including --help) the first time after installation.
+> All these directories will be created upon running any command (including `nvs --help`) the first time after installation.
 > If you set custom paths after that, feel free to manually delete the default directories.
 
 ### Overriding Default Directories with Environment Variables
 
 **nvs** allows you to customize the locations where configuration, cache, and binary files are stored by setting the following environment variables:
 
-- `NVS_CONFIG_DIR`
-  Overrides the default configuration directory.
-  Default:
-  - On Unix-like systems: `~/.config/nvs`
-  - On Windows: `%APPDATA%\nvs`
-- `NVS_CACHE_DIR`
-  Overrides the default cache directory.
-  Default:
-  - On Unix-like systems: `~/.cache/nvs`
-  - On Windows: `%LOCALAPPDATA%\nvs\Cache`
-- `NVS_BIN_DIR`
-  Overrides the default global binary directory.
-  Default:
-  - On Unix-like systems: `~/.local/bin`
-  - On Windows: `%APPDATA%\nvs\bin`
+- `NVS_CONFIG_DIR` Overrides the default configuration directory.
+  - Default:
+    - On Unix-like systems: `~/.config/nvs`
+    - On Windows: `%APPDATA%\nvs`
+- `NVS_CACHE_DIR` Overrides the default cache directory.
+  - Default:
+    - On Unix-like systems: `~/.cache/nvs`
+    - On Windows: `%LOCALAPPDATA%\nvs\Cache`
+- `NVS_BIN_DIR` Overrides the default global binary directory.
+  - Default:
+    - On Unix-like systems: `~/.local/bin`
+    - On Windows: `%APPDATA%\nvs\bin`
 
 #### How to Set These Environment Variables
 
@@ -172,16 +201,40 @@ setx NVS_BIN_DIR "C:\Path\To\Custom\Bin"
 ```
 
 > [!note]
-> If you override the binary directory (NVS_BIN_DIR), make sure to update your system's PATH variable accordingly so that the nvs binaries can be found by your shell.
+> If you override the binary directory (`NVS_BIN_DIR`), make sure to update your system's PATH variable accordingly so that the **nvs** binaries can be found by your shell.
 
 ## 💻 Usage
 
 **nvs** uses a clean subcommand interface. Run `nvs --help` for full details.
 
-> [!note]
-> Remember to add `nvs` to your path. See next section about how.
-
 ### Commands
+
+```bash
+A CLI tool to install, switch, list, uninstall, and reset Neovim versions.
+
+Usage:
+  nvs [command]
+
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  config      Switch Neovim configuration
+  current     Show current active version with details
+  help        Help about any command
+  install     Install a Neovim version
+  list        List available remote versions with installation status (cached for 5 minutes or force)
+  path        Automatically add the global binary directory to your PATH
+  reset       Reset all data (remove symlinks, downloaded versions, cache, etc.)
+  uninstall   Uninstall a specific version
+  upgrade     Upgrade installed stable and/or nightly versions
+  use         Switch to a specific version
+
+Flags:
+  -h, --help      help for nvs
+  -v, --verbose   Enable verbose logging
+      --version   version for nvs
+
+Use "nvs [command] --help" for more information about a command.
+```
 
 #### path
 
@@ -190,6 +243,9 @@ Best effort to automatically add the global binary directory to your PATH.
 ```bash
 nvs path
 ```
+
+> [!note]
+> This won't work if you're managing your system with nix home manager. [See details below how to configure it](#nix-home-manager)
 
 #### install
 
@@ -224,11 +280,11 @@ nvs use 0.10.3
 List available remote releases and installed status (cached for 5 minutes to avoid rate limiting). Use the force flag to refresh the cache.
 
 > [!note]
-> The list will be filtered out for only nightly, stable, all version that are above v0.5.0.
+> The list will be filtered out for only nightly, stable, and all version that are above v0.5.0.
 
 ```bash
 nvs list
-nvs list force
+nvs list force # force refresh the cache
 
 # or with shorthand
 nvs ls
@@ -266,7 +322,7 @@ nvs up nightly
 Switch between multiple configs. If no argument is provided, it will promp a select UI, else it will just open with specified name.
 
 > [!note]
-> **nvs** scans your configuration directory (e.g. ~/.config) for entries containing "nvim" in the name. Examples include nvim, nvim-test, or nvim-vanilla.
+> **nvs** scans your configuration directory (e.g. `~/.config`) for entries containing `nvim` in the name. Examples includes `nvim`, `nvim-test`, or `nvim-vanilla`.
 
 ```bash
 nvs config
@@ -313,7 +369,7 @@ To easily run the Neovim binary provided by nvs, you need to add the global bina
 - **Global Binary Directory:** `~/.local/bin` (or overridden via `NVS_BIN_DIR`)
 
 > [!note]
-> We have provided `nvs path` command for the best effort to automatically setup the path for you in common shells. If it does not work, you need to set it up manually.
+> We have provided `nvs path` command for the best effort to automatically setup the path for you in common shells. If it does not work, you need to set it up manually. See below with some example.
 
 ### Macos Or Linux
 
@@ -371,6 +427,19 @@ Restart your Command Prompt (or log off and back on) for the changes to take eff
 
 > [!note]
 > If you have overridden the default binary directory with the `NVS_BIN_DIR` environment variable, make sure to replace `%APPDATA%\nvs\bin` with your custom path in the above command.
+
+### Nix Home Manager
+
+If you're using home manager with nix, you can try the following as documented at [Nix Home Manager Docs](https://nix-community.github.io/home-manager/options.xhtml#opt-home.sessionPath) :
+
+```nix
+
+{
+ home.sessionPath = [
+  "$HOME/.local/bin"
+ ];
+}
+```
 
 ## 🧩 Shell Completions
 
