@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/y3owk1n/nvs/compare/v1.7.3...v1.8.0) (2025-03-11)
+
+
+### Features
+
+* use os-specific directories for storing the files with env var overrides ([#88](https://github.com/y3owk1n/nvs/issues/88)) ([bece743](https://github.com/y3owk1n/nvs/commit/bece743d98ec3cb93b1f89d2fe97a48f09d915c9))
+
 ## [1.7.3](https://github.com/y3owk1n/nvs/compare/v1.7.2...v1.7.3) (2025-03-10)
 
 
