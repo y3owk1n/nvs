@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.1](https://github.com/y3owk1n/nvs/compare/v1.8.0...v1.8.1) (2025-03-11)
+
+
+### Bug Fixes
+
+* **cmd.reset:** do not remove all the content in bin directory but just the symlinked `nvim` ([#90](https://github.com/y3owk1n/nvs/issues/90)) ([bfa5d1e](https://github.com/y3owk1n/nvs/commit/bfa5d1e048a06a40cf16425a8678de110a8d919f))
+
 ## [1.8.0](https://github.com/y3owk1n/nvs/compare/v1.7.3...v1.8.0) (2025-03-11)
 
 
