@@ -11,22 +11,27 @@
 ```bash
 $ nvs use stable
 ✓ Switched to Neovim stable
+
 $ nvim -v
 NVIM v0.10.4
 Build type: Release
 LuaJIT 2.1.1713484068
 Run "nvim -V1 -v" for more info
+
 $ nvs use nightly
 ✓ Switched to Neovim nightly
+
 $ nvim -v
 NVIM v0.11.0-dev-1961+g7e2b75760f
 Build type: RelWithDebInfo
 LuaJIT 2.1.1741571767
 Run "nvim -V1 -v" for more info
+
 $ nvs install 0.10.0
 ℹ Resolving version v0.10.0...
 ℹ Installing Neovim v0.10.0...
 ✓ Installation successful!
+
 $ nvim -v
 NVIM v0.10.0
 Build type: Release
