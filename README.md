@@ -28,11 +28,13 @@
 - **Upgrade for Stable and Nightly:**
   Easily upgrade your installed stable and/or nightly versions. The upgrade command checks if you’re already on the latest version and only performs an upgrade if needed.
 - **Uninstallation & Reset:**
-  Remove individual versions or reset your entire configuration with ease. (Full cleanup? See the caveats! ⚠️)
+  Remove individual versions or reset your entire configuration with ease. The reset command now clears data in the OS-appropriate configuration and cache directories (or their environment variable overrides) and empties the binary directory contents while preserving its structure. (Full cleanup? See the caveats! ⚠️)
 - **Cross-Platform:**
   Works on macOS (Intel & Apple Silicon), Linux, and Windows.
 - **Global Symlink Management:**
-  Automatically creates a consistent global binary in `~/.nvs/bin` for a seamless experience.
+  Automatically creates a consistent global binary in your designated bin directory for a seamless experience.
+- **Verbose Logging:**
+  Run with the --verbose flag to see detailed logs during directory initialization, reset, and other operations.
 
 ## 🚀 Installation
 
@@ -93,6 +95,84 @@ env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.c
 ````
 
 Move the binary to your PATH or run it directly.
+
+## 📂 Configuration & Data
+
+**nvs** now follows OS-specific best practices for storing configuration, cache, and binary data. By default:
+
+- **Configuration Files:**
+  Stored in `~/.config/nvs` on Unix-like systems (or `%APPDATA%\nvs` on Windows).
+  Override with the `NVS_CONFIG_DIR` environment variable.
+- **Cache Files:**
+  Stored in `~/.cache/nvs` on Unix-like systems (or `%LOCALAPPDATA%\nvs\Cache` on Windows).
+  Override with the NVS_CACHE_DIR environment variable.
+- **Global Binary Symlinks:**
+  Placed in `~/.local/bin` on Unix-like systems (or an equivalent directory on Windows).
+  Override with the `NVS_BIN_DIR` environment variable.
+
+> [!note]
+> All these directories will be created upon running any command (including --help) the first time after installation.
+> If you set custom paths after that, feel free to manually delete the default directories.
+
+### Overriding Default Directories with Environment Variables
+
+**nvs** allows you to customize the locations where configuration, cache, and binary files are stored by setting the following environment variables:
+
+- `NVS_CONFIG_DIR`
+  Overrides the default configuration directory.
+  Default:
+  - On Unix-like systems: `~/.config/nvs`
+  - On Windows: `%APPDATA%\nvs`
+- `NVS_CACHE_DIR`
+  Overrides the default cache directory.
+  Default:
+  - On Unix-like systems: `~/.cache/nvs`
+  - On Windows: `%LOCALAPPDATA%\nvs\Cache`
+- `NVS_BIN_DIR`
+  Overrides the default global binary directory.
+  Default:
+  - On Unix-like systems: `~/.local/bin`
+  - On Windows: `%APPDATA%\nvs\bin`
+
+#### How to Set These Environment Variables
+
+##### On Unix-like Systems (Linux/macOS)
+
+You can add the following lines to your shell configuration file (e.g., `~/.bashrc`, `~/.zshrc`):
+
+```bash
+# Override nvs directories
+export NVS_CONFIG_DIR="$HOME/custom-config/nvs"
+export NVS_CACHE_DIR="$HOME/custom-cache/nvs"
+export NVS_BIN_DIR="$HOME/custom-bin"
+```
+
+After editing your configuration file, reload it:
+
+```bash
+source ~/.bashrc   # or source ~/.zshrc
+```
+
+##### On Windows
+
+You can set environment variables temporarily in the Command Prompt:
+
+```bash
+set NVS_CONFIG_DIR=C:\Path\To\Custom\Config
+set NVS_CACHE_DIR=C:\Path\To\Custom\Cache
+set NVS_BIN_DIR=C:\Path\To\Custom\Bin
+```
+
+For a permanent change, open the **System Properties** → **Advanced** → **Environment Variables** and add or edit the variables there. Alternatively, you can use the `setx` command in an elevated Command Prompt:
+
+```bash
+setx NVS_CONFIG_DIR "C:\Path\To\Custom\Config"
+setx NVS_CACHE_DIR "C:\Path\To\Custom\Cache"
+setx NVS_BIN_DIR "C:\Path\To\Custom\Bin"
+```
+
+> [!note]
+> If you override the binary directory (NVS_BIN_DIR), make sure to update your system's PATH variable accordingly so that the nvs binaries can be found by your shell.
 
 ## 💻 Usage
 
@@ -218,7 +298,7 @@ nvs un 0.10.3
 Reset to factory state.
 
 > [!warning]
-> This command will delete all data in ~/.nvs including items inside the bin directory, but will preserve the bin directory structure. Use with caution.
+> This command will delete all data in your configuration and cache directories—determined based on OS conventions or the environment variables (`NVS_CONFIG_DIR` and `NVS_CACHE_DIR`)—and clear the contents of your binary directory (or `NVS_BIN_DIR`) while preserving its structure. Use with caution.
 
 ```bash
 nvs reset
@@ -226,7 +306,11 @@ nvs reset
 
 ## 🔗 Adding **nvs** to Your PATH
 
-To easily run the Neovim binary provided by **nvs**, you need to add the global bin directory (`~/.nvs/bin`) to your PATH. Below are instructions for common shells:
+To easily run the Neovim binary provided by nvs, you need to add the global binary directory to your PATH. By default, this is set according to OS best practices and environment variables. On Unix-like systems, the default is:
+
+- **Configuration Directory:** `~/.config/nvs` (or overridden via `NVS_CONFIG_DIR`)
+- **Cache Directory:** `~/.cache/nvs` (or overridden via `NVS_CACHE_DIR`)
+- **Global Binary Directory:** `~/.local/bin` (or overridden via `NVS_BIN_DIR`)
 
 > [!note]
 > We have provided `nvs path` command for the best effort to automatically setup the path for you in common shells. If it does not work, you need to set it up manually.
@@ -238,7 +322,7 @@ To easily run the Neovim binary provided by **nvs**, you need to add the global 
 Add the following line to your `~/.bashrc` (or `~/.bash_profile` on macOS):
 
 ```bash
-export PATH="$HOME/.nvs/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 Then, reload your configuration:
@@ -252,7 +336,7 @@ source ~/.bashrc   # or source ~/.bash_profile
 Add the following line to your `~/.zshrc`:
 
 ```bash
-export PATH="$HOME/.nvs/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 Then, reload your configuration:
@@ -266,7 +350,7 @@ source ~/.zshrc
 Add the following line to your `~/.config/fish/config.fish`:
 
 ```bash
-set -gx PATH $HOME/.nvs/bin $PATH
+set -gx PATH $HOME/.local/bin $PATH
 ```
 
 Then, reload your configuration:
@@ -280,10 +364,13 @@ source ~/.config/fish/config.fish
 Open an elevated Command Prompt (Run as administrator) and type:
 
 ```bash
-setx PATH "%PATH%;C:\Users\YourName\.nvs\bin"
+setx PATH "%PATH%;%APPDATA%\nvs\bin"
 ```
 
-You may need to open a new Command Prompt session to see the updated PATH and try running `nvim`.
+Restart your Command Prompt (or log off and back on) for the changes to take effect.
+
+> [!note]
+> If you have overridden the default binary directory with the `NVS_BIN_DIR` environment variable, make sure to replace `%APPDATA%\nvs\bin` with your custom path in the above command.
 
 ## 🧩 Shell Completions
 
@@ -342,13 +429,6 @@ Then, reload your configuration:
 ```bash
 source ~/.config/fish/config.fish
 ```
-
-## 📂 Configuration & Data
-
-**nvs** stores its configuration, downloaded versions, and cache in the ~/.nvs directory.
-
-> [!note]
-> Remember: Homebrew will not delete this directory upon uninstallation, you must delete it manually if you want a full cleanup.
 
 ## 🤝 Contributing
 
