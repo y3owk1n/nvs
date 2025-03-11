@@ -28,13 +28,13 @@
 - **Upgrade for Stable and Nightly:**
   Easily upgrade your installed stable and/or nightly versions. The upgrade command checks if you’re already on the latest version and only performs an upgrade if needed.
 - **Uninstallation & Reset:**
-  Remove individual versions or reset your entire configuration with ease. The reset command now clears data in the OS-appropriate configuration and cache directories (or their environment variable overrides) and empties the binary directory contents while preserving its structure. (Full cleanup? See the caveats! ⚠️)
+  Remove individual versions or reset your entire configuration with ease. The reset command now clears data in the OS-appropriate configuration and cache directories (or their environment variable overrides) and remove the nvim symlinked binary from bin. (Full cleanup? See the caveats! ⚠️)
 - **Cross-Platform:**
   Works on macOS (Intel & Apple Silicon), Linux, and Windows.
 - **Global Symlink Management:**
   Automatically creates a consistent global binary in your designated bin directory for a seamless experience.
 - **Verbose Logging:**
-  Run with the --verbose flag to see detailed logs during directory initialization, reset, and other operations.
+  Run with the `--verbose` flag to see detailed logs during directory initialization, reset, and other operations.
 
 ## 🚀 Installation
 
@@ -298,7 +298,7 @@ nvs un 0.10.3
 Reset to factory state.
 
 > [!warning]
-> This command will delete all data in your configuration and cache directories—determined based on OS conventions or the environment variables (`NVS_CONFIG_DIR` and `NVS_CACHE_DIR`)—and clear the contents of your binary directory (or `NVS_BIN_DIR`) while preserving its structure. Use with caution.
+> This command will delete all data in your configuration and cache directories—determined based on OS conventions or the environment variables (`NVS_CONFIG_DIR` and `NVS_CACHE_DIR`)—and remove the `nvim` binary from your binary directory (or `NVS_BIN_DIR`). Use with caution.
 
 ```bash
 nvs reset
