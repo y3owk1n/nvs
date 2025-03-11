@@ -298,7 +298,7 @@ nvs un 0.10.3
 Reset to factory state.
 
 > [!warning]
-> This command will delete all data in ~/.nvs including items inside the bin directory, but will preserve the bin directory structure. Use with caution.
+> This command will delete all data in your configuration and cache directories—determined based on OS conventions or the environment variables (`NVS_CONFIG_DIR` and `NVS_CACHE_DIR`)—and clear the contents of your binary directory (or `NVS_BIN_DIR`) while preserving its structure. Use with caution.
 
 ```bash
 nvs reset
