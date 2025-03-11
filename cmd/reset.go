@@ -14,19 +14,63 @@ import (
 
 var resetCmd = &cobra.Command{
 	Use:   "reset",
-	Short: "Reset all data (remove symlinks, downloaded versions, cache, etc.) except bin structure",
-	Long:  "WARNING: This command will delete all data in ~/.nvs including items inside the bin directory, but will preserve the bin directory structure. Use with caution.",
+	Short: "Reset all data (remove symlinks, downloaded versions, cache, etc.)",
+	Long:  "WARNING: This command will remove all data in your configuration and cache directories and clear the contents of your binary directory. Use with caution.",
 	Run: func(cmd *cobra.Command, args []string) {
 		logrus.Debug("Starting reset command")
 
-		home, err := os.UserHomeDir()
-		if err != nil {
-			logrus.Fatalf("Failed to get home directory: %v", err)
+		var baseConfigDir string
+		if custom := os.Getenv("NVS_CONFIG_DIR"); custom != "" {
+			baseConfigDir = custom
+			logrus.Debugf("Using custom config directory from NVS_CONFIG_DIR: %s", baseConfigDir)
+		} else {
+			if configDir, err := os.UserConfigDir(); err == nil {
+				baseConfigDir = filepath.Join(configDir, "nvs")
+				logrus.Debugf("Using system config directory: %s", baseConfigDir)
+			} else {
+				home, err := os.UserHomeDir()
+				if err != nil {
+					logrus.Fatalf("Failed to get user home directory: %v", err)
+				}
+				baseConfigDir = filepath.Join(home, ".nvs")
+				logrus.Debugf("Falling back to home directory for config: %s", baseConfigDir)
+			}
 		}
-		baseDir := filepath.Join(home, ".nvs")
-		logrus.Debugf("Base directory resolved: %s", baseDir)
 
-		fmt.Printf("%s %s\n\n", utils.WarningIcon(), fmt.Sprintf("WARNING: This will delete all data in %s, including items inside the bin directory, but will preserve the bin directory structure.", utils.CyanText(baseDir)))
+		var baseCacheDir string
+		if custom := os.Getenv("NVS_CACHE_DIR"); custom != "" {
+			baseCacheDir = custom
+			logrus.Debugf("Using custom cache directory from NVS_CACHE_DIR: %s", baseCacheDir)
+		} else {
+			if cacheDir, err := os.UserCacheDir(); err == nil {
+				baseCacheDir = filepath.Join(cacheDir, "nvs")
+				logrus.Debugf("Using system cache directory: %s", baseCacheDir)
+			} else {
+				baseCacheDir = filepath.Join(baseConfigDir, "cache")
+				logrus.Debugf("Falling back to config directory for cache: %s", baseCacheDir)
+			}
+		}
+
+		var baseBinDir string
+		if custom := os.Getenv("NVS_BIN_DIR"); custom != "" {
+			baseBinDir = custom
+			logrus.Debugf("Using custom binary directory from NVS_BIN_DIR: %s", baseBinDir)
+		} else {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				logrus.Fatalf("Failed to get user home directory: %v", err)
+			}
+			baseBinDir = filepath.Join(home, ".local", "bin")
+			logrus.Debugf("Using default binary directory: %s", baseBinDir)
+		}
+
+		warningMsg := fmt.Sprintf(
+			"WARNING: This will delete all data in the following directories:\n"+
+				"- Config: %s\n"+
+				"- Cache: %s\n"+
+				"and clear the contents of the binary directory (preserving its structure): %s",
+			utils.CyanText(baseConfigDir), utils.CyanText(baseCacheDir), utils.CyanText(baseBinDir))
+		fmt.Printf("%s %s\n\n", utils.WarningIcon(), warningMsg)
 		fmt.Printf("%s ", "Are you sure? (y/N): ")
 
 		reader := bufio.NewReader(os.Stdin)
@@ -41,27 +85,38 @@ var resetCmd = &cobra.Command{
 			return
 		}
 
-		entries, err := os.ReadDir(baseDir)
-		if err != nil {
-			logrus.Fatalf("Failed to read base directory: %v", err)
-		}
-
-		logrus.Debug("Starting directory cleanup")
-		for _, entry := range entries {
-			fullPath := filepath.Join(baseDir, entry.Name())
-			if entry.Name() == "bin" {
-				logrus.Debugf("Clearing contents of bin directory: %s", fullPath)
-				if err := utils.ClearDirectory(fullPath); err != nil {
-					logrus.Fatalf("Failed to clear bin directory: %v", err)
-				}
-			} else {
-				logrus.Debugf("Removing directory: %s", fullPath)
+		logrus.Debugf("Cleaning up configuration directory: %s", baseConfigDir)
+		if entries, err := os.ReadDir(baseConfigDir); err == nil {
+			for _, entry := range entries {
+				fullPath := filepath.Join(baseConfigDir, entry.Name())
+				logrus.Debugf("Removing %s", fullPath)
 				if err := os.RemoveAll(fullPath); err != nil {
 					logrus.Fatalf("Failed to remove %s: %v", fullPath, err)
 				}
 			}
+		} else {
+			logrus.Warnf("Config directory not found or unreadable: %s", baseConfigDir)
 		}
-		fmt.Println(utils.SuccessIcon(), utils.WhiteText("Reset successful. All data has been cleared, but the bin structure has been preserved."))
+
+		logrus.Debugf("Cleaning up cache directory: %s", baseCacheDir)
+		if entries, err := os.ReadDir(baseCacheDir); err == nil {
+			for _, entry := range entries {
+				fullPath := filepath.Join(baseCacheDir, entry.Name())
+				logrus.Debugf("Removing %s", fullPath)
+				if err := os.RemoveAll(fullPath); err != nil {
+					logrus.Fatalf("Failed to remove %s: %v", fullPath, err)
+				}
+			}
+		} else {
+			logrus.Warnf("Cache directory not found or unreadable: %s", baseCacheDir)
+		}
+
+		logrus.Debugf("Clearing contents of binary directory: %s", baseBinDir)
+		if err := utils.ClearDirectory(baseBinDir); err != nil {
+			logrus.Fatalf("Failed to clear binary directory: %v", err)
+		}
+
+		fmt.Println(utils.SuccessIcon(), utils.WhiteText("Reset successful. All data has been cleared."))
 		logrus.Debug("Reset completed successfully")
 	},
 }
