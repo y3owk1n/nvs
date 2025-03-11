@@ -32,6 +32,9 @@ $ nvs install 0.10.0
 ℹ Installing Neovim v0.10.0...
 ✓ Installation successful!
 
+$ nvs use 0.10.0
+✓ Switched to Neovim v0.10.0
+
 $ nvim -v
 NVIM v0.10.0
 Build type: Release
