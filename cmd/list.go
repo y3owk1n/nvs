@@ -16,13 +16,18 @@ var listCmd = &cobra.Command{
 	Aliases: []string{"ls"},
 	Short:   "List installed versions",
 	Run: func(cmd *cobra.Command, args []string) {
+		logrus.Debug("Executing list command")
+
 		versions, err := utils.ListInstalledVersions(versionsDir)
 		if err != nil {
 			logrus.Fatalf("Error listing versions: %v", err)
 		}
 
+		logrus.Debugf("Found %d installed versions", len(versions))
+
 		if len(versions) == 0 {
 			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText("No installed versions..."))
+			logrus.Debug("No installed versions found")
 			return
 		}
 
@@ -31,6 +36,7 @@ var listCmd = &cobra.Command{
 			logrus.Warn("No current version set or unable to determine the current version")
 			current = "none"
 		}
+		logrus.Debugf("Current version: %s", current)
 
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetHeader([]string{"Version", "Status"})
@@ -53,6 +59,7 @@ var listCmd = &cobra.Command{
 					color.New(color.Bold, color.FgHiGreen).Sprintf("→ %s", v),
 					color.New(color.Bold, color.FgHiGreen).Sprintf("Current"),
 				}
+				logrus.Debugf("Marked version %s as current", v)
 			} else {
 				row = []string{v, "Installed"}
 			}
