@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -27,6 +29,36 @@ var uninstallCmd = &cobra.Command{
 
 		if !utils.IsInstalled(versionsDir, versionArg) {
 			logrus.Fatalf("Version %s is not installed", versionArg)
+		}
+
+		currentSymlink := filepath.Join(versionsDir, "current")
+
+		isCurrent := false
+		if current, err := utils.GetCurrentVersion(versionsDir); err == nil {
+			if current == versionArg {
+				isCurrent = true
+			}
+		}
+
+		if isCurrent {
+			fmt.Printf("%s The version %s is currently in use. Do you really want to uninstall it? (y/N): ", utils.WarningIcon(), utils.CyanText(versionArg))
+			reader := bufio.NewReader(os.Stdin)
+			input, err := reader.ReadString('\n')
+			if err != nil {
+				logrus.Fatalf("Failed to read input: %v", err)
+			}
+			input = strings.TrimSpace(input)
+
+			if strings.ToLower(input) != "y" {
+				fmt.Println(utils.InfoIcon(), utils.WhiteText("Aborted uninstall."))
+				logrus.Debug("Uninstall cancelled by user")
+				return
+			}
+
+			logrus.Debugf("User confirmed removal of current version %s", versionArg)
+			if err := os.Remove(currentSymlink); err != nil {
+				logrus.Fatalf("Failed to remove current symlink: %v", err)
+			}
 		}
 
 		logrus.Debug("Version is installed, proceeding with removal")
