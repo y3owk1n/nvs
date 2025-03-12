@@ -7,6 +7,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/pkg/installer"
 	"github.com/y3owk1n/nvs/pkg/releases"
 	"github.com/y3owk1n/nvs/pkg/utils"
 )
@@ -24,7 +25,9 @@ var useCmd = &cobra.Command{
 		logrus.Debugf("Resolved target version: %s", targetVersion)
 
 		if !utils.IsInstalled(versionsDir, targetVersion) {
-			logrus.Fatalf("Version %s is not installed", targetVersion)
+			if err := installer.InstallVersion(alias, versionsDir, cacheFilePath); err != nil {
+				logrus.Fatalf("%v", err)
+			}
 		}
 
 		currentSymlink := filepath.Join(versionsDir, "current")
