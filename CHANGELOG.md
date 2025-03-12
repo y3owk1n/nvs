@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.1](https://github.com/y3owk1n/nvs/compare/v1.9.0...v1.9.1) (2025-03-12)
+
+
+### Bug Fixes
+
+* add more debug logs for verbose mode for `nvs env` and `nvs list` ([#107](https://github.com/y3owk1n/nvs/issues/107)) ([47a8175](https://github.com/y3owk1n/nvs/commit/47a8175ce64d75d545362bdde9b5ec2725a7472b))
+
 ## [1.9.0](https://github.com/y3owk1n/nvs/compare/v1.8.2...v1.9.0) (2025-03-12)
 
 
