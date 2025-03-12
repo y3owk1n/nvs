@@ -265,6 +265,9 @@ nvs i stable
 
 Switch to a particular version. This updates a global symlink in your designated bin directory so that you can simply run nvim.
 
+> [!note]
+> **nvs** will attempt to install the version specified if it's not installed and switch to it later.
+
 ```bash
 nvs use stable
 nvs use nightly
@@ -335,7 +338,7 @@ nvs conf
 
 #### uninstall
 
-Uninstall an installed version.
+Uninstall an installed version. **nvs** will prompt a confirmation `y/N` if trying to uninstall the current used version and also prompt to select one of installed versions and switch to it.
 
 ```bash
 nvs uninstall stable
