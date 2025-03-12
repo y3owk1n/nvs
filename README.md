@@ -67,9 +67,12 @@ Run "nvim -V1 -v" for more info
 
 ## 🚀 Installation
 
-### Install with our install script
+> [!warning]
+> To make the process butter smooth, remember to remove any `Neovim` installation in your system and let **nvs** manage them instead.
 
-You can install **nvs** with a single command that downloads and executes our installation script. The script automatically detects your operating system and architecture and installs the appropriate binary.
+### Using our install script
+
+You can install **nvs** with a single command that downloads and executes our [installation script](https://github.com/y3owk1n/nvs/blob/main/install.sh). The script automatically detects your operating system and architecture and installs the appropriate binary.
 
 > [!warning]
 > Always review remote scripts before execution. Before running any script from the internet, inspect its contents to ensure its safety.
@@ -78,14 +81,14 @@ You can install **nvs** with a single command that downloads and executes our in
 curl -fsSL https://raw.githubusercontent.com/y3owk1n/nvs/main/install.sh | bash
 ```
 
+> [!note]
+> You can upgrade by just running the same installation script again.
+
 We have also included an `uninstall script` if you would like to uninstall it
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/y3owk1n/nvs/main/uninstall.sh | bash
 ```
-
-> [!note]
-> You can upgrade by just running the same installation script again.
 
 ### Homebrew
 
@@ -100,6 +103,12 @@ Then install with:
 ```bash
 brew install y3owk1n/tap/nvs
 ```
+
+### Using a released binary
+
+- Download the [latest release binary](https://github.com/y3owk1n/nvs/releases) for your system
+- Make it available globally on PATH environment variable
+- Run it like any other method
 
 ### Building From Source
 
@@ -447,6 +456,20 @@ If you're using home manager with nix, you can try the following as documented a
 ## 🧩 Shell Completions
 
 **nvs** supports generating shell completions using Cobra’s built‐in functionality. You can easily enable command completions for your favorite shell by following the instructions below.
+
+```bash
+Generate the autocompletion script for nvs for the specified shell.
+See each sub-command's help for details on how to use the generated script.
+
+Usage:
+  nvs completion [command]
+
+Available Commands:
+  bash        Generate the autocompletion script for bash
+  fish        Generate the autocompletion script for fish
+  powershell  Generate the autocompletion script for powershell
+  zsh         Generate the autocompletion script for zsh
+```
 
 ### Bash
 
