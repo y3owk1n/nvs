@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -37,35 +36,8 @@ var useCmd = &cobra.Command{
 			}
 		}
 
-		versionPath := filepath.Join(versionsDir, targetVersion)
-		logrus.Debugf("Updating symlink to point to: %s", versionPath)
-		if err := utils.UpdateSymlink(versionPath, currentSymlink); err != nil {
-			logrus.Fatalf("Failed to switch version: %v", err)
-		}
-
-		nvimExec := utils.FindNvimBinary(versionPath)
-		if nvimExec == "" {
-			fmt.Printf("%s Could not find Neovim binary in %s. Please check the installation structure.\n", utils.ErrorIcon(), utils.CyanText(versionPath))
-			logrus.Errorf("Neovim binary not found in: %s", versionPath)
-			return
-		}
-
-		targetBin := filepath.Join(globalBinDir, "nvim")
-		if _, err := os.Lstat(targetBin); err == nil {
-			os.Remove(targetBin)
-			logrus.Debugf("Removed existing global bin symlink: %s", targetBin)
-		}
-		if err := os.Symlink(nvimExec, targetBin); err != nil {
-			logrus.Fatalf("Failed to create symlink in global bin: %v", err)
-		}
-
-		logrus.Debugf("Global Neovim binary updated: %s -> %s", targetBin, nvimExec)
-		switchMsg := fmt.Sprintf("Switched to Neovim %s", utils.CyanText(targetVersion))
-		fmt.Printf("%s %s\n", utils.SuccessIcon(), utils.WhiteText(switchMsg))
-
-		if pathEnv := os.Getenv("PATH"); !strings.Contains(pathEnv, globalBinDir) {
-			fmt.Printf("%s Run `nvs path` or manually add this directory to your PATH for convenience: %s\n", utils.WarningIcon(), utils.CyanText(globalBinDir))
-			logrus.Debugf("Global bin directory not found in PATH: %s", globalBinDir)
+		if err := utils.UseVersion(targetVersion, currentSymlink, versionsDir, globalBinDir); err != nil {
+			logrus.Fatalf("%v", err)
 		}
 	},
 }
