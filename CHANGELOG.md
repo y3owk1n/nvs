@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.9.0](https://github.com/y3owk1n/nvs/compare/v1.8.2...v1.9.0) (2025-03-12)
+
+
+### Features
+
+* add `nvs env` to show the current configurations ([#105](https://github.com/y3owk1n/nvs/issues/105)) ([d2b09c8](https://github.com/y3owk1n/nvs/commit/d2b09c8ef09501d662124afa28f87a413a742709))
+* add `nvs list` and move previous `list` -&gt; `list-remote` ([#103](https://github.com/y3owk1n/nvs/issues/103)) ([d1f600d](https://github.com/y3owk1n/nvs/commit/d1f600dca8d9fd9c9811ac404f4cec9f7200d189))
+
 ## [1.8.2](https://github.com/y3owk1n/nvs/compare/v1.8.1...v1.8.2) (2025-03-12)
 
 
