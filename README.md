@@ -228,9 +228,11 @@ Available Commands:
   completion  Generate the autocompletion script for the specified shell
   config      Switch Neovim configuration
   current     Show current active version with details
+  env         Print effective CLI configuration
   help        Help about any command
   install     Install a Neovim version
-  list        List available remote versions with installation status (cached for 5 minutes or force)
+  list        List installed versions
+  list-remote List available remote versions with installation status (cached for 5 minutes or force)
   path        Automatically add the global binary directory to your PATH
   reset       Reset all data (remove symlinks, downloaded versions, cache, etc.)
   uninstall   Uninstall a specific version
@@ -245,16 +247,32 @@ Flags:
 Use "nvs [command] --help" for more information about a command.
 ```
 
-#### path
+#### list-remote
 
-Best effort to automatically add the global binary directory to your PATH.
-
-```bash
-nvs path
-```
+List available remote releases and installed status (cached for 5 minutes to avoid rate limiting). Use the force flag to refresh the cache.
 
 > [!note]
-> This won't work if you're managing your system with nix home manager. [See details below how to configure it](#nix-home-manager)
+> The list will be filtered out for only nightly, stable, and all version that are above v0.5.0.
+
+```bash
+nvs list-remote
+nvs list-remote force # force refresh the cache
+
+# or with shorthand
+nvs ls-remote
+nvs ls-remote force
+```
+
+#### list
+
+List all locally installed Neovim versions
+
+```bash
+nvs list
+
+# or with shorthand
+nvs ls
+```
 
 #### install
 
@@ -286,22 +304,6 @@ nvs use 0.10.3
 
 > [!warning]
 > If you're using windows, I think you will need `administrator` privilege terminal for **nvs** to symlink.
-
-#### list
-
-List available remote releases and installed status (cached for 5 minutes to avoid rate limiting). Use the force flag to refresh the cache.
-
-> [!note]
-> The list will be filtered out for only nightly, stable, and all version that are above v0.5.0.
-
-```bash
-nvs list
-nvs list force # force refresh the cache
-
-# or with shorthand
-nvs ls
-nvs ls force
-```
 
 #### current
 
@@ -359,6 +361,25 @@ nvs uninstall 0.10.3
 nvs rm stable
 nvs remove nightly
 nvs un 0.10.3
+```
+
+#### path
+
+Best effort to automatically add the global binary directory to your PATH.
+
+```bash
+nvs path
+```
+
+> [!note]
+> This won't work if you're managing your system with nix home manager. [See details below how to configure it](#nix-home-manager)
+
+#### env
+
+Prints the env configuration used by NVS (`NVS_CONFIG_DIR`, `NVS_CACHE_DIR`, and `NVS_BIN_DIR`).
+
+```bash
+nvs env
 ```
 
 #### reset
