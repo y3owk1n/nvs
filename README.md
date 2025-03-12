@@ -44,7 +44,7 @@ Run "nvim -V1 -v" for more info
 
 ## 🌟 Showcase
 
-<https://github.com/user-attachments/assets/df307bfa-058d-4b23-b4bf-a23bdcba458f>
+<https://github.com/user-attachments/assets/54f30265-3502-4469-bf5b-f405899e602b>
 
 ## 🌟 Features
 
