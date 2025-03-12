@@ -89,6 +89,40 @@ func FindNvimBinary(dir string) string {
 	return binaryPath
 }
 
+func UseVersion(targetVersion string, currentSymlink string, versionsDir string, globalBinDir string) error {
+	versionPath := filepath.Join(versionsDir, targetVersion)
+	logrus.Debugf("Updating symlink to point to: %s", versionPath)
+	if err := UpdateSymlink(versionPath, currentSymlink); err != nil {
+		return fmt.Errorf("failed to switch version: %v", err)
+	}
+
+	nvimExec := FindNvimBinary(versionPath)
+	if nvimExec == "" {
+		fmt.Printf("%s Could not find Neovim binary in %s. Please check the installation structure.\n", ErrorIcon(), CyanText(versionPath))
+		return fmt.Errorf("neovim binary not found in: %s", versionPath)
+	}
+
+	targetBin := filepath.Join(globalBinDir, "nvim")
+	if _, err := os.Lstat(targetBin); err == nil {
+		os.Remove(targetBin)
+		logrus.Debugf("Removed existing global bin symlink: %s", targetBin)
+	}
+	if err := os.Symlink(nvimExec, targetBin); err != nil {
+		return fmt.Errorf("failed to create symlink in global bin: %v", err)
+	}
+
+	logrus.Debugf("Global Neovim binary updated: %s -> %s", targetBin, nvimExec)
+	switchMsg := fmt.Sprintf("Switched to Neovim %s", CyanText(targetVersion))
+	fmt.Printf("%s %s\n", SuccessIcon(), WhiteText(switchMsg))
+
+	if pathEnv := os.Getenv("PATH"); !strings.Contains(pathEnv, globalBinDir) {
+		fmt.Printf("%s Run `nvs path` or manually add this directory to your PATH for convenience: %s\n", WarningIcon(), CyanText(globalBinDir))
+		logrus.Debugf("Global bin directory not found in PATH: %s", globalBinDir)
+	}
+
+	return nil
+}
+
 func GetInstalledReleaseIdentifier(versionsDir, alias string) (string, error) {
 	versionFile := filepath.Join(versionsDir, alias, "version.txt")
 	data, err := os.ReadFile(versionFile)
