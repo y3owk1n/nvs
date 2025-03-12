@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.8.2](https://github.com/y3owk1n/nvs/compare/v1.8.1...v1.8.2) (2025-03-12)
+
+
+### Bug Fixes
+
+* make sure getAssetUrl to consider `linux64.tar.gz` pattern ([#94](https://github.com/y3owk1n/nvs/issues/94)) ([49f8ab0](https://github.com/y3owk1n/nvs/commit/49f8ab076cc34dcc20650bceceac38cacb44a8b9))
+* **uninstallCmd:** check if uninstalling the current using version and prompt confirmation ([#99](https://github.com/y3owk1n/nvs/issues/99)) ([45b7977](https://github.com/y3owk1n/nvs/commit/45b7977ecd471f73cf7957cbd38e7bc21e815142))
+* **uninstallCmd:** prompt remaining version to use after uninstalling current using version ([#100](https://github.com/y3owk1n/nvs/issues/100)) ([42196c5](https://github.com/y3owk1n/nvs/commit/42196c5c13e3356ff38e2aa9dd57e5ebe44f2d7d))
+* **useCmd:** try to install the version if it's not installed when trying to switch to it ([#98](https://github.com/y3owk1n/nvs/issues/98)) ([4e03707](https://github.com/y3owk1n/nvs/commit/4e037071f8de0e356ce0034ae98acefa10524bfb))
+
 ## [1.8.1](https://github.com/y3owk1n/nvs/compare/v1.8.0...v1.8.1) (2025-03-11)
 
 
