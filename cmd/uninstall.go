@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/pkg/releases"
@@ -69,6 +70,46 @@ var uninstallCmd = &cobra.Command{
 		successMsg := fmt.Sprintf("Uninstalled version: %s", utils.CyanText(versionArg))
 		logrus.Debug(successMsg)
 		fmt.Printf("%s %s\n", utils.SuccessIcon(), utils.WhiteText(successMsg))
+
+		if isCurrent {
+			versions, err := utils.ListInstalledVersions(versionsDir)
+			if err != nil {
+				logrus.Fatalf("Error listing versions: %v", err)
+			}
+
+			var availableVersions []string
+			for _, entry := range versions {
+				if entry != "current" {
+					availableVersions = append(availableVersions, entry)
+				}
+			}
+
+			if len(availableVersions) == 0 {
+				fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText("No other versions available. Your current version has been unset."))
+			} else {
+				logrus.Debugf("Switchable Installed Neovim Versions: %v", availableVersions)
+				prompt := promptui.Select{
+					Label: "Switchable Installed Neovim Versions",
+					Items: availableVersions,
+				}
+
+				logrus.Debug("Displaying selection prompt")
+
+				_, selectedVersion, err := prompt.Run()
+				if err != nil {
+					if err == promptui.ErrInterrupt {
+						logrus.Debug("User cancelled selection")
+						fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText("Selection cancelled."))
+						return
+					}
+					logrus.Fatalf("Prompt failed: %v", err)
+				}
+
+				if err := utils.UseVersion(selectedVersion, currentSymlink, versionsDir, globalBinDir); err != nil {
+					logrus.Fatalf("%v", err)
+				}
+			}
+		}
 	},
 }
 
