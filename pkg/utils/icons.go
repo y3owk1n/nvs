@@ -8,10 +8,11 @@ const (
 	Info      = "ℹ"
 	Warn      = "⚠"
 	Upgrade   = "↑"
+	Prompt    = "?"
 )
 
 func ColoredIcon(icon string, fgColor color.Attribute) string {
-	return color.New(fgColor).Sprint(icon)
+	return color.New(fgColor, color.Bold).Sprint(icon)
 }
 
 func SuccessIcon() string {
@@ -32,6 +33,10 @@ func InfoIcon() string {
 
 func UpgradeIcon() string {
 	return ColoredIcon(Upgrade, color.FgYellow)
+}
+
+func PromptIcon() string {
+	return ColoredIcon(Prompt, color.FgCyan)
 }
 
 func WhiteText(text string) string {

@@ -71,7 +71,7 @@ var resetCmd = &cobra.Command{
 				"and remove the symlinked nvim binary in the binary directory: %s",
 			utils.CyanText(baseConfigDir), utils.CyanText(baseCacheDir), utils.CyanText(baseBinDir))
 		fmt.Printf("%s %s\n\n", utils.WarningIcon(), warningMsg)
-		fmt.Printf("%s ", "Are you sure? (y/N): ")
+		fmt.Printf("%s %s ", utils.PromptIcon(), "Are you sure? (y/N): ")
 
 		reader := bufio.NewReader(os.Stdin)
 		input, err := reader.ReadString('\n')
