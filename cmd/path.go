@@ -86,7 +86,8 @@ var pathCmd = &cobra.Command{
 
 		fmt.Printf("%s %s\n\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("The following diff will be applied to %s:", utils.CyanText(rcFile))))
 		fmt.Printf("%s\n", utils.GreenText(fmt.Sprintf("+ %s\n+ %s", exportCmdComment, exportCmd)))
-		fmt.Printf("\nDo you want to proceed? (y/N): ")
+
+		fmt.Printf("\n%s %s ", utils.PromptIcon(), "Do you want to proceed? (y/N): ")
 
 		reader := bufio.NewReader(os.Stdin)
 		input, err := reader.ReadString('\n')
