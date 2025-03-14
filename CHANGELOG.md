@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.1](https://github.com/y3owk1n/nvs/compare/v1.10.0...v1.10.1) (2025-03-14)
+
+
+### Bug Fixes
+
+* **builder:** make sure to actually install neovim after build instead of just copying the files ([#115](https://github.com/y3owk1n/nvs/issues/115)) ([2a1fbd5](https://github.com/y3owk1n/nvs/commit/2a1fbd5275e3c8e9cc2b16b8207da3c17795a8cd))
+
 ## [1.10.0](https://github.com/y3owk1n/nvs/compare/v1.9.1...v1.10.0) (2025-03-14)
 
 
