@@ -1,6 +1,6 @@
 # nvs (Neovim Version Switcher)
 
-**Neovim Version Switcher** – Easily install, switch, and manage multiple versions and config of Neovim like a boss 🚀
+**Neovim Version Switcher** – Easily install, switch, and manage multiple versions (including commit hashes) and config of Neovim like a boss 🚀
 
 [![CI](https://github.com/y3owk1n/nvs/actions/workflows/ci.yml/badge.svg)](https://github.com/y3owk1n/nvs/actions/workflows/ci.yml) [![GitHub release](https://img.shields.io/github/release/y3owk1n/nvs.svg)](https://github.com/y3owk1n/nvs/releases) [![License](https://img.shields.io/github/license/y3owk1n/nvs.svg)](LICENSE)
 
@@ -228,16 +228,16 @@ Available Commands:
   completion  Generate the autocompletion script for the specified shell
   config      Switch Neovim configuration
   current     Show current active version with details
-  env         Print effective CLI configuration
+  env         Print NVS env configurations
   help        Help about any command
-  install     Install a Neovim version
+  install     Install a Neovim version or commit
   list        List installed versions
   list-remote List available remote versions with installation status (cached for 5 minutes or force)
   path        Automatically add the global binary directory to your PATH
   reset       Reset all data (remove symlinks, downloaded versions, cache, etc.)
   uninstall   Uninstall a specific version
   upgrade     Upgrade installed stable and/or nightly versions
-  use         Switch to a specific version
+  use         Switch to a specific version or commit hash
 
 Flags:
   -h, --help      help for nvs
@@ -276,13 +276,19 @@ nvs ls
 
 #### install
 
-Install a specific Neovim version.
+Install a specific Neovim version or build from commits.
+
+> [!warning]
+> To build from commit, make sure your system has `git`, `make`, and `cmake` installed, as building Neovim requires these 3 pieces to work together.
 
 ```bash
 nvs install stable    # Install the latest stable release 🔒
 nvs install nightly   # Install the latest nightly release 🌙
 nvs install v0.10.3   # Install a specific version
 nvs install 0.10.3    # Or without the v keyword
+nvs install master    # Build and install based on the latest master commit
+nvs install 2db1ae3   # Build and install a specific commit hash in 7 character
+nvs install 2db1ae37f14d71d1391110fe18709329263c77c9 # Or a 40 character hash
 
 # or with shorthand
 nvs i stable
@@ -300,6 +306,7 @@ nvs use stable
 nvs use nightly
 nvs use v0.10.3
 nvs use 0.10.3
+nvs use 2db1ae3
 ```
 
 > [!warning]
@@ -356,6 +363,7 @@ nvs uninstall stable
 nvs uninstall nightly
 nvs uninstall v0.10.3
 nvs uninstall 0.10.3
+nvs uninstall 2db1ae3
 
 # or with shorthand
 nvs rm stable
