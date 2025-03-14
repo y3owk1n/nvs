@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/Masterminds/semver"
 	"github.com/sirupsen/logrus"
@@ -102,8 +103,24 @@ func GetReleases() ([]Release, error) {
 	return FilterReleases(releases, "0.5.0")
 }
 
+func IsCommitHash(s string) bool {
+	if s == "master" {
+		return true
+	}
+
+	if len(s) != 7 && len(s) != 40 {
+		return false
+	}
+	for _, r := range s {
+		if !unicode.IsDigit(r) && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
+			return false
+		}
+	}
+	return true
+}
+
 func NormalizeVersion(version string) string {
-	if version == "stable" || version == "nightly" {
+	if version == "stable" || version == "nightly" || IsCommitHash(version) {
 		return version
 	}
 	if !strings.HasPrefix(version, "v") {
@@ -209,7 +226,7 @@ func GetReleaseIdentifier(release Release, alias string) string {
 		if strings.HasPrefix(release.TagName, "nightly-") {
 			return strings.TrimPrefix(release.TagName, "nightly-")
 		}
-		return release.CommitHash[:10]
+		return release.CommitHash[:7]
 	}
 	return release.TagName
 }

@@ -251,6 +251,48 @@ func TestGetReleases_Non200(t *testing.T) {
 	}
 }
 
+func TestIsCommitHash(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected bool
+		name     string
+	}{
+		// Special case: "master" should always return true.
+		{"master", true, "master keyword"},
+
+		// Invalid lengths (not 7 or 40)
+		{"", false, "empty string"},
+		{"abc", false, "too short"},
+		{"12345678", false, "8 chars, invalid length"},
+		{"123456789", false, "9 chars, invalid length"},
+
+		// 7-character valid commit hash (all valid hex characters)
+		{"abcdef0", true, "7-digit valid hash lowercase"},
+		{"ABCDEF0", true, "7-digit valid hash uppercase"},
+		{"a1B2c3D", true, "7-digit valid mix"},
+
+		// 7-character invalid commit hash (contains invalid character)
+		{"abcdeg0", false, "7-digit invalid hash, 'g' is not hex"},
+
+		// 40-character valid commit hash
+		{"0123456789abcdef0123456789abcdef01234567", true, "40-digit valid hash"},
+		// 40-character valid commit hash with uppercase letters
+		{"0123456789ABCDEF0123456789ABCDEF01234567", true, "40-digit valid hash uppercase"},
+
+		// 40-character invalid commit hash (contains an invalid character)
+		{"0123456789abcdef0123456789abcdef0123456g", false, "40-digit invalid hash, 'g' is not hex"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := IsCommitHash(tc.input)
+			if result != tc.expected {
+				t.Errorf("IsCommitHash(%q) = %v; want %v", tc.input, result, tc.expected)
+			}
+		})
+	}
+}
+
 // TestNormalizeVersion tests NormalizeVersion behavior.
 func TestNormalizeVersion(t *testing.T) {
 	cases := []struct {
