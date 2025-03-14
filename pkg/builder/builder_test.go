@@ -31,9 +31,8 @@ func TestHelperProcess(t *testing.T) {
 		return
 	}
 
-	// Parse the command and its arguments.
+	// Parse arguments: look for "--" and then the command.
 	args := os.Args
-	// Our argument list should contain "--" followed by the command.
 	idx := 0
 	for i, arg := range args {
 		if arg == "--" {
@@ -46,7 +45,7 @@ func TestHelperProcess(t *testing.T) {
 		os.Exit(1)
 	}
 	cmd := args[idx]
-	// For convenience, capture any subcommand.
+	// Capture any subcommand if provided.
 	var subcmd string
 	if len(args) > idx+1 {
 		subcmd = args[idx+1]
@@ -56,8 +55,7 @@ func TestHelperProcess(t *testing.T) {
 	case "git":
 		switch subcmd {
 		case "clone":
-			// Simulate cloning by creating the target directory.
-			// The last argument is assumed to be the destination.
+			// Simulate cloning by creating the destination directory.
 			dest := args[len(args)-1]
 			if err := os.MkdirAll(dest, 0755); err != nil {
 				fmt.Fprintf(os.Stderr, "failed to create dir: %v", err)
@@ -72,7 +70,7 @@ func TestHelperProcess(t *testing.T) {
 			os.Exit(0)
 		case "rev-parse":
 			// Simulate printing a commit hash.
-			// (This dummy hash must be at least 7 characters; we use "abcdef1\n")
+			// Dummy hash "abcdef1\n" (at least 7 characters).
 			fmt.Fprint(os.Stdout, "abcdef1\n")
 			os.Exit(0)
 		default:
@@ -81,26 +79,43 @@ func TestHelperProcess(t *testing.T) {
 	case "make":
 		// Simulate a successful build.
 		os.Exit(0)
+	case "cmake":
+		// Simulate the install step.
+		// Look for the "--prefix=" argument to get the target directory.
+		var prefix string
+		for _, arg := range args {
+			if strings.HasPrefix(arg, "--prefix=") {
+				prefix = arg[len("--prefix="):]
+				break
+			}
+		}
+		if prefix != "" {
+			// Simulate installation by creating the directory structure and dummy binary.
+			targetBin := filepath.Join(prefix, "bin")
+			if err := os.MkdirAll(targetBin, 0755); err != nil {
+				fmt.Fprintf(os.Stderr, "failed to create target bin dir: %v", err)
+				os.Exit(1)
+			}
+			nvimPath := filepath.Join(targetBin, "nvim")
+			if err := os.WriteFile(nvimPath, []byte("installed dummy binary"), 0755); err != nil {
+				fmt.Fprintf(os.Stderr, "failed to write nvim binary: %v", err)
+				os.Exit(1)
+			}
+		}
+		os.Exit(0)
 	default:
 		os.Exit(0)
 	}
 }
 
-// TestBuildFromCommit_Master tests the BuildFromCommit function when the commit is "master".
+// TestBuildFromCommit_Master tests BuildFromCommit when commit is "master".
 func TestBuildFromCommit_Master(t *testing.T) {
-	// Override execCommand and utils.CopyFile for testing.
+	// Override execCommand for testing.
 	oldExecCommand := execCommandFunc
 	execCommandFunc = fakeExecCommand
 	defer func() { execCommandFunc = oldExecCommand }()
 
-	oldCopyFile := copyFileFunc
-	copyFileFunc = func(src, dst string) error {
-		// For testing, simply write a dummy binary file to dst.
-		return os.WriteFile(dst, []byte("dummy binary"), 0755)
-	}
-	defer func() { copyFileFunc = oldCopyFile }()
-
-	// Ensure that the local clone directory does not exist so that the clone branch is executed.
+	// Remove the local clone directory to force cloning.
 	localPath := filepath.Join(os.TempDir(), "neovim-src")
 	os.RemoveAll(localPath)
 
@@ -111,23 +126,14 @@ func TestBuildFromCommit_Master(t *testing.T) {
 	}
 	defer os.RemoveAll(versionsDir)
 
-	// To simulate a successful build, we need to ensure that the built binary exists.
-	// BuildFromCommit checks for the binary in two locations.
-	// Here we simulate the second location: localPath/bin/nvim.
-	binaryPath := filepath.Join(localPath, "bin", "nvim")
-	if err := os.MkdirAll(filepath.Dir(binaryPath), 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(binaryPath, []byte("dummy binary"), 0755); err != nil {
-		t.Fatal(err)
-	}
-
+	// For this test, we don't need to simulate a built binary in the localPath,
+	// because the cmake install simulation will create the installed binary.
 	// Call BuildFromCommit with commit "master".
 	if err := BuildFromCommit("master", versionsDir); err != nil {
 		t.Fatalf("BuildFromCommit failed: %v", err)
 	}
 
-	// The BuildFromCommit function extracts the commit hash from "git rev-parse" output,
+	// BuildFromCommit extracts the commit hash from "git rev-parse",
 	// takes its first 7 characters ("abcdef1"), and uses that as the target directory name.
 	targetDir := filepath.Join(versionsDir, "abcdef1")
 	versionFile := filepath.Join(targetDir, "version.txt")
@@ -138,6 +144,12 @@ func TestBuildFromCommit_Master(t *testing.T) {
 	if strings.TrimSpace(string(data)) != "abcdef1" {
 		t.Errorf("version file content = %q; want %q", string(data), "abcdef1")
 	}
+
+	// Verify that the installed binary exists.
+	installedBinary := filepath.Join(targetDir, "bin", "nvim")
+	if _, err := os.Stat(installedBinary); os.IsNotExist(err) {
+		t.Errorf("installed binary not found at %s", installedBinary)
+	}
 }
 
 // TestBuildFromCommit_Commit tests BuildFromCommit for a non-master commit.
@@ -146,13 +158,7 @@ func TestBuildFromCommit_Commit(t *testing.T) {
 	execCommandFunc = fakeExecCommand
 	defer func() { execCommandFunc = oldExecCommand }()
 
-	oldCopyFile := copyFileFunc
-	copyFileFunc = func(src, dst string) error {
-		return os.WriteFile(dst, []byte("dummy binary"), 0755)
-	}
-	defer func() { copyFileFunc = oldCopyFile }()
-
-	// Remove the local clone directory so that the clone branch runs.
+	// Remove the local clone directory to force cloning.
 	localPath := filepath.Join(os.TempDir(), "neovim-src")
 	os.RemoveAll(localPath)
 
@@ -162,21 +168,13 @@ func TestBuildFromCommit_Commit(t *testing.T) {
 	}
 	defer os.RemoveAll(versionsDir)
 
-	// Create a dummy built binary file for the non-master branch.
-	binaryPath := filepath.Join(localPath, "bin", "nvim")
-	if err := os.MkdirAll(filepath.Dir(binaryPath), 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(binaryPath, []byte("dummy binary"), 0755); err != nil {
-		t.Fatal(err)
-	}
-
 	// Call BuildFromCommit with a non-master commit (e.g. "abc1234").
 	if err := BuildFromCommit("abc1234", versionsDir); err != nil {
 		t.Fatalf("BuildFromCommit failed: %v", err)
 	}
 
-	// The commit hash is always derived from the dummy output ("abcdef1").
+	// The commit hash is always derived from the dummy "git rev-parse" output ("abcdef1"),
+	// so the target directory should be versionsDir/abcdef1.
 	targetDir := filepath.Join(versionsDir, "abcdef1")
 	versionFile := filepath.Join(targetDir, "version.txt")
 	data, err := os.ReadFile(versionFile)
@@ -185,5 +183,11 @@ func TestBuildFromCommit_Commit(t *testing.T) {
 	}
 	if strings.TrimSpace(string(data)) != "abcdef1" {
 		t.Errorf("version file content = %q; want %q", string(data), "abcdef1")
+	}
+
+	// Verify that the installed binary exists.
+	installedBinary := filepath.Join(targetDir, "bin", "nvim")
+	if _, err := os.Stat(installedBinary); os.IsNotExist(err) {
+		t.Errorf("installed binary not found at %s", installedBinary)
 	}
 }
