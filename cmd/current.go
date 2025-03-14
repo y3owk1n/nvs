@@ -42,8 +42,8 @@ var currentCmd = &cobra.Command{
 				fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("nightly (%s)", current)))
 			} else {
 				shortCommit := nightly.CommitHash
-				if len(shortCommit) > 10 {
-					shortCommit = shortCommit[:10]
+				if len(shortCommit) > 7 {
+					shortCommit = shortCommit[:7]
 				}
 				publishedStr := nightly.PublishedAt
 				if t, err := time.Parse(time.RFC3339, nightly.PublishedAt); err == nil {
@@ -56,8 +56,17 @@ var currentCmd = &cobra.Command{
 				logrus.Debugf("Latest nightly commit: %s, Published: %s", shortCommit, publishedStr)
 			}
 		default:
-			logrus.Debugf("Displaying custom version: %s", current)
-			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(current))
+			isCommitHash := releases.IsCommitHash(current)
+			logrus.Debugf("isCommitHash: %t", isCommitHash)
+
+			if isCommitHash {
+				logrus.Debugf("Displaying custom commit hash: %s", current)
+				fmt.Printf("%s %s %s\n", utils.InfoIcon(), utils.WhiteText("Commit Hash:"), utils.CyanText(current))
+			} else {
+				logrus.Debugf("Displaying custom version: %s", current)
+				fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(current))
+			}
+
 		}
 	},
 }

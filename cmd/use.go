@@ -7,14 +7,15 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/pkg/builder"
 	"github.com/y3owk1n/nvs/pkg/installer"
 	"github.com/y3owk1n/nvs/pkg/releases"
 	"github.com/y3owk1n/nvs/pkg/utils"
 )
 
 var useCmd = &cobra.Command{
-	Use:   "use <version|stable|nightly>",
-	Short: "Switch to a specific version",
+	Use:   "use <version|stable|nightly|commit-hash>",
+	Short: "Switch to a specific version or commit hash",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		logrus.Debug("Starting use command")
@@ -25,8 +26,20 @@ var useCmd = &cobra.Command{
 		logrus.Debugf("Resolved target version: %s", targetVersion)
 
 		if !utils.IsInstalled(versionsDir, targetVersion) {
-			if err := installer.InstallVersion(alias, versionsDir, cacheFilePath); err != nil {
-				logrus.Fatalf("%v", err)
+			isCommitHash := releases.IsCommitHash(alias)
+			logrus.Debugf("isCommitHash: %t", isCommitHash)
+
+			if isCommitHash {
+				logrus.Debugf("Building Neovim from commit %s", alias)
+				fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText("Building Neovim from commit "+utils.CyanText(alias)))
+				if err := builder.BuildFromCommit(alias, versionsDir); err != nil {
+					logrus.Fatalf("%v", err)
+				}
+			} else {
+				logrus.Debugf("Start installing %s", alias)
+				if err := installer.InstallVersion(alias, versionsDir, cacheFilePath); err != nil {
+					logrus.Fatalf("%v", err)
+				}
 			}
 		}
 

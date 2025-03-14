@@ -261,3 +261,57 @@ func TestColorizeRow(t *testing.T) {
 		}
 	}
 }
+
+func TestCopyFile_Success(t *testing.T) {
+	// Create a temporary directory for testing.
+	tempDir, err := os.MkdirTemp("", "copyfiletest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create a temporary source file.
+	srcPath := filepath.Join(tempDir, "src.txt")
+	content := []byte("Hello, world!")
+	if err := os.WriteFile(srcPath, content, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Define destination file path.
+	dstPath := filepath.Join(tempDir, "dst.txt")
+
+	// Call CopyFile.
+	if err := CopyFile(srcPath, dstPath); err != nil {
+		t.Fatalf("CopyFile failed: %v", err)
+	}
+
+	// Read the destination file to verify its contents.
+	copied, err := os.ReadFile(dstPath)
+	if err != nil {
+		t.Fatalf("ReadFile failed: %v", err)
+	}
+
+	if string(copied) != string(content) {
+		t.Errorf("copied content = %q; want %q", string(copied), string(content))
+	}
+
+	// On Unix systems, verify the file permissions.
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(dstPath)
+		if err != nil {
+			t.Fatalf("Stat failed: %v", err)
+		}
+		// Only check the permission bits.
+		if info.Mode().Perm() != 0755 {
+			t.Errorf("permissions = %o; want %o", info.Mode().Perm(), 0755)
+		}
+	}
+}
+
+func TestCopyFile_SrcNotExist(t *testing.T) {
+	// Use a non-existent source file.
+	err := CopyFile("nonexistent.src", "shouldnotmatter.dst")
+	if err == nil {
+		t.Errorf("expected error when source file does not exist")
+	}
+}
