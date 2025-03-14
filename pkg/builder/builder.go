@@ -1,8 +1,10 @@
 package builder
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,7 +33,7 @@ func BuildFromCommit(commit, versionsDir string) error {
 	if _, err := os.Stat(localPath); os.IsNotExist(err) {
 		s.Suffix = " Cloning repository..."
 		logrus.Debug("Cloning repository from ", repoURL)
-		cloneCmd := execCommandFunc("git", "clone", repoURL, localPath)
+		cloneCmd := execCommandFunc("git", "clone", "--quiet", repoURL, localPath)
 		cloneCmd.Stdout = os.Stdout
 		cloneCmd.Stderr = os.Stderr
 		if err := cloneCmd.Run(); err != nil {
@@ -42,7 +44,7 @@ func BuildFromCommit(commit, versionsDir string) error {
 	if commit == "master" {
 		s.Suffix = " Checking out master branch..."
 		logrus.Debug("Checking out master branch")
-		checkoutCmd := execCommandFunc("git", "checkout", "master")
+		checkoutCmd := execCommandFunc("git", "checkout", "--quiet", "master")
 		checkoutCmd.Dir = localPath
 		checkoutCmd.Stdout = os.Stdout
 		checkoutCmd.Stderr = os.Stderr
@@ -52,7 +54,7 @@ func BuildFromCommit(commit, versionsDir string) error {
 
 		s.Suffix = " Pulling latest changes..."
 		logrus.Debug("Pulling latest changes on master branch")
-		pullCmd := execCommandFunc("git", "pull", "origin", "master")
+		pullCmd := execCommandFunc("git", "pull", "--quiet", "origin", "master")
 		pullCmd.Dir = localPath
 		pullCmd.Stdout = os.Stdout
 		pullCmd.Stderr = os.Stderr
@@ -62,7 +64,7 @@ func BuildFromCommit(commit, versionsDir string) error {
 	} else {
 		s.Suffix = " Checking out commit " + commit + "..."
 		logrus.Debug("Checking out commit ", commit)
-		checkoutCmd := execCommandFunc("git", "checkout", commit)
+		checkoutCmd := execCommandFunc("git", "checkout", "--quiet", commit)
 		checkoutCmd.Dir = localPath
 		checkoutCmd.Stdout = os.Stdout
 		checkoutCmd.Stderr = os.Stderr
@@ -71,7 +73,7 @@ func BuildFromCommit(commit, versionsDir string) error {
 		}
 	}
 
-	cmd := execCommandFunc("git", "rev-parse", "HEAD")
+	cmd := execCommandFunc("git", "rev-parse", "--quiet", "HEAD")
 	cmd.Dir = localPath
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -85,9 +87,35 @@ func BuildFromCommit(commit, versionsDir string) error {
 	logrus.Debug("Building Neovim...")
 	buildCmd := execCommandFunc("make", "CMAKE_BUILD_TYPE=Release")
 	buildCmd.Dir = localPath
-	buildCmd.Stdout = os.Stdout
-	buildCmd.Stderr = os.Stderr
-	if err := buildCmd.Run(); err != nil {
+
+	stdoutPipe, err := buildCmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("failed to get stdout pipe: %v", err)
+	}
+	stderrPipe, err := buildCmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("failed to get stderr pipe: %v", err)
+	}
+
+	if err := buildCmd.Start(); err != nil {
+		return fmt.Errorf("failed to start build: %v", err)
+	}
+
+	updateSpinner := func(pipeOutput io.Reader) {
+		scanner := bufio.NewScanner(pipeOutput)
+		for scanner.Scan() {
+			line := scanner.Text()
+			// Optionally, update spinner suffix with important information
+			s.Suffix = fmt.Sprintf(" %s", strings.TrimSpace(line))
+		}
+	}
+
+	go updateSpinner(stdoutPipe)
+	go updateSpinner(stderrPipe)
+
+	// Wait for the build to complete
+	if err := buildCmd.Wait(); err != nil {
+		s.Stop()
 		return fmt.Errorf("build failed: %v", err)
 	}
 
