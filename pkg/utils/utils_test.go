@@ -295,14 +295,16 @@ func TestCopyFile_Success(t *testing.T) {
 		t.Errorf("copied content = %q; want %q", string(copied), string(content))
 	}
 
-	// Check the file permissions.
-	info, err := os.Stat(dstPath)
-	if err != nil {
-		t.Fatalf("Stat failed: %v", err)
-	}
-	// Only check the permission bits.
-	if info.Mode().Perm() != 0755 {
-		t.Errorf("permissions = %o; want %o", info.Mode().Perm(), 0755)
+	// On Unix systems, verify the file permissions.
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(dstPath)
+		if err != nil {
+			t.Fatalf("Stat failed: %v", err)
+		}
+		// Only check the permission bits.
+		if info.Mode().Perm() != 0755 {
+			t.Errorf("permissions = %o; want %o", info.Mode().Perm(), 0755)
+		}
 	}
 }
 
