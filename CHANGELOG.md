@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.10.0](https://github.com/y3owk1n/nvs/compare/v1.9.1...v1.10.0) (2025-03-14)
+
+
+### Features
+
+* support commit hash builds for installation ([#112](https://github.com/y3owk1n/nvs/issues/112)) ([1ef7ddf](https://github.com/y3owk1n/nvs/commit/1ef7ddfcb68267c2c60353c80539f1f8fbb3ecc6))
+
+
+### Bug Fixes
+
+* add prompt icon for confirmation prompt ([#109](https://github.com/y3owk1n/nvs/issues/109)) ([cc63ed9](https://github.com/y3owk1n/nvs/commit/cc63ed94aa1598d2553ec6044df00ef1d7c1bd97))
+* **builder:** make `exec.command` and `make` quiet ([#113](https://github.com/y3owk1n/nvs/issues/113)) ([c046918](https://github.com/y3owk1n/nvs/commit/c046918e58ca74a1f4b636710bb6891cb7dbf56d))
+
 ## [1.9.1](https://github.com/y3owk1n/nvs/compare/v1.9.0...v1.9.1) (2025-03-12)
 
 
