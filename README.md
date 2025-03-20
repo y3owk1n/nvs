@@ -281,6 +281,9 @@ Install a specific Neovim version or build from commits.
 > [!warning]
 > To build from commit, make sure your system has `git`, `make`, and `cmake` installed, as building Neovim requires these 3 pieces to work together.
 
+> [!warning]
+> If you're using macos make sure to also run `brew install ninja cmake gettext curl`.
+
 ```bash
 nvs install stable    # Install the latest stable release 🔒
 nvs install nightly   # Install the latest nightly release 🌙
