@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.2](https://github.com/y3owk1n/nvs/compare/v1.10.1...v1.10.2) (2025-03-20)
+
+
+### Bug Fixes
+
+* **builder:** remove build directory before building from source ([#117](https://github.com/y3owk1n/nvs/issues/117)) ([7e59e1f](https://github.com/y3owk1n/nvs/commit/7e59e1f2e5484f882d3a0e57aca418cbf03c4f10))
+
 ## [1.10.1](https://github.com/y3owk1n/nvs/compare/v1.10.0...v1.10.1) (2025-03-14)
 
 
