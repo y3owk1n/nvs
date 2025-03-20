@@ -84,9 +84,18 @@ func BuildFromCommit(commit, versionsDir string) error {
 	commitHash := commitHashFull[:7]
 	logrus.Debug("Current commit hash: ", commitHash)
 
+	// clear the build directory first
+	depsPath := filepath.Join(localPath, "build")
+	if _, err := os.Stat(depsPath); err == nil {
+		logrus.Debug("Removing existing build directory...")
+		if err := os.RemoveAll(depsPath); err != nil {
+			return fmt.Errorf("failed to remove build directory: %v", err)
+		}
+	}
+
 	// Build Neovim
 	s.Suffix = " Building Neovim..."
-	logrus.Debug("Building Neovim...")
+	logrus.Debug("Building Neovim at: ", localPath)
 	buildCmd := execCommandFunc("make", "CMAKE_BUILD_TYPE=Release")
 	buildCmd.Dir = localPath
 
