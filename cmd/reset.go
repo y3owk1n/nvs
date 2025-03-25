@@ -12,6 +12,16 @@ import (
 	"github.com/y3owk1n/nvs/pkg/utils"
 )
 
+// resetCmd represents the "reset" command.
+// It removes all data from your configuration and cache directories and removes the symlinked nvim binary.
+// **WARNING:** This command is destructive. It deletes all configuration data, cache, and the global nvim symlink.
+// Use with caution.
+//
+// Example usage:
+//
+//	nvs reset
+//
+// When executed, the command will prompt you to confirm before performing the reset.
 var resetCmd = &cobra.Command{
 	Use:   "reset",
 	Short: "Reset all data (remove symlinks, downloaded versions, cache, etc.)",
@@ -19,6 +29,9 @@ var resetCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		logrus.Debug("Starting reset command")
 
+		// Determine the base configuration directory:
+		//   If NVS_CONFIG_DIR is set, use that;
+		//   Otherwise, use the system config directory, falling back to the user's home directory if needed.
 		var baseConfigDir string
 		if custom := os.Getenv("NVS_CONFIG_DIR"); custom != "" {
 			baseConfigDir = custom
@@ -37,6 +50,9 @@ var resetCmd = &cobra.Command{
 			}
 		}
 
+		// Determine the base cache directory:
+		//   If NVS_CACHE_DIR is set, use that;
+		//   Otherwise, use the system cache directory, falling back to the config directory if necessary.
 		var baseCacheDir string
 		if custom := os.Getenv("NVS_CACHE_DIR"); custom != "" {
 			baseCacheDir = custom
@@ -51,6 +67,9 @@ var resetCmd = &cobra.Command{
 			}
 		}
 
+		// Determine the base binary directory:
+		//   If NVS_BIN_DIR is set, use that;
+		//   Otherwise, default to ~/.local/bin.
 		var baseBinDir string
 		if custom := os.Getenv("NVS_BIN_DIR"); custom != "" {
 			baseBinDir = custom
@@ -64,6 +83,7 @@ var resetCmd = &cobra.Command{
 			logrus.Debugf("Using default binary directory: %s", baseBinDir)
 		}
 
+		// Display a warning message showing which directories will be cleared and the binary to be removed.
 		warningMsg := fmt.Sprintf(
 			"WARNING: This will delete all data in the following directories:\n"+
 				"- Config: %s\n"+
@@ -73,6 +93,7 @@ var resetCmd = &cobra.Command{
 		fmt.Printf("%s %s\n\n", utils.WarningIcon(), warningMsg)
 		fmt.Printf("%s %s ", utils.PromptIcon(), "Are you sure? (y/N): ")
 
+		// Prompt the user for confirmation.
 		reader := bufio.NewReader(os.Stdin)
 		input, err := reader.ReadString('\n')
 		if err != nil {
@@ -85,6 +106,7 @@ var resetCmd = &cobra.Command{
 			return
 		}
 
+		// Remove all contents in the configuration directory.
 		logrus.Debugf("Cleaning up configuration directory: %s", baseConfigDir)
 		if entries, err := os.ReadDir(baseConfigDir); err == nil {
 			for _, entry := range entries {
@@ -98,6 +120,7 @@ var resetCmd = &cobra.Command{
 			logrus.Warnf("Config directory not found or unreadable: %s", baseConfigDir)
 		}
 
+		// Remove all contents in the cache directory.
 		logrus.Debugf("Cleaning up cache directory: %s", baseCacheDir)
 		if entries, err := os.ReadDir(baseCacheDir); err == nil {
 			for _, entry := range entries {
@@ -111,7 +134,7 @@ var resetCmd = &cobra.Command{
 			logrus.Warnf("Cache directory not found or unreadable: %s", baseCacheDir)
 		}
 
-		// Remove the nvim symlinked binary only, not the whole directory.
+		// Remove the symlinked nvim binary in the binary directory.
 		symlinkPath := filepath.Join(baseBinDir, "nvim")
 		logrus.Debugf("Removing symlinked binary: %s", symlinkPath)
 		if err := os.Remove(symlinkPath); err != nil && !os.IsNotExist(err) {
@@ -123,6 +146,7 @@ var resetCmd = &cobra.Command{
 	},
 }
 
+// init registers the resetCmd with the root command.
 func init() {
 	rootCmd.AddCommand(resetCmd)
 }

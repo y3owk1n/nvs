@@ -21,6 +21,7 @@ import (
 
 var client = &http.Client{Timeout: 15 * time.Second}
 
+// progressReader wraps an io.Reader to report progress via a callback.
 type progressReader struct {
 	reader   io.Reader
 	total    int64
@@ -28,6 +29,7 @@ type progressReader struct {
 	callback func(progress int)
 }
 
+// Read implements the io.Reader interface and updates the progress callback.
 func (pr *progressReader) Read(p []byte) (int, error) {
 	n, err := pr.reader.Read(p)
 	pr.current += int64(n)
@@ -38,7 +40,19 @@ func (pr *progressReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// InstallVersion now accepts a context for cancellation and timeout control.
+// InstallVersion resolves a release version from the given alias, downloads the asset,
+// verifies its checksum, extracts the archive, and writes a version file.
+// It accepts a context for cancellation and timeout control.
+//
+// Example usage:
+//
+//	ctx := context.Background()
+//	alias := "stable"  // or "nightly" or a specific version tag
+//	versionsDir := "/path/to/installations"
+//	cacheFilePath := "/path/to/cache/file"
+//	if err := InstallVersion(ctx, alias, versionsDir, cacheFilePath); err != nil {
+//	    // handle error
+//	}
 func InstallVersion(ctx context.Context, alias string, versionsDir string, cacheFilePath string) error {
 	release, err := releases.ResolveVersion(alias, cacheFilePath)
 	if err != nil {
@@ -108,7 +122,36 @@ func InstallVersion(ctx context.Context, alias string, versionsDir string, cache
 	return nil
 }
 
-// DownloadAndInstall now accepts a context and passes it through to its HTTP calls.
+// DownloadAndInstall downloads the asset from assetURL to a temporary file,
+// verifies the checksum if available, extracts the archive into versionsDir,
+// and writes the releaseIdentifier to a version file.
+// It accepts callbacks to update progress and phase.
+//
+// Example usage:
+//
+//	ctx := context.Background()
+//	versionsDir := "/path/to/installations"
+//	installName := "v0.5.0"
+//	assetURL := "https://example.com/neovim.archive"
+//	checksumURL := "https://example.com/neovim.archive.sha256"
+//	releaseIdentifier := "abcdef1234567890"
+//	err := DownloadAndInstall(
+//	    ctx,
+//	    versionsDir,
+//	    installName,
+//	    assetURL,
+//	    checksumURL,
+//	    releaseIdentifier,
+//	    func(progress int) {
+//	        fmt.Printf("Download progress: %d%%\n", progress)
+//	    },
+//	    func(phase string) {
+//	        fmt.Printf("Phase: %s\n", phase)
+//	    },
+//	)
+//	if err != nil {
+//	    // handle error
+//	}
 func DownloadAndInstall(ctx context.Context, versionsDir, installName, assetURL, checksumURL, releaseIdentifier string, progressCallback func(progress int), phaseCallback func(phase string)) error {
 	tmpFile, err := os.CreateTemp("", "nvim-*.archive")
 	if err != nil {
@@ -156,6 +199,20 @@ func DownloadAndInstall(ctx context.Context, versionsDir, installName, assetURL,
 	return nil
 }
 
+// downloadFile downloads the content from the given URL and writes it to dest.
+// It uses a progressReader to report progress via the callback.
+//
+// Example usage:
+//
+//	ctx := context.Background()
+//	dest, _ := os.Create("downloaded.archive")
+//	defer dest.Close()
+//	err := downloadFile(ctx, "https://example.com/neovim.archive", dest, func(progress int) {
+//	    fmt.Printf("Progress: %d%%\n", progress)
+//	})
+//	if err != nil {
+//	    // handle error
+//	}
 func downloadFile(ctx context.Context, url string, dest *os.File, callback func(progress int)) error {
 	logrus.Debugf("Downloading asset from URL: %s", url)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -184,6 +241,19 @@ func downloadFile(ctx context.Context, url string, dest *os.File, callback func(
 	return nil
 }
 
+// verifyChecksum downloads the expected checksum from checksumURL,
+// computes the SHA256 checksum of the provided file, and compares them.
+// The file pointer is reset after the computation.
+//
+// Example usage:
+//
+//	ctx := context.Background()
+//	file, _ := os.Open("downloaded.archive")
+//	defer file.Close()
+//	err := verifyChecksum(ctx, file, "https://example.com/neovim.archive.sha256")
+//	if err != nil {
+//	    // handle error
+//	}
 func verifyChecksum(ctx context.Context, file *os.File, checksumURL string) error {
 	req, err := http.NewRequestWithContext(ctx, "GET", checksumURL, nil)
 	if err != nil {

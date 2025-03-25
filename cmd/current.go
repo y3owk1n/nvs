@@ -10,6 +10,17 @@ import (
 	"github.com/y3owk1n/nvs/pkg/utils"
 )
 
+// currentCmd represents the "current" command.
+// It displays details of the current active version.
+// Depending on whether the active version is "stable", "nightly", or a custom version/commit hash,
+// it fetches and displays additional details.
+//
+// Example usage:
+//
+//	nvs current
+//
+// This will output the active version information along with additional details like the latest stable
+// tag or nightly commit and published date.
 var currentCmd = &cobra.Command{
 	Use:   "current",
 	Short: "Show current active version with details",
@@ -22,6 +33,7 @@ var currentCmd = &cobra.Command{
 
 		logrus.Debugf("Current version detected: %s", current)
 
+		// Handle "stable" active version
 		switch current {
 		case "stable":
 			logrus.Debug("Fetching latest stable release")
@@ -34,6 +46,8 @@ var currentCmd = &cobra.Command{
 				fmt.Printf("  %s\n", utils.WhiteText(fmt.Sprintf("Version: %s", stable.TagName)))
 				logrus.Debugf("Latest stable version: %s", stable.TagName)
 			}
+
+		// Handle "nightly" active version
 		case "nightly":
 			logrus.Debug("Fetching latest nightly release")
 			nightly, err := releases.FindLatestNightly(cacheFilePath)
@@ -55,6 +69,8 @@ var currentCmd = &cobra.Command{
 				fmt.Printf("  %s\n", utils.WhiteText(fmt.Sprintf("Commit: %s", shortCommit)))
 				logrus.Debugf("Latest nightly commit: %s, Published: %s", shortCommit, publishedStr)
 			}
+
+		// Handle custom version or commit hash
 		default:
 			isCommitHash := releases.IsCommitHash(current)
 			logrus.Debugf("isCommitHash: %t", isCommitHash)
@@ -66,7 +82,6 @@ var currentCmd = &cobra.Command{
 				logrus.Debugf("Displaying custom version: %s", current)
 				fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(current))
 			}
-
 		}
 	},
 }

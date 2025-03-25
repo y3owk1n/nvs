@@ -12,6 +12,23 @@ import (
 	"github.com/y3owk1n/nvs/pkg/utils"
 )
 
+// configCmd represents the "config" command.
+// It allows the user to switch the active Neovim configuration. If a configuration name is provided
+// as an argument, Neovim will be launched with that configuration. If no argument is provided,
+// the command scans the ~/.config directory for directories containing "nvim" in their name,
+// then prompts the user to select one.
+//
+// Example usage (with an argument):
+//
+//	nvs config myconfig
+//
+// This will launch Neovim with the configuration "myconfig".
+//
+// Example usage (without an argument):
+//
+//	nvs config
+//
+// This will display a selection prompt for available Neovim configurations found in ~/.config.
 var configCmd = &cobra.Command{
 	Use:     "config",
 	Aliases: []string{"conf", "c"},
@@ -19,6 +36,7 @@ var configCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		logrus.Debug("Executing config command")
 
+		// If a configuration name is provided as an argument, launch Neovim with that configuration.
 		if len(args) == 1 {
 			logrus.Debugf("Launching Neovim with provided configuration: %s", args[0])
 			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Launching Neovim with configuration: %s", utils.CyanText(args[0]))))
@@ -26,6 +44,7 @@ var configCmd = &cobra.Command{
 			return
 		}
 
+		// No configuration provided; list available Neovim configurations from ~/.config.
 		home, err := os.UserHomeDir()
 		if err != nil {
 			logrus.Fatalf("Failed to get home directory: %v", err)
@@ -47,6 +66,7 @@ var configCmd = &cobra.Command{
 			logrus.Debugf("Processing entry: %s", entryPath)
 
 			isDir := false
+			// If the entry is a symlink, resolve it.
 			if entry.Type()&os.ModeSymlink != 0 {
 				logrus.Debugf("%s is a symlink, resolving...", entry.Name())
 				resolvedPath, err := os.Readlink(entryPath)
@@ -66,6 +86,7 @@ var configCmd = &cobra.Command{
 				isDir = entry.IsDir()
 			}
 
+			// Add directories whose name contains "nvim" (case-insensitive) to the list.
 			if isDir && strings.Contains(strings.ToLower(entry.Name()), "nvim") {
 				logrus.Debugf("Adding Neovim config: %s", entry.Name())
 				nvimConfigs = append(nvimConfigs, entry.Name())

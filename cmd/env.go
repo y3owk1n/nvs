@@ -10,6 +10,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// envCmd represents the "env" command.
+// It prints the NVS environment configuration variables: NVS_CONFIG_DIR, NVS_CACHE_DIR, and NVS_BIN_DIR.
+// If these variables are not explicitly set, default locations are determined using the user's system directories.
+//
+// Example usage:
+//
+//	nvs env
+//
+// This command will output a table displaying the values for NVS_CONFIG_DIR, NVS_CACHE_DIR, and NVS_BIN_DIR.
 var envCmd = &cobra.Command{
 	Use:   "env",
 	Short: "Print NVS env configurations",
@@ -17,6 +26,7 @@ var envCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		logrus.Debug("Executing env command")
 
+		// Determine NVS_CONFIG_DIR from environment or default to <UserConfigDir>/nvs
 		configDir := os.Getenv("NVS_CONFIG_DIR")
 		if configDir == "" {
 			if c, err := os.UserConfigDir(); err == nil {
@@ -28,6 +38,7 @@ var envCmd = &cobra.Command{
 		}
 		logrus.Debugf("Resolved configDir: %s", configDir)
 
+		// Determine NVS_CACHE_DIR from environment or default to <UserCacheDir>/nvs
 		cacheDir := os.Getenv("NVS_CACHE_DIR")
 		if cacheDir == "" {
 			if c, err := os.UserCacheDir(); err == nil {
@@ -39,6 +50,7 @@ var envCmd = &cobra.Command{
 		}
 		logrus.Debugf("Resolved cacheDir: %s", cacheDir)
 
+		// Determine NVS_BIN_DIR from environment or default to <UserHomeDir>/.local/bin
 		binDir := os.Getenv("NVS_BIN_DIR")
 		if binDir == "" {
 			if home, err := os.UserHomeDir(); err == nil {
@@ -50,6 +62,7 @@ var envCmd = &cobra.Command{
 		}
 		logrus.Debugf("Resolved binDir: %s", binDir)
 
+		// Create a table to display the configuration variables.
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetHeader([]string{"Variable", "Value"})
 		table.SetHeaderColor(
@@ -63,6 +76,7 @@ var envCmd = &cobra.Command{
 		table.SetColumnSeparator("")
 		table.SetAutoWrapText(false)
 
+		// Append each configuration variable and its value (with colored output).
 		table.Append([]string{
 			"NVS_CONFIG_DIR",
 			color.New(color.Bold, color.FgCyan).Sprint(configDir),
@@ -76,10 +90,12 @@ var envCmd = &cobra.Command{
 			color.New(color.Bold, color.FgCyan).Sprint(binDir),
 		})
 
+		// Render the table to stdout.
 		table.Render()
 	},
 }
 
+// init registers the envCmd with the root command.
 func init() {
 	rootCmd.AddCommand(envCmd)
 }
