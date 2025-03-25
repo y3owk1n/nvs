@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -19,6 +21,9 @@ var installCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		logrus.Debug("Starting installation command")
 
+		ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Minute)
+		defer cancel()
+
 		alias := releases.NormalizeVersion(args[0])
 		logrus.Debugf("Normalized version: %s", alias)
 		fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Resolving version %s...", utils.CyanText(alias))))
@@ -29,12 +34,12 @@ var installCmd = &cobra.Command{
 		if isCommitHash {
 			logrus.Debugf("Building Neovim from commit %s", alias)
 			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText("Building Neovim from commit "+utils.CyanText(alias)))
-			if err := builder.BuildFromCommit(alias, versionsDir); err != nil {
+			if err := builder.BuildFromCommit(ctx, alias, versionsDir); err != nil {
 				logrus.Fatalf("%v", err)
 			}
 		} else {
 			logrus.Debugf("Start installing %s", alias)
-			if err := installer.InstallVersion(alias, versionsDir, cacheFilePath); err != nil {
+			if err := installer.InstallVersion(ctx, alias, versionsDir, cacheFilePath); err != nil {
 				logrus.Fatalf("%v", err)
 			}
 		}

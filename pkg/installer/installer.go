@@ -1,6 +1,7 @@
 package installer
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -37,7 +38,8 @@ func (pr *progressReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-func InstallVersion(alias string, versionsDir string, cacheFilePath string) error {
+// InstallVersion now accepts a context for cancellation and timeout control.
+func InstallVersion(ctx context.Context, alias string, versionsDir string, cacheFilePath string) error {
 	release, err := releases.ResolveVersion(alias, cacheFilePath)
 	if err != nil {
 		return fmt.Errorf("error resolving version: %v", err)
@@ -81,6 +83,7 @@ func InstallVersion(alias string, versionsDir string, cacheFilePath string) erro
 	s.Start()
 
 	err = DownloadAndInstall(
+		ctx,
 		versionsDir,
 		installName,
 		assetURL,
@@ -105,7 +108,8 @@ func InstallVersion(alias string, versionsDir string, cacheFilePath string) erro
 	return nil
 }
 
-func DownloadAndInstall(versionsDir, installName, assetURL, checksumURL, releaseIdentifier string, progressCallback func(progress int), phaseCallback func(phase string)) error {
+// DownloadAndInstall now accepts a context and passes it through to its HTTP calls.
+func DownloadAndInstall(ctx context.Context, versionsDir, installName, assetURL, checksumURL, releaseIdentifier string, progressCallback func(progress int), phaseCallback func(phase string)) error {
 	tmpFile, err := os.CreateTemp("", "nvim-*.archive")
 	if err != nil {
 		return fmt.Errorf("failed to create temporary file: %w", err)
@@ -116,7 +120,7 @@ func DownloadAndInstall(versionsDir, installName, assetURL, checksumURL, release
 		phaseCallback("Downloading asset...")
 	}
 
-	if err := downloadFile(assetURL, tmpFile, progressCallback); err != nil {
+	if err := downloadFile(ctx, assetURL, tmpFile, progressCallback); err != nil {
 		return fmt.Errorf("download error: %w", err)
 	}
 
@@ -126,7 +130,7 @@ func DownloadAndInstall(versionsDir, installName, assetURL, checksumURL, release
 		}
 
 		logrus.Debug("Verifying checksum...")
-		if err := verifyChecksum(tmpFile, checksumURL); err != nil {
+		if err := verifyChecksum(ctx, tmpFile, checksumURL); err != nil {
 			return fmt.Errorf("checksum verification failed: %w", err)
 		}
 		logrus.Debug("Checksum verified successfully")
@@ -152,9 +156,9 @@ func DownloadAndInstall(versionsDir, installName, assetURL, checksumURL, release
 	return nil
 }
 
-func downloadFile(url string, dest *os.File, callback func(progress int)) error {
+func downloadFile(ctx context.Context, url string, dest *os.File, callback func(progress int)) error {
 	logrus.Debugf("Downloading asset from URL: %s", url)
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create download request: %w", err)
 	}
@@ -180,8 +184,8 @@ func downloadFile(url string, dest *os.File, callback func(progress int)) error 
 	return nil
 }
 
-func verifyChecksum(file *os.File, checksumURL string) error {
-	req, err := http.NewRequest("GET", checksumURL, nil)
+func verifyChecksum(ctx context.Context, file *os.File, checksumURL string) error {
+	req, err := http.NewRequestWithContext(ctx, "GET", checksumURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create checksum request: %w", err)
 	}

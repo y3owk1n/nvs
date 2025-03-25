@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,7 +11,7 @@ import (
 )
 
 // fakeExecCommand is used to override execCommand in tests.
-func fakeExecCommand(command string, args ...string) *exec.Cmd {
+func fakeExecCommand(ctx context.Context, command string, args ...string) *exec.Cmd {
 	// We use the standard helper process trick.
 	// The arguments passed to the helper process are:
 	//   -test.run=TestHelperProcess
@@ -129,7 +130,7 @@ func TestBuildFromCommit_Master(t *testing.T) {
 	// For this test, we don't need to simulate a built binary in the localPath,
 	// because the cmake install simulation will create the installed binary.
 	// Call BuildFromCommit with commit "master".
-	if err := BuildFromCommit("master", versionsDir); err != nil {
+	if err := BuildFromCommit(context.Background(), "master", versionsDir); err != nil {
 		t.Fatalf("BuildFromCommit failed: %v", err)
 	}
 
@@ -169,7 +170,7 @@ func TestBuildFromCommit_Commit(t *testing.T) {
 	defer os.RemoveAll(versionsDir)
 
 	// Call BuildFromCommit with a non-master commit (e.g. "abc1234").
-	if err := BuildFromCommit("abc1234", versionsDir); err != nil {
+	if err := BuildFromCommit(context.Background(), "abc1234", versionsDir); err != nil {
 		t.Fatalf("BuildFromCommit failed: %v", err)
 	}
 

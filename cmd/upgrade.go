@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -20,6 +21,9 @@ var upgradeCmd = &cobra.Command{
 	Args:    cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		logrus.Debug("Starting upgrade command")
+
+		ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Minute)
+		defer cancel()
 
 		var aliases []string
 		if len(args) == 0 {
@@ -77,6 +81,7 @@ var upgradeCmd = &cobra.Command{
 			s.Start()
 
 			err = installer.DownloadAndInstall(
+				ctx,
 				versionsDir,
 				alias,
 				assetURL,
