@@ -1,16 +1,13 @@
 package builder
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -21,58 +18,6 @@ import (
 const repoURL = "https://github.com/neovim/neovim.git"
 
 var execCommandFunc = exec.CommandContext
-
-func runCommandWithSpinner(ctx context.Context, s *spinner.Spinner, cmd *exec.Cmd) error {
-	stdoutPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("failed to get stdout pipe: %v", err)
-	}
-	stderrPipe, err := cmd.StderrPipe()
-	if err != nil {
-		return fmt.Errorf("failed to get stderr pipe: %v", err)
-	}
-
-	// Function to update the spinner based on the output of a given pipe.
-	updateSpinner := func(pipeOutput io.Reader, wg *sync.WaitGroup) {
-		defer wg.Done()
-		scanner := bufio.NewScanner(pipeOutput)
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
-			if line != "" {
-				s.Suffix = " " + line
-			}
-		}
-	}
-
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start command: %v", err)
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go updateSpinner(stdoutPipe, &wg)
-	go updateSpinner(stderrPipe, &wg)
-
-	// Channel to capture command completion.
-	cmdErrChan := make(chan error, 1)
-	go func() {
-		cmdErrChan <- cmd.Wait()
-	}()
-
-	// Wait for either the command to finish or the context to be done.
-	select {
-	case <-ctx.Done():
-		return fmt.Errorf("command cancelled: %v", ctx.Err())
-	case err := <-cmdErrChan:
-		// Ensure spinner update goroutines finish.
-		wg.Wait()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
 
 func buildFromCommitInternal(ctx context.Context, commit, versionsDir, localPath string) error {
 	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
@@ -145,7 +90,7 @@ func buildFromCommitInternal(ctx context.Context, commit, versionsDir, localPath
 	buildCmd := execCommandFunc(ctx, "make", "CMAKE_BUILD_TYPE=Release")
 	buildCmd.Dir = localPath
 
-	if err := runCommandWithSpinner(ctx, s, buildCmd); err != nil {
+	if err := utils.RunCommandWithSpinner(ctx, s, buildCmd); err != nil {
 		return fmt.Errorf("build failed: %v", err)
 	}
 
@@ -160,7 +105,7 @@ func buildFromCommitInternal(ctx context.Context, commit, versionsDir, localPath
 	installCmd := execCommandFunc(ctx, "cmake", "--install", "build", "--prefix="+targetDir)
 	installCmd.Dir = localPath
 
-	if err := runCommandWithSpinner(ctx, s, installCmd); err != nil {
+	if err := utils.RunCommandWithSpinner(ctx, s, installCmd); err != nil {
 		return fmt.Errorf("cmake install failed: %v", err)
 	}
 
