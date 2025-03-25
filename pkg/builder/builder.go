@@ -74,11 +74,7 @@ func runCommandWithSpinner(ctx context.Context, s *spinner.Spinner, cmd *exec.Cm
 	return nil
 }
 
-func BuildFromCommit(ctx context.Context, commit, versionsDir string) error {
-	localPath := filepath.Join(os.TempDir(), "neovim-src")
-
-	logrus.Debug("Temporary path for neovim builder: ", localPath)
-
+func buildFromCommitInternal(ctx context.Context, commit, versionsDir, localPath string) error {
 	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 	s.Start()
 	defer s.Stop()
@@ -182,4 +178,31 @@ func BuildFromCommit(ctx context.Context, commit, versionsDir string) error {
 	logrus.Debug("Build and installation successful")
 	fmt.Printf("\n%s %s\n", utils.SuccessIcon(), utils.CyanText("Build and installation successful!"))
 	return nil
+}
+
+func BuildFromCommit(ctx context.Context, commit, versionsDir string) error {
+	localPath := filepath.Join(os.TempDir(), "neovim-src")
+
+	logrus.Debug("Temporary Neovim Src directory: ", localPath)
+
+	var err error
+	const maxAttempts = 2
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		err = buildFromCommitInternal(ctx, commit, versionsDir, localPath)
+		if err == nil {
+			return nil
+		}
+		logrus.Error("Error building from commit: ", err)
+
+		logrus.Debugf("Attempt %d failed: %v", attempt, err)
+		if removeErr := os.RemoveAll(localPath); removeErr != nil {
+			logrus.Errorf("Failed to remove temporary directory %s: %v", localPath, removeErr)
+		}
+		if attempt < maxAttempts {
+			logrus.Errorf("Retrying build process with clean directory (attempt %d)...", attempt+1)
+			time.Sleep(1 * time.Second)
+		}
+	}
+	return fmt.Errorf("build failed after %d attempts: %v", maxAttempts, err)
 }
