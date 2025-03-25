@@ -3,6 +3,7 @@ package builder
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -19,9 +20,61 @@ import (
 
 const repoURL = "https://github.com/neovim/neovim.git"
 
-var execCommandFunc = exec.Command
+var execCommandFunc = exec.CommandContext
 
-func BuildFromCommit(commit, versionsDir string) error {
+func runCommandWithSpinner(ctx context.Context, s *spinner.Spinner, cmd *exec.Cmd) error {
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("failed to get stdout pipe: %v", err)
+	}
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("failed to get stderr pipe: %v", err)
+	}
+
+	// Function to update the spinner based on the output of a given pipe.
+	updateSpinner := func(pipeOutput io.Reader, wg *sync.WaitGroup) {
+		defer wg.Done()
+		scanner := bufio.NewScanner(pipeOutput)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line != "" {
+				s.Suffix = " " + line
+			}
+		}
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start command: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go updateSpinner(stdoutPipe, &wg)
+	go updateSpinner(stderrPipe, &wg)
+
+	// Channel to capture command completion.
+	cmdErrChan := make(chan error, 1)
+	go func() {
+		cmdErrChan <- cmd.Wait()
+	}()
+
+	// Wait for either the command to finish or the context to be done.
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("command cancelled: %v", ctx.Err())
+	case err := <-cmdErrChan:
+		// Ensure spinner update goroutines finish.
+		wg.Wait()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func BuildFromCommit(ctx context.Context, commit, versionsDir string) error {
 	localPath := filepath.Join(os.TempDir(), "neovim-src")
 
 	logrus.Debug("Temporary path for neovim builder: ", localPath)
@@ -30,29 +83,13 @@ func BuildFromCommit(commit, versionsDir string) error {
 	s.Start()
 	defer s.Stop()
 
-	updateSpinner := func(pipeOutput io.Reader) {
-		scanner := bufio.NewScanner(pipeOutput)
-		for scanner.Scan() {
-			line := scanner.Text()
-			s.Suffix = fmt.Sprintf(" %s", strings.TrimSpace(line))
-		}
-	}
-
-	runAsync := func(cmd *exec.Cmd) error {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		errChan := make(chan error, 1)
-		go func() {
-			errChan <- cmd.Run()
-		}()
-		return <-errChan
-	}
-
 	if _, err := os.Stat(localPath); os.IsNotExist(err) {
 		s.Suffix = " Cloning repository..."
 		logrus.Debug("Cloning repository from ", repoURL)
-		cloneCmd := execCommandFunc("git", "clone", "--quiet", repoURL, localPath)
-		if err := runAsync(cloneCmd); err != nil {
+		cloneCmd := execCommandFunc(ctx, "git", "clone", "--quiet", repoURL, localPath)
+		cloneCmd.Stdout = os.Stdout
+		cloneCmd.Stderr = os.Stderr
+		if err := cloneCmd.Run(); err != nil {
 			return fmt.Errorf("failed to clone repository: %v", err)
 		}
 	}
@@ -60,30 +97,30 @@ func BuildFromCommit(commit, versionsDir string) error {
 	if commit == "master" {
 		s.Suffix = " Checking out master branch..."
 		logrus.Debug("Checking out master branch")
-		checkoutCmd := execCommandFunc("git", "checkout", "--quiet", "master")
+		checkoutCmd := execCommandFunc(ctx, "git", "checkout", "--quiet", "master")
 		checkoutCmd.Dir = localPath
-		if err := runAsync(checkoutCmd); err != nil {
+		if err := checkoutCmd.Run(); err != nil {
 			return fmt.Errorf("failed to checkout master branch: %v", err)
 		}
 
 		s.Suffix = " Pulling latest changes..."
 		logrus.Debug("Pulling latest changes on master branch")
-		pullCmd := execCommandFunc("git", "pull", "--quiet", "origin", "master")
+		pullCmd := execCommandFunc(ctx, "git", "pull", "--quiet", "origin", "master")
 		pullCmd.Dir = localPath
-		if err := runAsync(pullCmd); err != nil {
+		if err := pullCmd.Run(); err != nil {
 			return fmt.Errorf("failed to pull latest changes: %v", err)
 		}
 	} else {
 		s.Suffix = " Checking out commit " + commit + "..."
 		logrus.Debug("Checking out commit ", commit)
-		checkoutCmd := execCommandFunc("git", "checkout", "--quiet", commit)
+		checkoutCmd := execCommandFunc(ctx, "git", "checkout", "--quiet", commit)
 		checkoutCmd.Dir = localPath
-		if err := runAsync(checkoutCmd); err != nil {
+		if err := checkoutCmd.Run(); err != nil {
 			return fmt.Errorf("failed to checkout commit %s: %v", commit, err)
 		}
 	}
 
-	cmd := execCommandFunc("git", "rev-parse", "--quiet", "HEAD")
+	cmd := execCommandFunc(ctx, "git", "rev-parse", "--quiet", "HEAD")
 	cmd.Dir = localPath
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -109,43 +146,10 @@ func BuildFromCommit(commit, versionsDir string) error {
 	// Build Neovim
 	s.Suffix = " Building Neovim..."
 	logrus.Debug("Building Neovim at: ", localPath)
-	buildCmd := execCommandFunc("make", "CMAKE_BUILD_TYPE=Release")
+	buildCmd := execCommandFunc(ctx, "make", "CMAKE_BUILD_TYPE=Release")
 	buildCmd.Dir = localPath
 
-	stdoutPipe, err := buildCmd.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("failed to get stdout pipe: %v", err)
-	}
-	stderrPipe, err := buildCmd.StderrPipe()
-	if err != nil {
-		return fmt.Errorf("failed to get stderr pipe: %v", err)
-	}
-
-	if err := buildCmd.Start(); err != nil {
-		return fmt.Errorf("failed to start build: %v", err)
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		updateSpinner(stdoutPipe)
-	}()
-	go func() {
-		defer wg.Done()
-		updateSpinner(stderrPipe)
-	}()
-
-	go func() {
-		wg.Wait()
-	}()
-
-	buildErrChan := make(chan error, 1)
-	go func() {
-		buildErrChan <- buildCmd.Wait()
-	}()
-	if err := <-buildErrChan; err != nil {
-		s.Stop()
+	if err := runCommandWithSpinner(ctx, s, buildCmd); err != nil {
 		return fmt.Errorf("build failed: %v", err)
 	}
 
@@ -157,40 +161,10 @@ func BuildFromCommit(commit, versionsDir string) error {
 	// Install runtime files
 	s.Suffix = " Installing Neovim..."
 	logrus.Debug("Running cmake install with PREFIX=", targetDir)
-	installCmd := execCommandFunc("cmake", "--install", "build", "--prefix="+targetDir)
+	installCmd := execCommandFunc(ctx, "cmake", "--install", "build", "--prefix="+targetDir)
 	installCmd.Dir = localPath
 
-	installStdout, err := installCmd.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("failed to get install stdout pipe: %v", err)
-	}
-	installStderr, err := installCmd.StderrPipe()
-	if err != nil {
-		return fmt.Errorf("failed to get install stderr pipe: %v", err)
-	}
-
-	if err := installCmd.Start(); err != nil {
-		return fmt.Errorf("failed to start install: %v", err)
-	}
-
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		updateSpinner(installStdout)
-	}()
-	go func() {
-		defer wg.Done()
-		updateSpinner(installStderr)
-	}()
-	go func() {
-		wg.Wait()
-	}()
-
-	installErrChan := make(chan error, 1)
-	go func() {
-		installErrChan <- installCmd.Wait()
-	}()
-	if err := <-installErrChan; err != nil {
+	if err := runCommandWithSpinner(ctx, s, installCmd); err != nil {
 		return fmt.Errorf("cmake install failed: %v", err)
 	}
 

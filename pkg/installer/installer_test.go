@@ -3,6 +3,7 @@ package installer
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -89,7 +90,7 @@ func TestDownloadAndInstall_Success_WithChecksum(t *testing.T) {
 	releaseID := "v1.0.0"
 
 	// Call DownloadAndInstall.
-	err := DownloadAndInstall(versionsDir, installName, assetSrv.URL, checksumSrv.URL, releaseID, progressCb, phaseCb)
+	err := DownloadAndInstall(context.Background(), versionsDir, installName, assetSrv.URL, checksumSrv.URL, releaseID, progressCb, phaseCb)
 	if err != nil {
 		t.Fatalf("DownloadAndInstall failed: %v", err)
 	}
@@ -148,7 +149,7 @@ func TestDownloadAndInstall_Success_NoChecksum(t *testing.T) {
 		phaseCalled = true
 	}
 
-	err := DownloadAndInstall(versionsDir, installName, assetSrv.URL, "", releaseID, nil, phaseCb)
+	err := DownloadAndInstall(context.Background(), versionsDir, installName, assetSrv.URL, "", releaseID, nil, phaseCb)
 	if err != nil {
 		t.Fatalf("DownloadAndInstall failed: %v", err)
 	}
@@ -176,7 +177,7 @@ func TestDownloadAndInstall_AssetDownloadError(t *testing.T) {
 	installName := "error-install"
 	releaseID := "v3.0.0"
 
-	err := DownloadAndInstall(versionsDir, installName, assetSrv.URL, "", releaseID, nil, nil)
+	err := DownloadAndInstall(context.Background(), versionsDir, installName, assetSrv.URL, "", releaseID, nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "download failed with status") {
 		t.Errorf("expected asset download error, got: %v", err)
 	}
@@ -196,7 +197,7 @@ func TestDownloadAndInstall_ChecksumDownloadError(t *testing.T) {
 	installName := "checksum-error-install"
 	releaseID := "v4.0.0"
 
-	err := DownloadAndInstall(versionsDir, installName, assetSrv.URL, checksumSrv.URL, releaseID, nil, nil)
+	err := DownloadAndInstall(context.Background(), versionsDir, installName, assetSrv.URL, checksumSrv.URL, releaseID, nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "checksum download failed") {
 		t.Errorf("expected checksum download error, got: %v", err)
 	}
@@ -216,7 +217,7 @@ func TestDownloadAndInstall_ChecksumMismatch(t *testing.T) {
 	installName := "mismatch-install"
 	releaseID := "v5.0.0"
 
-	err := DownloadAndInstall(versionsDir, installName, assetSrv.URL, checksumSrv.URL, releaseID, nil, nil)
+	err := DownloadAndInstall(context.Background(), versionsDir, installName, assetSrv.URL, checksumSrv.URL, releaseID, nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "checksum mismatch") {
 		t.Errorf("expected checksum mismatch error, got: %v", err)
 	}
@@ -237,7 +238,7 @@ func TestDownloadAndInstall_ExtractionError(t *testing.T) {
 	installName := "extract-error-install"
 	releaseID := "v6.0.0"
 
-	err := DownloadAndInstall(versionsDir, installName, assetSrv.URL, checksumSrv.URL, releaseID, nil, nil)
+	err := DownloadAndInstall(context.Background(), versionsDir, installName, assetSrv.URL, checksumSrv.URL, releaseID, nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "extraction error") {
 		t.Errorf("expected extraction error, got: %v", err)
 	}
@@ -257,7 +258,7 @@ func TestDownloadFile_CopyError(t *testing.T) {
 	// Close the destination file so that io.Copy fails.
 	tmpFile.Close()
 
-	err = downloadFile(ts.URL, tmpFile, nil)
+	err = downloadFile(context.Background(), ts.URL, tmpFile, nil)
 	if err == nil || !strings.Contains(err.Error(), "failed to copy download content") {
 		t.Errorf("expected copy error, got: %v", err)
 	}
@@ -280,7 +281,7 @@ func TestVerifyChecksum_ReadError(t *testing.T) {
 	}))
 	defer checksumSrv.Close()
 
-	err = verifyChecksum(tmpFile, checksumSrv.URL)
+	err = verifyChecksum(context.Background(), tmpFile, checksumSrv.URL)
 	if err == nil || !strings.Contains(err.Error(), "checksum file is empty") {
 		t.Errorf("expected empty checksum error, got: %v", err)
 	}
@@ -300,7 +301,7 @@ func TestVerifyChecksum_FileSeekError(t *testing.T) {
 	checksumSrv := newChecksumServer("dummy", http.StatusOK)
 	defer checksumSrv.Close()
 
-	err = verifyChecksum(tmpFile, checksumSrv.URL)
+	err = verifyChecksum(context.Background(), tmpFile, checksumSrv.URL)
 	if err == nil || !strings.Contains(err.Error(), "failed to seek file for checksum computation") {
 		t.Errorf("expected seek error, got: %v", err)
 	}
