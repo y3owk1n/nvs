@@ -22,6 +22,7 @@ var (
 	userHomeDir = os.UserHomeDir
 	lookPath    = exec.LookPath
 	fatalf      = logrus.Fatalf
+	execCommandFunc = exec.CommandContext
 )
 
 func IsInstalled(versionsDir, version string) bool {
