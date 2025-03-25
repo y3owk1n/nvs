@@ -19,10 +19,9 @@ import (
 )
 
 var (
-	userHomeDir     = os.UserHomeDir
-	lookPath        = exec.LookPath
-	fatalf          = logrus.Fatalf
-	execCommandFunc = exec.CommandContext
+	userHomeDir = os.UserHomeDir
+	lookPath    = exec.LookPath
+	fatalf      = logrus.Fatalf
 )
 
 // IsInstalled checks if a version directory exists within the versionsDir.
