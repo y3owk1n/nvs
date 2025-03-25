@@ -2,14 +2,18 @@
 package utils
 
 import (
+	"context"
 	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
 )
 
@@ -313,5 +317,81 @@ func TestCopyFile_SrcNotExist(t *testing.T) {
 	err := CopyFile("nonexistent.src", "shouldnotmatter.dst")
 	if err == nil {
 		t.Errorf("expected error when source file does not exist")
+	}
+}
+
+// TestRunCommandWithSpinner_Success tests that RunCommandWithSpinner successfully runs a command
+// that writes output to stdout.
+func TestRunCommandWithSpinner_Success(t *testing.T) {
+	ctx := context.Background()
+	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+	s.Start()
+	defer s.Stop()
+
+	// Use the injected execCommandFunc to run a simple command.
+	// Do NOT pre-set cmd.Stdout or cmd.Stderr since RunCommandWithSpinner calls StdoutPipe/StdErrPipe.
+	cmd := execCommandFunc(ctx, "echo", "Hello, world!")
+
+	err := RunCommandWithSpinner(ctx, s, cmd)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	// Note: Since RunCommandWithSpinner reads from the command's pipe internally,
+	// we do not have direct access to its output in this test.
+	// We assume that a successful run implies that the output was read correctly.
+}
+
+// TestRunCommandWithSpinner_Cancel tests that RunCommandWithSpinner returns an error when the context is cancelled.
+func TestRunCommandWithSpinner_Cancel(t *testing.T) {
+	// Create a cancellable context.
+	ctx, cancel := context.WithCancel(context.Background())
+	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+	s.Start()
+	defer s.Stop()
+
+	// Use a command that would normally run for a while.
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = execCommandFunc(ctx, "ping", "-n", "10", "127.0.0.1")
+	} else {
+		cmd = execCommandFunc(ctx, "sleep", "10")
+	}
+
+	// Cancel the context immediately.
+	cancel()
+
+	err := RunCommandWithSpinner(ctx, s, cmd)
+	if err == nil {
+		t.Fatal("expected error due to cancellation, got nil")
+	}
+	// Accept error messages that contain either "command cancelled" or "context canceled".
+	if !(strings.Contains(err.Error(), "command cancelled") || strings.Contains(err.Error(), "context canceled")) {
+		t.Fatalf("expected error to mention cancellation, got %v", err)
+	}
+}
+
+// TestRunCommandWithSpinner_Error tests that RunCommandWithSpinner returns an error when the command fails to start.
+func TestRunCommandWithSpinner_Error(t *testing.T) {
+	ctx := context.Background()
+	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+	s.Start()
+	defer s.Stop()
+
+	// Override execCommandFunc to simulate a failure to start.
+	origFunc := execCommandFunc
+	defer func() { execCommandFunc = origFunc }()
+
+	execCommandFunc = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		// Return a command that is guaranteed to fail (non-existent command).
+		return exec.CommandContext(ctx, "nonexistent_command_xyz")
+	}
+
+	cmd := execCommandFunc(ctx, "nonexistent_command_xyz")
+	err := RunCommandWithSpinner(ctx, s, cmd)
+	if err == nil {
+		t.Fatal("expected error due to invalid command, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to get stdout pipe") && !strings.Contains(err.Error(), "failed to start command") {
+		t.Fatalf("expected error to mention failure to start command, got %v", err)
 	}
 }

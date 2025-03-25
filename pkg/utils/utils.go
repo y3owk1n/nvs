@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -8,8 +10,10 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
 	"github.com/sirupsen/logrus"
 )
@@ -18,6 +22,7 @@ var (
 	userHomeDir = os.UserHomeDir
 	lookPath    = exec.LookPath
 	fatalf      = logrus.Fatalf
+	execCommandFunc = exec.CommandContext
 )
 
 func IsInstalled(versionsDir, version string) bool {
@@ -215,6 +220,71 @@ func CopyFile(src, dst string) error {
 
 	if err = os.Chmod(dst, 0755); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// RunCommandWithSpinner executes the provided command with an active spinner that updates its suffix
+// based on the command's output. It captures both stdout and stderr and returns an error if the command fails.
+//
+// Example usage:
+//
+//	ctx := context.Background()
+//	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+//	s.Start()
+//	defer s.Stop()
+//	cmd := exec.CommandContext(ctx, "echo", "Hello, world!")
+//	if err := RunCommandWithSpinner(ctx, s, cmd); err != nil {
+//	    // handle error
+//	}
+func RunCommandWithSpinner(ctx context.Context, s *spinner.Spinner, cmd *exec.Cmd) error {
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("failed to get stdout pipe: %v", err)
+	}
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("failed to get stderr pipe: %v", err)
+	}
+
+	// updateSpinner reads from the given pipe and updates the spinner's suffix based on the output.
+	updateSpinner := func(pipeOutput io.Reader, wg *sync.WaitGroup) {
+		defer wg.Done()
+		scanner := bufio.NewScanner(pipeOutput)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line != "" {
+				s.Suffix = " " + line
+			}
+		}
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start command: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go updateSpinner(stdoutPipe, &wg)
+	go updateSpinner(stderrPipe, &wg)
+
+	// Channel to capture command completion.
+	cmdErrChan := make(chan error, 1)
+	go func() {
+		cmdErrChan <- cmd.Wait()
+	}()
+
+	// Wait for either the command to finish or the context to be cancelled.
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("command cancelled: %v", ctx.Err())
+	case err := <-cmdErrChan:
+		// Wait for spinner update routines to finish.
+		wg.Wait()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
