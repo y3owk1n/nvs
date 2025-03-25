@@ -12,23 +12,54 @@ import (
 )
 
 var (
-	verbose       bool
-	ctx, cancel   = context.WithCancel(context.Background())
-	versionsDir   string
+	// verbose controls the log level.
+	verbose bool
+
+	// ctx is the global context used by the CLI.
+	// cancel cancels the context, e.g. on interrupt signals.
+	ctx, cancel = context.WithCancel(context.Background())
+
+	// versionsDir is the directory where installed Neovim versions are stored.
+	versionsDir string
+
+	// cacheFilePath is the path to the file that caches remote release data.
 	cacheFilePath string
-	globalBinDir  string
-	Version       = "v0.0.0"
+
+	// globalBinDir is the directory where the global nvim symlink is created.
+	globalBinDir string
+
+	// Version of nvs, defaults to "v0.0.0" but may be set during build time.
+	Version = "v0.0.0"
 )
 
+// Execute initializes the configuration, sets up global flags, and executes the root command.
+// Example usage:
+//
+//	func main() {
+//	    cmd.Execute()
+//	}
 func Execute() {
+	// Initialize configuration before running any commands.
 	cobra.OnInitialize(initConfig)
+
+	// Set a persistent flag for verbose logging.
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
+
+	// Execute the root command with the global context.
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		os.Exit(1)
 	}
 }
 
+// initConfig is called automatically on command initialization.
+// It sets up logging levels, handles OS signals for graceful shutdown, and ensures that necessary
+// directories (config, versions, cache, binary) exist, using environment variables as overrides when available.
+//
+// Example behavior:
+//   - If NVS_CONFIG_DIR is set, it is used as the config directory; otherwise, the system config directory is used.
+//   - Similar logic applies for cache (NVS_CACHE_DIR) and binary directories (NVS_BIN_DIR).
 func initConfig() {
+	// Set logging level based on the verbose flag.
 	if verbose {
 		logrus.SetLevel(logrus.DebugLevel)
 		logrus.Debug("Verbose mode enabled")
@@ -36,6 +67,7 @@ func initConfig() {
 		logrus.SetLevel(logrus.InfoLevel)
 	}
 
+	// Set up a signal handler to cancel the global context on an interrupt signal.
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt)
 	go func() {
@@ -46,6 +78,7 @@ func initConfig() {
 		os.Exit(1)
 	}()
 
+	// Determine the base configuration directory.
 	var baseConfigDir string
 	if custom := os.Getenv("NVS_CONFIG_DIR"); custom != "" {
 		baseConfigDir = custom
@@ -64,17 +97,20 @@ func initConfig() {
 		}
 	}
 
+	// Ensure the configuration directory exists.
 	if err := os.MkdirAll(baseConfigDir, 0755); err != nil {
 		logrus.Fatalf("Failed to create config directory: %v", err)
 	}
 	logrus.Debugf("Config directory ensured: %s", baseConfigDir)
 
+	// Set the directory for installed versions.
 	versionsDir = filepath.Join(baseConfigDir, "versions")
 	if err := os.MkdirAll(versionsDir, 0755); err != nil {
 		logrus.Fatalf("Failed to create versions directory: %v", err)
 	}
 	logrus.Debugf("Versions directory ensured: %s", versionsDir)
 
+	// Determine the base cache directory.
 	var baseCacheDir string
 	if custom := os.Getenv("NVS_CACHE_DIR"); custom != "" {
 		baseCacheDir = custom
@@ -88,6 +124,7 @@ func initConfig() {
 			logrus.Debugf("Falling back to config directory for cache: %s", baseCacheDir)
 		}
 	}
+	// Ensure the cache directory exists.
 	if err := os.MkdirAll(baseCacheDir, 0755); err != nil {
 		logrus.Fatalf("Failed to create cache directory: %v", err)
 	}
@@ -95,6 +132,7 @@ func initConfig() {
 	logrus.Debugf("Cache directory ensured: %s", baseCacheDir)
 	logrus.Debugf("Cache file path set: %s", cacheFilePath)
 
+	// Determine the base binary directory.
 	var baseBinDir string
 	if custom := os.Getenv("NVS_BIN_DIR"); custom != "" {
 		baseBinDir = custom
@@ -107,6 +145,7 @@ func initConfig() {
 		baseBinDir = filepath.Join(home, ".local", "bin")
 		logrus.Debugf("Using default binary directory: %s", baseBinDir)
 	}
+	// Ensure the binary directory exists.
 	if err := os.MkdirAll(baseBinDir, 0755); err != nil {
 		logrus.Fatalf("Failed to create binary directory: %v", err)
 	}
@@ -114,6 +153,13 @@ func initConfig() {
 	logrus.Debugf("Global binary directory ensured: %s", globalBinDir)
 }
 
+// rootCmd is the base command for the CLI.
+// It holds the main description and version of the tool.
+// This command is the entry point for subcommands such as "install", "list", "reset", etc.
+//
+// Example usage (from command-line):
+//
+//	nvs --help
 var rootCmd = &cobra.Command{
 	Use:     "nvs",
 	Short:   "Neovim version switcher",

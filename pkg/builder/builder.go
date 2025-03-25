@@ -17,13 +17,28 @@ import (
 
 const repoURL = "https://github.com/neovim/neovim.git"
 
+// execCommandFunc is a variable to allow overriding the exec.CommandContext function in tests.
 var execCommandFunc = exec.CommandContext
 
+// buildFromCommitInternal clones the Neovim repository (if not already present),
+// checks out the specified commit (or master branch), builds Neovim, and installs it into the provided versionsDir.
+// It returns an error if any of these steps fail.
+//
+// Example usage:
+//
+//	ctx := context.Background()
+//	commit := "master" // or a specific commit hash
+//	versionsDir := "/path/to/installations"
+//	localPath := "/tmp/neovim-src" // temporary source directory
+//	if err := buildFromCommitInternal(ctx, commit, versionsDir, localPath); err != nil {
+//	    // handle error
+//	}
 func buildFromCommitInternal(ctx context.Context, commit, versionsDir, localPath string) error {
 	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 	s.Start()
 	defer s.Stop()
 
+	// Clone repository if localPath doesn't exist.
 	if _, err := os.Stat(localPath); os.IsNotExist(err) {
 		s.Suffix = " Cloning repository..."
 		logrus.Debug("Cloning repository from ", repoURL)
@@ -35,6 +50,7 @@ func buildFromCommitInternal(ctx context.Context, commit, versionsDir, localPath
 		}
 	}
 
+	// Checkout the appropriate commit or master branch.
 	if commit == "master" {
 		s.Suffix = " Checking out master branch..."
 		logrus.Debug("Checking out master branch")
@@ -61,6 +77,7 @@ func buildFromCommitInternal(ctx context.Context, commit, versionsDir, localPath
 		}
 	}
 
+	// Retrieve the current commit hash.
 	cmd := execCommandFunc(ctx, "git", "rev-parse", "--quiet", "HEAD")
 	cmd.Dir = localPath
 	var out bytes.Buffer
@@ -75,7 +92,7 @@ func buildFromCommitInternal(ctx context.Context, commit, versionsDir, localPath
 	commitHash := commitHashFull[:7]
 	logrus.Debug("Current commit hash: ", commitHash)
 
-	// clear the build directory first
+	// Clear the build directory if it exists.
 	depsPath := filepath.Join(localPath, "build")
 	if _, err := os.Stat(depsPath); err == nil {
 		logrus.Debug("Removing existing build directory...")
@@ -84,7 +101,7 @@ func buildFromCommitInternal(ctx context.Context, commit, versionsDir, localPath
 		}
 	}
 
-	// Build Neovim
+	// Build Neovim.
 	s.Suffix = " Building Neovim..."
 	logrus.Debug("Building Neovim at: ", localPath)
 	buildCmd := execCommandFunc(ctx, "make", "CMAKE_BUILD_TYPE=Release")
@@ -94,12 +111,13 @@ func buildFromCommitInternal(ctx context.Context, commit, versionsDir, localPath
 		return fmt.Errorf("build failed: %v", err)
 	}
 
+	// Create installation target directory.
 	targetDir := filepath.Join(versionsDir, commitHash)
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return fmt.Errorf("failed to create installation directory: %v", err)
 	}
 
-	// Install runtime files
+	// Install runtime files using cmake.
 	s.Suffix = " Installing Neovim..."
 	logrus.Debug("Running cmake install with PREFIX=", targetDir)
 	installCmd := execCommandFunc(ctx, "cmake", "--install", "build", "--prefix="+targetDir)
@@ -109,11 +127,13 @@ func buildFromCommitInternal(ctx context.Context, commit, versionsDir, localPath
 		return fmt.Errorf("cmake install failed: %v", err)
 	}
 
+	// Verify that the installed binary exists.
 	installedBinaryPath := filepath.Join(targetDir, "bin", "nvim")
 	if _, err := os.Stat(installedBinaryPath); os.IsNotExist(err) {
 		return fmt.Errorf("installed binary not found at %s", installedBinaryPath)
 	}
 
+	// Write the full commit hash to a version file.
 	versionFile := filepath.Join(targetDir, "version.txt")
 	if err := os.WriteFile(versionFile, []byte(commitHashFull), 0644); err != nil {
 		return fmt.Errorf("failed to write version file: %v", err)
@@ -125,9 +145,20 @@ func buildFromCommitInternal(ctx context.Context, commit, versionsDir, localPath
 	return nil
 }
 
+// BuildFromCommit is the public function that builds Neovim from a specified commit or branch.
+// It creates a temporary directory for the Neovim source, attempts the build process (with retries),
+// and returns an error if the build fails after the maximum number of attempts.
+//
+// Example usage:
+//
+//	ctx := context.Background()
+//	commit := "master" // or a specific commit hash
+//	versionsDir := "/path/to/installations"
+//	if err := BuildFromCommit(ctx, commit, versionsDir); err != nil {
+//	    // handle build failure
+//	}
 func BuildFromCommit(ctx context.Context, commit, versionsDir string) error {
 	localPath := filepath.Join(os.TempDir(), "neovim-src")
-
 	logrus.Debug("Temporary Neovim Src directory: ", localPath)
 
 	var err error
@@ -139,7 +170,6 @@ func BuildFromCommit(ctx context.Context, commit, versionsDir string) error {
 			return nil
 		}
 		logrus.Error("Error building from commit: ", err)
-
 		logrus.Debugf("Attempt %d failed: %v", attempt, err)
 		if removeErr := os.RemoveAll(localPath); removeErr != nil {
 			logrus.Errorf("Failed to remove temporary directory %s: %v", localPath, removeErr)

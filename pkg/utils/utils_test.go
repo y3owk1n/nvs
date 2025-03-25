@@ -17,6 +17,9 @@ import (
 	"github.com/fatih/color"
 )
 
+// execCommandFunc is a variable to allow overriding the exec.CommandContext function in tests.
+var execCommandFunc = exec.CommandContext
+
 // TestIsInstalled creates a temporary version directory and checks if IsInstalled returns true.
 func TestIsInstalled(t *testing.T) {
 	tempDir := t.TempDir()
@@ -365,7 +368,7 @@ func TestRunCommandWithSpinner_Cancel(t *testing.T) {
 		t.Fatal("expected error due to cancellation, got nil")
 	}
 	// Accept error messages that contain either "command cancelled" or "context canceled".
-	if !(strings.Contains(err.Error(), "command cancelled") || strings.Contains(err.Error(), "context canceled")) {
+	if !strings.Contains(err.Error(), "command cancelled") && !strings.Contains(err.Error(), "context canceled") {
 		t.Fatalf("expected error to mention cancellation, got %v", err)
 	}
 }
