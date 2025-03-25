@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -29,13 +30,29 @@ func BuildFromCommit(commit, versionsDir string) error {
 	s.Start()
 	defer s.Stop()
 
+	updateSpinner := func(pipeOutput io.Reader) {
+		scanner := bufio.NewScanner(pipeOutput)
+		for scanner.Scan() {
+			line := scanner.Text()
+			s.Suffix = fmt.Sprintf(" %s", strings.TrimSpace(line))
+		}
+	}
+
+	runAsync := func(cmd *exec.Cmd) error {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		errChan := make(chan error, 1)
+		go func() {
+			errChan <- cmd.Run()
+		}()
+		return <-errChan
+	}
+
 	if _, err := os.Stat(localPath); os.IsNotExist(err) {
 		s.Suffix = " Cloning repository..."
 		logrus.Debug("Cloning repository from ", repoURL)
 		cloneCmd := execCommandFunc("git", "clone", "--quiet", repoURL, localPath)
-		cloneCmd.Stdout = os.Stdout
-		cloneCmd.Stderr = os.Stderr
-		if err := cloneCmd.Run(); err != nil {
+		if err := runAsync(cloneCmd); err != nil {
 			return fmt.Errorf("failed to clone repository: %v", err)
 		}
 	}
@@ -45,9 +62,7 @@ func BuildFromCommit(commit, versionsDir string) error {
 		logrus.Debug("Checking out master branch")
 		checkoutCmd := execCommandFunc("git", "checkout", "--quiet", "master")
 		checkoutCmd.Dir = localPath
-		checkoutCmd.Stdout = os.Stdout
-		checkoutCmd.Stderr = os.Stderr
-		if err := checkoutCmd.Run(); err != nil {
+		if err := runAsync(checkoutCmd); err != nil {
 			return fmt.Errorf("failed to checkout master branch: %v", err)
 		}
 
@@ -55,9 +70,7 @@ func BuildFromCommit(commit, versionsDir string) error {
 		logrus.Debug("Pulling latest changes on master branch")
 		pullCmd := execCommandFunc("git", "pull", "--quiet", "origin", "master")
 		pullCmd.Dir = localPath
-		pullCmd.Stdout = os.Stdout
-		pullCmd.Stderr = os.Stderr
-		if err := pullCmd.Run(); err != nil {
+		if err := runAsync(pullCmd); err != nil {
 			return fmt.Errorf("failed to pull latest changes: %v", err)
 		}
 	} else {
@@ -65,9 +78,7 @@ func BuildFromCommit(commit, versionsDir string) error {
 		logrus.Debug("Checking out commit ", commit)
 		checkoutCmd := execCommandFunc("git", "checkout", "--quiet", commit)
 		checkoutCmd.Dir = localPath
-		checkoutCmd.Stdout = os.Stdout
-		checkoutCmd.Stderr = os.Stderr
-		if err := checkoutCmd.Run(); err != nil {
+		if err := runAsync(checkoutCmd); err != nil {
 			return fmt.Errorf("failed to checkout commit %s: %v", commit, err)
 		}
 	}
@@ -114,17 +125,26 @@ func BuildFromCommit(commit, versionsDir string) error {
 		return fmt.Errorf("failed to start build: %v", err)
 	}
 
-	updateSpinner := func(pipeOutput io.Reader) {
-		scanner := bufio.NewScanner(pipeOutput)
-		for scanner.Scan() {
-			line := scanner.Text()
-			s.Suffix = fmt.Sprintf(" %s", strings.TrimSpace(line))
-		}
-	}
-	go updateSpinner(stdoutPipe)
-	go updateSpinner(stderrPipe)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		updateSpinner(stdoutPipe)
+	}()
+	go func() {
+		defer wg.Done()
+		updateSpinner(stderrPipe)
+	}()
 
-	if err := buildCmd.Wait(); err != nil {
+	go func() {
+		wg.Wait()
+	}()
+
+	buildErrChan := make(chan error, 1)
+	go func() {
+		buildErrChan <- buildCmd.Wait()
+	}()
+	if err := <-buildErrChan; err != nil {
 		s.Stop()
 		return fmt.Errorf("build failed: %v", err)
 	}
@@ -153,10 +173,24 @@ func BuildFromCommit(commit, versionsDir string) error {
 		return fmt.Errorf("failed to start install: %v", err)
 	}
 
-	go updateSpinner(installStdout)
-	go updateSpinner(installStderr)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		updateSpinner(installStdout)
+	}()
+	go func() {
+		defer wg.Done()
+		updateSpinner(installStderr)
+	}()
+	go func() {
+		wg.Wait()
+	}()
 
-	if err := installCmd.Wait(); err != nil {
+	installErrChan := make(chan error, 1)
+	go func() {
+		installErrChan <- installCmd.Wait()
+	}()
+	if err := <-installErrChan; err != nil {
 		return fmt.Errorf("cmake install failed: %v", err)
 	}
 
