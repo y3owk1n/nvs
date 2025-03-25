@@ -23,6 +23,8 @@ var execCommandFunc = exec.Command
 func BuildFromCommit(commit, versionsDir string) error {
 	localPath := filepath.Join(os.TempDir(), "neovim-src")
 
+	logrus.Debug("Temporary path for neovim builder: ", localPath)
+
 	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 	s.Start()
 	defer s.Stop()
