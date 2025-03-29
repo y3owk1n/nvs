@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -100,6 +102,15 @@ var upgradeCmd = &cobra.Command{
 			s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 			s.Suffix = " 0%"
 			s.Start()
+
+			// Compute the path where the version is installed.
+			versionPath := filepath.Join(versionsDir, alias)
+			logrus.Debug("Computed version path: ", versionPath)
+
+			logrus.Debug("Removing the old version")
+			if err := os.RemoveAll(versionPath); err != nil {
+				logrus.Fatalf("Failed to uninstall version %s: %v", alias, err)
+			}
 
 			// Download and install the upgrade.
 			err = installer.DownloadAndInstall(
