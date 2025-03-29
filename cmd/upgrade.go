@@ -111,12 +111,10 @@ var upgradeCmd = &cobra.Command{
 				remoteIdentifier,
 				func(progress int) {
 					s.Suffix = fmt.Sprintf(" %d%%", progress)
-					logrus.Debugf("%s upgrade progress: %d%%", alias, progress)
 				},
 				func(phase string) {
 					s.Prefix = phase + " "
 					s.Suffix = ""
-					logrus.Debugf("%s upgrade phase: %s", alias, phase)
 				},
 			)
 			s.Stop()

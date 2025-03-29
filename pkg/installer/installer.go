@@ -104,11 +104,9 @@ func InstallVersion(ctx context.Context, alias string, versionsDir string, cache
 		checksumURL,
 		releaseIdentifier,
 		func(progress int) {
-			logrus.Debugf("Download progress: %d%%", progress)
 			s.Suffix = fmt.Sprintf(" %d%%", progress)
 		},
 		func(phase string) {
-			logrus.Debugf("Installation phase: %s", phase)
 			s.Prefix = phase + " "
 			s.Suffix = ""
 		},
