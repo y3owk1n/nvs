@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.10.4](https://github.com/y3owk1n/nvs/compare/v1.10.3...v1.10.4) (2025-03-29)
+
+
+### Bug Fixes
+
+* **cmd.upgrade:** remove the old version before performing upgrade ([#129](https://github.com/y3owk1n/nvs/issues/129)) ([d9c02be](https://github.com/y3owk1n/nvs/commit/d9c02be0b4fd67457508e19edf9a46390c182c62))
+* remove debug for `downloadAndInstall` progress in verbose mode ([#127](https://github.com/y3owk1n/nvs/issues/127)) ([f0466a4](https://github.com/y3owk1n/nvs/commit/f0466a437ca0b44dec0a4b40ba9f6b3fe379a14d))
+
 ## [1.10.3](https://github.com/y3owk1n/nvs/compare/v1.10.2...v1.10.3) (2025-03-25)
 
 
