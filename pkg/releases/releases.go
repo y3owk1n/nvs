@@ -118,7 +118,11 @@ func GetReleases() ([]Release, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch releases: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logrus.Warnf("Failed to close response body: %v", err)
+		}
+	}()
 	if resp.StatusCode == 403 {
 		body, _ := io.ReadAll(resp.Body)
 		if strings.Contains(string(body), "rate limit") {
