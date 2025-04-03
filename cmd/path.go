@@ -139,7 +139,11 @@ var pathCmd = &cobra.Command{
 				if err != nil {
 					logrus.Fatalf("Failed to open %s: %v", rcFile, err)
 				}
-				defer f.Close()
+				defer func() {
+					if err := f.Close(); err != nil {
+						logrus.Errorf("Failed to close %s: %v", rcFile, err)
+					}
+				}()
 				if _, err := f.WriteString("\n" + exportCmdComment + "\n" + exportCmd + "\n"); err != nil {
 					logrus.Fatalf("Failed to update %s: %v", rcFile, err)
 				}

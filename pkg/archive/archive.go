@@ -109,7 +109,11 @@ func extractTarGz(src *os.File, dest string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create gzip reader: %w", err)
 	}
-	defer gzr.Close()
+	defer func() {
+		if err := gzr.Close(); err != nil {
+			logrus.Errorf("warning: failed to close gzip reader: %v", err)
+		}
+	}()
 	// Create a tar reader to read the tar archive.
 	tr := tar.NewReader(gzr)
 	// Iterate over all files in the archive.
@@ -140,12 +144,16 @@ func extractTarGz(src *os.File, dest string) error {
 			if err != nil {
 				return fmt.Errorf("failed to open file %s: %w", target, err)
 			}
+			defer func() {
+				if err := f.Close(); err != nil {
+					logrus.Errorf("warning: failed to close file %s: %v", target, err)
+				}
+			}()
+
 			// Copy file content.
 			if _, err := io.Copy(f, tr); err != nil {
-				f.Close()
 				return fmt.Errorf("failed to copy file content to %s: %w", target, err)
 			}
-			f.Close()
 		}
 	}
 	return nil
@@ -191,20 +199,25 @@ func extractZip(src *os.File, dest string) error {
 		if err != nil {
 			return fmt.Errorf("failed to open file %s in zip: %w", f.Name, err)
 		}
+		defer func() {
+			if err := rc.Close(); err != nil {
+				logrus.Errorf("warning: failed to close file %s in zip: %v", f.Name, err)
+			}
+		}()
 		// Create the output file.
 		out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 		if err != nil {
-			rc.Close()
 			return fmt.Errorf("failed to create output file %s: %w", path, err)
 		}
+		defer func() {
+			if err := out.Close(); err != nil {
+				logrus.Errorf("warning: failed to close output file %s: %v", path, err)
+			}
+		}()
 		// Copy the file contents.
 		if _, err := io.Copy(out, rc); err != nil {
-			rc.Close()
-			out.Close()
 			return fmt.Errorf("failed to copy file %s: %w", path, err)
 		}
-		rc.Close()
-		out.Close()
 	}
 	return nil
 }

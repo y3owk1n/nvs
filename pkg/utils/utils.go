@@ -169,8 +169,11 @@ func UseVersion(targetVersion string, currentSymlink string, versionsDir string,
 
 	targetBin := filepath.Join(globalBinDir, "nvim")
 	if _, err := os.Lstat(targetBin); err == nil {
-		os.Remove(targetBin)
-		logrus.Debugf("Removed existing global bin symlink: %s", targetBin)
+		if err := os.Remove(targetBin); err != nil {
+			logrus.Warnf("Failed to remove existing global bin symlink: %s, error: %v", targetBin, err)
+		} else {
+			logrus.Debugf("Removed existing global bin symlink: %s", targetBin)
+		}
 	}
 	if err := os.Symlink(nvimExec, targetBin); err != nil {
 		return fmt.Errorf("failed to create symlink in global bin: %v", err)
@@ -228,7 +231,9 @@ func LaunchNvimWithConfig(configName string) {
 		return
 	}
 
-	os.Setenv("NVIM_APPNAME", configName)
+	if err := os.Setenv("NVIM_APPNAME", configName); err != nil {
+		fatalf("Failed to set NVIM_APPNAME: %v", err)
+	}
 
 	nvimExec, err := lookPath("nvim")
 	if err != nil {
@@ -312,7 +317,11 @@ func CopyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer in.Close()
+	defer func() {
+		if cerr := in.Close(); cerr != nil {
+			logrus.Warnf("Failed to close source file %s: %v", src, cerr)
+		}
+	}()
 
 	out, err := os.Create(dst)
 	if err != nil {

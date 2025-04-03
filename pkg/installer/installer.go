@@ -155,7 +155,11 @@ func DownloadAndInstall(ctx context.Context, versionsDir, installName, assetURL,
 	if err != nil {
 		return fmt.Errorf("failed to create temporary file: %w", err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() {
+		if err := os.Remove(tmpFile.Name()); err != nil {
+			logrus.Warnf("Failed to remove temporary file %s: %v", tmpFile.Name(), err)
+		}
+	}()
 
 	if phaseCallback != nil {
 		phaseCallback("Downloading asset...")
@@ -221,7 +225,11 @@ func downloadFile(ctx context.Context, url string, dest *os.File, callback func(
 	if err != nil {
 		return fmt.Errorf("failed to download file: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logrus.Warnf("Failed to close response body: %v", err)
+		}
+	}()
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("download failed with status %d", resp.StatusCode)
 	}
@@ -261,7 +269,11 @@ func verifyChecksum(ctx context.Context, file *os.File, checksumURL string) erro
 	if err != nil {
 		return fmt.Errorf("failed to download checksum file: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logrus.Warnf("Failed to close response body: %v", err)
+		}
+	}()
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("checksum download failed with status %d", resp.StatusCode)
 	}
