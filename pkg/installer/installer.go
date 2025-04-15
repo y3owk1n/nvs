@@ -19,7 +19,7 @@ import (
 	"github.com/y3owk1n/nvs/pkg/utils"
 )
 
-var client = &http.Client{Timeout: 15 * time.Second}
+var client = &http.Client{Timeout: 5 * time.Minute}
 
 // progressReader wraps an io.Reader to report progress via a callback.
 type progressReader struct {
