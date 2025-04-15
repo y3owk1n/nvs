@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.5](https://github.com/y3owk1n/nvs/compare/v1.10.4...v1.10.5) (2025-04-15)
+
+
+### Bug Fixes
+
+* **installer:** bump timeout to 5 minutes for downloads ([#131](https://github.com/y3owk1n/nvs/issues/131)) ([d0d3893](https://github.com/y3owk1n/nvs/commit/d0d38934527e60d82be94b5a83276db11b6e09bc))
+
 ## [1.10.4](https://github.com/y3owk1n/nvs/compare/v1.10.3...v1.10.4) (2025-03-29)
 
 
