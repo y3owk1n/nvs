@@ -1,6 +1,6 @@
 module github.com/y3owk1n/nvs
 
-go 1.23.6
+go 1.23.9
 
 require (
 	github.com/Masterminds/semver v1.5.0

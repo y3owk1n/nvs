@@ -12,6 +12,9 @@ name: release-please
 jobs:
     release-please:
         runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                go: ["1.23.9"]
         steps:
             # Create a release using the release-please action.
             - uses: googleapis/release-please-action@v4
@@ -31,7 +34,7 @@ jobs:
             - uses: actions/setup-go@v5
               if: ${{ steps.release.outputs.release_created }}
               with:
-                  go-version: "^1.23.6"
+                  go-version: ${{ matrix.go }}
 
             # Build artifacts for multiple platforms.
             - name: Build nvs artifacts
