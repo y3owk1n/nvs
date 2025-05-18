@@ -27,7 +27,7 @@
               gotools
               gofumpt
               golangci-lint
-              just
+              just # just a command runner like make
             ];
           };
         }
