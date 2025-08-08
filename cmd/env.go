@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
@@ -62,6 +64,24 @@ var envCmd = &cobra.Command{
 		}
 		logrus.Debugf("Resolved binDir: %s", binDir)
 
+		source, _ := cmd.Flags().GetBool("source")
+		if source {
+			isFish := strings.Contains(os.Getenv("SHELL"), "fish")
+
+			if isFish {
+				fmt.Printf("set -gx NVS_CONFIG_DIR \"%s\";\n", configDir)
+				fmt.Printf("set -gx NVS_CACHE_DIR \"%s\";\n", cacheDir)
+				fmt.Printf("set -gx NVS_BIN_DIR \"%s\";\n", binDir)
+				fmt.Printf("set -gx PATH \"%s\" $PATH;\n", binDir)
+			} else { // Assume bash/zsh/sh
+				fmt.Printf("export NVS_CONFIG_DIR=\"%s\"\n", configDir)
+				fmt.Printf("export NVS_CACHE_DIR=\"%s\"\n", cacheDir)
+				fmt.Printf("export NVS_BIN_DIR=\"%s\"\n", binDir)
+				fmt.Printf("export PATH=\"%s\":$PATH\n", binDir)
+			}
+			return
+		}
+
 		// Create a table to display the configuration variables.
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetHeader([]string{"Variable", "Value"})
@@ -98,4 +118,5 @@ var envCmd = &cobra.Command{
 // init registers the envCmd with the root command.
 func init() {
 	rootCmd.AddCommand(envCmd)
+	envCmd.Flags().Bool("source", false, "Export environment variables so that they can be piped in source")
 }
