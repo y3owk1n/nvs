@@ -133,9 +133,38 @@ env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com
 
 # Build for windows-amd64
 env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-windows64.exe ./main.go
-````
+```
 
 Move the binary to your PATH or run it directly.
+
+## 🌈 Automatic Configuration
+
+Environment variables need to be setup before you can start using nvs.
+This is done by evaluating the output of `nvs env --source`.
+
+##### Bash
+
+Add the following to your `.bashrc` profile:
+
+```bash
+eval "$(nvs env --source)"
+```
+
+##### Zsh
+
+Add the following to your `.zshrc` profile:
+
+```zsh
+eval "$(nvs env --source)"
+```
+
+##### Fish shell
+
+Create `~/.config/fish/conf.d/nvs.fish` and add this line to it:
+
+```fish
+nvs env --source | source
+```
 
 ## 📂 Configuration & Data
 
@@ -301,8 +330,7 @@ nvs i stable
 
 Switch to a particular version. This updates a global symlink in your designated bin directory so that you can simply run nvim.
 
-> [!note]
-> **nvs** will attempt to install the version specified if it's not installed and switch to it later.
+> [!note] > **nvs** will attempt to install the version specified if it's not installed and switch to it later.
 
 ```bash
 nvs use stable
@@ -345,8 +373,7 @@ nvs up nightly
 
 Switch between multiple configs. If no argument is provided, it will promp a select UI, else it will just open with specified name.
 
-> [!note]
-> **nvs** scans your configuration directory (e.g. `~/.config`) for entries containing `nvim` in the name. Examples includes `nvim`, `nvim-test`, or `nvim-vanilla`.
+> [!note] > **nvs** scans your configuration directory (e.g. `~/.config`) for entries containing `nvim` in the name. Examples includes `nvim`, `nvim-test`, or `nvim-vanilla`.
 
 ```bash
 nvs config
