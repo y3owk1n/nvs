@@ -142,6 +142,19 @@ Move the binary to your PATH or run it directly.
 Environment variables need to be setup before you can start using nvs.
 This is done by evaluating the output of `nvs env --source`.
 
+`--source` mode detects your current shell (`bash`, `zsh`, `fish`, etc.) and prints the correct syntax to set `NVS_CONFIG_DIR`, `NVS_CACHE_DIR`, `NVS_BIN_DIR`, and update your `PATH`.
+
+If auto-detection fails, you can explicitly specify the shell type:
+
+```bash
+nvs env --source --shell bash
+nvs env --source --shell zsh
+nvs env --source --shell fish
+```
+
+> [!note]
+> If you install `nvs` on multiple machines or inside different environments, using --shell explicitly can avoid relying on shell detection:
+
 ##### Bash
 
 Add the following to your `.bashrc` profile:
@@ -201,7 +214,7 @@ nvs env --source | source
     - On Unix-like systems: `~/.local/bin`
     - On Windows: `%APPDATA%\nvs\bin`
 
-#### How to Set These Environment Variables
+#### How to Set These Environment Variables Manually
 
 ##### On Unix-like Systems (Linux/macOS)
 
