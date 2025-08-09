@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.6](https://github.com/y3owk1n/nvs/compare/v1.10.5...v1.10.6) (2025-08-09)
+
+
+### Bug Fixes
+
+* **cmd.env:** improve auto ENV sourcing ([#137](https://github.com/y3owk1n/nvs/issues/137)) ([fdec934](https://github.com/y3owk1n/nvs/commit/fdec934eea3ad66b1e27f230b3541b45a790fdc1))
+
 ## [1.10.5](https://github.com/y3owk1n/nvs/compare/v1.10.4...v1.10.5) (2025-04-15)
 
 
