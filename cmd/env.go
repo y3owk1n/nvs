@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -65,19 +66,45 @@ var envCmd = &cobra.Command{
 		logrus.Debugf("Resolved binDir: %s", binDir)
 
 		source, _ := cmd.Flags().GetBool("source")
-		if source {
-			isFish := strings.Contains(os.Getenv("SHELL"), "fish")
+		shell, _ := cmd.Flags().GetString("shell")
+		logrus.Debugf("--source: %v, --shell: %q", source, shell)
 
-			if isFish {
-				fmt.Printf("set -gx NVS_CONFIG_DIR \"%s\";\n", configDir)
-				fmt.Printf("set -gx NVS_CACHE_DIR \"%s\";\n", cacheDir)
-				fmt.Printf("set -gx NVS_BIN_DIR \"%s\";\n", binDir)
-				fmt.Printf("set -gx PATH \"%s\" $PATH;\n", binDir)
-			} else { // Assume bash/zsh/sh
-				fmt.Printf("export NVS_CONFIG_DIR=\"%s\"\n", configDir)
-				fmt.Printf("export NVS_CACHE_DIR=\"%s\"\n", cacheDir)
-				fmt.Printf("export NVS_BIN_DIR=\"%s\"\n", binDir)
-				fmt.Printf("export PATH=\"%s\":$PATH\n", binDir)
+		if source {
+			// Let's try to detect the shell we're running in
+			if shell == "" {
+				shell = detectShell()
+			}
+			logrus.Debugf("Using shell for output: %q", shell)
+
+			// fail if we can't determine the required directories
+			if configDir == "" || cacheDir == "" || binDir == "" {
+				logrus.Error("One or more required directories could not be determined")
+				os.Exit(1)
+			}
+
+			// add binDir to PATH if it's not already there, avoid duplicates
+			addPath := !strings.Contains(os.Getenv("PATH"), binDir)
+			logrus.Debugf("binDir already in PATH: %v (addPath=%v)", !addPath, addPath)
+
+			// explicitly default to error `unsupported`, add in more shell in future
+			switch shell {
+			case "fish":
+				fmt.Printf("set -gx NVS_CONFIG_DIR %q;\n", configDir)
+				fmt.Printf("set -gx NVS_CACHE_DIR %q;\n", cacheDir)
+				fmt.Printf("set -gx NVS_BIN_DIR %q;\n", binDir)
+				if addPath {
+					fmt.Printf("set -gx PATH %q $PATH;\n", binDir)
+				}
+			case "bash", "zsh", "sh", "":
+				fmt.Printf("export NVS_CONFIG_DIR=%q\n", configDir)
+				fmt.Printf("export NVS_CACHE_DIR=%q\n", cacheDir)
+				fmt.Printf("export NVS_BIN_DIR=%q\n", binDir)
+				if addPath {
+					fmt.Printf("export PATH=%q:$PATH\n", binDir)
+				}
+			default:
+				logrus.Errorf("Unsupported shell type %q", shell)
+				os.Exit(1)
 			}
 			return
 		}
@@ -115,8 +142,45 @@ var envCmd = &cobra.Command{
 	},
 }
 
+func detectShell() string {
+	logrus.Debug("Attempting to detect shell via parent process")
+	// Check parent process command (ps -p $$)
+	out, err := exec.Command("ps", "-p", fmt.Sprint(os.Getppid()), "-o", "comm=").Output()
+	if err == nil {
+		shell := strings.TrimSpace(string(out))
+		logrus.Debugf("ps output: %q", shell)
+
+		shell = filepath.Base(shell)
+
+		// remove login shell dash
+		shell = strings.TrimPrefix(shell, "-")
+
+		// normalize the case
+		shell = strings.ToLower(shell)
+
+		if shell != "" {
+			logrus.Debugf("Detected shell from ps: %q", shell)
+			return shell
+		}
+	} else {
+		logrus.Warnf("ps command failed: %v", err)
+	}
+
+	// Fallback to SHELL env var
+	logrus.Debug("Falling back to SHELL env var")
+	if sh := os.Getenv("SHELL"); sh != "" {
+		base := filepath.Base(sh)
+		logrus.Debugf("Detected shell from $SHELL: %q", base)
+		return base
+	}
+
+	logrus.Warn("Could not detect shell")
+	return ""
+}
+
 // init registers the envCmd with the root command.
 func init() {
 	rootCmd.AddCommand(envCmd)
 	envCmd.Flags().Bool("source", false, "Export environment variables so that they can be piped in source")
+	envCmd.Flags().String("shell", "", "Shell type for --source output (bash|zsh|sh|fish). Auto-detected if not provided.")
 }
