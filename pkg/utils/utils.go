@@ -340,7 +340,8 @@ func GetInstalledReleaseIdentifier(versionsDir, alias string) (string, error) {
 func LaunchNvimWithConfig(configName string) {
 	configDir, err := GetNvimConfigBaseDir()
 	if err != nil {
-		logrus.Fatalf("Failed to determine config base dir: %v", err)
+		fatalf("Failed to determine config base dir: %v", err)
+		return
 	}
 
 	info, err := os.Stat(configDir)
