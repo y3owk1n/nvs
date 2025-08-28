@@ -287,6 +287,18 @@ func TestLaunchNvimWithConfig(t *testing.T) {
 	}
 	defer func() { userHomeDir = origUserHomeDir }()
 
+	// Patch env vars depending on OS.
+	var key string
+	switch runtime.GOOS {
+	case "windows":
+		key = "LOCALAPPDATA"
+	default:
+		key = "XDG_CONFIG_HOME"
+	}
+	origVal := os.Getenv(key)
+	t.Setenv(key, tempHome) // ensures GetNvimConfigBaseDir uses this
+	defer os.Setenv(key, origVal)
+
 	// Case 1: Config directory does not exist.
 	origStdout := os.Stdout
 	r, w, _ := os.Pipe()
@@ -302,7 +314,11 @@ func TestLaunchNvimWithConfig(t *testing.T) {
 
 	// Case 2: Config exists but exec.LookPath fails.
 	configName := "testconfig"
-	configDir := filepath.Join(tempHome, ".config", configName)
+	nvimBaseDir, err := GetNvimConfigBaseDir()
+	if err != nil {
+		t.Fatalf("failed to get nvim base dir: %v", err)
+	}
+	configDir := filepath.Join(nvimBaseDir, configName)
 	t.Logf("configDir: %s", configDir)
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		t.Fatalf("failed to create config directory: %v", err)
