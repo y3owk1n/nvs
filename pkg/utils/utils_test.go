@@ -224,6 +224,9 @@ func TestFindNvimBinary(t *testing.T) {
 	var binaryPath string
 	if runtime.GOOS == "windows" {
 		binaryPath = filepath.Join(tempDir, "bin", binName)
+		if err := os.MkdirAll(filepath.Dir(binaryPath), 0755); err != nil {
+			t.Fatalf("failed to create bin dir: %v", err)
+		}
 	} else {
 		binaryPath = filepath.Join(tempDir, binName)
 	}
