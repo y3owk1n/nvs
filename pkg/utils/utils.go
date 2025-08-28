@@ -194,7 +194,7 @@ func GetNvimConfigBaseDir() (string, error) {
 		// fallback to home/.config if LOCALAPPDATA is missing
 	}
 
-	home, err := os.UserHomeDir()
+	home, err := userHomeDir()
 	if err != nil {
 		return "", err
 	}
@@ -338,15 +338,14 @@ func GetInstalledReleaseIdentifier(versionsDir, alias string) (string, error) {
 //	LaunchNvimWithConfig("myconfig")
 //	// Neovim will be launched with configuration located at ~/.config/myconfig
 func LaunchNvimWithConfig(configName string) {
-	home, err := userHomeDir()
+	configDir, err := GetNvimConfigBaseDir()
 	if err != nil {
-		fatalf("Failed to get home directory: %v", err)
+		logrus.Fatalf("Failed to determine config base dir: %v", err)
 	}
-	configDir := filepath.Join(home, ".config", configName)
 
 	info, err := os.Stat(configDir)
 	if os.IsNotExist(err) || !info.IsDir() {
-		fmt.Printf("%s %s\n", ErrorIcon(), WhiteText(fmt.Sprintf("configuration '%s' does not exist in %s", CyanText(configName), CyanText("~/.config"))))
+		fmt.Printf("%s %s\n", ErrorIcon(), WhiteText(fmt.Sprintf("configuration '%s' does not exist in %s", CyanText(configName), CyanText(configDir))))
 		return
 	}
 
