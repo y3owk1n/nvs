@@ -97,8 +97,8 @@ var configCmd = &cobra.Command{
 		}
 
 		if len(nvimConfigs) == 0 {
-			logrus.Debug("No Neovim configurations found in ~/.config")
-			fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText(fmt.Sprintf("No Neovim configuration found in %s", utils.CyanText("~/.config"))))
+			logrus.Debugf("No Neovim configurations found in config directory: %s", configDir)
+			fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText(fmt.Sprintf("No Neovim configuration found in %s", utils.CyanText(configDir))))
 			return
 		}
 
