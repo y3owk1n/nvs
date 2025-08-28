@@ -216,8 +216,17 @@ func TestGetStandardNvimConfigDir_UnixDefault(t *testing.T) {
 func TestFindNvimBinary(t *testing.T) {
 	tempDir := t.TempDir()
 	var binName string
-	binName = "nvim"
-	binaryPath := filepath.Join(tempDir, binName)
+	if runtime.GOOS == "windows" {
+		binName = "nvim.exe"
+	} else {
+		binName = "nvim"
+	}
+	var binaryPath string
+	if runtime.GOOS == "windows" {
+		binaryPath = filepath.Join(tempDir, "bin", binName)
+	} else {
+		binaryPath = filepath.Join(tempDir, binName)
+	}
 	f, err := os.Create(binaryPath)
 	if err != nil {
 		t.Fatalf("failed to create fake binary: %v", err)
