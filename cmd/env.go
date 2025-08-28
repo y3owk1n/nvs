@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/fatih/color"
@@ -56,11 +57,20 @@ var envCmd = &cobra.Command{
 		// Determine NVS_BIN_DIR from environment or default to <UserHomeDir>/.local/bin
 		binDir := os.Getenv("NVS_BIN_DIR")
 		if binDir == "" {
-			if home, err := os.UserHomeDir(); err == nil {
-				binDir = filepath.Join(home, ".local", "bin")
+			if runtime.GOOS == "windows" {
+				home, err := os.UserHomeDir()
+				if err != nil {
+					logrus.Fatalf("Failed to get user home directory: %v", err)
+				}
+				binDir = filepath.Join(home, "AppData", "Local", "Microsoft", "WindowsApps")
+				logrus.Debugf("Using Windows binary directory: %s", binDir)
 			} else {
-				logrus.Warn("Failed to retrieve user home directory")
-				binDir = "Unavailable"
+				home, err := os.UserHomeDir()
+				if err != nil {
+					logrus.Fatalf("Failed to get user home directory: %v", err)
+				}
+				binDir = filepath.Join(home, ".local", "bin")
+				logrus.Debugf("Using default binary directory: %s", binDir)
 			}
 		}
 		logrus.Debugf("Resolved binDir: %s", binDir)
