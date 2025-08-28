@@ -341,7 +341,6 @@ func LaunchNvimWithConfig(configName string) {
 	baseConfigDir, err := GetNvimConfigBaseDir()
 	if err != nil {
 		fatalf("Failed to determine config base dir: %v", err)
-		return
 	}
 
 	configDir := filepath.Join(baseConfigDir, configName)
@@ -359,7 +358,6 @@ func LaunchNvimWithConfig(configName string) {
 	nvimExec, err := lookPath("nvim")
 	if err != nil {
 		fatalf("nvim not found in PATH: %v", err)
-		return
 	}
 	launch := exec.Command(nvimExec)
 	launch.Env = append(os.Environ(), "NVIM_APPNAME="+configName)
