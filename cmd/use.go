@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -67,12 +68,27 @@ var useCmd = &cobra.Command{
 
 		// Determine the current symlink path.
 		currentSymlink := filepath.Join(versionsDir, "current")
-		// Check if the "current" symlink already points to the target version.
-		if current, err := os.Readlink(currentSymlink); err == nil {
-			if filepath.Base(current) == targetVersion {
-				fmt.Printf("%s Already using Neovim %s\n", utils.WarningIcon(), utils.CyanText(targetVersion))
-				logrus.Debugf("Already using version: %s", targetVersion)
-				return
+		// Resolve what "current" points to, whether it's a symlink or a junction.
+		if info, err := os.Lstat(currentSymlink); err == nil {
+			if info.Mode()&os.ModeSymlink != 0 {
+				// Regular symlink → use Readlink
+				if target, err := os.Readlink(currentSymlink); err == nil {
+					if filepath.Base(target) == targetVersion {
+						fmt.Printf("%s Already using Neovim %s\n", utils.WarningIcon(), utils.CyanText(targetVersion))
+						logrus.Debugf("Already using version: %s", targetVersion)
+						return
+					}
+				}
+			} else if runtime.GOOS == "windows" {
+				// On Windows, junctions look like normal directories to os.Lstat.
+				// So we just check if it resolves to the target path.
+				absTarget := filepath.Join(versionsDir, targetVersion)
+				absCurrent, _ := filepath.EvalSymlinks(currentSymlink) // works for junctions
+				if absCurrent == absTarget {
+					fmt.Printf("%s Already using Neovim %s\n", utils.WarningIcon(), utils.CyanText(targetVersion))
+					logrus.Debugf("Already using version (junction): %s", targetVersion)
+					return
+				}
 			}
 		}
 

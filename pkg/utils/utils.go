@@ -62,26 +62,59 @@ func ListInstalledVersions(versionsDir string) ([]string, error) {
 	return versions, nil
 }
 
-// UpdateSymlink creates or updates a symbolic link at link pointing to target.
-// If a link already exists, it will be removed before creating a new one.
+// UpdateSymlink creates a symlink (or junction/hardlink fallback on Windows).
+// If isDir = true, fallback uses junctions (mklink /J).
+// If isDir = false, fallback uses hardlinks (mklink /H).
 //
 // Example usage:
 //
-//	err := UpdateSymlink("/path/to/version/v0.6.0", "/path/to/versions/current")
+//	err := UpdateSymlink("/path/to/version/v0.6.0", "/path/to/versions/current", true)
 //	if err != nil {
 //	    // handle error
 //	}
-func UpdateSymlink(target, link string) error {
+func UpdateSymlink(target, link string, isDir bool) error {
+	// Remove old symlink if it exists.
 	if _, err := os.Lstat(link); err == nil {
 		if err := os.Remove(link); err != nil {
 			return err
 		}
 	}
-	return os.Symlink(target, link)
+
+	// Try normal symlink
+	if err := os.Symlink(target, link); err == nil {
+		return nil
+	} else if runtime.GOOS != "windows" {
+		// On non-Windows, fail fast
+		return err
+	}
+
+	// Windows fallback
+	if isDir {
+		// Directory junction
+		cmd := exec.Command("cmd", "/C", "mklink", "/J", link, target)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to create junction for %s: %w", link, err)
+		}
+		logrus.Debugf("Created junction instead of symlink: %s -> %s", link, target)
+	} else {
+		// File hardlink
+		cmd := exec.Command("cmd", "/C", "mklink", "/H", link, target)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to create hardlink for %s: %w", link, err)
+		}
+		logrus.Debugf("Created hardlink instead of symlink: %s -> %s", link, target)
+	}
+
+	return nil
 }
 
-// GetCurrentVersion reads the "current" symlink within versionsDir and returns
-// the base name of its target directory, which indicates the currently active version.
+// GetCurrentVersion reads the "current" symlink (or junction on Windows)
+// within versionsDir and returns the base name of its target directory,
+// which indicates the currently active version.
 //
 // Example usage:
 //
@@ -92,11 +125,26 @@ func UpdateSymlink(target, link string) error {
 //	fmt.Println("Current version:", version)
 func GetCurrentVersion(versionsDir string) (string, error) {
 	link := filepath.Join(versionsDir, "current")
-	target, err := os.Readlink(link)
+	info, err := os.Lstat(link)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to lstat %s: %w", link, err)
 	}
-	return filepath.Base(target), nil
+
+	// Case 1: it's a symlink
+	if info.Mode()&os.ModeSymlink != 0 {
+		target, err := os.Readlink(link)
+		if err != nil {
+			return "", fmt.Errorf("failed to read symlink %s: %w", link, err)
+		}
+		return filepath.Base(target), nil
+	}
+
+	// Case 2: it's a directory (could be junction or real dir)
+	if info.IsDir() {
+		return filepath.Base(link), nil
+	}
+
+	return "", fmt.Errorf("current is not a symlink or directory: %s", link)
 }
 
 // GetStandardNvimConfigDir determines the canonical configuration directory
@@ -198,9 +246,10 @@ func FindNvimBinary(dir string) string {
 	return binaryPath
 }
 
-// UseVersion switches to the specified targetVersion by updating the "current" symlink,
-// locating the Neovim binary in the version directory, and creating a global symlink
-// in globalBinDir pointing to that binary. It prints messages to indicate success or warnings.
+// UseVersion switches to the specified targetVersion by updating the "current" link,
+// locating the Neovim binary in the version directory, and creating a global link
+// in globalBinDir pointing to that binary. On Windows, falls back to junctions (dirs)
+// or hardlinks (files) if symlinks are not allowed.
 //
 // Example usage:
 //
@@ -211,7 +260,8 @@ func FindNvimBinary(dir string) string {
 func UseVersion(targetVersion string, currentSymlink string, versionsDir string, globalBinDir string) error {
 	versionPath := filepath.Join(versionsDir, targetVersion)
 	logrus.Debugf("Updating symlink to point to: %s", versionPath)
-	if err := UpdateSymlink(versionPath, currentSymlink); err != nil {
+
+	if err := UpdateSymlink(versionPath, currentSymlink, true); err != nil {
 		return fmt.Errorf("failed to switch version: %v", err)
 	}
 
@@ -229,8 +279,8 @@ func UseVersion(targetVersion string, currentSymlink string, versionsDir string,
 			logrus.Debugf("Removed existing global bin symlink: %s", targetBin)
 		}
 	}
-	if err := os.Symlink(nvimExec, targetBin); err != nil {
-		return fmt.Errorf("failed to create symlink in global bin: %v", err)
+	if err := UpdateSymlink(nvimExec, targetBin, false); err != nil {
+		return fmt.Errorf("failed to create global nvim link: %v", err)
 	}
 
 	logrus.Debugf("Global Neovim binary updated: %s -> %s", targetBin, nvimExec)

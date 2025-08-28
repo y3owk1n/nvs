@@ -73,9 +73,26 @@ var uninstallCmd = &cobra.Command{
 			}
 
 			logrus.Debugf("User confirmed removal of current version %s", versionArg)
-			// Remove the current symlink if uninstalling the active version.
-			if err := os.Remove(currentSymlink); err != nil {
-				logrus.Fatalf("Failed to remove current symlink: %v", err)
+			// Remove the current symlink/junction if uninstalling the active version.
+			info, err := os.Lstat(currentSymlink)
+			if err != nil {
+				logrus.Fatalf("Failed to lstat current symlink: %v", err)
+			}
+
+			if info.Mode()&os.ModeSymlink != 0 {
+				// POSIX symlink
+				if err := os.Remove(currentSymlink); err != nil {
+					logrus.Fatalf("Failed to remove current symlink: %v", err)
+				}
+				logrus.Debug("Removed current symlink")
+			} else if info.IsDir() {
+				// Likely a Windows junction — requires RemoveAll
+				if err := os.RemoveAll(currentSymlink); err != nil {
+					logrus.Fatalf("Failed to remove current junction: %v", err)
+				}
+				logrus.Debug("Removed current junction")
+			} else {
+				logrus.Warnf("Current entry is neither a symlink nor a directory: %s", currentSymlink)
 			}
 		}
 
