@@ -303,6 +303,7 @@ func TestLaunchNvimWithConfig(t *testing.T) {
 	// Case 2: Config exists but exec.LookPath fails.
 	configName := "testconfig"
 	configDir := filepath.Join(tempHome, ".config", configName)
+	t.Logf("configDir: %s", configDir)
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		t.Fatalf("failed to create config directory: %v", err)
 	}
