@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -138,12 +139,21 @@ func initConfig() {
 		baseBinDir = custom
 		logrus.Debugf("Using custom binary directory from NVS_BIN_DIR: %s", baseBinDir)
 	} else {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			logrus.Fatalf("Failed to get user home directory: %v", err)
+		if runtime.GOOS == "windows" {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				logrus.Fatalf("Failed to get user home directory: %v", err)
+			}
+			baseBinDir = filepath.Join(home, "AppData", "Local", "Microsoft", "WindowsApps")
+			logrus.Debugf("Using Windows binary directory: %s", baseBinDir)
+		} else {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				logrus.Fatalf("Failed to get user home directory: %v", err)
+			}
+			baseBinDir = filepath.Join(home, ".local", "bin")
+			logrus.Debugf("Using default binary directory: %s", baseBinDir)
 		}
-		baseBinDir = filepath.Join(home, ".local", "bin")
-		logrus.Debugf("Using default binary directory: %s", baseBinDir)
 	}
 	// Ensure the binary directory exists.
 	if err := os.MkdirAll(baseBinDir, 0755); err != nil {
