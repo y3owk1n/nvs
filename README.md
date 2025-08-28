@@ -184,13 +184,13 @@ nvs env --source | source
 **nvs** now follows OS-specific best practices for storing configuration, cache, and binary data. By default:
 
 - **Configuration Files:**
-  Stored in `~/.config/nvs` on Unix-like systems (or `%APPDATA%\nvs` on Windows).
+  Stored in `~/.config/nvs` on Unix-like systems (or `AppData\Roaming\nvs` on Windows).
   Override with the `NVS_CONFIG_DIR` environment variable.
 - **Cache Files:**
-  Stored in `~/.cache/nvs` on Unix-like systems (or `%LOCALAPPDATA%\nvs\Cache` on Windows).
-  Override with the NVS_CACHE_DIR environment variable.
+  Stored in `~/.cache/nvs` on Unix-like systems (or `AppData\Local\nvs` on Windows).
+  Override with the `NVS_CACHE_DIR` environment variable.
 - **Global Binary Symlinks:**
-  Placed in `~/.local/bin` on Unix-like systems (or an equivalent directory on Windows).
+  Placed in `~/.local/bin` on Unix-like systems (or `AppData\Local\Programs` on Windows).
   Override with the `NVS_BIN_DIR` environment variable.
 
 > [!note]
@@ -204,15 +204,15 @@ nvs env --source | source
 - `NVS_CONFIG_DIR` Overrides the default configuration directory.
   - Default:
     - On Unix-like systems: `~/.config/nvs`
-    - On Windows: `%APPDATA%\nvs`
+    - On Windows: `AppData\Roaming\nvs`
 - `NVS_CACHE_DIR` Overrides the default cache directory.
   - Default:
     - On Unix-like systems: `~/.cache/nvs`
-    - On Windows: `%LOCALAPPDATA%\nvs\Cache`
+    - On Windows: `AppData\Local\nvs`
 - `NVS_BIN_DIR` Overrides the default global binary directory.
   - Default:
     - On Unix-like systems: `~/.local/bin`
-    - On Windows: `%APPDATA%\nvs\bin`
+    - On Windows: `AppData\Local\Programs`
 
 #### How to Set These Environment Variables Manually
 

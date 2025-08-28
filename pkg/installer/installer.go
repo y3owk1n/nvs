@@ -156,6 +156,9 @@ func DownloadAndInstall(ctx context.Context, versionsDir, installName, assetURL,
 		return fmt.Errorf("failed to create temporary file: %w", err)
 	}
 	defer func() {
+		if err := tmpFile.Close(); err != nil {
+			logrus.Errorf("warning: failed to close tmp file: %v", err)
+		}
 		if err := os.Remove(tmpFile.Name()); err != nil {
 			logrus.Warnf("Failed to remove temporary file %s: %v", tmpFile.Name(), err)
 		}

@@ -33,9 +33,11 @@ var pathCmd = &cobra.Command{
 
 		// On Windows, automatic PATH modifications are not implemented.
 		if runtime.GOOS == "windows" {
+			nvimBinDir := filepath.Join(globalBinDir, "nvim", "bin")
+
 			logrus.Debug("Detected Windows OS")
 			fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText("Automatic PATH setup is not implemented for Windows."))
-			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Please add %s to your PATH environment variable manually.", utils.CyanText(globalBinDir))))
+			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Please add %s to your PATH environment variable manually.", utils.CyanText(nvimBinDir))))
 			return
 		}
 

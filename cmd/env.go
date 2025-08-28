@@ -62,7 +62,7 @@ var envCmd = &cobra.Command{
 				if err != nil {
 					logrus.Fatalf("Failed to get user home directory: %v", err)
 				}
-				binDir = filepath.Join(home, "AppData", "Local", "Microsoft", "WindowsApps")
+				binDir = filepath.Join(home, "AppData", "Local", "Programs")
 				logrus.Debugf("Using Windows binary directory: %s", binDir)
 			} else {
 				home, err := os.UserHomeDir()
