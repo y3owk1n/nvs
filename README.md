@@ -501,16 +501,16 @@ source ~/.config/fish/config.fish
 
 ### Windows
 
-Open an elevated Command Prompt (Run as administrator) and type:
+There are lots of different ways to set it, you can google them easily or ask chatGPT about how. The key is ta add the right path to the PATH variable.
+
+Heres a simple one that will set the path on your current session until you close the terminal:
 
 ```bash
-setx PATH "%PATH%;%APPDATA%\nvs\bin"
+set PATH=%USERPROFILE%\AppData\Local\Programs\nvim\bin;%PATH% # need to target the nested bin folder, because on windows, nvim needs the full folder to work, and nvim.exe is in the bin folder
 ```
 
-Restart your Command Prompt (or log off and back on) for the changes to take effect.
-
 > [!note]
-> If you have overridden the default binary directory with the `NVS_BIN_DIR` environment variable, make sure to replace `%APPDATA%\nvs\bin` with your custom path in the above command.
+> If you have overridden the default binary directory with the `NVS_BIN_DIR` environment variable, make sure to update your path accordingly.
 
 ### Nix Home Manager
 
