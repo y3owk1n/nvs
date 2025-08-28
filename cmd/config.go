@@ -62,12 +62,17 @@ var configCmd = &cobra.Command{
 			logrus.Debugf("Processing entry: %s", entryPath)
 
 			isDir := false
-			// If the entry is a symlink, resolve it.
-			if entry.Type()&os.ModeSymlink != 0 {
-				logrus.Debugf("%s is a symlink, resolving...", entry.Name())
+			info, err := os.Lstat(entryPath)
+			if err != nil {
+				logrus.Warnf("Failed to lstat %s: %v", entryPath, err)
+				continue
+			}
+
+			if info.Mode()&os.ModeSymlink != 0 {
+				// Proper symlink
 				resolvedPath, err := os.Readlink(entryPath)
 				if err != nil {
-					logrus.Warnf("Failed to resolve symlink for %s: %v", entry.Name(), err)
+					logrus.Warnf("Failed to resolve symlink %s: %v", entry.Name(), err)
 					continue
 				}
 
@@ -78,8 +83,10 @@ var configCmd = &cobra.Command{
 				}
 				isDir = targetInfo.IsDir()
 				logrus.Debugf("%s resolved to %s (isDir: %t)", entry.Name(), resolvedPath, isDir)
+
 			} else {
-				isDir = entry.IsDir()
+				// Could be a real dir or a junction (Windows treats junctions as dirs)
+				isDir = info.IsDir()
 			}
 
 			// Add directories whose name contains "nvim" (case-insensitive) to the list.

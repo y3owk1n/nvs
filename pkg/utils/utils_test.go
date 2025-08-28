@@ -58,34 +58,45 @@ func TestListInstalledVersions(t *testing.T) {
 	}
 }
 
-// TestUpdateSymlink tests that UpdateSymlink creates or updates a symlink.
+// TestUpdateSymlink tests that UpdateSymlink creates or updates a symlink (or junction on Windows).
 func TestUpdateSymlink(t *testing.T) {
-	tempDir := t.TempDir()
-	target := filepath.Join(tempDir, "target")
-	if err := os.Mkdir(target, 0755); err != nil {
-		t.Fatalf("failed to create target directory: %v", err)
-	}
-	link := filepath.Join(tempDir, "mylink")
-	// Create initial symlink.
-	if err := os.Symlink(target, link); err != nil {
-		t.Fatalf("failed to create initial symlink: %v", err)
-	}
-	// Create a new target.
-	newTarget := filepath.Join(tempDir, "newtarget")
-	if err := os.Mkdir(newTarget, 0755); err != nil {
-		t.Fatalf("failed to create new target directory: %v", err)
-	}
-	// Update symlink.
-	if err := UpdateSymlink(newTarget, link); err != nil {
-		t.Fatalf("UpdateSymlink failed: %v", err)
-	}
-	resolved, err := os.Readlink(link)
-	if err != nil {
-		t.Fatalf("failed to read symlink: %v", err)
-	}
-	if resolved != newTarget {
-		t.Errorf("expected symlink to point to %q, got %q", newTarget, resolved)
-	}
+	t.Run("directory link", func(t *testing.T) {
+		tempDir := t.TempDir()
+		target := filepath.Join(tempDir, "target")
+		if err := os.Mkdir(target, 0755); err != nil {
+			t.Fatalf("failed to create target directory: %v", err)
+		}
+		link := filepath.Join(tempDir, "mylink")
+
+		if err := UpdateSymlink(target, link, true); err != nil {
+			t.Fatalf("UpdateSymlink failed: %v", err)
+		}
+
+		resolved, _ := filepath.EvalSymlinks(link)
+		want, _ := filepath.EvalSymlinks(target)
+		if resolved != want {
+			t.Errorf("expected %q, got %q", want, resolved)
+		}
+	})
+
+	t.Run("file link", func(t *testing.T) {
+		tempDir := t.TempDir()
+		targetFile := filepath.Join(tempDir, "target.txt")
+		if err := os.WriteFile(targetFile, []byte("hello"), 0644); err != nil {
+			t.Fatalf("failed to create target file: %v", err)
+		}
+		link := filepath.Join(tempDir, "mylink.txt")
+
+		if err := UpdateSymlink(targetFile, link, false); err != nil {
+			t.Fatalf("UpdateSymlink failed: %v", err)
+		}
+
+		resolved, _ := filepath.EvalSymlinks(link)
+		want, _ := filepath.EvalSymlinks(targetFile)
+		if resolved != want {
+			t.Errorf("expected %q, got %q", want, resolved)
+		}
+	})
 }
 
 // TestGetCurrentVersion tests that GetCurrentVersion reads the base name from the "current" symlink.

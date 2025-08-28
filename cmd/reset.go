@@ -136,9 +136,19 @@ var resetCmd = &cobra.Command{
 
 		// Remove the symlinked nvim binary in the binary directory.
 		symlinkPath := filepath.Join(baseBinDir, "nvim")
-		logrus.Debugf("Removing symlinked binary: %s", symlinkPath)
-		if err := os.Remove(symlinkPath); err != nil && !os.IsNotExist(err) {
-			logrus.Fatalf("Failed to remove symlink %s: %v", symlinkPath, err)
+		if fi, err := os.Lstat(symlinkPath); err == nil {
+			if fi.Mode()&os.ModeSymlink != 0 {
+				logrus.Debugf("Removing symlink: %s", symlinkPath)
+			} else {
+				logrus.Debugf("Removing linked binary/junction: %s", symlinkPath)
+			}
+			if err := os.Remove(symlinkPath); err != nil {
+				logrus.Fatalf("Failed to remove %s: %v", symlinkPath, err)
+			}
+		} else if !os.IsNotExist(err) {
+			logrus.Fatalf("Failed to check symlink %s: %v", symlinkPath, err)
+		} else {
+			logrus.Debugf("No symlinked binary found at: %s", symlinkPath)
 		}
 
 		fmt.Println(utils.SuccessIcon(), utils.WhiteText("Reset successful. All data has been cleared."))
