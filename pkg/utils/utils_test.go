@@ -111,6 +111,95 @@ func TestGetCurrentVersion(t *testing.T) {
 	}
 }
 
+func withEnv(key, value string, fn func()) {
+	orig, ok := os.LookupEnv(key)
+	_ = os.Setenv(key, value)
+	defer func() {
+		if ok {
+			_ = os.Setenv(key, orig)
+		} else {
+			_ = os.Unsetenv(key)
+		}
+	}()
+	fn()
+}
+
+func TestGetStandardNvimConfigDir_XDG(t *testing.T) {
+	withEnv("XDG_CONFIG_HOME", "/tmp/xdg", func() {
+		dir, err := GetNvimConfigBaseDir()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		expected := filepath.Join("/tmp/xdg")
+		if dir != expected {
+			t.Errorf("expected %s, got %s", expected, dir)
+		}
+	})
+}
+
+func TestGetStandardNvimConfigDir_WindowsLocalAppData(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-specific test")
+	}
+
+	withEnv("XDG_CONFIG_HOME", "", func() {
+		withEnv("LOCALAPPDATA", `C:\Temp\LocalAppData`, func() {
+			dir, err := GetNvimConfigBaseDir()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			expected := filepath.Join(`C:\Temp\LocalAppData`)
+			if dir != expected {
+				t.Errorf("expected %s, got %s", expected, dir)
+			}
+		})
+	})
+}
+
+func TestGetStandardNvimConfigDir_WindowsFallback(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-specific test")
+	}
+
+	withEnv("XDG_CONFIG_HOME", "", func() {
+		withEnv("LOCALAPPDATA", "", func() {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				t.Fatalf("could not get home: %v", err)
+			}
+			dir, err := GetNvimConfigBaseDir()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			expected := filepath.Join(home, ".config")
+			if dir != expected {
+				t.Errorf("expected %s, got %s", expected, dir)
+			}
+		})
+	})
+}
+
+func TestGetStandardNvimConfigDir_UnixDefault(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("non-Windows test")
+	}
+
+	withEnv("XDG_CONFIG_HOME", "", func() {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			t.Fatalf("could not get home: %v", err)
+		}
+		dir, err := GetNvimConfigBaseDir()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		expected := filepath.Join(home, ".config")
+		if dir != expected {
+			t.Errorf("expected %s, got %s", expected, dir)
+		}
+	})
+}
+
 // TestFindNvimBinary tests that FindNvimBinary returns the expected binary path.
 // For Unix-like systems, create a temporary executable file.
 func TestFindNvimBinary(t *testing.T) {
