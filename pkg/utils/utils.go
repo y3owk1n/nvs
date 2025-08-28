@@ -21,10 +21,7 @@ import (
 var (
 	userHomeDir = os.UserHomeDir
 	lookPath    = exec.LookPath
-	fatalf      = func(format string, args ...any) {
-		logrus.Fatalf(format, args...)
-		os.Exit(1)
-	}
+	fatalf      = logrus.Fatalf
 )
 
 // IsInstalled checks if a version directory exists within the versionsDir.
@@ -341,15 +338,17 @@ func GetInstalledReleaseIdentifier(versionsDir, alias string) (string, error) {
 //	LaunchNvimWithConfig("myconfig")
 //	// Neovim will be launched with configuration located at ~/.config/myconfig
 func LaunchNvimWithConfig(configName string) {
-	configDir, err := GetNvimConfigBaseDir()
+	baseConfigDir, err := GetNvimConfigBaseDir()
 	if err != nil {
 		fatalf("Failed to determine config base dir: %v", err)
 		return
 	}
 
+	configDir := filepath.Join(baseConfigDir, configName)
+
 	info, err := os.Stat(configDir)
 	if os.IsNotExist(err) || !info.IsDir() {
-		fmt.Printf("%s %s\n", ErrorIcon(), WhiteText(fmt.Sprintf("configuration '%s' does not exist in %s", CyanText(configName), CyanText(configDir))))
+		fmt.Printf("%s %s\n", ErrorIcon(), WhiteText(fmt.Sprintf("configuration '%s' does not exist in %s", CyanText(configName), CyanText(baseConfigDir))))
 		return
 	}
 
