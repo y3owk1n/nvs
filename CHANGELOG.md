@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.10.7](https://github.com/y3owk1n/nvs/compare/v1.10.6...v1.10.7) (2025-08-28)
+
+
+### Bug Fixes
+
+* **cmd.config:** ensure getting the right standard path based on different OS ([#140](https://github.com/y3owk1n/nvs/issues/140)) ([d5f0c97](https://github.com/y3owk1n/nvs/commit/d5f0c974103daf63b9143da7d2a9f80ba540e0be))
+* **cmd.config:** ignore *-data as nvim will create them automatically ([#147](https://github.com/y3owk1n/nvs/issues/147)) ([9824c17](https://github.com/y3owk1n/nvs/commit/9824c17595f2cc21fd0782c08463403d6edba413))
+* ensure hardlinking logic works with windows ([#144](https://github.com/y3owk1n/nvs/issues/144)) ([110fafe](https://github.com/y3owk1n/nvs/commit/110fafe9a97b2044894812950f3d1dda22d6ed56))
+* ensure to get the right nvim config directories on windows ([#145](https://github.com/y3owk1n/nvs/issues/145)) ([6423127](https://github.com/y3owk1n/nvs/commit/6423127fd77b4d6cafe7b0a74d37fc48e21bc33a))
+* exclude `nvim-data` folder for windows ([#146](https://github.com/y3owk1n/nvs/issues/146)) ([f59ee9b](https://github.com/y3owk1n/nvs/commit/f59ee9bc51ef751afdebbb550fb63cc3ef8dfda9))
+* respect window default paths for bin ([#143](https://github.com/y3owk1n/nvs/issues/143)) ([b4ec9e7](https://github.com/y3owk1n/nvs/commit/b4ec9e74b53d8ad80dc8fd2047d38401816e192e))
+* use junction instead of symlink on windows ([#142](https://github.com/y3owk1n/nvs/issues/142)) ([c464b17](https://github.com/y3owk1n/nvs/commit/c464b17605da2ace2becdeef6f027a9ad7cd82ba))
+
 ## [1.10.6](https://github.com/y3owk1n/nvs/compare/v1.10.5...v1.10.6) (2025-08-09)
 
 
