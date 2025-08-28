@@ -23,6 +23,7 @@ var (
 	lookPath    = exec.LookPath
 	fatalf      = func(format string, args ...any) {
 		logrus.Fatalf(format, args...)
+		os.Exit(1)
 	}
 )
 
@@ -359,6 +360,7 @@ func LaunchNvimWithConfig(configName string) {
 	nvimExec, err := lookPath("nvim")
 	if err != nil {
 		fatalf("nvim not found in PATH: %v", err)
+		return
 	}
 	launch := exec.Command(nvimExec)
 	launch.Env = append(os.Environ(), "NVIM_APPNAME="+configName)

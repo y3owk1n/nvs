@@ -310,6 +310,7 @@ func TestLaunchNvimWithConfig(t *testing.T) {
 	// Patch lookPath to simulate failure.
 	origLookPath := lookPath
 	lookPath = func(file string) (string, error) {
+		t.Logf("patched lookPath called with %s", file)
 		return "", errors.New("nvim not found")
 	}
 
