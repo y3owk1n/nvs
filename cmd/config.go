@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/manifoldco/promptui"
@@ -90,9 +91,19 @@ var configCmd = &cobra.Command{
 			}
 
 			// Add directories whose name contains "nvim" (case-insensitive) to the list.
-			if isDir && strings.Contains(strings.ToLower(entry.Name()), "nvim") {
-				logrus.Debugf("Adding Neovim config: %s", entry.Name())
-				nvimConfigs = append(nvimConfigs, entry.Name())
+			if isDir {
+				name := strings.ToLower(entry.Name())
+
+				if strings.Contains(name, "nvim") {
+					// Exclude nvim-data only on Windows
+					if runtime.GOOS == "windows" && name == "nvim-data" {
+						logrus.Debugf("Skipping Windows nvim-data: %s", entry.Name())
+						continue
+					}
+
+					logrus.Debugf("Adding Neovim config: %s", entry.Name())
+					nvimConfigs = append(nvimConfigs, entry.Name())
+				}
 			}
 		}
 
