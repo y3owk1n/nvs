@@ -221,7 +221,15 @@ func TestFindNvimBinary(t *testing.T) {
 	} else {
 		binName = "nvim"
 	}
-	binaryPath := filepath.Join(tempDir, binName)
+	var binaryPath string
+	if runtime.GOOS == "windows" {
+		binaryPath = filepath.Join(tempDir, "nvim", "bin", binName)
+		if err := os.MkdirAll(filepath.Dir(binaryPath), 0755); err != nil {
+			t.Fatalf("failed to create bin dir: %v", err)
+		}
+	} else {
+		binaryPath = filepath.Join(tempDir, binName)
+	}
 	f, err := os.Create(binaryPath)
 	if err != nil {
 		t.Fatalf("failed to create fake binary: %v", err)
@@ -236,6 +244,10 @@ func TestFindNvimBinary(t *testing.T) {
 	found := FindNvimBinary(tempDir)
 	if found == "" {
 		t.Errorf("FindNvimBinary did not find the binary")
+	} else if runtime.GOOS == "windows" {
+		if found != filepath.Join(tempDir, "nvim") {
+			t.Errorf("expected %q, got %q", filepath.Join(tempDir, "nvim"), found)
+		}
 	} else if found != binaryPath {
 		t.Errorf("expected %q, got %q", binaryPath, found)
 	}

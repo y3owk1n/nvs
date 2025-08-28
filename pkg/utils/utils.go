@@ -224,7 +224,8 @@ func FindNvimBinary(dir string) string {
 			name := d.Name()
 			if runtime.GOOS == "windows" {
 				if name == "nvim.exe" || (strings.HasPrefix(name, "nvim-") && filepath.Ext(name) == ".exe") {
-					binaryPath = path
+					// Go two levels up: ../../nvim-win64
+					binaryPath = filepath.Dir(filepath.Dir(path))
 					return io.EOF // break early
 				}
 			} else {
@@ -279,8 +280,15 @@ func UseVersion(targetVersion string, currentSymlink string, versionsDir string,
 			logrus.Debugf("Removed existing global bin symlink: %s", targetBin)
 		}
 	}
-	if err := UpdateSymlink(nvimExec, targetBin, false); err != nil {
-		return fmt.Errorf("failed to create global nvim link: %v", err)
+
+	if runtime.GOOS == "windows" {
+		if err := UpdateSymlink(nvimExec, targetBin, true); err != nil {
+			return fmt.Errorf("failed to create global nvim link: %v", err)
+		}
+	} else {
+		if err := UpdateSymlink(nvimExec, targetBin, false); err != nil {
+			return fmt.Errorf("failed to create global nvim link: %v", err)
+		}
 	}
 
 	logrus.Debugf("Global Neovim binary updated: %s -> %s", targetBin, nvimExec)
@@ -288,8 +296,15 @@ func UseVersion(targetVersion string, currentSymlink string, versionsDir string,
 	fmt.Printf("%s %s\n", SuccessIcon(), WhiteText(switchMsg))
 
 	if pathEnv := os.Getenv("PATH"); !strings.Contains(pathEnv, globalBinDir) {
-		fmt.Printf("%s Run `nvs path` or manually add this directory to your PATH for convenience: %s\n", WarningIcon(), CyanText(globalBinDir))
-		logrus.Debugf("Global bin directory not found in PATH: %s", globalBinDir)
+		if runtime.GOOS == "windows" {
+			// windows needs the whole directory to be linked
+			nvimBinDir := filepath.Join(globalBinDir, "nvim", "bin")
+			fmt.Printf("%s Run `nvs path` or manually add this directory to your PATH for convenience: %s\n", WarningIcon(), CyanText(nvimBinDir))
+			logrus.Debugf("Global bin directory not found in PATH: %s", nvimBinDir)
+		} else {
+			fmt.Printf("%s Run `nvs path` or manually add this directory to your PATH for convenience: %s\n", WarningIcon(), CyanText(globalBinDir))
+			logrus.Debugf("Global bin directory not found in PATH: %s", globalBinDir)
+		}
 	}
 
 	return nil
