@@ -44,21 +44,17 @@ var configCmd = &cobra.Command{
 			return
 		}
 
-		// No configuration provided; list available Neovim configurations from ~/.config.
-		home, err := os.UserHomeDir()
+		configDir, err := utils.GetNvimConfigBaseDir()
 		if err != nil {
-			logrus.Fatalf("Failed to get home directory: %v", err)
+			logrus.Fatalf("Failed to determine config base dir: %v", err)
 		}
-		logrus.Debugf("User home directory: %s", home)
-
-		configDir := filepath.Join(home, ".config")
 		logrus.Debugf("Neovim config directory: %s", configDir)
 
 		entries, err := os.ReadDir(configDir)
 		if err != nil {
 			logrus.Fatalf("Failed to read config directory: %v", err)
 		}
-		logrus.Debugf("Found %d entries in config directory", len(entries))
+		logrus.Debugf("Found %d entries in config directory (%s)", len(entries), configDir)
 
 		var nvimConfigs []string
 		for _, entry := range entries {
