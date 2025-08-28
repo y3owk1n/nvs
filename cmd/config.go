@@ -96,7 +96,7 @@ var configCmd = &cobra.Command{
 
 				if strings.Contains(name, "nvim") {
 					// Exclude nvim-data only on Windows
-					if runtime.GOOS == "windows" && name == "nvim-data" {
+					if runtime.GOOS == "windows" && strings.HasSuffix(name, "-data") {
 						logrus.Debugf("Skipping Windows nvim-data: %s", entry.Name())
 						continue
 					}
