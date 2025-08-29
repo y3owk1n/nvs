@@ -61,9 +61,15 @@ Run "nvim -V1 -v" for more info
 - **Uninstallation & Reset:**
   Remove individual versions or reset your entire configuration with ease.
 - **Cross-Platform:**
-  Works on macOS (Intel & Apple Silicon), Linux, and Windows.
+  Works on macOS (Intel & Apple Silicon), Linux, and Windows (Kinda works).
 - **Verbose Logging:**
   Run with the `--verbose` flag to see detailed logs during directory initialization, reset, and other operations.
+
+## Note before using
+
+- Everything kinda works for `Windows` for now, but I can't really get it to work properly for junctions detection. Whoever that are good with Windows, please help me out instead of just saying "it doesn't work". I do not own any Windows machine nor daily driving the OS at all, and have very little understanding about it.
+- It should work perfectly on any unix-like system, as I am daily driving it on `Ubuntu` and `MacOS` without issue.
+- The current code are kinda spaghetti for now, rewrite is on my plan but no timeline yet. Feel free to help if you're a `golang` pro and have additional time for it.
 
 ## 🚀 Installation
 
@@ -185,7 +191,7 @@ nvs env --source | source
 
 - **Configuration Files:**
   Stored in `~/.config/nvs` on Unix-like systems (or `AppData\Roaming\nvs` on Windows).
-  Override with the `NVS_CONFIG_DIR` environment variable.
+  Override with the `NVS_CONFIG_DIR` environment variable. Note that this is the `nvs` config directory, not the Neovim config directory.
 - **Cache Files:**
   Stored in `~/.cache/nvs` on Unix-like systems (or `AppData\Local\nvs` on Windows).
   Override with the `NVS_CACHE_DIR` environment variable.
@@ -201,7 +207,7 @@ nvs env --source | source
 
 **nvs** allows you to customize the locations where configuration, cache, and binary files are stored by setting the following environment variables:
 
-- `NVS_CONFIG_DIR` Overrides the default configuration directory.
+- `NVS_CONFIG_DIR` Overrides the default configuration directory. Note that this is the `nvs` config directory, not the Neovim config directory.
   - Default:
     - On Unix-like systems: `~/.config/nvs`
     - On Windows: `AppData\Roaming\nvs`
