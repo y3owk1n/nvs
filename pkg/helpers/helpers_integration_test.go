@@ -338,6 +338,10 @@ func TestRunCommandWithSpinner_Success(t *testing.T) {
 }
 
 func TestRunCommandWithSpinner_Cancel(t *testing.T) {
+	if runtime.GOOS == windowsOS {
+		t.Skip("sleep command not available on Windows")
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	spinner := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 
