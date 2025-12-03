@@ -61,8 +61,18 @@ func TestFindNvimBinary(t *testing.T) {
 	found := helpers.FindNvimBinary(tempDir)
 	if found == "" {
 		t.Errorf("FindNvimBinary did not find the binary")
-	} else if found != binaryPath {
-		t.Errorf("expected %q, got %q", binaryPath, found)
+	} else {
+		var expected string
+		if runtime.GOOS == windowsOS {
+			// On Windows, FindNvimBinary returns the installation directory, not the binary path
+			expected = filepath.Dir(filepath.Dir(binaryPath))
+		} else {
+			expected = binaryPath
+		}
+
+		if found != expected {
+			t.Errorf("expected %q, got %q", expected, found)
+		}
 	}
 }
 
