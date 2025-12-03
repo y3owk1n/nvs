@@ -128,7 +128,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 			logrus.Debug("Removed current symlink")
 		case info.IsDir():
 			// Likely a Windows junction — requires RemoveAll
-			err := os.RemoveAll(currentSymlink)
+			err = os.RemoveAll(currentSymlink)
 			if err != nil {
 				return fmt.Errorf("failed to remove current junction: %w", err)
 			}
