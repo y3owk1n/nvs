@@ -423,8 +423,10 @@ func GetInstalledReleaseIdentifier(versionsDir, alias string) (string, error) {
 //
 // Example usage:
 //
-//	LaunchNvimWithConfig("myconfig")
-//	// Neovim will be launched with configuration located at ~/.config/myconfig
+//	err := helpers.LaunchNvimWithConfig("myconfig")
+//	if err != nil {
+//		// handle error
+//	}
 func LaunchNvimWithConfig(configName string) error {
 	var err error
 
