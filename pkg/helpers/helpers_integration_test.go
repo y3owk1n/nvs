@@ -354,7 +354,12 @@ func TestRunCommandWithSpinner_Success(t *testing.T) {
 	spinner.Start()
 	defer spinner.Stop()
 
-	cmd := exec.CommandContext(ctx, "echo", "test")
+	var cmd *exec.Cmd
+	if runtime.GOOS == windowsOS {
+		cmd = exec.CommandContext(ctx, "cmd", "/C", "echo", "test")
+	} else {
+		cmd = exec.CommandContext(ctx, "echo", "test")
+	}
 
 	err := helpers.RunCommandWithSpinner(ctx, spinner, cmd)
 	if err != nil {
