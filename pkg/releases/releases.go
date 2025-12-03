@@ -282,7 +282,7 @@ func FindLatestNightly(cachePath string) (Release, error) {
 	}
 
 	for _, r := range releases {
-		if r.Prerelease && strings.HasPrefix(r.TagName, "nightly") {
+		if r.Prerelease && strings.HasPrefix(strings.ToLower(r.TagName), NightlyLower) {
 			return r, nil
 		}
 	}
