@@ -438,7 +438,7 @@ func LaunchNvimWithConfig(configName string) error {
 	configDir := filepath.Join(baseConfigDir, configName)
 
 	info, err := os.Stat(configDir)
-	if err != nil || !info.IsDir() {
+	if os.IsNotExist(err) || (err == nil && !info.IsDir()) {
 		_, err = fmt.Fprintf(os.Stdout,
 			"%s %s\n",
 			ErrorIcon(),
@@ -459,6 +459,10 @@ func LaunchNvimWithConfig(configName string) error {
 			configName,
 			ErrConfigDoesNotExist,
 		)
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to stat config directory %s: %w", configDir, err)
 	}
 
 	err = os.Setenv("NVIM_APPNAME", configName)
