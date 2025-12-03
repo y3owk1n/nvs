@@ -144,7 +144,7 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 
 		// Check if the release is installed locally.
 		if helpers.IsInstalled(VersionsDir, key) {
-			release, err := releases.ResolveVersion(key, CacheFilePath)
+			resolvedRelease, err := releases.ResolveVersion(key, CacheFilePath)
 			if err != nil {
 				logrus.Errorf("Error resolving %s: %v", key, err)
 
@@ -156,7 +156,7 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 				installedIdentifier = ""
 			}
 
-			remoteIdentifier := releases.GetReleaseIdentifier(release, key)
+			remoteIdentifier := releases.GetReleaseIdentifier(resolvedRelease, key)
 
 			// If the installed version is different from the remote, indicate an upgrade is available.
 			if installedIdentifier != "" && installedIdentifier != remoteIdentifier {
