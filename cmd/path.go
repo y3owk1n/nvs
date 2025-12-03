@@ -277,14 +277,16 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	}
 
 	// If the rc file does not exist, create it with the export command.
-	_, err = os.Stat(rcFile)
-	if os.IsNotExist(err) {
+	_, statErr := os.Stat(rcFile)
+	if os.IsNotExist(statErr) {
 		logrus.Debug("Creating new rcFile")
 
 		err := os.WriteFile(rcFile, []byte(exportCmdComment+"\n"+exportCmd+"\n"), FilePerm)
 		if err != nil {
 			return fmt.Errorf("failed to create %s: %w", rcFile, err)
 		}
+	} else if statErr != nil {
+		return fmt.Errorf("failed to stat %s: %w", rcFile, statErr)
 	} else {
 		// Otherwise, append the export command if it is not already present.
 		logrus.Debug("Appending to existing rcFile")
