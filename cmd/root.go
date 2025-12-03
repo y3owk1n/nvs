@@ -10,6 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/pkg/helpers"
 )
 
 const windows = "windows"
@@ -67,8 +68,6 @@ func Execute() error {
 //   - If NVS_CONFIG_DIR is set, it is used as the config directory; otherwise, the system config directory is used.
 //   - Similar logic applies for cache (NVS_CACHE_DIR) and binary directories (NVS_BIN_DIR).
 func InitConfig() {
-	const DirPerm = 0o755
-
 	var err error
 
 	// Set logging level based on the verbose flag.
@@ -125,7 +124,7 @@ func InitConfig() {
 	}
 
 	// Ensure the configuration directory exists.
-	err = os.MkdirAll(baseConfigDir, DirPerm)
+	err = os.MkdirAll(baseConfigDir, helpers.DirPerm)
 	if err != nil {
 		logrus.Fatalf("Failed to create config directory: %v", err)
 	}
@@ -135,9 +134,9 @@ func InitConfig() {
 	// Set the directory for installed versions.
 	VersionsDir = filepath.Join(baseConfigDir, "versions")
 
-	err = os.MkdirAll(VersionsDir, DirPerm)
+	err = os.MkdirAll(VersionsDir, helpers.DirPerm)
 	if err != nil {
-		logrus.Fatal(err)
+		logrus.Fatalf("Failed to create versions directory: %v", err)
 	}
 
 	logrus.Debugf("Versions directory ensured: %s", VersionsDir)
@@ -163,7 +162,7 @@ func InitConfig() {
 		}
 	}
 	// Ensure the cache directory exists.
-	err = os.MkdirAll(baseCacheDir, DirPerm)
+	err = os.MkdirAll(baseCacheDir, helpers.DirPerm)
 	if err != nil {
 		logrus.Fatalf("Failed to create cache directory: %v", err)
 	}
@@ -197,7 +196,7 @@ func InitConfig() {
 		}
 	}
 	// Ensure the binary directory exists.
-	err = os.MkdirAll(baseBinDir, DirPerm)
+	err = os.MkdirAll(baseBinDir, helpers.DirPerm)
 	if err != nil {
 		logrus.Fatalf("Failed to create binary directory: %v", err)
 	}
