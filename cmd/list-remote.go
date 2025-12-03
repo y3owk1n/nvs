@@ -73,7 +73,7 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 		switch {
 		case release.Prerelease:
 			groupNightly = append(groupNightly, release)
-		case release.TagName == "stable":
+		case release.TagName == stableConst:
 			groupStable = append(groupStable, release)
 		default:
 			groupOthers = append(groupOthers, release)
