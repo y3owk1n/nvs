@@ -229,7 +229,10 @@ func TestGetReleases(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		enc := json.NewEncoder(w)
 
-		_ = enc.Encode(fakeReleases()) // Error ignored; test will fail on decode side
+		err := enc.Encode(fakeReleases())
+		if err != nil {
+			panic(fmt.Sprintf("failed to encode fake releases: %v", err))
+		}
 	}))
 	defer testServer.Close()
 
