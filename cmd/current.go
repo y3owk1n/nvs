@@ -135,7 +135,7 @@ func RunCurrent(_ *cobra.Command, _ []string, versionsDir, cacheFilePath string)
 			_, err = fmt.Fprintf(os.Stdout,
 				"%s %s\n",
 				helpers.InfoIcon(),
-				helpers.WhiteText(fmt.Sprintf("stable (%s)", current)),
+				helpers.WhiteText(fmt.Sprintf("commit (%s)", current)),
 			)
 			if err != nil {
 				logrus.Warnf("Failed to write to stdout: %v", err)
