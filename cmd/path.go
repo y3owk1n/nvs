@@ -164,12 +164,37 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 	exportCmdComment := "# Added by nvs"
 
+	// Get home directory, preferring HOME env var but falling back to os.UserHomeDir
+	home := os.Getenv("HOME")
+	if home == "" {
+		var err error
+
+		home, err = os.UserHomeDir()
+		if err != nil {
+			logrus.Warnf("Failed to get home directory: %v", err)
+
+			_, err = fmt.Fprintf(
+				os.Stdout,
+				"%s %s\n",
+				helpers.WarningIcon(),
+				helpers.WhiteText(
+					"Cannot determine home directory. Please set HOME environment variable.",
+				),
+			)
+			if err != nil {
+				logrus.Warnf("Failed to write to stdout: %v", err)
+			}
+
+			return nil
+		}
+	}
+
 	switch shellName {
 	case "bash", "zsh":
-		rcFile = filepath.Join(os.Getenv("HOME"), fmt.Sprintf(".%src", shellName))
+		rcFile = filepath.Join(home, fmt.Sprintf(".%src", shellName))
 		exportCmd = fmt.Sprintf("export PATH=\"$PATH:%s\"", GlobalBinDir)
 	case "fish":
-		rcFile = filepath.Join(os.Getenv("HOME"), ".config", "fish", "config.fish")
+		rcFile = filepath.Join(home, ".config", "fish", "config.fish")
 		exportCmd = "set -gx PATH $PATH " + GlobalBinDir
 	default:
 		logrus.Debug("Unsupported shell: ", shellName)
