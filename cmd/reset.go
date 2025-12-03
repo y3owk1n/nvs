@@ -14,7 +14,7 @@ import (
 )
 
 // Windows is the string for Windows OS.
-const Windows = "Windows"
+const Windows = "windows"
 
 // resetCmd represents the "reset" command.
 // It removes all data from your configuration and cache directories and removes the symlinked nvim binary.
