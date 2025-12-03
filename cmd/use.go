@@ -38,13 +38,12 @@ var useCmd = &cobra.Command{
 // RunUse executes the use command.
 func RunUse(cmd *cobra.Command, args []string) error {
 	const (
-		TimeoutMin    = 30
 		SpinnerSpeed  = 100
 		InitialSuffix = " 0%"
 	)
 
 	// Create a context with a timeout for the operation.
-	ctx, cancel := context.WithTimeout(cmd.Context(), TimeoutMin*time.Minute)
+	ctx, cancel := context.WithTimeout(cmd.Context(), TimeoutMinutes*time.Minute)
 	defer cancel()
 
 	// Normalize the version string (e.g. adding a "v" prefix if needed).
@@ -81,21 +80,21 @@ func RunUse(cmd *cobra.Command, args []string) error {
 			logrus.Debugf("Start installing %s", alias)
 
 			// Create and start a spinner for download progress
-			spinner := spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond)
-			spinner.Prefix = fmt.Sprintf("%s %s ", helpers.InfoIcon(), helpers.WhiteText(fmt.Sprintf("Installing Neovim %s...", alias)))
-			spinner.Suffix = InitialSuffix
-			spinner.Start()
+			progressSpinner := spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond)
+			progressSpinner.Prefix = fmt.Sprintf("%s %s ", helpers.InfoIcon(), helpers.WhiteText(fmt.Sprintf("Installing Neovim %s...", alias)))
+			progressSpinner.Suffix = InitialSuffix
+			progressSpinner.Start()
 
 			err := installer.InstallVersion(ctx, alias, VersionsDir, CacheFilePath, func(progress int) {
-				spinner.Suffix = fmt.Sprintf(" %d%%", progress)
+				progressSpinner.Suffix = fmt.Sprintf(" %d%%", progress)
 			})
 			if err != nil {
-				spinner.Stop()
+				progressSpinner.Stop()
 
 				return err
 			}
 
-			spinner.Stop()
+			progressSpinner.Stop()
 
 			_, err = fmt.Fprintf(
 				os.Stdout,
@@ -145,7 +144,10 @@ func RunUse(cmd *cobra.Command, args []string) error {
 			// So we just check if it resolves to the target path.
 			absTarget := filepath.Join(VersionsDir, targetVersion)
 
-			absCurrent, _ := filepath.EvalSymlinks(currentSymlink) // works for junctions
+			absCurrent, evalErr := filepath.EvalSymlinks(currentSymlink) // works for junctions
+			if evalErr != nil {
+				logrus.Debugf("Failed to evaluate symlink %s: %v", currentSymlink, evalErr)
+			}
 			if absCurrent == absTarget {
 				_, printErr := fmt.Fprintf(os.Stdout, "%s Already using Neovim %s\n", helpers.WarningIcon(), helpers.CyanText(targetVersion))
 				if printErr != nil {
