@@ -354,6 +354,21 @@ func TestGetInstalledReleaseIdentifier(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create version dir: %v", err)
 	}
+
+	versionFile := filepath.Join(versionDir, "version.txt")
+	err = os.WriteFile(versionFile, []byte("v1.0.0"), 0o644)
+	if err != nil {
+		t.Fatalf("failed to create version file: %v", err)
+	}
+
+	result, err := releases.GetInstalledReleaseIdentifier(tempDir, "v1.0.0")
+	if err != nil {
+		t.Errorf("GetInstalledReleaseIdentifier failed: %v", err)
+	}
+
+	if result != "v1.0.0" {
+		t.Errorf("expected v1.0.0, got %s", result)
+	}
 }
 
 // createTempCache creates a temporary cache file with the given releases encoded as JSON.
