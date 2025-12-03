@@ -37,7 +37,7 @@ NVS is a command-line tool written in Go that allows users to install, switch be
 
 ## Project Structure
 
-```
+```text
 .
 ├── cmd/                    # Command implementations
 │   ├── *_test.go          # Unit tests for commands
@@ -243,6 +243,5 @@ go mod tidy
 - [Go Documentation](https://golang.org/doc/)
 - [Cobra CLI Framework](https://cobra.dev/)
 - [Viper Configuration](https://github.com/spf13/viper)
-- [Neovim Releases API](https://github.com/neovim/neovim/releases)</content>
-  <parameter name="filePath">docs/DEVELOPMENT.md
+- [Neovim Releases API](https://github.com/neovim/neovim/releases)
 
