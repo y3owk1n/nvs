@@ -93,8 +93,19 @@ func RunPath(_ *cobra.Command, _ []string) error {
 		return nil
 	}
 
+	// Determine the user's shell; default to /bin/bash if not set.
+	shell := os.Getenv("SHELL")
+	if shell == "" {
+		shell = "/bin/bash"
+		// Verify the default shell exists
+		if _, err := os.Stat(shell); os.IsNotExist(err) {
+			logrus.Warnf("Default shell %s does not exist, PATH setup may not work correctly", shell)
+		}
+	}
+
 	// If running in a Nix-managed shell, advise manual configuration.
-	if os.Getenv("NIX_SHELL") != "" {
+	isNixShell := os.Getenv("NIX_SHELL") != "" || strings.Contains(shell, "/nix/store")
+	if isNixShell {
 		logrus.Debug("Detected Nix shell environment")
 
 		_, err = fmt.Fprintf(os.Stdout,
@@ -123,12 +134,6 @@ func RunPath(_ *cobra.Command, _ []string) error {
 		}
 
 		return nil
-	}
-
-	// Determine the user's shell; default to /bin/bash if not set.
-	shell := os.Getenv("SHELL")
-	if shell == "" {
-		shell = "/bin/bash"
 	}
 
 	logrus.Debug("Detected shell: ", shell)
@@ -172,41 +177,6 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 	logrus.Debug("Using rcFile: ", rcFile)
 	logrus.Debug("Export command: ", exportCmd)
-
-	// If the shell is managed by Nix, check if the rc file already contains the PATH setting.
-	if strings.Contains(shell, "/nix/store") {
-		logrus.Debug("Detected Nix-managed shell")
-
-		data, err := os.ReadFile(rcFile)
-		if err == nil {
-			if strings.Contains(string(data), GlobalBinDir) {
-				_, err = fmt.Fprintf(os.Stdout,
-					"%s %s\n",
-					helpers.WarningIcon(),
-					helpers.WhiteText(
-						helpers.CyanText(rcFile)+" already contains the PATH setting.",
-					),
-				)
-				if err != nil {
-					logrus.Warnf("Failed to write to stdout: %v", err)
-				}
-			} else {
-				_, err = fmt.Fprintf(os.Stdout, "%s %s\n", helpers.WarningIcon(), helpers.WhiteText(fmt.Sprintf("Your shell (%s) is managed by Nix and %s does not appear to contain the PATH setting.", helpers.CyanText(shell), helpers.CyanText(rcFile))))
-				if err != nil {
-					logrus.Warnf("Failed to write to stdout: %v", err)
-				}
-
-				_, err = fmt.Fprintf(os.Stdout, "%s %s\n", helpers.InfoIcon(), helpers.WhiteText(fmt.Sprintf("Please update your Nix configuration manually to include %s in your PATH.", helpers.CyanText(GlobalBinDir))))
-				if err != nil {
-					logrus.Warnf("Failed to write to stdout: %v", err)
-				}
-			}
-		} else {
-			logrus.Errorf("Unable to read %s: %v", rcFile, err)
-		}
-
-		return nil
-	}
 
 	// Display the diff of the changes that will be applied.
 	_, err = fmt.Fprintf(os.Stdout,
