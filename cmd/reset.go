@@ -91,7 +91,7 @@ func RunReset(_ *cobra.Command, _ []string) error {
 		baseBinDir = custom
 		logrus.Debugf("Using custom binary directory from NVS_BIN_DIR: %s", baseBinDir)
 	} else {
-		if runtime.GOOS == windows {
+		if runtime.GOOS == Windows {
 			baseBinDir = filepath.Join(home, "AppData", "Local", "Programs")
 			logrus.Debugf("Using Windows binary directory: %s", baseBinDir)
 		} else {
