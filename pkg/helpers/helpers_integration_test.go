@@ -184,6 +184,20 @@ func TestLaunchNvimWithConfig(t *testing.T) {
 	}
 	defer func() { helpers.UserHomeDir = origUserHomeDir }()
 
+	// Unset environment variables that might override our mocking
+	origXDGConfig := os.Getenv("XDG_CONFIG_HOME")
+	origLocalAppData := os.Getenv("LOCALAPPDATA")
+	os.Unsetenv("XDG_CONFIG_HOME")
+	os.Unsetenv("LOCALAPPDATA")
+	defer func() {
+		if origXDGConfig != "" {
+			os.Setenv("XDG_CONFIG_HOME", origXDGConfig)
+		}
+		if origLocalAppData != "" {
+			os.Setenv("LOCALAPPDATA", origLocalAppData)
+		}
+	}()
+
 	// Mock LookPath to return a fake nvim path
 	origLookPath := helpers.LookPath
 
