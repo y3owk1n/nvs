@@ -62,11 +62,8 @@ func RunReset(_ *cobra.Command, _ []string) error {
 		}
 	}
 
-	// Ensure the configuration directory exists (create if it doesn't).
-	err = os.MkdirAll(baseConfigDir, defaultDirPerm)
-	if err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
-	}
+	// Note: We don't create the config directory here to avoid leaving empty directories
+	// if the user cancels the reset operation.
 
 	// Determine the base cache directory:
 	//   If NVS_CACHE_DIR is set, use that;
