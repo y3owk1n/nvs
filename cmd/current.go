@@ -96,7 +96,7 @@ func RunCurrent(_ *cobra.Command, _ []string, versionsDir, cacheFilePath string)
 		} else {
 			shortCommit := nightly.CommitHash
 			if len(shortCommit) > ShortCommitLen {
-				shortCommit = shortCommit[:7]
+				shortCommit = shortCommit[:ShortCommitLen]
 			}
 
 			publishedStr := nightly.PublishedAt
