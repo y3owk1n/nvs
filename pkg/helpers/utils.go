@@ -263,8 +263,7 @@ func FindNvimBinary(dir string) string {
 			if runtime.GOOS == WindowsOS {
 				if name == "nvim.exe" ||
 					(strings.HasPrefix(name, "nvim-") && filepath.Ext(name) == ".exe") {
-					// Go two levels up: ../../nvim-win64
-					binaryPath = filepath.Dir(filepath.Dir(path))
+					binaryPath = path
 
 					return io.EOF // break early
 				}
