@@ -1,8 +1,9 @@
-package utils
+package helpers
 
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -18,10 +19,24 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Constants for utils operations.
+const (
+	DirPerm      = 0o755
+	GoroutineNum = 2
+	WindowsOS    = "windows"
+)
+
+// Errors for utils operations.
 var (
-	userHomeDir = os.UserHomeDir
-	lookPath    = exec.LookPath
-	fatalf      = logrus.Fatalf
+	ErrNotSymlinkOrDir = errors.New("current is not a symlink or directory")
+	ErrNvimNotFound    = errors.New("neovim binary not found in")
+)
+
+// Variables for utils operations.
+var (
+	UserHomeDir = os.UserHomeDir
+	LookPath    = exec.LookPath
+	Fatalf      = logrus.Fatalf
 )
 
 // IsInstalled checks if a version directory exists within the versionsDir.
@@ -35,6 +50,7 @@ var (
 //	}
 func IsInstalled(versionsDir, version string) bool {
 	_, err := os.Stat(filepath.Join(versionsDir, version))
+
 	return !os.IsNotExist(err)
 }
 
@@ -53,12 +69,14 @@ func ListInstalledVersions(versionsDir string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	var versions []string
 	for _, entry := range entries {
 		if entry.IsDir() && entry.Name() != "current" {
 			versions = append(versions, entry.Name())
 		}
 	}
+
 	return versions, nil
 }
 
@@ -74,16 +92,21 @@ func ListInstalledVersions(versionsDir string) ([]string, error) {
 //	}
 func UpdateSymlink(target, link string, isDir bool) error {
 	// Remove old symlink if it exists.
-	if _, err := os.Lstat(link); err == nil {
-		if err := os.Remove(link); err != nil {
+	var err error
+
+	_, err = os.Lstat(link)
+	if err == nil {
+		err = os.Remove(link)
+		if err != nil {
 			return err
 		}
 	}
 
 	// Try normal symlink
-	if err := os.Symlink(target, link); err == nil {
+	err = os.Symlink(target, link)
+	if err == nil {
 		return nil
-	} else if runtime.GOOS != "windows" {
+	} else if runtime.GOOS != WindowsOS {
 		// On non-Windows, fail fast
 		return err
 	}
@@ -91,21 +114,29 @@ func UpdateSymlink(target, link string, isDir bool) error {
 	// Windows fallback
 	if isDir {
 		// Directory junction
-		cmd := exec.Command("cmd", "/C", "mklink", "/J", link, target)
+		cmd := exec.CommandContext(context.Background(), "cmd", "/C", "mklink", "/J", link, target)
 		cmd.Stdout = os.Stdout
+
 		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
+
+		err := cmd.Run()
+		if err != nil {
 			return fmt.Errorf("failed to create junction for %s: %w", link, err)
 		}
+
 		logrus.Debugf("Created junction instead of symlink: %s -> %s", link, target)
 	} else {
 		// File hardlink
-		cmd := exec.Command("cmd", "/C", "mklink", "/H", link, target)
+		cmd := exec.CommandContext(context.Background(), "cmd", "/C", "mklink", "/H", link, target)
 		cmd.Stdout = os.Stdout
+
 		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
+
+		err := cmd.Run()
+		if err != nil {
 			return fmt.Errorf("failed to create hardlink for %s: %w", link, err)
 		}
+
 		logrus.Debugf("Created hardlink instead of symlink: %s -> %s", link, target)
 	}
 
@@ -125,6 +156,7 @@ func UpdateSymlink(target, link string, isDir bool) error {
 //	fmt.Println("Current version:", version)
 func GetCurrentVersion(versionsDir string) (string, error) {
 	link := filepath.Join(versionsDir, "current")
+
 	info, err := os.Lstat(link)
 	if err != nil {
 		return "", fmt.Errorf("failed to lstat %s: %w", link, err)
@@ -136,6 +168,7 @@ func GetCurrentVersion(versionsDir string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("failed to read symlink %s: %w", link, err)
 		}
+
 		return filepath.Base(target), nil
 	}
 
@@ -144,10 +177,10 @@ func GetCurrentVersion(versionsDir string) (string, error) {
 		return filepath.Base(link), nil
 	}
 
-	return "", fmt.Errorf("current is not a symlink or directory: %s", link)
+	return "", fmt.Errorf("%w: %s", ErrNotSymlinkOrDir, link)
 }
 
-// GetStandardNvimConfigDir determines the canonical configuration directory
+// GetNvimConfigBaseDir determines the canonical configuration directory
 // used by Neovim according to its runtime path conventions.
 //
 // Resolution order:
@@ -184,20 +217,21 @@ func GetCurrentVersion(versionsDir string) (string, error) {
 //     Neovim itself will create it lazily if needed.
 func GetNvimConfigBaseDir() (string, error) {
 	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-		return filepath.Join(xdg), nil
+		return xdg, nil
 	}
 
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == WindowsOS {
 		if local := os.Getenv("LOCALAPPDATA"); local != "" {
-			return filepath.Join(local), nil
+			return local, nil
 		}
 		// fallback to home/.config if LOCALAPPDATA is missing
 	}
 
-	home, err := userHomeDir()
+	home, err := UserHomeDir()
 	if err != nil {
 		return "", err
 	}
+
 	return filepath.Join(home, ".config"), nil
 }
 
@@ -216,31 +250,37 @@ func GetNvimConfigBaseDir() (string, error) {
 //	}
 func FindNvimBinary(dir string) string {
 	var binaryPath string
-	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+
+	err := filepath.WalkDir(dir, func(path string, dirEntry os.DirEntry, err error) error {
 		if err != nil {
-			return nil
+			return err
 		}
-		if !d.IsDir() {
-			name := d.Name()
-			if runtime.GOOS == "windows" {
-				if name == "nvim.exe" || (strings.HasPrefix(name, "nvim-") && filepath.Ext(name) == ".exe") {
+
+		if !dirEntry.IsDir() {
+			name := dirEntry.Name()
+			if runtime.GOOS == WindowsOS {
+				if name == "nvim.exe" ||
+					(strings.HasPrefix(name, "nvim-") && filepath.Ext(name) == ".exe") {
 					// Go two levels up: ../../nvim-win64
 					binaryPath = filepath.Dir(filepath.Dir(path))
+
 					return io.EOF // break early
 				}
 			} else {
 				if name == "nvim" || strings.HasPrefix(name, "nvim-") {
-					info, err := d.Info()
-					if err == nil && info.Mode()&0111 != 0 {
+					info, err := dirEntry.Info()
+					if err == nil && info.Mode()&0o111 != 0 {
 						binaryPath = path
+
 						return io.EOF // break early
 					}
 				}
 			}
 		}
+
 		return nil
 	})
-	if err != nil && err != io.EOF {
+	if err != nil && !errors.Is(err, io.EOF) {
 		logrus.Fatalf("Failed to walk through nvim directory: %v", err)
 	}
 
@@ -258,51 +298,95 @@ func FindNvimBinary(dir string) string {
 //	if err != nil {
 //	    // handle error
 //	}
-func UseVersion(targetVersion string, currentSymlink string, versionsDir string, globalBinDir string) error {
+func UseVersion(
+	targetVersion string,
+	currentSymlink string,
+	versionsDir string,
+	globalBinDir string,
+) error {
+	var err error
+
 	versionPath := filepath.Join(versionsDir, targetVersion)
 	logrus.Debugf("Updating symlink to point to: %s", versionPath)
 
-	if err := UpdateSymlink(versionPath, currentSymlink, true); err != nil {
-		return fmt.Errorf("failed to switch version: %v", err)
+	err = UpdateSymlink(versionPath, currentSymlink, true)
+	if err != nil {
+		return fmt.Errorf("failed to switch version: %w", err)
 	}
 
 	nvimExec := FindNvimBinary(versionPath)
 	if nvimExec == "" {
-		fmt.Printf("%s Could not find Neovim binary in %s. Please check the installation structure.\n", ErrorIcon(), CyanText(versionPath))
-		return fmt.Errorf("neovim binary not found in: %s", versionPath)
+		_, err = fmt.Fprintf(os.Stdout,
+			"%s Could not find Neovim binary in %s. Please check the installation structure.\n",
+			ErrorIcon(),
+			CyanText(versionPath),
+		)
+		if err != nil {
+			logrus.Warnf("Failed to write to stdout: %v", err)
+		}
+
+		return fmt.Errorf("%w: %s", ErrNvimNotFound, versionPath)
 	}
 
 	targetBin := filepath.Join(globalBinDir, "nvim")
-	if _, err := os.Lstat(targetBin); err == nil {
-		if err := os.Remove(targetBin); err != nil {
-			logrus.Warnf("Failed to remove existing global bin symlink: %s, error: %v", targetBin, err)
+
+	_, err = os.Lstat(targetBin)
+	if err == nil {
+		err = os.Remove(targetBin)
+		if err != nil {
+			logrus.Warnf(
+				"Failed to remove existing global bin symlink: %s, error: %v",
+				targetBin,
+				err,
+			)
 		} else {
 			logrus.Debugf("Removed existing global bin symlink: %s", targetBin)
 		}
 	}
 
-	if runtime.GOOS == "windows" {
-		if err := UpdateSymlink(nvimExec, targetBin, true); err != nil {
-			return fmt.Errorf("failed to create global nvim link: %v", err)
+	if runtime.GOOS == WindowsOS {
+		err = UpdateSymlink(nvimExec, targetBin, true)
+		if err != nil {
+			return fmt.Errorf("failed to create global nvim link: %w", err)
 		}
 	} else {
-		if err := UpdateSymlink(nvimExec, targetBin, false); err != nil {
-			return fmt.Errorf("failed to create global nvim link: %v", err)
+		err = UpdateSymlink(nvimExec, targetBin, false)
+		if err != nil {
+			return fmt.Errorf("failed to create global nvim link: %w", err)
 		}
 	}
 
 	logrus.Debugf("Global Neovim binary updated: %s -> %s", targetBin, nvimExec)
-	switchMsg := fmt.Sprintf("Switched to Neovim %s", CyanText(targetVersion))
-	fmt.Printf("%s %s\n", SuccessIcon(), WhiteText(switchMsg))
+
+	switchMsg := "Switched to Neovim " + CyanText(targetVersion)
+
+	_, err = fmt.Fprintf(os.Stdout, "%s %s\n", SuccessIcon(), WhiteText(switchMsg))
+	if err != nil {
+		logrus.Warnf("Failed to write to stdout: %v", err)
+	}
 
 	if pathEnv := os.Getenv("PATH"); !strings.Contains(pathEnv, globalBinDir) {
-		if runtime.GOOS == "windows" {
+		if runtime.GOOS == WindowsOS {
 			// windows needs the whole directory to be linked
 			nvimBinDir := filepath.Join(globalBinDir, "nvim", "bin")
-			fmt.Printf("%s Run `nvs path` or manually add this directory to your PATH for convenience: %s\n", WarningIcon(), CyanText(nvimBinDir))
+
+			_, err = fmt.Fprintf(
+				os.Stdout,
+				"%s Run `nvs path` or manually add this directory to your PATH for convenience: %s\n",
+				WarningIcon(),
+				CyanText(nvimBinDir),
+			)
+			if err != nil {
+				logrus.Warnf("Failed to write to stdout: %v", err)
+			}
+
 			logrus.Debugf("Global bin directory not found in PATH: %s", nvimBinDir)
 		} else {
-			fmt.Printf("%s Run `nvs path` or manually add this directory to your PATH for convenience: %s\n", WarningIcon(), CyanText(globalBinDir))
+			_, err = fmt.Fprintf(os.Stdout, "%s Run `nvs path` or manually add this directory to your PATH for convenience: %s\n", WarningIcon(), CyanText(globalBinDir))
+			if err != nil {
+				logrus.Warnf("Failed to write to stdout: %v", err)
+			}
+
 			logrus.Debugf("Global bin directory not found in PATH: %s", globalBinDir)
 		}
 	}
@@ -322,10 +406,12 @@ func UseVersion(targetVersion string, currentSymlink string, versionsDir string,
 //	fmt.Println("Installed release identifier:", id)
 func GetInstalledReleaseIdentifier(versionsDir, alias string) (string, error) {
 	versionFile := filepath.Join(versionsDir, alias, "version.txt")
+
 	data, err := os.ReadFile(versionFile)
 	if err != nil {
 		return "", err
 	}
+
 	return strings.TrimSpace(string(data)), nil
 }
 
@@ -338,34 +424,56 @@ func GetInstalledReleaseIdentifier(versionsDir, alias string) (string, error) {
 //	LaunchNvimWithConfig("myconfig")
 //	// Neovim will be launched with configuration located at ~/.config/myconfig
 func LaunchNvimWithConfig(configName string) {
+	var err error
+
 	baseConfigDir, err := GetNvimConfigBaseDir()
 	if err != nil {
-		fatalf("Failed to determine config base dir: %v", err)
+		Fatalf("Failed to determine config base dir: %v", err)
 	}
 
 	configDir := filepath.Join(baseConfigDir, configName)
 
 	info, err := os.Stat(configDir)
 	if os.IsNotExist(err) || !info.IsDir() {
-		fmt.Printf("%s %s\n", ErrorIcon(), WhiteText(fmt.Sprintf("configuration '%s' does not exist in %s", CyanText(configName), CyanText(baseConfigDir))))
+		_, err = fmt.Fprintf(os.Stdout,
+			"%s %s\n",
+			ErrorIcon(),
+			WhiteText(
+				fmt.Sprintf(
+					"configuration '%s' does not exist in %s",
+					CyanText(configName),
+					CyanText(baseConfigDir),
+				),
+			),
+		)
+		if err != nil {
+			logrus.Warnf("Failed to write to stdout: %v", err)
+		}
+
 		return
 	}
 
-	if err := os.Setenv("NVIM_APPNAME", configName); err != nil {
-		fatalf("Failed to set NVIM_APPNAME: %v", err)
+	err = os.Setenv("NVIM_APPNAME", configName)
+	if err != nil {
+		Fatalf("Failed to set NVIM_APPNAME: %v", err)
 	}
 
-	nvimExec, err := lookPath("nvim")
+	nvimExec, err := LookPath("nvim")
 	if err != nil {
-		fatalf("nvim not found in PATH: %v", err)
+		Fatalf("nvim not found in PATH: %v", err)
 	}
-	launch := exec.Command(nvimExec)
+
+	launch := exec.CommandContext(context.Background(), nvimExec)
+
 	launch.Env = append(os.Environ(), "NVIM_APPNAME="+configName)
 	launch.Stdin = os.Stdin
 	launch.Stdout = os.Stdout
+
 	launch.Stderr = os.Stderr
-	if err := launch.Run(); err != nil {
-		fatalf("Failed to launch nvim: %v", err)
+
+	err = launch.Run()
+	if err != nil {
+		Fatalf("Failed to launch nvim: %v", err)
 	}
 }
 
@@ -383,12 +491,16 @@ func ClearDirectory(dir string) error {
 	if err != nil {
 		return err
 	}
+
 	for _, entry := range entries {
 		path := filepath.Join(dir, entry.Name())
-		if err := os.RemoveAll(path); err != nil {
+
+		err := os.RemoveAll(path)
+		if err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -404,6 +516,7 @@ func TimeFormat(iso string) string {
 	if err != nil {
 		return iso
 	}
+
 	return t.Format("2006-01-02")
 }
 
@@ -420,6 +533,7 @@ func ColorizeRow(row []string, c *color.Color) []string {
 	for i, cell := range row {
 		colored[i] = c.Sprint(cell)
 	}
+
 	return colored
 }
 
@@ -433,17 +547,22 @@ func ColorizeRow(row []string, c *color.Color) []string {
 //	    // handle error
 //	}
 func CopyFile(src, dst string) error {
-	in, err := os.Open(src)
+	var err error
+
+	inputFile, err := os.Open(src)
 	if err != nil {
 		return err
 	}
+
 	defer func() {
-		if cerr := in.Close(); cerr != nil {
+		cerr := inputFile.Close()
+		if cerr != nil {
 			logrus.Warnf("Failed to close source file %s: %v", src, cerr)
 		}
 	}()
 
 	out, err := os.Create(dst)
+	// Return err
 	if err != nil {
 		return err
 	}
@@ -454,11 +573,13 @@ func CopyFile(src, dst string) error {
 		}
 	}()
 
-	if _, err = io.Copy(out, in); err != nil {
+	_, err = io.Copy(out, inputFile)
+	if err != nil {
 		return err
 	}
 
-	if err = os.Chmod(dst, 0755); err != nil {
+	err = os.Chmod(dst, DirPerm)
+	if err != nil {
 		return err
 	}
 
@@ -478,36 +599,42 @@ func CopyFile(src, dst string) error {
 //	if err := RunCommandWithSpinner(ctx, s, cmd); err != nil {
 //	    // handle error
 //	}
-func RunCommandWithSpinner(ctx context.Context, s *spinner.Spinner, cmd *exec.Cmd) error {
+func RunCommandWithSpinner(ctx context.Context, spinner *spinner.Spinner, cmd *exec.Cmd) error {
+	var err error
+
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("failed to get stdout pipe: %v", err)
+		return fmt.Errorf("failed to get stdout pipe: %w", err)
 	}
+
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
-		return fmt.Errorf("failed to get stderr pipe: %v", err)
+		return fmt.Errorf("failed to get stderr pipe: %w", err)
 	}
 
 	// updateSpinner reads from the given pipe and updates the spinner's suffix based on the output.
-	updateSpinner := func(pipeOutput io.Reader, wg *sync.WaitGroup) {
-		defer wg.Done()
+	updateSpinner := func(pipeOutput io.Reader, waitGroup *sync.WaitGroup) {
+		defer waitGroup.Done()
+
 		scanner := bufio.NewScanner(pipeOutput)
 		for scanner.Scan() {
 			line := strings.TrimSpace(scanner.Text())
 			if line != "" {
-				s.Suffix = " " + line
+				spinner.Suffix = " " + line
 			}
 		}
 	}
 
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start command: %v", err)
+	err = cmd.Start()
+	if err != nil {
+		return fmt.Errorf("failed to start command: %w", err)
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go updateSpinner(stdoutPipe, &wg)
-	go updateSpinner(stderrPipe, &wg)
+	var waitGroup sync.WaitGroup
+	waitGroup.Add(GoroutineNum)
+
+	go updateSpinner(stdoutPipe, &waitGroup)
+	go updateSpinner(stderrPipe, &waitGroup)
 
 	// Channel to capture command completion.
 	cmdErrChan := make(chan error, 1)
@@ -515,13 +642,14 @@ func RunCommandWithSpinner(ctx context.Context, s *spinner.Spinner, cmd *exec.Cm
 		cmdErrChan <- cmd.Wait()
 	}()
 
-	// Wait for either the command to finish or the context to be cancelled.
+	// Wait for either the command to finish or the context to be canceled.
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("command cancelled: %v", ctx.Err())
+		return fmt.Errorf("command canceled: %w", ctx.Err())
 	case err := <-cmdErrChan:
 		// Wait for spinner update routines to finish.
-		wg.Wait()
+		waitGroup.Wait()
+
 		if err != nil {
 			return err
 		}

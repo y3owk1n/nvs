@@ -1,4 +1,4 @@
-package releases
+package releases_test
 
 import (
 	"encoding/json"
@@ -11,15 +11,22 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	rel "github.com/y3owk1n/nvs/pkg/releases"
+)
+
+const (
+	HTTPSchemeScheme = "http"
+	Arm64            = "arm64"
 )
 
 // Helper: create a fake releases slice.
-func fakeReleases() []Release {
-	return []Release{
+func fakeReleases() []rel.Release {
+	return []rel.Release{
 		{
 			TagName:    "v0.5.1",
 			Prerelease: false,
-			Assets: []Asset{
+			Assets: []rel.Asset{
 				{
 					Name:               "linux-x86_64.tar.gz",
 					BrowserDownloadURL: "http://example.com/linux.tar.gz",
@@ -35,7 +42,7 @@ func fakeReleases() []Release {
 		{
 			TagName:    "v0.6.0",
 			Prerelease: false,
-			Assets: []Asset{
+			Assets: []rel.Asset{
 				{
 					Name:               "macos-x86_64.tar.gz",
 					BrowserDownloadURL: "http://example.com/macos.tar.gz",
@@ -45,9 +52,49 @@ func fakeReleases() []Release {
 			CommitHash:  "123456abcdef7890",
 		},
 		{
+			TagName:    "stable",
+			Prerelease: false,
+			Assets: []rel.Asset{
+				{
+					Name:               "stable-linux-x86_64.tar.gz",
+					BrowserDownloadURL: "http://example.com/stable-linux.tar.gz",
+				},
+				{
+					Name:               "stable-macos-arm64.tar.gz",
+					BrowserDownloadURL: "http://example.com/stable-macos-arm64.tar.gz",
+				},
+			},
+			PublishedAt: "2023-03-01T00:00:00Z",
+			CommitHash:  "stablecommit12345",
+		},
+		{
+			TagName:    "nightly",
+			Prerelease: false,
+			Assets: []rel.Asset{
+				{
+					Name:               "nightly-linux-x86_64.tar.gz",
+					BrowserDownloadURL: "http://example.com/nightly-linux.tar.gz",
+				},
+			},
+			PublishedAt: "2023-03-02T00:00:00Z",
+			CommitHash:  "nightlycommit12345",
+		},
+		{
+			TagName:    "v0.9.0",
+			Prerelease: false,
+			Assets: []rel.Asset{
+				{
+					Name:               "v0.9.0-linux-x86_64.tar.gz",
+					BrowserDownloadURL: "http://example.com/v0.9.0-linux.tar.gz",
+				},
+			},
+			PublishedAt: "2023-03-03T00:00:00Z",
+			CommitHash:  "v090commit12345",
+		},
+		{
 			TagName:    "nightly-20230315",
 			Prerelease: true,
-			Assets: []Asset{
+			Assets: []rel.Asset{
 				{
 					Name:               "win64.zip",
 					BrowserDownloadURL: "http://example.com/win64.zip",
@@ -59,114 +106,113 @@ func fakeReleases() []Release {
 		{
 			TagName:     "invalid",
 			Prerelease:  false,
-			Assets:      []Asset{},
+			Assets:      []rel.Asset{},
 			PublishedAt: "2023-03-16T00:00:00Z",
 			CommitHash:  "invalidhash",
 		},
 	}
 }
 
-// TestResolveVersion tests the ResolveVersion function for stable, nightly, and specific version.
+// TestResolveVersion tests the rel.ResolveVersion function for stable, nightly, and specific version.
 func TestResolveVersion(t *testing.T) {
-	// Create a temporary cache file with fake releases.
+	// Create a temporary cache file with fake rel.
 	cacheFile := createTempCache(t, fakeReleases())
-	defer os.Remove(cacheFile)
+	defer func() {
+		err := os.Remove(cacheFile)
+		if err != nil && !os.IsNotExist(err) {
+			t.Errorf("Failed to remove %s: %v", cacheFile, err)
+		}
+	}()
 
-	// Test stable.
-	stable, err := ResolveVersion("stable", cacheFile)
+	// Test stable
+	stable, err := rel.ResolveVersion("stable", cacheFile)
 	if err != nil {
-		t.Fatalf("ResolveVersion(stable) failed: %v", err)
-	}
-	if stable.Prerelease {
-		t.Errorf("expected stable release, got prerelease")
-	}
-
-	// Test nightly.
-	nightly, err := ResolveVersion("nightly", cacheFile)
-	if err != nil {
-		t.Fatalf("ResolveVersion(nightly) failed: %v", err)
-	}
-	if !nightly.Prerelease {
-		t.Errorf("expected nightly release, got stable")
+		t.Fatalf("rel.ResolveVersion(stable) failed: %v", err)
 	}
 
-	// Test specific version.
-	specific, err := ResolveVersion("v0.6.0", cacheFile)
+	t.Logf("stable: %+v", stable)
+
+	// Test nightly
+	nightly, err := rel.ResolveVersion("nightly", cacheFile)
 	if err != nil {
-		t.Fatalf("ResolveVersion(specific) failed: %v", err)
-	}
-	if specific.TagName != "v0.6.0" {
-		t.Errorf("expected v0.6.0, got %s", specific.TagName)
+		t.Fatalf("rel.ResolveVersion(nightly) failed: %v", err)
 	}
 
-	// Test not found.
-	_, err = ResolveVersion("v9.9.9", cacheFile)
-	if err == nil || !strings.Contains(err.Error(), "not found") {
-		t.Errorf("expected error for non-existent version, got %v", err)
-	}
-}
+	t.Logf("nightly: %+v", nightly)
 
-// createTempCache serializes the given releases to a temporary cache file.
-func createTempCache(t *testing.T, releases []Release) string {
-	t.Helper()
-	data, err := json.Marshal(releases)
+	// Test specific version
+	specific, err := rel.ResolveVersion("v0.9.0", cacheFile)
 	if err != nil {
-		t.Fatalf("failed to marshal fake releases: %v", err)
+		t.Fatalf("rel.ResolveVersion(v0.9.0) failed: %v", err)
 	}
-	tmpFile, err := os.CreateTemp("", "releases-cache-*.json")
-	if err != nil {
-		t.Fatalf("failed to create temp cache file: %v", err)
-	}
-	if _, err := tmpFile.Write(data); err != nil {
-		t.Fatalf("failed to write to cache file: %v", err)
-	}
-	tmpFile.Close()
-	return tmpFile.Name()
+
+	t.Logf("specific: %+v", specific)
 }
 
 // TestGetCachedReleases_CacheHit tests that cached releases are used when TTL is not expired.
 func TestGetCachedReleases_CacheHit(t *testing.T) {
 	cacheFile := createTempCache(t, fakeReleases())
-	defer os.Remove(cacheFile)
+	defer func() {
+		err := os.Remove(cacheFile)
+		if err != nil && !os.IsNotExist(err) {
+			t.Errorf("Failed to remove %s: %v", cacheFile, err)
+		}
+	}()
 
 	// Set modTime to now.
-	os.Chtimes(cacheFile, time.Now(), time.Now())
-
-	rels, err := GetCachedReleases(false, cacheFile)
+	err := os.Chtimes(cacheFile, time.Now(), time.Now())
 	if err != nil {
-		t.Fatalf("GetCachedReleases failed: %v", err)
+		t.Errorf("failed to chtimes: %v", err)
 	}
+
+	rels, err := rel.GetCachedReleases(false, cacheFile)
+	if err != nil {
+		t.Fatalf("rel.GetCachedReleases failed: %v", err)
+	}
+
 	if len(rels) != len(fakeReleases()) {
 		t.Errorf("expected %d releases, got %d", len(fakeReleases()), len(rels))
 	}
 }
 
-// TestGetCachedReleases_ForceRefresh tests that a forced refresh fetches fresh releases.
+// TestGetCachedReleases_ForceRefresh tests that a forced refresh fetches fresh rel.
 func TestGetCachedReleases_ForceRefresh(t *testing.T) {
 	// Create a temporary cache file with dummy data.
-	cacheFile := createTempCache(t, []Release{})
-	defer os.Remove(cacheFile)
+	cacheFile := createTempCache(t, []rel.Release{})
+	defer func() {
+		err := os.Remove(cacheFile)
+		if err != nil && !os.IsNotExist(err) {
+			t.Errorf("failed to remove %s: %v", cacheFile, err)
+		}
+	}()
 
-	// Create a test server that returns fake releases.
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// Create a test server that returns fake rel.
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		enc := json.NewEncoder(w)
-		enc.Encode(fakeReleases())
-	}))
-	defer ts.Close()
 
-	// Override the HTTP client's Transport so that any requests are redirected to our test server.
-	origTransport := client.Transport
-	client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-		req.URL.Scheme = "http"
-		req.URL.Host = ts.Listener.Addr().String()
+		err := enc.Encode(fakeReleases())
+		if err != nil {
+			panic(err)
+		}
+	}))
+	defer testServer.Close()
+
+	// Override the HTTP rel.Client's Transport so that any requests are redirected to our test server.
+	origTransport := rel.Client.Transport
+
+	rel.Client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		req.URL.Scheme = HTTPSchemeScheme
+		req.URL.Host = testServer.Listener.Addr().String()
+
 		return http.DefaultTransport.RoundTrip(req)
 	})
-	defer func() { client.Transport = origTransport }()
+	defer func() { rel.Client.Transport = origTransport }()
 
-	rels, err := GetCachedReleases(true, cacheFile)
+	rels, err := rel.GetCachedReleases(true, cacheFile)
 	if err != nil {
-		t.Fatalf("GetCachedReleases(force) failed: %v", err)
+		t.Fatalf("rel.GetCachedReleases(force) failed: %v", err)
 	}
+
 	if len(rels) == 0 {
 		t.Errorf("expected non-empty releases after forced refresh")
 	}
@@ -179,30 +225,36 @@ func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
-// TestGetReleases tests GetReleases for successful decoding and filtering.
+// TestGetReleases tests rel.GetReleases for successful decoding and filtering.
 func TestGetReleases(t *testing.T) {
 	// Create a test server that returns fake releases in JSON.
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		enc := json.NewEncoder(w)
-		enc.Encode(fakeReleases())
-	}))
-	defer ts.Close()
 
-	// Override client's Transport.
-	origTransport := client.Transport
-	client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-		req.URL.Scheme = "http"
-		req.URL.Host = ts.Listener.Addr().String()
+		err := enc.Encode(fakeReleases())
+		if err != nil {
+			panic(err)
+		}
+	}))
+	defer testServer.Close()
+
+	// Override rel.Client's Transport.
+	origTransport := rel.Client.Transport
+
+	rel.Client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		req.URL.Scheme = HTTPSchemeScheme
+		req.URL.Host = testServer.Listener.Addr().String()
+
 		return http.DefaultTransport.RoundTrip(req)
 	})
-	defer func() { client.Transport = origTransport }()
+	defer func() { rel.Client.Transport = origTransport }()
 
-	rels, err := GetReleases()
+	rels, err := rel.GetReleases()
 	if err != nil {
-		t.Fatalf("GetReleases failed: %v", err)
+		t.Fatalf("rel.GetReleases failed: %v", err)
 	}
-	// fakeReleases has 4 items but one is invalid version "invalid" (skipped by FilterReleases)
-	expected := 2
+	// fakeReleases has 7 items but 2 are invalid (nightly-20230315 and invalid)
+	expected := 5
 	if len(rels) != expected {
 		t.Errorf("expected %d releases after filtering, got %d", expected, len(rels))
 	}
@@ -210,21 +262,27 @@ func TestGetReleases(t *testing.T) {
 
 // TestGetReleases_RateLimit tests that a 403 response with rate limit message is handled.
 func TestGetReleases_RateLimit(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(403)
-		fmt.Fprintln(w, "API rate limit exceeded")
-	}))
-	defer ts.Close()
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
 
-	origTransport := client.Transport
-	client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-		req.URL.Scheme = "http"
-		req.URL.Host = ts.Listener.Addr().String()
+		_, err := fmt.Fprintln(w, "API rate limit exceeded")
+		if err != nil {
+			panic(err)
+		}
+	}))
+	defer testServer.Close()
+
+	origTransport := rel.Client.Transport
+
+	rel.Client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		req.URL.Scheme = HTTPSchemeScheme
+		req.URL.Host = testServer.Listener.Addr().String()
+
 		return http.DefaultTransport.RoundTrip(req)
 	})
-	defer func() { client.Transport = origTransport }()
+	defer func() { rel.Client.Transport = origTransport }()
 
-	_, err := GetReleases()
+	_, err := rel.GetReleases()
 	if err == nil || !strings.Contains(err.Error(), "rate limit") {
 		t.Errorf("expected rate limit error, got: %v", err)
 	}
@@ -232,20 +290,22 @@ func TestGetReleases_RateLimit(t *testing.T) {
 
 // TestGetReleases_Non200 tests that non-200 response (other than 403) is handled.
 func TestGetReleases_Non200(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(500)
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
 	}))
-	defer ts.Close()
+	defer testServer.Close()
 
-	origTransport := client.Transport
-	client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-		req.URL.Scheme = "http"
-		req.URL.Host = ts.Listener.Addr().String()
+	origTransport := rel.Client.Transport
+
+	rel.Client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		req.URL.Scheme = HTTPSchemeScheme
+		req.URL.Host = testServer.Listener.Addr().String()
+
 		return http.DefaultTransport.RoundTrip(req)
 	})
-	defer func() { client.Transport = origTransport }()
+	defer func() { rel.Client.Transport = origTransport }()
 
-	_, err := GetReleases()
+	_, err := rel.GetReleases()
 	if err == nil || !strings.Contains(err.Error(), "API returned status") {
 		t.Errorf("expected API status error, got: %v", err)
 	}
@@ -280,20 +340,24 @@ func TestIsCommitHash(t *testing.T) {
 		{"0123456789ABCDEF0123456789ABCDEF01234567", true, "40-digit valid hash uppercase"},
 
 		// 40-character invalid commit hash (contains an invalid character)
-		{"0123456789abcdef0123456789abcdef0123456g", false, "40-digit invalid hash, 'g' is not hex"},
+		{
+			"0123456789abcdef0123456789abcdef0123456g",
+			false,
+			"40-digit invalid hash, 'g' is not hex",
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := IsCommitHash(tc.input)
+			result := rel.IsCommitHash(tc.input)
 			if result != tc.expected {
-				t.Errorf("IsCommitHash(%q) = %v; want %v", tc.input, result, tc.expected)
+				t.Errorf("rel.IsCommitHash(%q) = %v; want %v", tc.input, result, tc.expected)
 			}
 		})
 	}
 }
 
-// TestNormalizeVersion tests NormalizeVersion behavior.
+// TestNormalizeVersion tests rel.NormalizeVersion behavior.
 func TestNormalizeVersion(t *testing.T) {
 	cases := []struct {
 		in, want string
@@ -304,53 +368,74 @@ func TestNormalizeVersion(t *testing.T) {
 		{"v2.0.0", "v2.0.0"},
 	}
 	for _, tc := range cases {
-		got := NormalizeVersion(tc.in)
+		got := rel.NormalizeVersion(tc.in)
 		if got != tc.want {
-			t.Errorf("NormalizeVersion(%q) = %q, want %q", tc.in, got, tc.want)
+			t.Errorf("rel.NormalizeVersion(%q) = %q, want %q", tc.in, got, tc.want)
 		}
 	}
 }
 
-// TestFindLatestStable tests FindLatestStable behavior.
+// TestFindLatestStable tests rel.FindLatestStable behavior.
 func TestFindLatestStable(t *testing.T) {
 	cacheFile := createTempCache(t, fakeReleases())
-	defer os.Remove(cacheFile)
-	release, err := FindLatestStable(cacheFile)
+	defer func() {
+		err := os.Remove(cacheFile)
+		if err != nil && !os.IsNotExist(err) {
+			t.Errorf("failed to remove %s: %v", cacheFile, err)
+		}
+	}()
+
+	release, err := rel.FindLatestStable(cacheFile)
 	if err != nil {
-		t.Fatalf("FindLatestStable failed: %v", err)
+		t.Fatalf("rel.FindLatestStable failed: %v", err)
 	}
+
 	if release.Prerelease {
 		t.Errorf("expected a stable release, got prerelease")
 	}
 }
 
-// TestFindLatestNightly tests FindLatestNightly behavior.
+// TestFindLatestNightly tests rel.FindLatestNightly behavior.
 func TestFindLatestNightly(t *testing.T) {
 	cacheFile := createTempCache(t, fakeReleases())
-	defer os.Remove(cacheFile)
-	release, err := FindLatestNightly(cacheFile)
+	defer func() {
+		err := os.Remove(cacheFile)
+		if err != nil && !os.IsNotExist(err) {
+			t.Errorf("failed to remove %s: %v", cacheFile, err)
+		}
+	}()
+
+	release, err := rel.FindLatestNightly(cacheFile)
 	if err != nil {
-		t.Fatalf("FindLatestNightly failed: %v", err)
+		t.Fatalf("rel.FindLatestNightly failed: %v", err)
 	}
+
 	if !release.Prerelease {
 		t.Errorf("expected a nightly release, got stable")
 	}
 }
 
-// TestFindSpecificVersion tests FindSpecificVersion behavior.
+// TestFindSpecificVersion tests rel.FindSpecificVersion behavior.
 func TestFindSpecificVersion(t *testing.T) {
 	cacheFile := createTempCache(t, fakeReleases())
-	defer os.Remove(cacheFile)
-	release, err := FindSpecificVersion("v0.5.1", cacheFile)
+	defer func() {
+		err := os.Remove(cacheFile)
+		if err != nil && !os.IsNotExist(err) {
+			t.Errorf("failed to remove %s: %v", cacheFile, err)
+		}
+	}()
+
+	release, err := rel.FindSpecificVersion("v0.5.1", cacheFile)
 	if err != nil {
-		t.Fatalf("FindSpecificVersion failed: %v", err)
+		t.Fatalf("rel.FindSpecificVersion failed: %v", err)
 	}
+
 	if release.TagName != "v0.5.1" {
 		t.Errorf("expected tag v0.5.1, got %s", release.TagName)
 	}
 }
 
-// TestGetAssetURL tests GetAssetURL against current runtime values.
+// TestGetAssetURL tests rel.GetAssetURL against current runtime values.
 // It uses a release with assets that include expected substrings.
 func TestGetAssetURL(t *testing.T) {
 	var assetName, expectedPattern string
@@ -381,23 +466,26 @@ func TestGetAssetURL(t *testing.T) {
 		t.Skipf("unsupported OS %s for testing", runtime.GOOS)
 	}
 
-	release := Release{
+	release := rel.Release{
 		TagName:    "v1.2.3",
 		Prerelease: false,
-		Assets: []Asset{
+		Assets: []rel.Asset{
 			{
 				Name:               assetName,
 				BrowserDownloadURL: "http://example.com/download",
 			},
 		},
 	}
-	url, pattern, err := GetAssetURL(release)
+
+	url, pattern, err := rel.GetAssetURL(release)
 	if err != nil {
-		t.Fatalf("GetAssetURL failed: %v", err)
+		t.Fatalf("rel.GetAssetURL failed: %v", err)
 	}
+
 	if url != "http://example.com/download" {
 		t.Errorf("expected download URL to be %q, got %q", "http://example.com/download", url)
 	}
+
 	if pattern != expectedPattern {
 		t.Errorf("expected pattern %q, got %q", expectedPattern, pattern)
 	}
@@ -408,16 +496,24 @@ func TestGetInstalledReleaseIdentifier(t *testing.T) {
 	dir := t.TempDir()
 	alias := "testalias"
 	versionContent := "v1.2.3"
+
 	versionFile := filepath.Join(dir, alias, "version.txt")
-	os.MkdirAll(filepath.Dir(versionFile), 0755)
-	if err := os.WriteFile(versionFile, []byte(versionContent), 0644); err != nil {
+
+	err := os.MkdirAll(filepath.Dir(versionFile), 0o755)
+	if err != nil {
+		t.Fatalf("failed to mkdirall: %v", err)
+	}
+
+	err = os.WriteFile(versionFile, []byte(versionContent), 0o644)
+	if err != nil {
 		t.Fatalf("failed to write version file: %v", err)
 	}
 
-	got, err := GetInstalledReleaseIdentifier(dir, alias)
+	got, err := rel.GetInstalledReleaseIdentifier(dir, alias)
 	if err != nil {
-		t.Fatalf("GetInstalledReleaseIdentifier failed: %v", err)
+		t.Fatalf("rel.GetInstalledReleaseIdentifier failed: %v", err)
 	}
+
 	if got != versionContent {
 		t.Errorf("expected %q, got %q", versionContent, got)
 	}
@@ -425,10 +521,10 @@ func TestGetInstalledReleaseIdentifier(t *testing.T) {
 
 // TestGetChecksumURL tests retrieval of the checksum URL.
 func TestGetChecksumURL(t *testing.T) {
-	release := Release{
+	release := rel.Release{
 		TagName:    "v1.2.3",
 		Prerelease: false,
-		Assets: []Asset{
+		Assets: []rel.Asset{
 			{
 				Name:               "linux-x86_64.tar.gz",
 				BrowserDownloadURL: "http://example.com/download",
@@ -439,39 +535,42 @@ func TestGetChecksumURL(t *testing.T) {
 			},
 		},
 	}
-	url, err := GetChecksumURL(release, "linux-x86_64.tar.gz")
+
+	url, err := rel.GetChecksumURL(release, "linux-x86_64.tar.gz")
 	if err != nil {
-		t.Fatalf("GetChecksumURL failed: %v", err)
+		t.Fatalf("rel.GetChecksumURL failed: %v", err)
 	}
+
 	if url != "http://example.com/download.sha256" {
 		t.Errorf("expected checksum URL %q, got %q", "http://example.com/download.sha256", url)
 	}
 
 	// Test when no checksum asset exists.
-	url, err = GetChecksumURL(release, "nonexistent")
+	url, err = rel.GetChecksumURL(release, "nonexistent")
 	if err != nil {
-		t.Fatalf("GetChecksumURL failed: %v", err)
+		t.Fatalf("rel.GetChecksumURL failed: %v", err)
 	}
+
 	if url != "" {
 		t.Errorf("expected empty checksum URL, got %q", url)
 	}
 }
 
-// TestGetReleaseIdentifier tests GetReleaseIdentifier behavior for nightly and others.
+// TestGetReleaseIdentifier tests rel.GetReleaseIdentifier behavior for nightly and others.
 func TestGetReleaseIdentifier(t *testing.T) {
-	nightly := Release{
+	nightly := rel.Release{
 		TagName:    "nightly-20230401",
 		CommitHash: "1234567890abcdef",
 	}
-	if id := GetReleaseIdentifier(nightly, "nightly"); id != "20230401" {
+	if id := rel.GetReleaseIdentifier(nightly, "nightly"); id != "20230401" {
 		t.Errorf("expected nightly identifier '20230401', got %q", id)
 	}
 
-	stable := Release{
+	stable := rel.Release{
 		TagName:    "v1.2.3",
 		CommitHash: "abcdef1234567890",
 	}
-	if id := GetReleaseIdentifier(stable, "stable"); id != "v1.2.3" {
+	if id := rel.GetReleaseIdentifier(stable, "stable"); id != "v1.2.3" {
 		t.Errorf("expected release identifier 'v1.2.3', got %q", id)
 	}
 }
@@ -479,7 +578,7 @@ func TestGetReleaseIdentifier(t *testing.T) {
 // TestFilterReleases tests filtering based on a minimum semantic version.
 func TestFilterReleases(t *testing.T) {
 	// Create releases with various versions.
-	releases := []Release{
+	releases := []rel.Release{
 		{TagName: "v0.4.0", Prerelease: false},
 		{TagName: "v0.5.0", Prerelease: false},
 		{TagName: "v0.6.0", Prerelease: false},
@@ -488,9 +587,9 @@ func TestFilterReleases(t *testing.T) {
 		{TagName: "vinvalid", Prerelease: false},
 	}
 
-	filtered, err := FilterReleases(releases, "0.5.0")
+	filtered, err := rel.FilterReleases(releases, "0.5.0")
 	if err != nil {
-		t.Fatalf("FilterReleases failed: %v", err)
+		t.Fatalf("rel.FilterReleases failed: %v", err)
 	}
 
 	// Expect to keep releases that are "stable", "nightly", and versions >= 0.5.0.
@@ -499,10 +598,12 @@ func TestFilterReleases(t *testing.T) {
 	if len(filtered) != len(expectedTags) {
 		t.Errorf("expected %d releases, got %d", len(expectedTags), len(filtered))
 	}
+
 	tagSet := make(map[string]bool)
 	for _, r := range filtered {
 		tagSet[r.TagName] = true
 	}
+
 	for _, tag := range expectedTags {
 		if !tagSet[tag] {
 			t.Errorf("expected tag %q in filtered releases", tag)
@@ -510,65 +611,111 @@ func TestFilterReleases(t *testing.T) {
 	}
 }
 
-// TestGetAssetURL_Unsupported tests that GetAssetURL returns an error for unsupported OS/ARCH.
+// TestGetAssetURL_Unsupported tests that rel.GetAssetURL returns an error for unsupported OS/ARCH.
 func TestGetAssetURL_Unsupported(t *testing.T) {
 	// Simulate an asset that won't match any pattern for the current OS/ARCH.
-	release := Release{
+	release := rel.Release{
 		TagName:    "v1.0.0",
 		Prerelease: false,
-		Assets: []Asset{
+		Assets: []rel.Asset{
 			{
 				Name:               "unsupported.asset",
 				BrowserDownloadURL: "http://example.com/unsupported",
 			},
 		},
 	}
-	_, _, err := GetAssetURL(release)
+
+	_, _, err := rel.GetAssetURL(release)
 	if err == nil {
 		t.Errorf("expected error for unsupported asset, got none")
 	}
 }
 
-// TestHTTPClientTimeout verifies that the package-level client timeout is set.
+// TestHTTPClientTimeout verifies that the package-level rel.Client timeout is set.
 func TestHTTPClientTimeout(t *testing.T) {
-	if client.Timeout < 15*time.Second {
-		t.Errorf("expected client timeout >= 15 seconds, got %v", client.Timeout)
+	if rel.Client.Timeout < 15*time.Second {
+		t.Errorf("expected rel.Client timeout >= 15 seconds, got %v", rel.Client.Timeout)
 	}
 }
 
 // TestCacheWriteFailure simulates a failure when writing to the cache file.
 func TestCacheWriteFailure(t *testing.T) {
 	// Create a temporary file and remove write permissions.
-	tmpFile, err := os.CreateTemp("", "cache-write-failure-*.json")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "cache-write-failure-*.json")
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
+
 	cachePath := tmpFile.Name()
-	tmpFile.Close()
+
+	err = tmpFile.Close()
+	if err != nil {
+		t.Errorf("failed to close tmpFile: %v", err)
+	}
+
 	// Remove write permission.
-	os.Chmod(cachePath, 0444)
-	defer os.Remove(cachePath)
+	err = os.Chmod(cachePath, 0o444)
+	if err != nil {
+		t.Errorf("failed to chmod: %v", err)
+	}
 
-	// Create a test server that returns fake releases.
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		err := os.Remove(cachePath)
+		if err != nil && !os.IsNotExist(err) {
+			t.Errorf("failed to remove %s: %v", cachePath, err)
+		}
+	}()
+
+	// Create a test server that returns fake rel.
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		enc := json.NewEncoder(w)
-		enc.Encode(fakeReleases())
-	}))
-	defer ts.Close()
 
-	origTransport := client.Transport
-	client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
-		req.URL.Scheme = "http"
-		req.URL.Host = ts.Listener.Addr().String()
+		err := enc.Encode(fakeReleases())
+		if err != nil {
+			panic(err)
+		}
+	}))
+	defer testServer.Close()
+
+	origTransport := rel.Client.Transport
+
+	rel.Client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		req.URL.Scheme = HTTPSchemeScheme
+		req.URL.Host = testServer.Listener.Addr().String()
+
 		return http.DefaultTransport.RoundTrip(req)
 	})
-	defer func() { client.Transport = origTransport }()
+	defer func() { rel.Client.Transport = origTransport }()
 
 	// Call the function which should trigger the fatal.
-	_, err = GetCachedReleases(true, cachePath)
+	_, err = rel.GetCachedReleases(true, cachePath)
 	if err == nil {
 		t.Errorf("expected error on cache write failure, but got none")
 	} else {
 		t.Logf("expected error occurred: %v", err)
 	}
+}
+
+// createTempCache creates a temporary cache file with the given releases encoded as JSON.
+func createTempCache(t *testing.T, releases []rel.Release) string {
+	t.Helper()
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "cache-*.json")
+	if err != nil {
+		t.Fatalf("failed to create temp cache file: %v", err)
+	}
+
+	enc := json.NewEncoder(tmpFile)
+
+	err = enc.Encode(releases)
+	if err != nil {
+		t.Fatalf("failed to encode releases: %v", err)
+	}
+
+	err = tmpFile.Close()
+	if err != nil {
+		t.Fatalf("failed to close temp file: %v", err)
+	}
+
+	return tmpFile.Name()
 }

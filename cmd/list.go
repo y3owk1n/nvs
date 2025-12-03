@@ -8,7 +8,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/nvs/pkg/utils"
+	"github.com/y3owk1n/nvs/pkg/helpers"
 )
 
 // listCmd represents the "list" command (aliases: ls).
@@ -27,7 +27,7 @@ var listCmd = &cobra.Command{
 		logrus.Debug("Executing list command")
 
 		// Retrieve installed versions from the versions directory.
-		versions, err := utils.ListInstalledVersions(versionsDir)
+		versions, err := helpers.ListInstalledVersions(versionsDir)
 		if err != nil {
 			logrus.Fatalf("Error listing versions: %v", err)
 		}
@@ -35,13 +35,22 @@ var listCmd = &cobra.Command{
 
 		// If no versions are installed, display a message and exit.
 		if len(versions) == 0 {
-			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText("No installed versions..."))
+			_, err = fmt.Fprintf(
+				os.Stdout,
+				"%s %s\n",
+				helpers.InfoIcon(),
+				helpers.WhiteText("No installed versions..."),
+			)
+			if err != nil {
+				logrus.Warnf("Failed to write to stdout: %v", err)
+			}
 			logrus.Debug("No installed versions found")
+
 			return
 		}
 
 		// Get the current active version.
-		current, err := utils.GetCurrentVersion(versionsDir)
+		current, err := helpers.GetCurrentVersion(versionsDir)
 		if err != nil {
 			logrus.Warn("No current version set or unable to determine the current version")
 			current = "none"
@@ -63,17 +72,17 @@ var listCmd = &cobra.Command{
 		table.SetAutoWrapText(false)
 
 		// Append each version to the table.
-		for _, v := range versions {
+		for _, version := range versions {
 			var row []string
-			if v == current {
+			if version == current {
 				// Mark the current version with an arrow and use a highlighted green color.
 				row = []string{
-					color.New(color.Bold, color.FgHiGreen).Sprintf("→ %s", v),
+					color.New(color.Bold, color.FgHiGreen).Sprintf("→ %s", version),
 					color.New(color.Bold, color.FgHiGreen).Sprintf("Current"),
 				}
-				logrus.Debugf("Marked version %s as current", v)
+				logrus.Debugf("Marked version %s as current", version)
 			} else {
-				row = []string{v, "Installed"}
+				row = []string{version, "Installed"}
 			}
 			table.Append(row)
 		}

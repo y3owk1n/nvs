@@ -1,6 +1,8 @@
+// Package cmd contains the CLI commands for nvs.
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,7 +12,7 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/nvs/pkg/utils"
+	"github.com/y3owk1n/nvs/pkg/helpers"
 )
 
 // configCmd represents the "config" command.
@@ -40,12 +42,22 @@ var configCmd = &cobra.Command{
 		// If a configuration name is provided as an argument, launch Neovim with that configuration.
 		if len(args) == 1 {
 			logrus.Debugf("Launching Neovim with provided configuration: %s", args[0])
-			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Launching Neovim with configuration: %s", utils.CyanText(args[0]))))
-			utils.LaunchNvimWithConfig(args[0])
+			_, err := fmt.Fprintf(os.Stdout,
+				"%s %s\n",
+				helpers.InfoIcon(),
+				helpers.WhiteText(
+					"Launching Neovim with configuration: "+helpers.CyanText(args[0]),
+				),
+			)
+			if err != nil {
+				logrus.Warnf("Failed to write to stdout: %v", err)
+			}
+			helpers.LaunchNvimWithConfig(args[0])
+
 			return
 		}
 
-		configDir, err := utils.GetNvimConfigBaseDir()
+		configDir, err := helpers.GetNvimConfigBaseDir()
 		if err != nil {
 			logrus.Fatalf("Failed to determine config base dir: %v", err)
 		}
@@ -66,6 +78,7 @@ var configCmd = &cobra.Command{
 			info, err := os.Lstat(entryPath)
 			if err != nil {
 				logrus.Warnf("Failed to lstat %s: %v", entryPath, err)
+
 				continue
 			}
 
@@ -74,12 +87,14 @@ var configCmd = &cobra.Command{
 				resolvedPath, err := os.Readlink(entryPath)
 				if err != nil {
 					logrus.Warnf("Failed to resolve symlink %s: %v", entry.Name(), err)
+
 					continue
 				}
 
 				targetInfo, err := os.Stat(resolvedPath)
 				if err != nil {
 					logrus.Warnf("Failed to stat resolved path for %s: %v", entry.Name(), err)
+
 					continue
 				}
 				isDir = targetInfo.IsDir()
@@ -98,6 +113,7 @@ var configCmd = &cobra.Command{
 					// Exclude nvim-data only on Windows
 					if runtime.GOOS == "windows" && strings.HasSuffix(name, "-data") {
 						logrus.Debugf("Skipping Windows nvim-data: %s", entry.Name())
+
 						continue
 					}
 
@@ -109,7 +125,17 @@ var configCmd = &cobra.Command{
 
 		if len(nvimConfigs) == 0 {
 			logrus.Debugf("No Neovim configurations found in config directory: %s", configDir)
-			fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText(fmt.Sprintf("No Neovim configuration found in %s", utils.CyanText(configDir))))
+			_, err := fmt.Fprintf(os.Stdout,
+				"%s %s\n",
+				helpers.WarningIcon(),
+				helpers.WhiteText(
+					"No Neovim configuration found in "+helpers.CyanText(configDir),
+				),
+			)
+			if err != nil {
+				logrus.Warnf("Failed to write to stdout: %v", err)
+			}
+
 			return
 		}
 
@@ -122,17 +148,35 @@ var configCmd = &cobra.Command{
 		logrus.Debug("Displaying selection prompt")
 		_, selectedConfig, err := prompt.Run()
 		if err != nil {
-			if err == promptui.ErrInterrupt {
-				logrus.Debug("User cancelled selection")
-				fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText("Selection cancelled."))
+			if errors.Is(err, promptui.ErrInterrupt) {
+				logrus.Debug("User canceled selection")
+				_, err := fmt.Fprintf(
+					os.Stdout,
+					"%s %s\n",
+					helpers.WarningIcon(),
+					helpers.WhiteText("Selection canceled."),
+				)
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
+
 				return
 			}
 			logrus.Fatalf("Prompt failed: %v", err)
 		}
 
 		logrus.Debugf("User selected configuration: %s", selectedConfig)
-		fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Launching Neovim with configuration: %s", utils.CyanText(selectedConfig))))
-		utils.LaunchNvimWithConfig(selectedConfig)
+		_, err = fmt.Fprintf(os.Stdout,
+			"%s %s\n",
+			helpers.InfoIcon(),
+			helpers.WhiteText(
+				"Launching Neovim with configuration: "+helpers.CyanText(selectedConfig),
+			),
+		)
+		if err != nil {
+			logrus.Warnf("Failed to write to stdout: %v", err)
+		}
+		helpers.LaunchNvimWithConfig(selectedConfig)
 	},
 }
 

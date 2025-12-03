@@ -2,13 +2,19 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/pkg/helpers"
 	"github.com/y3owk1n/nvs/pkg/releases"
-	"github.com/y3owk1n/nvs/pkg/utils"
 )
+
+// ShortCommitLen is the number of characters to shorten commit hashes to.
+const ShortCommitLen = 7
+
+const stableConst = "stable"
 
 // currentCmd represents the "current" command.
 // It displays details of the current active version.
@@ -26,7 +32,7 @@ var currentCmd = &cobra.Command{
 	Short: "Show current active version with details",
 	Run: func(cmd *cobra.Command, args []string) {
 		logrus.Debug("Fetching current active version")
-		current, err := utils.GetCurrentVersion(versionsDir)
+		current, err := helpers.GetCurrentVersion(versionsDir)
 		if err != nil {
 			logrus.Fatalf("Error getting current version: %v", err)
 		}
@@ -35,15 +41,28 @@ var currentCmd = &cobra.Command{
 
 		// Handle "stable" active version
 		switch current {
-		case "stable":
+		case stableConst:
 			logrus.Debug("Fetching latest stable release")
 			stable, err := releases.FindLatestStable(cacheFilePath)
 			if err != nil {
 				logrus.Warnf("Error fetching latest stable release: %v", err)
-				fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("stable (%s)", current)))
+				_, err = fmt.Fprintf(os.Stdout,
+					"%s %s\n",
+					helpers.InfoIcon(),
+					helpers.WhiteText(fmt.Sprintf("stable (%s)", current)),
+				)
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
 			} else {
-				fmt.Printf("%s %s\n", utils.InfoIcon(), utils.CyanText("stable"))
-				fmt.Printf("  %s\n", utils.WhiteText(fmt.Sprintf("Version: %s", stable.TagName)))
+				_, err = fmt.Fprintf(os.Stdout, "%s %s\n", helpers.InfoIcon(), helpers.CyanText(stableConst))
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
+				_, err = fmt.Fprintf(os.Stdout, "  %s\n", helpers.WhiteText("Version: "+stable.TagName))
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
 				logrus.Debugf("Latest stable version: %s", stable.TagName)
 			}
 
@@ -53,20 +72,37 @@ var currentCmd = &cobra.Command{
 			nightly, err := releases.FindLatestNightly(cacheFilePath)
 			if err != nil {
 				logrus.Warnf("Error fetching latest nightly release: %v", err)
-				fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("nightly (%s)", current)))
+				_, err = fmt.Fprintf(os.Stdout,
+					"%s %s\n",
+					helpers.InfoIcon(),
+					helpers.WhiteText(fmt.Sprintf("%s (%s)", stableConst, current)),
+				)
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
 			} else {
 				shortCommit := nightly.CommitHash
-				if len(shortCommit) > 7 {
+				if len(shortCommit) > ShortCommitLen {
 					shortCommit = shortCommit[:7]
 				}
 				publishedStr := nightly.PublishedAt
-				if t, err := time.Parse(time.RFC3339, nightly.PublishedAt); err == nil {
+				t, err := time.Parse(time.RFC3339, nightly.PublishedAt)
+				if err == nil {
 					publishedStr = t.Format("2006-01-02")
 				}
 
-				fmt.Printf("%s %s\n", utils.InfoIcon(), utils.CyanText("nightly"))
-				fmt.Printf("  %s\n", utils.WhiteText(fmt.Sprintf("Published: %s", publishedStr)))
-				fmt.Printf("  %s\n", utils.WhiteText(fmt.Sprintf("Commit: %s", shortCommit)))
+				_, err = fmt.Fprintf(os.Stdout, "%s %s\n", helpers.InfoIcon(), helpers.CyanText("nightly"))
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
+				_, err = fmt.Fprintf(os.Stdout, "  %s\n", helpers.WhiteText("Published: "+publishedStr))
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
+				_, err = fmt.Fprintf(os.Stdout, "  %s\n", helpers.WhiteText("Commit: "+shortCommit))
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
 				logrus.Debugf("Latest nightly commit: %s, Published: %s", shortCommit, publishedStr)
 			}
 
@@ -77,10 +113,20 @@ var currentCmd = &cobra.Command{
 
 			if isCommitHash {
 				logrus.Debugf("Displaying custom commit hash: %s", current)
-				fmt.Printf("%s %s %s\n", utils.InfoIcon(), utils.WhiteText("Commit Hash:"), utils.CyanText(current))
+				_, err = fmt.Fprintf(os.Stdout,
+					"%s %s\n",
+					helpers.InfoIcon(),
+					helpers.WhiteText(fmt.Sprintf("stable (%s)", current)),
+				)
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
 			} else {
 				logrus.Debugf("Displaying custom version: %s", current)
-				fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(current))
+				_, err = fmt.Fprintf(os.Stdout, "%s %s\n", helpers.InfoIcon(), helpers.WhiteText(current))
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
 			}
 		}
 	},

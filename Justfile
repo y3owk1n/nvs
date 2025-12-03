@@ -40,7 +40,8 @@ vet:
     go vet ./...
 
 fmt:
-    go fmt ./...
+    golangci-lint fmt
+    golangci-lint run --fix
 
 lint:
     golangci-lint run

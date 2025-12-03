@@ -1,10 +1,11 @@
+// Package releases provides functions for fetching Neovim releases from GitHub.
 package releases
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,41 +18,68 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Constants for release types.
+const (
+	Stable  = "stable"
+	Nightly = "nightly"
+)
+
+// Errors for releases operations.
+var (
+	ErrRateLimitExceeded = errors.New("GitHub API rate limit exceeded")
+	ErrAPIStatus         = errors.New("API returned status")
+	ErrNoStableRelease   = errors.New("no Stable release found")
+	ErrNoNightlyRelease  = errors.New("no Nightly release found")
+	ErrVersionNotFound   = errors.New("version not found")
+	ErrUnsupportedArch   = errors.New("unsupported architecture")
+	ErrUnsupportedOS     = errors.New("unsupported OS")
+	ErrNoMatchingAsset   = errors.New("no matching asset found")
+)
+
+// Constants for releases operations.
+const (
+	StableLower      = "stable"
+	NightlyLower     = "nightly"
+	ClientTimeoutSec = 15
+	CacheFilePerm    = 0o644
+)
+
 // Release represents a Neovim release.
 type Release struct {
-	TagName     string  `json:"tag_name"`
+	TagName     string  `json:"tag_name"` //nolint:tagliatelle
 	Prerelease  bool    `json:"prerelease"`
 	Assets      []Asset `json:"assets"`
-	PublishedAt string  `json:"published_at"`
-	CommitHash  string  `json:"target_commitish"`
+	PublishedAt string  `json:"published_at"`     //nolint:tagliatelle
+	CommitHash  string  `json:"target_commitish"` //nolint:tagliatelle
 }
 
 // Asset represents an asset attached to a release.
 type Asset struct {
 	Name               string `json:"name"`
-	BrowserDownloadURL string `json:"browser_download_url"`
+	BrowserDownloadURL string `json:"browser_download_url"` //nolint:tagliatelle
 }
 
+// Variables for releases operations.
 var (
-	client           = &http.Client{Timeout: 15 * time.Second}
+	Client           = &http.Client{Timeout: ClientTimeoutSec * time.Second}
 	releasesCacheTTL = 5 * time.Minute
 )
 
-// ResolveVersion resolves the given version alias (e.g. "stable", "nightly", or a specific version)
+// ResolveVersion resolves the given version alias (e.g. Stable, "Nightly", or a specific version)
 // to a Release by checking cached releases or fetching them from GitHub.
 //
 // Example usage:
 //
-//	release, err := ResolveVersion("stable", "/path/to/cache.json")
+//	release, err := ResolveVersion(Stable, "/path/to/cache.json")
 //	if err != nil {
 //	    // handle error
 //	}
 //	fmt.Println("Resolved release:", release.TagName)
 func ResolveVersion(version, cachePath string) (Release, error) {
 	switch version {
-	case "stable":
+	case Stable:
 		return FindLatestStable(cachePath)
-	case "nightly":
+	case Nightly:
 		return FindLatestNightly(cachePath)
 	default:
 		return FindSpecificVersion(version, cachePath)
@@ -70,31 +98,39 @@ func ResolveVersion(version, cachePath string) (Release, error) {
 //	fmt.Println("Number of cached releases:", len(releases))
 func GetCachedReleases(force bool, cachePath string) ([]Release, error) {
 	if !force {
-		if info, err := os.Stat(cachePath); err == nil {
+		info, err := os.Stat(cachePath)
+		if err == nil {
 			if time.Since(info.ModTime()) < releasesCacheTTL {
 				data, err := os.ReadFile(cachePath)
 				if err == nil {
 					var releases []Release
-					if err = json.Unmarshal(data, &releases); err == nil {
+
+					err = json.Unmarshal(data, &releases)
+					if err == nil {
 						logrus.Debug("Using cached releases")
+
 						return releases, nil
 					}
 				}
 			}
 		}
 	}
+
 	logrus.Debug("Fetching fresh releases from GitHub")
+
 	releases, err := GetReleases()
 	if err != nil {
 		return nil, err
 	}
+
 	data, err := json.Marshal(releases)
 	if err == nil {
-		err := os.WriteFile(cachePath, data, 0644)
+		err := os.WriteFile(cachePath, data, CacheFilePerm)
 		if err != nil {
-			return nil, fmt.Errorf("failed to write file to cache: %v", err)
+			return nil, fmt.Errorf("failed to write file to cache: %w", err)
 		}
 	}
+
 	return releases, nil
 }
 
@@ -109,33 +145,47 @@ func GetCachedReleases(force bool, cachePath string) ([]Release, error) {
 //	}
 //	fmt.Println("Fetched releases count:", len(releases))
 func GetReleases() ([]Release, error) {
-	req, err := http.NewRequestWithContext(context.Background(), "GET", "https://api.github.com/repos/neovim/neovim/releases", nil)
+	req, err := http.NewRequestWithContext(
+		context.Background(),
+		http.MethodGet,
+		"https://api.github.com/repos/neovim/neovim/releases",
+		nil,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
+
 	req.Header.Set("User-Agent", "nvs")
-	resp, err := client.Do(req)
+
+	resp, err := Client.Do(req)
+	// Return err
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch releases: %w", err)
 	}
 	defer func() {
-		if err := resp.Body.Close(); err != nil {
+		err := resp.Body.Close()
+		if err != nil {
 			logrus.Warnf("Failed to close response body: %v", err)
 		}
 	}()
-	if resp.StatusCode == 403 {
-		body, _ := io.ReadAll(resp.Body)
-		if strings.Contains(string(body), "rate limit") {
-			return nil, fmt.Errorf("GitHub API rate limit exceeded. Please try again later")
-		}
+
+	logrus.Debugf("StatusCode: %d", resp.StatusCode)
+
+	if resp.StatusCode == http.StatusForbidden {
+		return nil, fmt.Errorf("%w. Please try again later", ErrRateLimitExceeded)
 	}
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%w %d", ErrAPIStatus, resp.StatusCode)
 	}
+
 	var releases []Release
-	if err := json.NewDecoder(resp.Body).Decode(&releases); err != nil {
+
+	err = json.NewDecoder(resp.Body).Decode(&releases)
+	if err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
+
 	return FilterReleases(releases, "0.5.0")
 }
 
@@ -146,39 +196,44 @@ func GetReleases() ([]Release, error) {
 //
 //	valid := IsCommitHash("1a2b3c4")
 //	fmt.Println("Is valid commit hash?", valid)
-func IsCommitHash(s string) bool {
-	if s == "master" {
+func IsCommitHash(str string) bool {
+	if str == "master" {
 		return true
 	}
-	if len(s) != 7 && len(s) != 40 {
+
+	if len(str) != 7 && len(str) != 40 {
 		return false
 	}
-	for _, r := range s {
+
+	for _, r := range str {
 		if !unicode.IsDigit(r) && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
 			return false
 		}
 	}
+
 	return true
 }
 
 // NormalizeVersion returns the version string in a normalized format.
-// It prefixes the version with "v" unless the version is "stable", "nightly", or already a commit hash.
+// It prefixes the version with "v" unless the version is Stable, "Nightly", or already a commit hash.
 //
 // Example usage:
 //
 //	normalized := NormalizeVersion("1.2.3")
 //	fmt.Println("Normalized version:", normalized) // Output: v1.2.3
 func NormalizeVersion(version string) string {
-	if version == "stable" || version == "nightly" || IsCommitHash(version) {
+	if version == Stable || version == Nightly || IsCommitHash(version) {
 		return version
 	}
+
 	if !strings.HasPrefix(version, "v") {
 		return "v" + version
 	}
+
 	return version
 }
 
-// FindLatestStable returns the latest stable release (non-prerelease) from the cached releases.
+// FindLatestStable returns the latest Stable release (non-prerelease) from the cached releases.
 //
 // Example usage:
 //
@@ -186,21 +241,27 @@ func NormalizeVersion(version string) string {
 //	if err != nil {
 //	    // handle error
 //	}
-//	fmt.Println("Latest stable release:", release.TagName)
+//	fmt.Println("Latest Stable release:", release.TagName)
 func FindLatestStable(cachePath string) (Release, error) {
 	releases, err := GetCachedReleases(false, cachePath)
 	if err != nil {
 		return Release{}, err
 	}
+
+	if len(releases) == 0 {
+		return Release{}, ErrNoStableRelease
+	}
+
 	for _, r := range releases {
 		if !r.Prerelease {
 			return r, nil
 		}
 	}
-	return Release{}, fmt.Errorf("no stable release found")
+
+	return Release{}, ErrNoStableRelease
 }
 
-// FindLatestNightly returns the latest nightly (prerelease) release from the cached releases.
+// FindLatestNightly returns the latest Nightly (prerelease) release from the cached releases.
 //
 // Example usage:
 //
@@ -208,18 +269,24 @@ func FindLatestStable(cachePath string) (Release, error) {
 //	if err != nil {
 //	    // handle error
 //	}
-//	fmt.Println("Latest nightly release:", release.TagName)
+//	fmt.Println("Latest Nightly release:", release.TagName)
 func FindLatestNightly(cachePath string) (Release, error) {
 	releases, err := GetCachedReleases(false, cachePath)
 	if err != nil {
 		return Release{}, err
 	}
+
+	if len(releases) == 0 {
+		return Release{}, ErrNoNightlyRelease
+	}
+
 	for _, r := range releases {
 		if r.Prerelease {
 			return r, nil
 		}
 	}
-	return Release{}, fmt.Errorf("no nightly release found")
+
+	return Release{}, ErrNoNightlyRelease
 }
 
 // FindSpecificVersion returns the release that exactly matches the provided version tag.
@@ -236,12 +303,14 @@ func FindSpecificVersion(version, cachePath string) (Release, error) {
 	if err != nil {
 		return Release{}, err
 	}
+
 	for _, r := range releases {
 		if r.TagName == version {
 			return r, nil
 		}
 	}
-	return Release{}, fmt.Errorf("version %s not found", version)
+
+	return Release{}, fmt.Errorf("%w: %s", ErrVersionNotFound, version)
 }
 
 // GetAssetURL scans the release assets and returns the BrowserDownloadURL for the asset that
@@ -264,7 +333,7 @@ func GetAssetURL(release Release) (string, string, error) {
 		case "arm64":
 			patterns = []string{"linux-arm64.tar.gz", "linux-64.tar.gz", "linux64.tar.gz"}
 		default:
-			return "", "", fmt.Errorf("unsupported architecture: %s", runtime.GOARCH)
+			return "", "", fmt.Errorf("%w: %s", ErrUnsupportedArch, runtime.GOARCH)
 		}
 	case "darwin":
 		if runtime.GOARCH == "arm64" {
@@ -275,7 +344,7 @@ func GetAssetURL(release Release) (string, string, error) {
 	case "windows":
 		patterns = []string{"win64.zip"}
 	default:
-		return "", "", fmt.Errorf("unsupported OS: %s", runtime.GOOS)
+		return "", "", fmt.Errorf("%w: %s", ErrUnsupportedOS, runtime.GOOS)
 	}
 
 	for _, asset := range release.Assets {
@@ -285,7 +354,8 @@ func GetAssetURL(release Release) (string, string, error) {
 			}
 		}
 	}
-	return "", "", fmt.Errorf("no matching asset found for %s/%s", runtime.GOOS, runtime.GOARCH)
+
+	return "", "", fmt.Errorf("%w for %s/%s", ErrNoMatchingAsset, runtime.GOOS, runtime.GOARCH)
 }
 
 // GetInstalledReleaseIdentifier reads the version.txt file from the installed release directory
@@ -300,10 +370,12 @@ func GetAssetURL(release Release) (string, string, error) {
 //	fmt.Println("Installed release identifier:", id)
 func GetInstalledReleaseIdentifier(versionsDir string, alias string) (string, error) {
 	versionFile := filepath.Join(versionsDir, alias, "version.txt")
+
 	data, err := os.ReadFile(versionFile)
 	if err != nil {
 		return "", err
 	}
+
 	return strings.TrimSpace(string(data)), nil
 }
 
@@ -324,24 +396,27 @@ func GetChecksumURL(release Release, assetPattern string) (string, error) {
 			return asset.BrowserDownloadURL, nil
 		}
 	}
+
 	return "", nil
 }
 
 // GetReleaseIdentifier returns a string identifier for the release based on the alias.
-// For nightly releases, it removes a "nightly-" prefix if present, or returns the first 7 characters of the commit hash.
+// For Nightly releases, it removes a "Nightly-" prefix if present, or returns the first 7 characters of the commit hash.
 // For other releases, it returns the tag name.
 //
 // Example usage:
 //
-//	identifier := GetReleaseIdentifier(release, "stable")
+//	identifier := GetReleaseIdentifier(release, Stable)
 //	fmt.Println("Release identifier:", identifier)
 func GetReleaseIdentifier(release Release, alias string) string {
-	if alias == "nightly" {
-		if strings.HasPrefix(release.TagName, "nightly-") {
-			return strings.TrimPrefix(release.TagName, "nightly-")
+	if alias == Nightly {
+		if after, ok := strings.CutPrefix(release.TagName, Nightly+"-"); ok {
+			return after
 		}
+
 		return release.CommitHash[:7]
 	}
+
 	return release.TagName
 }
 
@@ -363,22 +438,26 @@ func FilterReleases(releases []Release, minVersion string) ([]Release, error) {
 	}
 
 	var filtered []Release
-	for _, r := range releases {
-		if r.TagName == "stable" || r.TagName == "nightly" {
-			filtered = append(filtered, r)
+	for _, release := range releases {
+		if release.TagName == Stable || release.TagName == Nightly {
+			filtered = append(filtered, release)
+
 			continue
 		}
 
-		versionStr := strings.TrimPrefix(r.TagName, "v")
-		v, err := semver.NewVersion(versionStr)
+		versionStr := strings.TrimPrefix(release.TagName, "v")
+
+		version, err := semver.NewVersion(versionStr)
 		if err != nil {
-			fmt.Printf("Skipping invalid version: %s\n", r.TagName)
+			logrus.Debugf("Skipping invalid version: %s", release.TagName)
+
 			continue
 		}
 
-		if constraints.Check(v) {
-			filtered = append(filtered, r)
+		if constraints.Check(version) {
+			filtered = append(filtered, release)
 		}
 	}
+
 	return filtered, nil
 }

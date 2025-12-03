@@ -8,8 +8,8 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/pkg/helpers"
 	"github.com/y3owk1n/nvs/pkg/releases"
-	"github.com/y3owk1n/nvs/pkg/utils"
 )
 
 // listRemoteCmd represents the "list-remote" command (aliases: ls-remote).
@@ -30,7 +30,16 @@ var listRemoteCmd = &cobra.Command{
 		force := len(args) > 0 && args[0] == "force"
 
 		logrus.Debug("Fetching available versions...")
-		fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText("Fetching available versions..."))
+		var err error
+		_, err = fmt.Fprintf(
+			os.Stdout,
+			"%s %s\n",
+			helpers.InfoIcon(),
+			helpers.WhiteText("Fetching available versions..."),
+		)
+		if err != nil {
+			logrus.Warnf("Failed to write to stdout: %v", err)
+		}
 
 		// Retrieve the remote releases, using cache unless "force" is specified.
 		releasesResult, err := releases.GetCachedReleases(force, cacheFilePath)
@@ -41,7 +50,7 @@ var listRemoteCmd = &cobra.Command{
 
 		// Determine the latest stable release (if available) for reference.
 		stableRelease, err := releases.FindLatestStable(cacheFilePath)
-		stableTag := "stable"
+		stableTag := stable
 		if err == nil {
 			stableTag = stableRelease.TagName
 		}
@@ -49,22 +58,27 @@ var listRemoteCmd = &cobra.Command{
 
 		// Group releases into Nightly, Stable, and Others.
 		var groupNightly, groupStable, groupOthers []releases.Release
-		for _, r := range releasesResult {
-			if r.Prerelease {
-				groupNightly = append(groupNightly, r)
-			} else if r.TagName == "stable" {
-				groupStable = append(groupStable, r)
+		for _, release := range releasesResult {
+			if release.Prerelease {
+				groupNightly = append(groupNightly, release)
+			} else if release.TagName == "stable" {
+				groupStable = append(groupStable, release)
 			} else {
-				groupOthers = append(groupOthers, r)
+				groupOthers = append(groupOthers, release)
 			}
 		}
-		logrus.Debugf("Nightly: %d, Stable: %d, Others: %d", len(groupNightly), len(groupStable), len(groupOthers))
+		logrus.Debugf(
+			"Nightly: %d, Stable: %d, Others: %d",
+			len(groupNightly),
+			len(groupStable),
+			len(groupOthers),
+		)
 
 		// Combine all groups into one slice for display.
 		combined := append(append(groupNightly, groupStable...), groupOthers...)
 
 		// Determine the current installed version (if any).
-		current, err := utils.GetCurrentVersion(versionsDir)
+		current, err := helpers.GetCurrentVersion(versionsDir)
 		if err != nil {
 			current = ""
 		}
@@ -86,38 +100,44 @@ var listRemoteCmd = &cobra.Command{
 		table.SetAutoWrapText(false)
 
 		// Iterate over the releases and build table rows with appropriate details and color-coding.
-		for _, r := range combined {
+		for _, release := range combined {
 			var details string
 
 			// For nightly releases, display published date and commit hash.
-			if r.Prerelease {
-				if r.TagName == "nightly" {
-					shortCommit := releases.GetReleaseIdentifier(r, "nightly")
-					details = fmt.Sprintf("Published: %s, Commit: %s", utils.TimeFormat(r.PublishedAt), shortCommit)
+			if release.Prerelease {
+				if release.TagName == "nightly" {
+					shortCommit := releases.GetReleaseIdentifier(release, "nightly")
+					details = fmt.Sprintf(
+						"Published: %s, Commit: %s",
+						helpers.TimeFormat(release.PublishedAt),
+						shortCommit,
+					)
 				} else {
 					// Skip non-nightly prerelease rows if no details are available.
-					row := []string{r.TagName, "Nightly", ""}
+					row := []string{release.TagName, "Nightly", ""}
 					table.Append(row)
+
 					continue
 				}
-			} else if r.TagName == "stable" {
+			} else if release.TagName == "stable" {
 				// For stable releases, reference the determined stableTag.
-				details = fmt.Sprintf("Stable version: %s", stableTag)
+				details = "Stable version: " + stableTag
 			}
 
-			key := r.TagName
+			key := release.TagName
 			localStatus := ""
 			upgradeIndicator := ""
 
 			// Check if the release is installed locally.
-			if utils.IsInstalled(versionsDir, key) {
+			if helpers.IsInstalled(versionsDir, key) {
 				release, err := releases.ResolveVersion(key, cacheFilePath)
 				if err != nil {
 					logrus.Errorf("Error resolving %s: %v", key, err)
+
 					continue
 				}
 
-				installedIdentifier, err := utils.GetInstalledReleaseIdentifier(versionsDir, key)
+				installedIdentifier, err := helpers.GetInstalledReleaseIdentifier(versionsDir, key)
 				if err != nil {
 					installedIdentifier = ""
 				}
@@ -125,7 +145,7 @@ var listRemoteCmd = &cobra.Command{
 
 				// If the installed version is different from the remote, indicate an upgrade is available.
 				if installedIdentifier != "" && installedIdentifier != remoteIdentifier {
-					upgradeIndicator = " (" + utils.Upgrade + ")"
+					upgradeIndicator = " (" + helpers.Upgrade + ")"
 				}
 				if key == current {
 					localStatus = "Current" + upgradeIndicator
@@ -139,16 +159,20 @@ var listRemoteCmd = &cobra.Command{
 			logrus.Debugf("Version: %s, Status: %s", key, localStatus)
 
 			// Build the row for the table.
-			row := []string{r.TagName, localStatus, details}
+			tag := release.TagName
+			if tag == "" {
+				tag = "(no tag)"
+			}
+			row := []string{tag, localStatus, details}
 
 			// Colorize the row based on status.
 			switch localStatus {
 			case "Current" + upgradeIndicator:
-				row = utils.ColorizeRow(row, color.New(color.FgGreen))
+				row = helpers.ColorizeRow(row, color.New(color.FgGreen))
 			case "Installed" + upgradeIndicator:
-				row = utils.ColorizeRow(row, color.New(color.FgYellow))
+				row = helpers.ColorizeRow(row, color.New(color.FgYellow))
 			default:
-				row = utils.ColorizeRow(row, color.New(color.FgWhite))
+				row = helpers.ColorizeRow(row, color.New(color.FgWhite))
 			}
 
 			table.Append(row)

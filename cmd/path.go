@@ -10,8 +10,11 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/nvs/pkg/utils"
+	"github.com/y3owk1n/nvs/pkg/helpers"
 )
+
+// FilePerm is the file permission for created files.
+const FilePerm = 0o644
 
 // pathCmd represents the "path" command.
 // It automatically adds the global binary directory to the user's PATH by modifying the appropriate shell configuration file.
@@ -31,13 +34,35 @@ var pathCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		logrus.Debug("Running path command")
 
+		var err error
+
 		// On Windows, automatic PATH modifications are not implemented.
 		if runtime.GOOS == "windows" {
 			nvimBinDir := filepath.Join(globalBinDir, "nvim", "bin")
 
 			logrus.Debug("Detected Windows OS")
-			fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText("Automatic PATH setup is not implemented for Windows."))
-			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Please add %s to your PATH environment variable manually.", utils.CyanText(nvimBinDir))))
+			_, err = fmt.Fprintf(os.Stdout,
+				"%s %s\n",
+				helpers.WarningIcon(),
+				helpers.WhiteText("Automatic PATH setup is not implemented for Windows."),
+			)
+			if err != nil {
+				logrus.Warnf("Failed to write to stdout: %v", err)
+			}
+			_, err = fmt.Fprintf(os.Stdout,
+				"%s %s\n",
+				helpers.InfoIcon(),
+				helpers.WhiteText(
+					fmt.Sprintf(
+						"Please add %s to your PATH environment variable manually.",
+						helpers.CyanText(nvimBinDir),
+					),
+				),
+			)
+			if err != nil {
+				logrus.Warnf("Failed to write to stdout: %v", err)
+			}
+
 			return
 		}
 
@@ -46,15 +71,47 @@ var pathCmd = &cobra.Command{
 		logrus.Debug("Current PATH: ", pathEnv)
 		if strings.Contains(pathEnv, globalBinDir) {
 			logrus.Debug("PATH already contains globalBinDir")
-			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Your PATH already contains %s.", utils.CyanText(globalBinDir))))
+			_, err = fmt.Fprintf(os.Stdout,
+				"%s %s\n",
+				helpers.InfoIcon(),
+				helpers.WhiteText(
+					fmt.Sprintf("Your PATH already contains %s.", helpers.CyanText(globalBinDir)),
+				),
+			)
+			if err != nil {
+				logrus.Warnf("Failed to write to stdout: %v", err)
+			}
+
 			return
 		}
 
 		// If running in a Nix-managed shell, advise manual configuration.
 		if os.Getenv("NIX_SHELL") != "" {
 			logrus.Debug("Detected Nix shell environment")
-			fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText("It appears your shell is managed by Nix. Automatic PATH modifications may not work as expected."))
-			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Please update your Nix configuration manually to include %s in your PATH.", utils.CyanText(globalBinDir))))
+			_, err = fmt.Fprintf(os.Stdout,
+				"%s %s\n",
+				helpers.WarningIcon(),
+				helpers.WhiteText(
+					"It appears your shell is managed by Nix. Automatic PATH modifications may not work as expected.",
+				),
+			)
+			if err != nil {
+				logrus.Warnf("Failed to write to stdout: %v", err)
+			}
+			_, err = fmt.Fprintf(os.Stdout,
+				"%s %s\n",
+				helpers.InfoIcon(),
+				helpers.WhiteText(
+					fmt.Sprintf(
+						"Please update your Nix configuration manually to include %s in your PATH.",
+						helpers.CyanText(globalBinDir),
+					),
+				),
+			)
+			if err != nil {
+				logrus.Warnf("Failed to write to stdout: %v", err)
+			}
+
 			return
 		}
 
@@ -79,10 +136,24 @@ var pathCmd = &cobra.Command{
 			exportCmd = fmt.Sprintf("export PATH=\"$PATH:%s\"", globalBinDir)
 		case "fish":
 			rcFile = filepath.Join(os.Getenv("HOME"), ".config", "fish", "config.fish")
-			exportCmd = fmt.Sprintf("set -gx PATH $PATH %s", globalBinDir)
+			exportCmd = "set -gx PATH $PATH " + globalBinDir
 		default:
 			logrus.Debug("Unsupported shell: ", shellName)
-			fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText(fmt.Sprintf("Shell '%s' is not automatically supported. Please add %s to your PATH manually.", utils.CyanText(shellName), utils.CyanText(globalBinDir))))
+			_, err = fmt.Fprintf(os.Stdout,
+				"%s %s\n",
+				helpers.WarningIcon(),
+				helpers.WhiteText(
+					fmt.Sprintf(
+						"Shell '%s' is not automatically supported. Please add %s to your PATH manually.",
+						helpers.CyanText(shellName),
+						helpers.CyanText(globalBinDir),
+					),
+				),
+			)
+			if err != nil {
+				logrus.Warnf("Failed to write to stdout: %v", err)
+			}
+
 			return
 		}
 
@@ -92,25 +163,66 @@ var pathCmd = &cobra.Command{
 		// If the shell is managed by Nix, check if the rc file already contains the PATH setting.
 		if strings.Contains(shell, "/nix/store") {
 			logrus.Debug("Detected Nix-managed shell")
-			if data, err := os.ReadFile(rcFile); err == nil {
+			data, err := os.ReadFile(rcFile)
+			if err == nil {
 				if strings.Contains(string(data), globalBinDir) {
-					fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText(fmt.Sprintf("%s already contains the PATH setting.", utils.CyanText(rcFile))))
+					_, err = fmt.Fprintf(os.Stdout,
+						"%s %s\n",
+						helpers.WarningIcon(),
+						helpers.WhiteText(
+							helpers.CyanText(rcFile)+" already contains the PATH setting.",
+						),
+					)
+					if err != nil {
+						logrus.Warnf("Failed to write to stdout: %v", err)
+					}
 				} else {
-					fmt.Printf("%s %s\n", utils.WarningIcon(), utils.WhiteText(fmt.Sprintf("Your shell (%s) is managed by Nix and %s does not appear to contain the PATH setting.", utils.CyanText(shell), utils.CyanText(rcFile))))
-					fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("Please update your Nix configuration manually to include %s in your PATH.", utils.CyanText(globalBinDir))))
+					_, err = fmt.Fprintf(os.Stdout, "%s %s\n", helpers.WarningIcon(), helpers.WhiteText(fmt.Sprintf("Your shell (%s) is managed by Nix and %s does not appear to contain the PATH setting.", helpers.CyanText(shell), helpers.CyanText(rcFile))))
+					if err != nil {
+						logrus.Warnf("Failed to write to stdout: %v", err)
+					}
+					_, err = fmt.Fprintf(os.Stdout, "%s %s\n", helpers.InfoIcon(), helpers.WhiteText(fmt.Sprintf("Please update your Nix configuration manually to include %s in your PATH.", helpers.CyanText(globalBinDir))))
+					if err != nil {
+						logrus.Warnf("Failed to write to stdout: %v", err)
+					}
 				}
 			} else {
 				logrus.Errorf("Unable to read %s: %v", rcFile, err)
 			}
+
 			return
 		}
 
 		// Display the diff of the changes that will be applied.
-		fmt.Printf("%s %s\n\n", utils.InfoIcon(), utils.WhiteText(fmt.Sprintf("The following diff will be applied to %s:", utils.CyanText(rcFile))))
-		fmt.Printf("%s\n", utils.GreenText(fmt.Sprintf("+ %s\n+ %s", exportCmdComment, exportCmd)))
+		_, err = fmt.Fprintf(os.Stdout,
+			"%s %s\n\n",
+			helpers.InfoIcon(),
+			helpers.WhiteText(
+				fmt.Sprintf("The following diff will be applied to %s:", helpers.CyanText(rcFile)),
+			),
+		)
+		if err != nil {
+			logrus.Warnf("Failed to write to stdout: %v", err)
+		}
+		_, err = fmt.Fprintf(
+			os.Stdout,
+			"%s\n",
+			helpers.GreenText(fmt.Sprintf("+ %s\n+ %s", exportCmdComment, exportCmd)),
+		)
+		if err != nil {
+			logrus.Warnf("Failed to write to stdout: %v", err)
+		}
 
 		// Prompt the user for confirmation.
-		fmt.Printf("\n%s %s ", utils.PromptIcon(), "Do you want to proceed? (y/N): ")
+		_, err = fmt.Fprintf(
+			os.Stdout,
+			"\n%s %s ",
+			helpers.PromptIcon(),
+			"Do you want to proceed? (y/N): ",
+		)
+		if err != nil {
+			logrus.Warnf("Failed to write to stdout: %v", err)
+		}
 		reader := bufio.NewReader(os.Stdin)
 		input, err := reader.ReadString('\n')
 		if err != nil {
@@ -119,14 +231,25 @@ var pathCmd = &cobra.Command{
 		input = strings.TrimSpace(strings.ToLower(input))
 		logrus.Debug("User input: ", input)
 		if input != "y" {
-			fmt.Printf("%s %s\n", utils.InfoIcon(), utils.WhiteText("Aborted by user."))
+			_, err = fmt.Fprintf(
+				os.Stdout,
+				"%s %s\n",
+				helpers.InfoIcon(),
+				helpers.WhiteText("Aborted by user."),
+			)
+			if err != nil {
+				logrus.Warnf("Failed to write to stdout: %v", err)
+			}
+
 			return
 		}
 
 		// If the rc file does not exist, create it with the export command.
-		if _, err := os.Stat(rcFile); os.IsNotExist(err) {
+		_, err = os.Stat(rcFile)
+		if os.IsNotExist(err) {
 			logrus.Debug("Creating new rcFile")
-			if err := os.WriteFile(rcFile, []byte(exportCmdComment+"\n"+exportCmd+"\n"), 0644); err != nil {
+			err := os.WriteFile(rcFile, []byte(exportCmdComment+"\n"+exportCmd+"\n"), FilePerm)
+			if err != nil {
 				logrus.Fatalf("Failed to create %s: %v", rcFile, err)
 			}
 		} else {
@@ -137,23 +260,42 @@ var pathCmd = &cobra.Command{
 				logrus.Fatalf("Failed to read %s: %v", rcFile, err)
 			}
 			if !strings.Contains(string(data), globalBinDir) {
-				f, err := os.OpenFile(rcFile, os.O_APPEND|os.O_WRONLY, 0644)
+				file, err := os.OpenFile(rcFile, os.O_APPEND|os.O_WRONLY, FilePerm)
 				if err != nil {
 					logrus.Fatalf("Failed to open %s: %v", rcFile, err)
 				}
 				defer func() {
-					if err := f.Close(); err != nil {
+					err := file.Close()
+					if err != nil {
 						logrus.Errorf("Failed to close %s: %v", rcFile, err)
 					}
 				}()
-				if _, err := f.WriteString("\n" + exportCmdComment + "\n" + exportCmd + "\n"); err != nil {
+				_, err = file.WriteString("\n" + exportCmdComment + "\n" + exportCmd + "\n")
+				if err != nil {
 					logrus.Fatalf("Failed to update %s: %v", rcFile, err)
 				}
 			}
 		}
 
-		fmt.Printf("%s %s\n", utils.SuccessIcon(), utils.WhiteText(fmt.Sprintf("Done applying changes to %s:", utils.CyanText(rcFile))))
-		fmt.Printf("%s Please restart your terminal or source %s to apply changes.\n", utils.WarningIcon(), utils.CyanText(rcFile))
+		_, err = fmt.Fprintf(
+			os.Stdout,
+			"%s %s\n",
+			helpers.SuccessIcon(),
+			helpers.WhiteText(
+				fmt.Sprintf("Done applying changes to %s:", helpers.CyanText(rcFile)),
+			),
+		)
+		if err != nil {
+			logrus.Warnf("Failed to write to stdout: %v", err)
+		}
+		_, err = fmt.Fprintf(os.Stdout,
+			"%s Please restart your terminal or source %s to apply changes.\n",
+			helpers.WarningIcon(),
+			helpers.CyanText(rcFile),
+		)
+		if err != nil {
+			logrus.Warnf("Failed to write to stdout: %v", err)
+		}
 	},
 }
 
