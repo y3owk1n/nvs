@@ -221,6 +221,10 @@ func RunEnv(cmd *cobra.Command, _ []string) error {
 
 // DetectShell detects the current shell.
 func DetectShell() string {
+	if runtime.GOOS == windows {
+		return detectShellWindows()
+	}
+
 	logrus.Debug("Attempting to detect shell via parent process")
 	// Check parent process command (ps -p $$)
 	cmd := exec.CommandContext(
@@ -265,6 +269,69 @@ func DetectShell() string {
 	}
 
 	logrus.Warn("Could not detect shell")
+
+	return ""
+}
+
+// detectShellWindows detects the shell on Windows systems.
+func detectShellWindows() string {
+	logrus.Debug("Detecting shell on Windows")
+
+	// Check for PowerShell
+	if psModulePath := os.Getenv("PSModulePath"); psModulePath != "" {
+		logrus.Debug("Detected PowerShell via PSModulePath")
+
+		return "powershell"
+	}
+
+	// Check COMSPEC for cmd.exe
+	if comspec := os.Getenv("COMSPEC"); comspec != "" {
+		base := strings.ToLower(filepath.Base(comspec))
+		if base == "cmd.exe" {
+			logrus.Debug("Detected cmd.exe via COMSPEC")
+
+			return "cmd"
+		}
+	}
+
+	// Try to get parent process name using tasklist (Windows equivalent of ps)
+	cmd := exec.CommandContext(
+		context.Background(),
+		"tasklist",
+		"/FI",
+		fmt.Sprintf("PID eq %d", os.Getppid()),
+		"/FO",
+		"CSV",
+		"/NH",
+	)
+
+	out, err := cmd.Output()
+	if err == nil {
+		lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+		if len(lines) > 0 {
+			// Parse CSV: "Image Name","PID","Session Name","Session#","Mem Usage"
+			fields := strings.Split(lines[0], ",")
+			if len(fields) >= 1 {
+				processName := strings.Trim(strings.TrimSpace(fields[0]), "\"")
+				processName = strings.ToLower(processName)
+
+				logrus.Debugf("Parent process: %s", processName)
+
+				switch processName {
+				case "powershell.exe":
+					return "powershell"
+				case "pwsh.exe":
+					return "pwsh"
+				case "cmd.exe":
+					return "cmd"
+				}
+			}
+		}
+	} else {
+		logrus.Warnf("tasklist command failed: %v", err)
+	}
+
+	logrus.Warn("Could not detect shell on Windows")
 
 	return ""
 }
