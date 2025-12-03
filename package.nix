@@ -1,5 +1,5 @@
 {
-  fetchUrl,
+  fetchurl,
   gitUpdater,
   installShellFiles,
   stdenv,
@@ -46,7 +46,7 @@ if usePrebuilt then
 
     inherit version;
 
-    src = fetchUrl {
+    src = fetchurl {
       url = archInfo.url;
       sha256 = archInfo.sha256;
     };
