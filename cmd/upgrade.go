@@ -46,6 +46,61 @@ var upgradeCmd = &cobra.Command{
 	RunE:    RunUpgrade,
 }
 
+// upgradeAlias handles the upgrade process for a single alias, including backup and cleanup.
+func upgradeAlias(
+	ctx context.Context,
+	alias string,
+	assetURL, checksumURL, remoteIdentifier string,
+	progressCallback func(int),
+	phaseCallback func(string),
+) error {
+	versionPath := filepath.Join(VersionsDir, alias)
+	backupPath := versionPath + ".backup"
+
+	// Create backup if version exists
+	_, err := os.Stat(versionPath)
+	if err == nil {
+		logrus.Debug("Creating backup of existing version")
+
+		err = os.Rename(versionPath, backupPath)
+		if err != nil {
+			return fmt.Errorf("failed to create backup of version %s: %w", alias, err)
+		}
+
+		defer func() {
+			// Cleanup: remove backup if upgrade succeeds, restore if it fails
+			_, statErr := os.Stat(versionPath)
+			if statErr == nil {
+				// Upgrade succeeded, remove backup
+				err := os.RemoveAll(backupPath)
+				if err != nil {
+					logrus.Warnf("Failed to remove backup directory %s: %v", backupPath, err)
+				}
+			} else {
+				// Upgrade failed, restore backup
+				err := os.Rename(backupPath, versionPath)
+				if err != nil {
+					logrus.Warnf("Failed to restore backup from %s to %s: %v", backupPath, versionPath, err)
+				}
+			}
+		}()
+	}
+
+	// Download and install the upgrade.
+	err = installer.DownloadAndInstall(
+		ctx,
+		VersionsDir,
+		alias,
+		assetURL,
+		checksumURL,
+		remoteIdentifier,
+		progressCallback,
+		phaseCallback,
+	)
+
+	return err
+}
+
 // RunUpgrade executes the upgrade command.
 func RunUpgrade(cmd *cobra.Command, args []string) error {
 	const (
@@ -167,45 +222,9 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		spinner.Suffix = InitialSuffix
 		spinner.Start()
 
-		// Compute the path where the version is installed.
-		versionPath := filepath.Join(VersionsDir, alias)
-		logrus.Debug("Computed version path: ", versionPath)
-
-		// Create a backup of the existing version for rollback
-		backupPath := versionPath + ".backup"
-
-		_, err = os.Stat(versionPath)
-		if err == nil {
-			logrus.Debug("Creating backup of existing version")
-
-			err = os.Rename(versionPath, backupPath)
-			if err != nil {
-				return fmt.Errorf("failed to create backup of version %s: %w", alias, err)
-			}
-
-			defer func() {
-				// Cleanup: remove backup if upgrade succeeds, restore if it fails
-				_, statErr := os.Stat(versionPath)
-				if statErr == nil {
-					// Upgrade succeeded, remove backup
-					err := os.RemoveAll(backupPath)
-					if err != nil {
-						logrus.Warnf("Failed to remove backup directory %s: %v", backupPath, err)
-					}
-				} else {
-					// Upgrade failed, restore backup
-					err := os.Rename(backupPath, versionPath)
-					if err != nil {
-						logrus.Warnf("Failed to restore backup from %s to %s: %v", backupPath, versionPath, err)
-					}
-				}
-			}()
-		}
-
-		// Download and install the upgrade.
-		err = installer.DownloadAndInstall(
+		// Perform the upgrade for this alias.
+		err = upgradeAlias(
 			ctx,
-			VersionsDir,
 			alias,
 			assetURL,
 			checksumURL,
