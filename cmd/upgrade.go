@@ -68,7 +68,7 @@ var upgradeCmd = &cobra.Command{
 			var printErr error
 
 			// Check if the alias is installed.
-			if !helpers.IsInstalled(versionsDir, alias) {
+			if !helpers.IsInstalled(VersionsDir, alias) {
 				logrus.Debugf("'%s' is not installed. Skipping upgrade.", alias)
 				_, printErr = fmt.Fprintf(os.Stdout,
 					"%s %s %s\n",
@@ -84,7 +84,7 @@ var upgradeCmd = &cobra.Command{
 			}
 
 			// Resolve the remote release for the given alias.
-			release, err := releases.ResolveVersion(alias, cacheFilePath)
+			release, err := releases.ResolveVersion(alias, CacheFilePath)
 			if err != nil {
 				logrus.Errorf("Error resolving %s: %v", alias, err)
 
@@ -94,7 +94,7 @@ var upgradeCmd = &cobra.Command{
 
 			// Compare installed and remote identifiers.
 			remoteIdentifier := releases.GetReleaseIdentifier(release, alias)
-			installedIdentifier, err := releases.GetInstalledReleaseIdentifier(versionsDir, alias)
+			installedIdentifier, err := releases.GetInstalledReleaseIdentifier(VersionsDir, alias)
 			if err == nil && installedIdentifier == remoteIdentifier {
 				logrus.Debugf("%s is already up-to-date (%s)", alias, installedIdentifier)
 				_, printErr = fmt.Fprintf(os.Stdout,
@@ -146,7 +146,7 @@ var upgradeCmd = &cobra.Command{
 			spinner.Start()
 
 			// Compute the path where the version is installed.
-			versionPath := filepath.Join(versionsDir, alias)
+			versionPath := filepath.Join(VersionsDir, alias)
 			logrus.Debug("Computed version path: ", versionPath)
 
 			logrus.Debug("Removing the old version")
@@ -158,7 +158,7 @@ var upgradeCmd = &cobra.Command{
 			// Download and install the upgrade.
 			err = installer.DownloadAndInstall(
 				ctx,
-				versionsDir,
+				VersionsDir,
 				alias,
 				assetURL,
 				checksumURL,

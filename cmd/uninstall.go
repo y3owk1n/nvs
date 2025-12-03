@@ -40,7 +40,7 @@ var uninstallCmd = &cobra.Command{
 		logrus.Debug("Normalized version: ", versionArg)
 
 		// Compute the path where the version is installed.
-		versionPath := filepath.Join(versionsDir, versionArg)
+		versionPath := filepath.Join(VersionsDir, versionArg)
 		logrus.Debug("Computed version path: ", versionPath)
 
 		// Check if the version is installed.
@@ -59,12 +59,12 @@ var uninstallCmd = &cobra.Command{
 			return
 		}
 
-		currentSymlink := filepath.Join(versionsDir, "current")
+		currentSymlink := filepath.Join(VersionsDir, "current")
 
 		// Check if the version to uninstall is currently active.
 		isCurrent := false
 		var current string
-		current, err = helpers.GetCurrentVersion(versionsDir)
+		current, err = helpers.GetCurrentVersion(VersionsDir)
 		if err == nil {
 			if current == versionArg {
 				isCurrent = true
@@ -153,7 +153,7 @@ var uninstallCmd = &cobra.Command{
 		// prompt the user to switch to a different installed version.
 		if isCurrent {
 			var versions []string
-			versions, err = helpers.ListInstalledVersions(versionsDir)
+			versions, err = helpers.ListInstalledVersions(VersionsDir)
 			if err != nil {
 				logrus.Fatalf("Error listing versions: %v", err)
 			}
@@ -201,7 +201,7 @@ var uninstallCmd = &cobra.Command{
 				}
 
 				// Use the selected version as the new current version.
-				err = helpers.UseVersion(selectedVersion, currentSymlink, versionsDir, globalBinDir)
+				err = helpers.UseVersion(selectedVersion, currentSymlink, VersionsDir, GlobalBinDir)
 				if err != nil {
 					logrus.Fatalf("%v", err)
 				}

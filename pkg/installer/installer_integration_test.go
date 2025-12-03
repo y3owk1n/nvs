@@ -1,3 +1,5 @@
+//go:build integration
+
 package installer_test
 
 import (
@@ -466,6 +468,16 @@ func TestProgressReader(t *testing.T) {
 	// Expect that the progress updates eventually reached 100.
 	if len(updates) == 0 || updates[len(updates)-1] != 100 {
 		t.Errorf("expected final progress to be 100, got %v", updates)
+	}
+}
+
+func TestInstallVersion_Invalid(t *testing.T) {
+	tempDir := t.TempDir()
+	cacheFile := filepath.Join(tempDir, "cache.json")
+
+	err := installer.InstallVersion(context.Background(), "invalid", tempDir, cacheFile, nil)
+	if err == nil {
+		t.Errorf("expected error for invalid version")
 	}
 }
 

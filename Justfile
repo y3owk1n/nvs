@@ -33,8 +33,13 @@ release-ci VERSION_OVERRIDE:
     # Build for windows-amd64
     env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version={{ VERSION_OVERRIDE }}" -trimpath -o ./build/nvs-windows64.exe ./main.go
 
-test:
+test: test-unit test-integration
+
+test-unit:
     go test ./... -v
+
+test-integration:
+    go test -tags=integration ./... -v
 
 vet:
     go vet ./...
@@ -45,3 +50,10 @@ fmt:
 
 lint:
     golangci-lint run
+
+test-coverage:
+    go test -coverprofile=coverage.txt ./...
+
+test-coverage-html:
+    just test-coverage
+    go tool cover -html=coverage.txt -o coverage.html

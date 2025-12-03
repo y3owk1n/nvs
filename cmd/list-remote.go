@@ -42,14 +42,14 @@ var listRemoteCmd = &cobra.Command{
 		}
 
 		// Retrieve the remote releases, using cache unless "force" is specified.
-		releasesResult, err := releases.GetCachedReleases(force, cacheFilePath)
+		releasesResult, err := releases.GetCachedReleases(force, CacheFilePath)
 		if err != nil {
 			logrus.Fatalf("Error fetching releases: %v", err)
 		}
 		logrus.Debugf("Fetched %d releases", len(releasesResult))
 
 		// Determine the latest stable release (if available) for reference.
-		stableRelease, err := releases.FindLatestStable(cacheFilePath)
+		stableRelease, err := releases.FindLatestStable(CacheFilePath)
 		stableTag := stable
 		if err == nil {
 			stableTag = stableRelease.TagName
@@ -78,7 +78,7 @@ var listRemoteCmd = &cobra.Command{
 		combined := append(append(groupNightly, groupStable...), groupOthers...)
 
 		// Determine the current installed version (if any).
-		current, err := helpers.GetCurrentVersion(versionsDir)
+		current, err := helpers.GetCurrentVersion(VersionsDir)
 		if err != nil {
 			current = ""
 		}
@@ -129,15 +129,15 @@ var listRemoteCmd = &cobra.Command{
 			upgradeIndicator := ""
 
 			// Check if the release is installed locally.
-			if helpers.IsInstalled(versionsDir, key) {
-				release, err := releases.ResolveVersion(key, cacheFilePath)
+			if helpers.IsInstalled(VersionsDir, key) {
+				release, err := releases.ResolveVersion(key, CacheFilePath)
 				if err != nil {
 					logrus.Errorf("Error resolving %s: %v", key, err)
 
 					continue
 				}
 
-				installedIdentifier, err := helpers.GetInstalledReleaseIdentifier(versionsDir, key)
+				installedIdentifier, err := helpers.GetInstalledReleaseIdentifier(VersionsDir, key)
 				if err != nil {
 					installedIdentifier = ""
 				}

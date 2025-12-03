@@ -31,272 +31,299 @@ const FilePerm = 0o644
 var pathCmd = &cobra.Command{
 	Use:   "path",
 	Short: "Automatically add the global binary directory to your PATH",
-	Run: func(cmd *cobra.Command, args []string) {
-		logrus.Debug("Running path command")
+	RunE:  RunPath,
+}
 
-		var err error
+// RunPath executes the path command.
+func RunPath(cmd *cobra.Command, args []string) error {
+	logrus.Debug("Running path command")
 
-		// On Windows, automatic PATH modifications are not implemented.
-		if runtime.GOOS == "windows" {
-			nvimBinDir := filepath.Join(globalBinDir, "nvim", "bin")
+	var err error
 
-			logrus.Debug("Detected Windows OS")
-			_, err = fmt.Fprintf(os.Stdout,
-				"%s %s\n",
-				helpers.WarningIcon(),
-				helpers.WhiteText("Automatic PATH setup is not implemented for Windows."),
-			)
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
-			}
-			_, err = fmt.Fprintf(os.Stdout,
-				"%s %s\n",
-				helpers.InfoIcon(),
-				helpers.WhiteText(
-					fmt.Sprintf(
-						"Please add %s to your PATH environment variable manually.",
-						helpers.CyanText(nvimBinDir),
-					),
-				),
-			)
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
-			}
+	// On Windows, automatic PATH modifications are not implemented.
+	if runtime.GOOS == "windows" {
+		nvimBinDir := filepath.Join(GlobalBinDir, "nvim", "bin")
 
-			return
-		}
+		logrus.Debug("Detected Windows OS")
 
-		// Check if the global binary directory is already in the PATH.
-		pathEnv := os.Getenv("PATH")
-		logrus.Debug("Current PATH: ", pathEnv)
-		if strings.Contains(pathEnv, globalBinDir) {
-			logrus.Debug("PATH already contains globalBinDir")
-			_, err = fmt.Fprintf(os.Stdout,
-				"%s %s\n",
-				helpers.InfoIcon(),
-				helpers.WhiteText(
-					fmt.Sprintf("Your PATH already contains %s.", helpers.CyanText(globalBinDir)),
-				),
-			)
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
-			}
-
-			return
-		}
-
-		// If running in a Nix-managed shell, advise manual configuration.
-		if os.Getenv("NIX_SHELL") != "" {
-			logrus.Debug("Detected Nix shell environment")
-			_, err = fmt.Fprintf(os.Stdout,
-				"%s %s\n",
-				helpers.WarningIcon(),
-				helpers.WhiteText(
-					"It appears your shell is managed by Nix. Automatic PATH modifications may not work as expected.",
-				),
-			)
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
-			}
-			_, err = fmt.Fprintf(os.Stdout,
-				"%s %s\n",
-				helpers.InfoIcon(),
-				helpers.WhiteText(
-					fmt.Sprintf(
-						"Please update your Nix configuration manually to include %s in your PATH.",
-						helpers.CyanText(globalBinDir),
-					),
-				),
-			)
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
-			}
-
-			return
-		}
-
-		// Determine the user's shell; default to /bin/bash if not set.
-		shell := os.Getenv("SHELL")
-		if shell == "" {
-			shell = "/bin/bash"
-		}
-		logrus.Debug("Detected shell: ", shell)
-
-		// Get the base name of the shell executable (e.g. bash, zsh, fish).
-		shellName := filepath.Base(shell)
-		logrus.Debug("Shell name: ", shellName)
-
-		// Determine the rc file path and export command based on the shell.
-		var rcFile, exportCmd string
-		exportCmdComment := "# Added by nvs"
-
-		switch shellName {
-		case "bash", "zsh":
-			rcFile = filepath.Join(os.Getenv("HOME"), fmt.Sprintf(".%src", shellName))
-			exportCmd = fmt.Sprintf("export PATH=\"$PATH:%s\"", globalBinDir)
-		case "fish":
-			rcFile = filepath.Join(os.Getenv("HOME"), ".config", "fish", "config.fish")
-			exportCmd = "set -gx PATH $PATH " + globalBinDir
-		default:
-			logrus.Debug("Unsupported shell: ", shellName)
-			_, err = fmt.Fprintf(os.Stdout,
-				"%s %s\n",
-				helpers.WarningIcon(),
-				helpers.WhiteText(
-					fmt.Sprintf(
-						"Shell '%s' is not automatically supported. Please add %s to your PATH manually.",
-						helpers.CyanText(shellName),
-						helpers.CyanText(globalBinDir),
-					),
-				),
-			)
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
-			}
-
-			return
-		}
-
-		logrus.Debug("Using rcFile: ", rcFile)
-		logrus.Debug("Export command: ", exportCmd)
-
-		// If the shell is managed by Nix, check if the rc file already contains the PATH setting.
-		if strings.Contains(shell, "/nix/store") {
-			logrus.Debug("Detected Nix-managed shell")
-			data, err := os.ReadFile(rcFile)
-			if err == nil {
-				if strings.Contains(string(data), globalBinDir) {
-					_, err = fmt.Fprintf(os.Stdout,
-						"%s %s\n",
-						helpers.WarningIcon(),
-						helpers.WhiteText(
-							helpers.CyanText(rcFile)+" already contains the PATH setting.",
-						),
-					)
-					if err != nil {
-						logrus.Warnf("Failed to write to stdout: %v", err)
-					}
-				} else {
-					_, err = fmt.Fprintf(os.Stdout, "%s %s\n", helpers.WarningIcon(), helpers.WhiteText(fmt.Sprintf("Your shell (%s) is managed by Nix and %s does not appear to contain the PATH setting.", helpers.CyanText(shell), helpers.CyanText(rcFile))))
-					if err != nil {
-						logrus.Warnf("Failed to write to stdout: %v", err)
-					}
-					_, err = fmt.Fprintf(os.Stdout, "%s %s\n", helpers.InfoIcon(), helpers.WhiteText(fmt.Sprintf("Please update your Nix configuration manually to include %s in your PATH.", helpers.CyanText(globalBinDir))))
-					if err != nil {
-						logrus.Warnf("Failed to write to stdout: %v", err)
-					}
-				}
-			} else {
-				logrus.Errorf("Unable to read %s: %v", rcFile, err)
-			}
-
-			return
-		}
-
-		// Display the diff of the changes that will be applied.
 		_, err = fmt.Fprintf(os.Stdout,
-			"%s %s\n\n",
+			"%s %s\n",
+			helpers.WarningIcon(),
+			helpers.WhiteText("Automatic PATH setup is not implemented for Windows."),
+		)
+		if err != nil {
+			logrus.Warnf("Failed to write to stdout: %v", err)
+		}
+
+		_, err = fmt.Fprintf(os.Stdout,
+			"%s %s\n",
 			helpers.InfoIcon(),
 			helpers.WhiteText(
-				fmt.Sprintf("The following diff will be applied to %s:", helpers.CyanText(rcFile)),
+				fmt.Sprintf(
+					"Please add %s to your PATH environment variable manually.",
+					helpers.CyanText(nvimBinDir),
+				),
 			),
 		)
 		if err != nil {
 			logrus.Warnf("Failed to write to stdout: %v", err)
 		}
-		_, err = fmt.Fprintf(
-			os.Stdout,
-			"%s\n",
-			helpers.GreenText(fmt.Sprintf("+ %s\n+ %s", exportCmdComment, exportCmd)),
+
+		return nil
+	}
+
+	// Check if the global binary directory is already in the PATH.
+	pathEnv := os.Getenv("PATH")
+	logrus.Debug("Current PATH: ", pathEnv)
+
+	if strings.Contains(pathEnv, GlobalBinDir) {
+		logrus.Debug("PATH already contains GlobalBinDir")
+
+		_, err = fmt.Fprintf(os.Stdout,
+			"%s %s\n",
+			helpers.InfoIcon(),
+			helpers.WhiteText(
+				fmt.Sprintf("Your PATH already contains %s.", helpers.CyanText(GlobalBinDir)),
+			),
 		)
 		if err != nil {
 			logrus.Warnf("Failed to write to stdout: %v", err)
 		}
 
-		// Prompt the user for confirmation.
-		_, err = fmt.Fprintf(
-			os.Stdout,
-			"\n%s %s ",
-			helpers.PromptIcon(),
-			"Do you want to proceed? (y/N): ",
+		return nil
+	}
+
+	// If running in a Nix-managed shell, advise manual configuration.
+	if os.Getenv("NIX_SHELL") != "" {
+		logrus.Debug("Detected Nix shell environment")
+
+		_, err = fmt.Fprintf(os.Stdout,
+			"%s %s\n",
+			helpers.WarningIcon(),
+			helpers.WhiteText(
+				"It appears your shell is managed by Nix. Automatic PATH modifications may not work as expected.",
+			),
 		)
 		if err != nil {
 			logrus.Warnf("Failed to write to stdout: %v", err)
 		}
-		reader := bufio.NewReader(os.Stdin)
-		input, err := reader.ReadString('\n')
+
+		_, err = fmt.Fprintf(os.Stdout,
+			"%s %s\n",
+			helpers.InfoIcon(),
+			helpers.WhiteText(
+				fmt.Sprintf(
+					"Please update your Nix configuration manually to include %s in your PATH.",
+					helpers.CyanText(GlobalBinDir),
+				),
+			),
+		)
 		if err != nil {
-			logrus.Fatalf("Failed to read input: %v", err)
-		}
-		input = strings.TrimSpace(strings.ToLower(input))
-		logrus.Debug("User input: ", input)
-		if input != "y" {
-			_, err = fmt.Fprintf(
-				os.Stdout,
-				"%s %s\n",
-				helpers.InfoIcon(),
-				helpers.WhiteText("Aborted by user."),
-			)
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
-			}
-
-			return
+			logrus.Warnf("Failed to write to stdout: %v", err)
 		}
 
-		// If the rc file does not exist, create it with the export command.
-		_, err = os.Stat(rcFile)
-		if os.IsNotExist(err) {
-			logrus.Debug("Creating new rcFile")
-			err := os.WriteFile(rcFile, []byte(exportCmdComment+"\n"+exportCmd+"\n"), FilePerm)
-			if err != nil {
-				logrus.Fatalf("Failed to create %s: %v", rcFile, err)
+		return nil
+	}
+
+	// Determine the user's shell; default to /bin/bash if not set.
+	shell := os.Getenv("SHELL")
+	if shell == "" {
+		shell = "/bin/bash"
+	}
+
+	logrus.Debug("Detected shell: ", shell)
+
+	// Get the base name of the shell executable (e.g. bash, zsh, fish).
+	shellName := filepath.Base(shell)
+	logrus.Debug("Shell name: ", shellName)
+
+	// Determine the rc file path and export command based on the shell.
+	var rcFile, exportCmd string
+
+	exportCmdComment := "# Added by nvs"
+
+	switch shellName {
+	case "bash", "zsh":
+		rcFile = filepath.Join(os.Getenv("HOME"), fmt.Sprintf(".%src", shellName))
+		exportCmd = fmt.Sprintf("export PATH=\"$PATH:%s\"", GlobalBinDir)
+	case "fish":
+		rcFile = filepath.Join(os.Getenv("HOME"), ".config", "fish", "config.fish")
+		exportCmd = "set -gx PATH $PATH " + GlobalBinDir
+	default:
+		logrus.Debug("Unsupported shell: ", shellName)
+
+		_, err = fmt.Fprintf(os.Stdout,
+			"%s %s\n",
+			helpers.WarningIcon(),
+			helpers.WhiteText(
+				fmt.Sprintf(
+					"Shell '%s' is not automatically supported. Please add %s to your PATH manually.",
+					helpers.CyanText(shellName),
+					helpers.CyanText(GlobalBinDir),
+				),
+			),
+		)
+		if err != nil {
+			logrus.Warnf("Failed to write to stdout: %v", err)
+		}
+
+		return nil
+	}
+
+	logrus.Debug("Using rcFile: ", rcFile)
+	logrus.Debug("Export command: ", exportCmd)
+
+	// If the shell is managed by Nix, check if the rc file already contains the PATH setting.
+	if strings.Contains(shell, "/nix/store") {
+		logrus.Debug("Detected Nix-managed shell")
+
+		data, err := os.ReadFile(rcFile)
+		if err == nil {
+			if strings.Contains(string(data), GlobalBinDir) {
+				_, err = fmt.Fprintf(os.Stdout,
+					"%s %s\n",
+					helpers.WarningIcon(),
+					helpers.WhiteText(
+						helpers.CyanText(rcFile)+" already contains the PATH setting.",
+					),
+				)
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
+			} else {
+				_, err = fmt.Fprintf(os.Stdout, "%s %s\n", helpers.WarningIcon(), helpers.WhiteText(fmt.Sprintf("Your shell (%s) is managed by Nix and %s does not appear to contain the PATH setting.", helpers.CyanText(shell), helpers.CyanText(rcFile))))
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
+
+				_, err = fmt.Fprintf(os.Stdout, "%s %s\n", helpers.InfoIcon(), helpers.WhiteText(fmt.Sprintf("Please update your Nix configuration manually to include %s in your PATH.", helpers.CyanText(GlobalBinDir))))
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
 			}
 		} else {
-			// Otherwise, append the export command if it is not already present.
-			logrus.Debug("Appending to existing rcFile")
-			data, err := os.ReadFile(rcFile)
-			if err != nil {
-				logrus.Fatalf("Failed to read %s: %v", rcFile, err)
-			}
-			if !strings.Contains(string(data), globalBinDir) {
-				file, err := os.OpenFile(rcFile, os.O_APPEND|os.O_WRONLY, FilePerm)
-				if err != nil {
-					logrus.Fatalf("Failed to open %s: %v", rcFile, err)
-				}
-				defer func() {
-					err := file.Close()
-					if err != nil {
-						logrus.Errorf("Failed to close %s: %v", rcFile, err)
-					}
-				}()
-				_, err = file.WriteString("\n" + exportCmdComment + "\n" + exportCmd + "\n")
-				if err != nil {
-					logrus.Fatalf("Failed to update %s: %v", rcFile, err)
-				}
-			}
+			logrus.Errorf("Unable to read %s: %v", rcFile, err)
 		}
 
+		return nil
+	}
+
+	// Display the diff of the changes that will be applied.
+	_, err = fmt.Fprintf(os.Stdout,
+		"%s %s\n\n",
+		helpers.InfoIcon(),
+		helpers.WhiteText(
+			fmt.Sprintf("The following diff will be applied to %s:", helpers.CyanText(rcFile)),
+		),
+	)
+	if err != nil {
+		logrus.Warnf("Failed to write to stdout: %v", err)
+	}
+
+	_, err = fmt.Fprintf(
+		os.Stdout,
+		"%s\n",
+		helpers.GreenText(fmt.Sprintf("+ %s\n+ %s", exportCmdComment, exportCmd)),
+	)
+	if err != nil {
+		logrus.Warnf("Failed to write to stdout: %v", err)
+	}
+
+	// Prompt the user for confirmation.
+	_, err = fmt.Fprintf(
+		os.Stdout,
+		"\n%s %s ",
+		helpers.PromptIcon(),
+		"Do you want to proceed? (y/N): ",
+	)
+	if err != nil {
+		logrus.Warnf("Failed to write to stdout: %v", err)
+	}
+
+	reader := bufio.NewReader(os.Stdin)
+
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("failed to read input: %w", err)
+	}
+
+	input = strings.TrimSpace(strings.ToLower(input))
+	logrus.Debug("User input: ", input)
+
+	if input != "y" {
 		_, err = fmt.Fprintf(
 			os.Stdout,
 			"%s %s\n",
-			helpers.SuccessIcon(),
-			helpers.WhiteText(
-				fmt.Sprintf("Done applying changes to %s:", helpers.CyanText(rcFile)),
-			),
+			helpers.InfoIcon(),
+			helpers.WhiteText("Aborted by user."),
 		)
 		if err != nil {
 			logrus.Warnf("Failed to write to stdout: %v", err)
 		}
-		_, err = fmt.Fprintf(os.Stdout,
-			"%s Please restart your terminal or source %s to apply changes.\n",
-			helpers.WarningIcon(),
-			helpers.CyanText(rcFile),
-		)
+
+		return nil
+	}
+
+	// If the rc file does not exist, create it with the export command.
+	_, err = os.Stat(rcFile)
+	if os.IsNotExist(err) {
+		logrus.Debug("Creating new rcFile")
+
+		err := os.WriteFile(rcFile, []byte(exportCmdComment+"\n"+exportCmd+"\n"), FilePerm)
 		if err != nil {
-			logrus.Warnf("Failed to write to stdout: %v", err)
+			return fmt.Errorf("failed to create %s: %w", rcFile, err)
 		}
-	},
+	} else {
+		// Otherwise, append the export command if it is not already present.
+		logrus.Debug("Appending to existing rcFile")
+
+		data, err := os.ReadFile(rcFile)
+		if err != nil {
+			return fmt.Errorf("failed to read %s: %w", rcFile, err)
+		}
+
+		if !strings.Contains(string(data), GlobalBinDir) {
+			file, err := os.OpenFile(rcFile, os.O_APPEND|os.O_WRONLY, FilePerm)
+			// Err
+			if err != nil {
+				return fmt.Errorf("failed to open %s: %w", rcFile, err)
+			}
+			defer func() {
+				err := file.Close()
+				if err != nil {
+					logrus.Errorf("Failed to close %s: %v", rcFile, err)
+				}
+			}()
+
+			_, err = file.WriteString("\n" + exportCmdComment + "\n" + exportCmd + "\n")
+			if err != nil {
+				return fmt.Errorf("failed to update %s: %w", rcFile, err)
+			}
+		}
+	}
+
+	_, err = fmt.Fprintf(
+		os.Stdout,
+		"%s %s\n",
+		helpers.SuccessIcon(),
+		helpers.WhiteText(
+			fmt.Sprintf("Done applying changes to %s:", helpers.CyanText(rcFile)),
+		),
+	)
+	if err != nil {
+		logrus.Warnf("Failed to write to stdout: %v", err)
+	}
+
+	_, err = fmt.Fprintf(os.Stdout,
+		"%s Please restart your terminal or source %s to apply changes.\n",
+		helpers.WarningIcon(),
+		helpers.CyanText(rcFile),
+	)
+	if err != nil {
+		logrus.Warnf("Failed to write to stdout: %v", err)
+	}
+
+	return nil
 }
 
 // init registers the pathCmd with the root command.

@@ -62,6 +62,7 @@ type Asset struct {
 // Variables for releases operations.
 var (
 	Client           = &http.Client{Timeout: ClientTimeoutSec * time.Second}
+	apiBaseURL       = "https://api.github.com"
 	releasesCacheTTL = 5 * time.Minute
 )
 
@@ -148,7 +149,7 @@ func GetReleases() ([]Release, error) {
 	req, err := http.NewRequestWithContext(
 		context.Background(),
 		http.MethodGet,
-		"https://api.github.com/repos/neovim/neovim/releases",
+		apiBaseURL+"/repos/neovim/neovim/releases",
 		nil,
 	)
 	if err != nil {
@@ -281,7 +282,7 @@ func FindLatestNightly(cachePath string) (Release, error) {
 	}
 
 	for _, r := range releases {
-		if r.Prerelease {
+		if r.Prerelease && strings.HasPrefix(r.TagName, "nightly") {
 			return r, nil
 		}
 	}

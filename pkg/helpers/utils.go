@@ -34,9 +34,10 @@ var (
 
 // Variables for utils operations.
 var (
-	UserHomeDir = os.UserHomeDir
-	LookPath    = exec.LookPath
-	Fatalf      = logrus.Fatalf
+	UserHomeDir     = os.UserHomeDir
+	LookPath        = exec.LookPath
+	Fatalf          = logrus.Fatalf
+	ExecCommandFunc = exec.CommandContext
 )
 
 // IsInstalled checks if a version directory exists within the versionsDir.
@@ -463,7 +464,7 @@ func LaunchNvimWithConfig(configName string) {
 		Fatalf("nvim not found in PATH: %v", err)
 	}
 
-	launch := exec.CommandContext(context.Background(), nvimExec)
+	launch := ExecCommandFunc(context.Background(), nvimExec)
 
 	launch.Env = append(os.Environ(), "NVIM_APPNAME="+configName)
 	launch.Stdin = os.Stdin

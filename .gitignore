@@ -27,3 +27,6 @@ go.work.sum
 build/
 
 .direnv
+
+coverage.txt
+coverage.html
