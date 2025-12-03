@@ -256,7 +256,9 @@ func TestRunConfig(t *testing.T) {
 	err := cmd.RunConfig(cobraCmd, []string{"testconfig"})
 	// RunConfig with a nonexistent config will call LaunchNvimWithConfig
 	// which may fail in test environments - this is expected
-	_ = err // Error is acceptable for coverage purposes
+	if err == nil {
+		t.Error("expected RunConfig to fail with nonexistent config")
+	}
 }
 
 func TestRunUse(t *testing.T) {
