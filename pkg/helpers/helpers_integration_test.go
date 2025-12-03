@@ -194,22 +194,9 @@ func TestLaunchNvimWithConfig(t *testing.T) {
 	}
 	defer func() { helpers.UserHomeDir = origUserHomeDir }()
 
-	// Unset environment variables that might override our mocking
-	origXDGConfig := os.Getenv("XDG_CONFIG_HOME")
-	origLocalAppData := os.Getenv("LOCALAPPDATA")
-
-	os.Unsetenv("XDG_CONFIG_HOME") //nolint:errcheck
-	os.Unsetenv("LOCALAPPDATA")    //nolint:errcheck
-
-	defer func() {
-		if origXDGConfig != "" {
-			t.Setenv("XDG_CONFIG_HOME", origXDGConfig)
-		}
-
-		if origLocalAppData != "" {
-			t.Setenv("LOCALAPPDATA", origLocalAppData)
-		}
-	}()
+	// Ensure environment variables don't override our mocked home dir
+	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("LOCALAPPDATA", "")
 
 	// Mock LookPath to return a fake nvim path
 	origLookPath := helpers.LookPath
@@ -248,7 +235,7 @@ func TestLaunchNvimWithConfig(t *testing.T) {
 	}
 	defer func() { helpers.ExecCommandFunc = origExecFunc }()
 
-	// Mock Fatalf to prevent test exit (we expect it to be called due to missing nvim)
+	// Mock Fatalf to prevent test exit from any unexpected calls
 	origFatalf := helpers.Fatalf
 
 	helpers.Fatalf = func(format string, args ...any) {
