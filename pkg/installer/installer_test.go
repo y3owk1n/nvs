@@ -402,7 +402,7 @@ func TestVerifyChecksum_ReadError(t *testing.T) {
 	defer checksumSrv.Close()
 
 	err = installer.VerifyChecksum(context.Background(), tmpFile, checksumSrv.URL)
-	if err == nil || !strings.Contains(err.Error(), "failed to read checksum data") {
+	if err == nil || !strings.Contains(err.Error(), "checksum file is empty") {
 		t.Errorf("expected checksum read error, got: %v", err)
 	}
 
