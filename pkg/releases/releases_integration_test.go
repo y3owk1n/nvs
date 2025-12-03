@@ -113,12 +113,6 @@ func fakeReleases() []releases.Release {
 func TestResolveVersion(t *testing.T) {
 	// Create a temporary cache file with fake rel.
 	cacheFile := createTempCache(t, fakeReleases())
-	defer func() {
-		err := os.Remove(cacheFile)
-		if err != nil && !os.IsNotExist(err) {
-			t.Errorf("Failed to remove %s: %v", cacheFile, err)
-		}
-	}()
 
 	tests := []struct {
 		version  string
@@ -189,14 +183,30 @@ func TestGetCachedReleases_CacheHit(t *testing.T) {
 func TestGetCachedReleases_ForceRefresh(t *testing.T) {
 	cacheFile := filepath.Join(t.TempDir(), "test-releases.json")
 
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		enc := json.NewEncoder(w)
+		_ = enc.Encode(fakeReleases())
+	}))
+	defer testServer.Close()
+
+	origTransport := releases.Client.Transport
+
+	releases.Client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		req.URL.Scheme = httpScheme
+		req.URL.Host = testServer.Listener.Addr().String()
+
+		return http.DefaultTransport.RoundTrip(req)
+	})
+	defer func() { releases.Client.Transport = origTransport }()
+
 	// Force refresh should bypass cache and fetch from network
-	releases, err := releases.GetCachedReleases(true, cacheFile)
+	rels, err := releases.GetCachedReleases(true, cacheFile)
 	if err != nil {
 		t.Errorf("GetCachedReleases force refresh failed: %v", err)
 	}
 
 	// Should return some releases
-	if len(releases) == 0 {
+	if len(rels) == 0 {
 		t.Error("expected some releases to be returned")
 	}
 
@@ -297,13 +307,6 @@ func TestGetReleases_Non200(t *testing.T) {
 func TestFindLatestStable(t *testing.T) {
 	cacheFile := createTempCache(t, fakeReleases())
 
-	defer func() {
-		err := os.Remove(cacheFile)
-		if err != nil && !os.IsNotExist(err) {
-			t.Errorf("failed to remove %s: %v", cacheFile, err)
-		}
-	}()
-
 	release, err := releases.FindLatestStable(cacheFile)
 	if err != nil {
 		t.Fatalf("FindLatestStable failed: %v", err)
@@ -316,13 +319,6 @@ func TestFindLatestStable(t *testing.T) {
 
 func TestFindLatestNightly(t *testing.T) {
 	cacheFile := createTempCache(t, fakeReleases())
-
-	defer func() {
-		err := os.Remove(cacheFile)
-		if err != nil && !os.IsNotExist(err) {
-			t.Errorf("failed to remove %s: %v", cacheFile, err)
-		}
-	}()
 
 	release, err := releases.FindLatestNightly(cacheFile)
 	if err != nil {
@@ -337,13 +333,6 @@ func TestFindLatestNightly(t *testing.T) {
 func TestFindSpecificVersion(t *testing.T) {
 	cacheFile := createTempCache(t, fakeReleases())
 
-	defer func() {
-		err := os.Remove(cacheFile)
-		if err != nil && !os.IsNotExist(err) {
-			t.Errorf("failed to remove %s: %v", cacheFile, err)
-		}
-	}()
-
 	release, err := releases.FindSpecificVersion("v0.9.0", cacheFile)
 	if err != nil {
 		t.Fatalf("FindSpecificVersion failed: %v", err)
@@ -351,34 +340,6 @@ func TestFindSpecificVersion(t *testing.T) {
 
 	if release.TagName != "v0.9.0" {
 		t.Errorf("expected v0.9.0, got %s", release.TagName)
-	}
-}
-
-func TestGetInstalledReleaseIdentifier(t *testing.T) {
-	// This is a unit test, but since it reads files, it's integration
-	tempDir := t.TempDir()
-
-	versionDir := filepath.Join(tempDir, "v1.0.0")
-
-	err := os.MkdirAll(versionDir, 0o755)
-	if err != nil {
-		t.Fatalf("failed to create version dir: %v", err)
-	}
-
-	versionFile := filepath.Join(versionDir, "version.txt")
-
-	err = os.WriteFile(versionFile, []byte("v1.0.0"), 0o644)
-	if err != nil {
-		t.Fatalf("failed to create version file: %v", err)
-	}
-
-	result, err := releases.GetInstalledReleaseIdentifier(tempDir, "v1.0.0")
-	if err != nil {
-		t.Errorf("GetInstalledReleaseIdentifier failed: %v", err)
-	}
-
-	if result != "v1.0.0" {
-		t.Errorf("expected v1.0.0, got %s", result)
 	}
 }
 

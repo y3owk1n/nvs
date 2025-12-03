@@ -111,7 +111,7 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		// Compare installed and remote identifiers.
 		remoteIdentifier := releases.GetReleaseIdentifier(release, alias)
 
-		installedIdentifier, err := releases.GetInstalledReleaseIdentifier(VersionsDir, alias)
+		installedIdentifier, err := helpers.GetInstalledReleaseIdentifier(VersionsDir, alias)
 		if err == nil && installedIdentifier == remoteIdentifier {
 			logrus.Debugf("%s is already up-to-date (%s)", alias, installedIdentifier)
 
