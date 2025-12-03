@@ -16,6 +16,9 @@ import (
 // FilePerm is the file permission for created files.
 const FilePerm = 0o644
 
+// DirPerm is the directory permission for created directories.
+const DirPerm = 0o755
+
 // pathCmd represents the "path" command.
 // It automatically adds the global binary directory to the user's PATH by modifying the appropriate shell configuration file.
 // Depending on the operating system and shell, it determines the proper rc file (e.g. ~/.bashrc, ~/.zshrc, or ~/.config/fish/config.fish)
@@ -197,6 +200,12 @@ func RunPath(_ *cobra.Command, _ []string) error {
 		exportCmd = fmt.Sprintf("export PATH=\"$PATH:%s\"", GlobalBinDir)
 	case "fish":
 		rcFile = filepath.Join(home, ".config", "fish", "config.fish")
+		// Ensure parent directory exists for fish config
+		err := os.MkdirAll(filepath.Dir(rcFile), DirPerm)
+		if err != nil {
+			return fmt.Errorf("failed to create fish config directory: %w", err)
+		}
+
 		exportCmd = "set -gx PATH $PATH " + GlobalBinDir
 	default:
 		logrus.Debug("Unsupported shell: ", shellName)
@@ -301,10 +310,10 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 		if !strings.Contains(string(data), exportCmd) {
 			file, err := os.OpenFile(rcFile, os.O_APPEND|os.O_WRONLY, FilePerm)
-			// Err
 			if err != nil {
 				return fmt.Errorf("failed to open %s: %w", rcFile, err)
 			}
+
 			defer func() {
 				err := file.Close()
 				if err != nil {
