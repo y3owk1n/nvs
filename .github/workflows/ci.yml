@@ -7,7 +7,7 @@ permissions:
   pull-requests: read
 jobs:
   checks:
-    name: ${{ matrix.check }}
+    name: ${{ matrix.check }} (${{ matrix.os }})
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -19,23 +19,60 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.head_ref }}
 
+      # Install Devbox on Linux/macOS only
       - name: Install Devbox
+        if: runner.os != 'Windows'
         uses: jetify-com/devbox-install-action@v0.14.0
         with:
           enable-cache: true
 
+      # Install Go directly on Windows
+      - name: Setup Go
+        if: runner.os == 'Windows'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+          cache: true
+
+      # Install Golangci directly on Windows
+      - name: Setup Golangci
+        if: runner.os == 'Windows'
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.6.2
+
+      # Install just on Windows
+      - name: Install just
+        if: runner.os == 'Windows'
+        run: |
+          choco install just -y
+        shell: pwsh
+
+      # Run checks with Devbox on Linux/macOS
       - name: Run just lint
-        if: ${{ matrix.check == 'lint' }}
+        if: matrix.check == 'lint' && runner.os != 'Windows'
         run: devbox run -- just lint
 
       - name: Run just vet
-        if: ${{ matrix.check == 'vet' }}
+        if: matrix.check == 'vet' && runner.os != 'Windows'
         run: devbox run -- just vet
 
-      - name: Run just build
-        if: ${{ matrix.check == 'build' }}
-        run: devbox run -- just build
+      - name: Run just test
+        if: matrix.check == 'test' && runner.os != 'Windows'
+        run: devbox run -- just test
+
+      # Run checks directly on Windows
+      - name: Run just lint
+        if: matrix.check == 'lint' && runner.os == 'Windows'
+        run: just lint
+        shell: pwsh
+
+      - name: Run just vet
+        if: matrix.check == 'vet' && runner.os == 'Windows'
+        run: just vet
+        shell: pwsh
 
       - name: Run just test
-        if: ${{ matrix.check == 'test' }}
-        run: devbox run -- just test
+        if: matrix.check == 'test' && runner.os == 'Windows'
+        run: just test
+        shell: pwsh
