@@ -54,13 +54,6 @@ func TestTimeFormat(t *testing.T) {
 	}
 }
 
-// func TestColorizeRow(t *testing.T) {
-// 	result := ColorizeRow("test", "value")
-// 	if len(result) == 0 {
-// 		t.Errorf("ColorizeRow returned empty slice")
-// 	}
-// }
-
 func TestGetStandardNvimConfigDir_XDG(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", "/tmp/xdg")
 
@@ -76,18 +69,45 @@ func TestGetStandardNvimConfigDir_XDG(t *testing.T) {
 }
 
 func TestGetStandardNvimConfigDir_windowsOSLocalAppData(t *testing.T) {
-	//nolint:goconst
 	if runtime.GOOS != "windows" {
 		t.Skip("Windows-specific test")
 	}
-	// Test would require setting LOCALAPPDATA
+
+	// Test LOCALAPPDATA path
+	t.Setenv("LOCALAPPDATA", "C:\\Users\\TestUser\\AppData\\Local")
+
+	result, err := helpers.GetNvimConfigBaseDir()
+	if err != nil {
+		t.Fatalf("GetNvimConfigBaseDir failed: %v", err)
+	}
+
+	expected := "C:\\Users\\TestUser\\AppData\\Local"
+	if result != expected {
+		t.Errorf("expected %s, got %s", expected, result)
+	}
 }
 
 func TestGetStandardNvimConfigDir_windowsOSFallback(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("Windows-specific test")
 	}
-	// Test would require unsetting LOCALAPPDATA
+
+	// Test fallback when LOCALAPPDATA is not set
+	t.Setenv("LOCALAPPDATA", "")
+
+	result, err := helpers.GetNvimConfigBaseDir()
+	if err != nil {
+		t.Fatalf("GetNvimConfigBaseDir failed: %v", err)
+	}
+
+	home := os.Getenv("USERPROFILE")
+	if home == "" {
+		home = "C:\\Users\\Default"
+	}
+	expected := filepath.Join(home, ".config")
+	if result != expected {
+		t.Errorf("expected %s, got %s", expected, result)
+	}
 }
 
 func TestGetStandardNvimConfigDir_UnixDefault(t *testing.T) {
@@ -95,19 +115,12 @@ func TestGetStandardNvimConfigDir_UnixDefault(t *testing.T) {
 		t.Skip("Unix-specific test")
 	}
 
-	oldXDG := os.Getenv("XDG_CONFIG_HOME")
-	defer func() { _ = os.Setenv("XDG_CONFIG_HOME", oldXDG) }() //nolint:usetesting
-
-	_ = os.Unsetenv("XDG_CONFIG_HOME")
-
 	result, err := helpers.GetNvimConfigBaseDir()
 	if err != nil {
 		t.Fatalf("GetNvimConfigBaseDir failed: %v", err)
 	}
 
-	home, _ := os.UserHomeDir()
-
-	expected := filepath.Join(home, ".config")
+	expected := filepath.Join(os.Getenv("HOME"), ".config")
 	if result != expected {
 		t.Errorf("expected %s, got %s", expected, result)
 	}
