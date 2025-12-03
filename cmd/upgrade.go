@@ -55,6 +55,9 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 
 	logrus.Debug("Starting upgrade command")
 
+	// Track upgrade errors
+	var upgradeErrors []error
+
 	// Create a context with a 30-minute timeout for the upgrade process.
 	ctx, cancel := context.WithTimeout(cmd.Context(), TimeoutMinutes*time.Minute)
 	defer cancel()
@@ -211,6 +214,7 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 
 		if err != nil {
 			logrus.Errorf("Upgrade failed for %s: %v", alias, err)
+			upgradeErrors = append(upgradeErrors, fmt.Errorf("upgrade failed for %s: %w", alias, err))
 
 			continue
 		}
@@ -226,6 +230,11 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		}
 
 		logrus.Debugf("%s upgraded successfully", alias)
+	}
+
+	// Return error if any upgrades failed
+	if len(upgradeErrors) > 0 {
+		return fmt.Errorf("upgrade completed with errors: %w", errors.Join(upgradeErrors...))
 	}
 
 	return nil
