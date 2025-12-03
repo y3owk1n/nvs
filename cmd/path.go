@@ -294,7 +294,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 			return fmt.Errorf("failed to read %s: %w", rcFile, err)
 		}
 
-		if !strings.Contains(string(data), GlobalBinDir) {
+		if !strings.Contains(string(data), exportCmd) {
 			file, err := os.OpenFile(rcFile, os.O_APPEND|os.O_WRONLY, FilePerm)
 			// Err
 			if err != nil {
