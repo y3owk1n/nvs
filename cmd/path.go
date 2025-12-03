@@ -76,7 +76,20 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	pathEnv := os.Getenv("PATH")
 	logrus.Debug("Current PATH: ", pathEnv)
 
-	if strings.Contains(pathEnv, GlobalBinDir) {
+	// Check if GlobalBinDir is already in PATH
+	pathSeparator := string(os.PathListSeparator)
+	paths := strings.Split(pathEnv, pathSeparator)
+
+	found := false
+	for _, p := range paths {
+		if filepath.Clean(p) == filepath.Clean(GlobalBinDir) {
+			found = true
+
+			break
+		}
+	}
+
+	if found {
 		logrus.Debug("PATH already contains GlobalBinDir")
 
 		_, err = fmt.Fprintf(os.Stdout,
