@@ -51,18 +51,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 	// Check if the version is installed.
 	_, err = os.Stat(versionPath)
 	if os.IsNotExist(err) {
-		_, printErr := fmt.Fprintf(os.Stdout,
-			"%s %s\n",
-			helpers.ErrorIcon(),
-			helpers.RedText(fmt.Sprintf("Version %s is not installed", versionArg)),
-		)
-		if printErr != nil {
-			logrus.Warnf("Failed to write to stdout: %v", printErr)
-		}
-
-		logrus.Debug("Version not installed")
-
-		return nil
+		return fmt.Errorf("version %s is not installed", versionArg)
 	}
 
 	currentSymlink := filepath.Join(VersionsDir, "current")
@@ -177,13 +166,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("error listing versions: %w", err)
 		}
 
-		var availableVersions []string
-		// Exclude the "current" symlink entry.
-		for _, entry := range versions {
-			if entry != "current" {
-				availableVersions = append(availableVersions, entry)
-			}
-		}
+		availableVersions := versions // ListInstalledVersions already excludes "current"
 
 		if len(availableVersions) == 0 {
 			_, printErr := fmt.Fprintf(os.Stdout,
