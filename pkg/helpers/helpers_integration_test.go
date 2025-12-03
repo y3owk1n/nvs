@@ -98,7 +98,14 @@ func TestUseVersion(t *testing.T) {
 	}
 
 	// Create fake nvim binary
-	binPath := filepath.Join(target, "nvim")
+	var binName string
+	if runtime.GOOS == "windows" {
+		binName = "nvim.exe"
+	} else {
+		binName = "nvim"
+	}
+
+	binPath := filepath.Join(target, binName)
 
 	f, err := os.Create(binPath)
 	if err != nil {
