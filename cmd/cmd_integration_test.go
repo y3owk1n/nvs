@@ -166,11 +166,6 @@ func TestRunReset(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = writer.WriteString("y\n")
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	err = writer.Close()
 	if err != nil {
 		t.Fatal(err)
