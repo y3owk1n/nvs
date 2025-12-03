@@ -116,7 +116,7 @@ func UpdateSymlink(target, link string, isDir bool) error {
 	// Windows fallback
 	if isDir {
 		// Directory junction
-		cmd := exec.CommandContext(context.Background(), "cmd", "/C", "mklink", "/J", link, target)
+		cmd := ExecCommandFunc(context.Background(), "cmd", "/C", "mklink", "/J", link, target)
 		cmd.Stdout = os.Stdout
 
 		cmd.Stderr = os.Stderr
@@ -129,7 +129,7 @@ func UpdateSymlink(target, link string, isDir bool) error {
 		logrus.Debugf("Created junction instead of symlink: %s -> %s", link, target)
 	} else {
 		// File hardlink
-		cmd := exec.CommandContext(context.Background(), "cmd", "/C", "mklink", "/H", link, target)
+		cmd := ExecCommandFunc(context.Background(), "cmd", "/C", "mklink", "/H", link, target)
 		cmd.Stdout = os.Stdout
 
 		cmd.Stderr = os.Stderr

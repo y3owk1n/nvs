@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -32,9 +31,6 @@ var (
 )
 
 const repoURL = "https://github.com/neovim/neovim.git"
-
-// ExecCommandFunc is a variable to allow overriding the exec.CommandContext function in tests.
-var ExecCommandFunc = exec.CommandContext
 
 // buildFromCommitInternal clones the Neovim repository (if not already present),
 // checks out the specified commit (or master branch), builds Neovim, and installs it into the provided versionsDir.
@@ -63,7 +59,7 @@ func buildFromCommitInternal(ctx context.Context, commit, versionsDir, localPath
 		spinner.Suffix = " Cloning repository..."
 
 		logrus.Debug("Cloning repository from ", repoURL)
-		cloneCmd := ExecCommandFunc(ctx, "git", "clone", "--quiet", repoURL, localPath)
+		cloneCmd := helpers.ExecCommandFunc(ctx, "git", "clone", "--quiet", repoURL, localPath)
 		cloneCmd.Stdout = os.Stdout
 
 		cloneCmd.Stderr = os.Stderr
@@ -80,7 +76,7 @@ func buildFromCommitInternal(ctx context.Context, commit, versionsDir, localPath
 
 		logrus.Debug("Checking out master branch")
 
-		checkoutCmd := ExecCommandFunc(ctx, "git", "checkout", "--quiet", "master")
+		checkoutCmd := helpers.ExecCommandFunc(ctx, "git", "checkout", "--quiet", "master")
 
 		checkoutCmd.Dir = localPath
 
@@ -93,7 +89,7 @@ func buildFromCommitInternal(ctx context.Context, commit, versionsDir, localPath
 
 		logrus.Debug("Pulling latest changes on master branch")
 
-		pullCmd := ExecCommandFunc(ctx, "git", "pull", "--quiet", "origin", "master")
+		pullCmd := helpers.ExecCommandFunc(ctx, "git", "pull", "--quiet", "origin", "master")
 
 		pullCmd.Dir = localPath
 
@@ -104,7 +100,7 @@ func buildFromCommitInternal(ctx context.Context, commit, versionsDir, localPath
 	} else {
 		spinner.Suffix = " Checking out commit " + commit + "..."
 		logrus.Debug("Checking out commit ", commit)
-		checkoutCmd := ExecCommandFunc(ctx, "git", "checkout", "--quiet", commit)
+		checkoutCmd := helpers.ExecCommandFunc(ctx, "git", "checkout", "--quiet", commit)
 
 		checkoutCmd.Dir = localPath
 
@@ -115,7 +111,7 @@ func buildFromCommitInternal(ctx context.Context, commit, versionsDir, localPath
 	}
 
 	// Retrieve the current commit hash.
-	cmd := ExecCommandFunc(ctx, "git", "rev-parse", "--quiet", "HEAD")
+	cmd := helpers.ExecCommandFunc(ctx, "git", "rev-parse", "--quiet", "HEAD")
 	cmd.Dir = localPath
 
 	var out bytes.Buffer
@@ -153,7 +149,7 @@ func buildFromCommitInternal(ctx context.Context, commit, versionsDir, localPath
 
 	logrus.Debug("Building Neovim at: ", localPath)
 
-	buildCmd := ExecCommandFunc(ctx, "make", "CMAKE_BUILD_TYPE=Release")
+	buildCmd := helpers.ExecCommandFunc(ctx, "make", "CMAKE_BUILD_TYPE=Release")
 	buildCmd.Dir = localPath
 
 	err = helpers.RunCommandWithSpinner(ctx, spinner, buildCmd)
@@ -173,7 +169,7 @@ func buildFromCommitInternal(ctx context.Context, commit, versionsDir, localPath
 	spinner.Suffix = " Installing Neovim..."
 
 	logrus.Debug("Running cmake install with PREFIX=", targetDir)
-	installCmd := ExecCommandFunc(ctx, "cmake", "--install", "build", "--prefix="+targetDir)
+	installCmd := helpers.ExecCommandFunc(ctx, "cmake", "--install", "build", "--prefix="+targetDir)
 	installCmd.Dir = localPath
 
 	err = helpers.RunCommandWithSpinner(ctx, spinner, installCmd)
