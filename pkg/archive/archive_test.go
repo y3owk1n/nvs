@@ -235,6 +235,7 @@ func TestExtractArchive_UnsupportedFormat(t *testing.T) {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
 
+	defer func() { _ = tmpFile.Close() }()
 	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	// Write PDF header (a known file type but unsupported by our extractor).
@@ -270,6 +271,7 @@ func TestDetectArchiveFormat_Zip(t *testing.T) {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
 
+	defer func() { _ = tmpFile.Close() }()
 	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	// Write ZIP signature "PK\x03\x04" followed by arbitrary data.
@@ -303,6 +305,7 @@ func TestDetectArchiveFormat_TarGz(t *testing.T) {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
 
+	defer func() { _ = tmpFile.Close() }()
 	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	// Create a valid 	gzip stream.
@@ -348,6 +351,7 @@ func TestDetectArchiveFormat_Unknown(t *testing.T) {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
 
+	defer func() { _ = tmpFile.Close() }()
 	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	content := []byte("abcdefg")
@@ -376,6 +380,7 @@ func TestDetectArchiveFormat_EmptyBuffer(t *testing.T) {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
 
+	defer func() { _ = tmpFile.Close() }()
 	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	// Ensure the file is empty.
@@ -428,6 +433,7 @@ func TestExtractTarGz_InvalidTar(t *testing.T) {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
 
+	defer func() { _ = tmpFile.Close() }()
 	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	var buf bytes.Buffer
@@ -470,6 +476,7 @@ func TestExtractZip_InvalidZip(t *testing.T) {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
 
+	defer func() { _ = tmpFile.Close() }()
 	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	_, err = tmpFile.WriteString("not a archive.Zip archive")
