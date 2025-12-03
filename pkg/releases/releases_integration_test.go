@@ -189,11 +189,20 @@ func TestGetCachedReleases_CacheHit(t *testing.T) {
 func TestGetCachedReleases_ForceRefresh(t *testing.T) {
 	cacheFile := filepath.Join(t.TempDir(), "test-releases.json")
 
-	// This will attempt to fetch from network, which should fail gracefully
-	_, err := releases.GetCachedReleases(true, cacheFile)
-	// We expect this to fail since no network mock
-	if err == nil {
-		t.Log("cache invalidation worked, network fetch failed as expected")
+	// Force refresh should bypass cache and fetch from network
+	releases, err := releases.GetCachedReleases(true, cacheFile)
+	if err != nil {
+		t.Errorf("GetCachedReleases force refresh failed: %v", err)
+	}
+
+	// Should return some releases
+	if len(releases) == 0 {
+		t.Error("expected some releases to be returned")
+	}
+
+	// Cache file should exist after successful fetch
+	if _, err := os.Stat(cacheFile); os.IsNotExist(err) {
+		t.Error("expected cache file to be created after force refresh")
 	}
 }
 
