@@ -374,6 +374,8 @@ func TestVerifyChecksum_ReadError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
+
+	defer func() { _ = tmpFile.Close() }()
 	defer func() {
 		err := os.Remove(tmpFile.Name())
 		if err != nil && !os.IsNotExist(err) {

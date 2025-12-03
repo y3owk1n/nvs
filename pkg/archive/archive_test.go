@@ -156,6 +156,7 @@ func TestExtractArchive_TarGzSuccess(t *testing.T) {
 	}
 
 	srcFile := createTarGzFile(t, entries)
+	defer func() { _ = srcFile.Close() }()
 	defer func() { _ = os.Remove(srcFile.Name()) }()
 
 	destDir := t.TempDir()
@@ -195,6 +196,7 @@ func TestExtractArchive_ZipSuccess(t *testing.T) {
 	}
 
 	srcFile := createZipFile(t, entries)
+	defer func() { _ = srcFile.Close() }()
 	defer func() { _ = os.Remove(srcFile.Name()) }()
 
 	destDir := t.TempDir()
@@ -391,10 +393,12 @@ func TestDetectArchiveFormat_EmptyBuffer(t *testing.T) {
 // TestExtractTarGz_InvalidGZip writes non-	gzip data and ensures extractTarGz fails
 // when trying to create a 	gzip reader.
 func TestExtractTarGz_InvalidGZip(t *testing.T) {
-	tmpFile, err := os.CreateTemp(t.TempDir(), "test-invalid-	gzip-*")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "test-invalid-gzip-*")
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
+
+	defer func() { _ = tmpFile.Close() }()
 
 	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
@@ -516,6 +520,7 @@ func TestExtractZip_DestNotWritable(t *testing.T) {
 	}
 
 	srcFile := createZipFile(t, entries)
+	defer func() { _ = srcFile.Close() }()
 	defer func() { _ = os.Remove(srcFile.Name()) }()
 
 	destDir := t.TempDir()
@@ -545,6 +550,7 @@ func TestExtractTarGz_DestNotWritable(t *testing.T) {
 	}
 
 	srcFile := createTarGzFile(t, entries)
+	defer func() { _ = srcFile.Close() }()
 	defer func() { _ = os.Remove(srcFile.Name()) }()
 
 	destDir := t.TempDir()
