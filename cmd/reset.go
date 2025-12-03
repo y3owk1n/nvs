@@ -36,10 +36,13 @@ var resetCmd = &cobra.Command{
 }
 
 // RunReset executes the reset command.
-func RunReset(cmd *cobra.Command, args []string) error {
+func RunReset(_ *cobra.Command, _ []string) error {
 	logrus.Debug("Starting reset command")
 
-	var err error
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get user home directory: %w", err)
+	}
 
 	// Determine the base configuration directory:
 	//   If NVS_CONFIG_DIR is set, use that;
@@ -54,11 +57,6 @@ func RunReset(cmd *cobra.Command, args []string) error {
 			baseConfigDir = filepath.Join(configDir, "nvs")
 			logrus.Debugf("Using system config directory: %s", baseConfigDir)
 		} else {
-			home, err := os.UserHomeDir()
-			if err != nil {
-				return fmt.Errorf("failed to get user home directory: %w", err)
-			}
-
 			baseConfigDir = filepath.Join(home, ".nvs")
 			logrus.Debugf("Falling back to home directory for config: %s", baseConfigDir)
 		}
@@ -97,19 +95,9 @@ func RunReset(cmd *cobra.Command, args []string) error {
 		logrus.Debugf("Using custom binary directory from NVS_BIN_DIR: %s", baseBinDir)
 	} else {
 		if runtime.GOOS == windows {
-			home, err := os.UserHomeDir()
-			if err != nil {
-				return fmt.Errorf("failed to get user home directory: %w", err)
-			}
-
 			baseBinDir = filepath.Join(home, "AppData", "Local", "Programs")
 			logrus.Debugf("Using Windows binary directory: %s", baseBinDir)
 		} else {
-			home, err := os.UserHomeDir()
-			if err != nil {
-				return fmt.Errorf("failed to get user home directory: %w", err)
-			}
-
 			baseBinDir = filepath.Join(home, ".local", "bin")
 			logrus.Debugf("Using default binary directory: %s", baseBinDir)
 		}
