@@ -29,7 +29,7 @@ var (
 	ErrRateLimitExceeded = errors.New("GitHub API rate limit exceeded")
 	ErrAPIStatus         = errors.New("API returned status")
 	ErrNoStableRelease   = errors.New("no Stable release found")
-	ErrNoNightlyRelease  = errors.New("no Nightly release found")
+	ErrNoNightlyRelease  = errors.New("no nightly release found")
 	ErrVersionNotFound   = errors.New("version not found")
 	ErrUnsupportedArch   = errors.New("unsupported architecture")
 	ErrUnsupportedOS     = errors.New("unsupported OS")
@@ -65,7 +65,7 @@ var (
 	releasesCacheTTL = 5 * time.Minute
 )
 
-// ResolveVersion resolves the given version alias (e.g. Stable, "Nightly", or a specific version)
+// ResolveVersion resolves the given version alias (e.g. Stable, "nightly", or a specific version)
 // to a Release by checking cached releases or fetching them from GitHub.
 //
 // Example usage:
@@ -215,7 +215,7 @@ func IsCommitHash(str string) bool {
 }
 
 // NormalizeVersion returns the version string in a normalized format.
-// It prefixes the version with "v" unless the version is Stable, "Nightly", or already a commit hash.
+// It prefixes the version with "v" unless the version is Stable, "nightly", or already a commit hash.
 //
 // Example usage:
 //
@@ -261,7 +261,7 @@ func FindLatestStable(cachePath string) (Release, error) {
 	return Release{}, ErrNoStableRelease
 }
 
-// FindLatestNightly returns the latest Nightly (prerelease) release from the cached releases.
+// FindLatestNightly returns the latest nightly (prerelease) release from the cached releases.
 //
 // Example usage:
 //
@@ -401,7 +401,7 @@ func GetChecksumURL(release Release, assetPattern string) (string, error) {
 }
 
 // GetReleaseIdentifier returns a string identifier for the release based on the alias.
-// For Nightly releases, it removes a "Nightly-" prefix if present, or returns the first 7 characters of the commit hash.
+// For nightly releases, it removes a "nightly-" prefix if present, or returns the first 7 characters of the commit hash.
 // For other releases, it returns the tag name.
 //
 // Example usage:
