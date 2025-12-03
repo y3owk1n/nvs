@@ -156,7 +156,7 @@ func TestGetCachedReleases_CacheHit(t *testing.T) {
 	cacheFile := filepath.Join(cacheDir, "test-releases.json")
 
 	// Create cache file with test data
-	rels := []*releases.Release{
+	rels := []releases.Release{
 		{TagName: "v1.0.0", Prerelease: false},
 	}
 
