@@ -53,8 +53,12 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 
 	// Check if the version is installed.
 	_, err = os.Stat(versionPath)
-	if os.IsNotExist(err) {
-		return fmt.Errorf("version %s is not installed: %w", versionArg, ErrVersionNotInstalled)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("version %s is not installed: %w", versionArg, ErrVersionNotInstalled)
+		}
+
+		return fmt.Errorf("failed to check version path %s: %w", versionPath, err)
 	}
 
 	currentSymlink := filepath.Join(VersionsDir, "current")
