@@ -1,6 +1,6 @@
 # Development Guide
 
-This document provides information for developers working on NVS (Neovim Version Switcher), a CLI tool for managing Neovim installations.
+This document provides information for developers working on **nvs** (Neovim Version Switcher), a CLI tool for managing Neovim installations.
 
 ## Project Overview
 
@@ -10,7 +10,7 @@ NVS is a command-line tool written in Go that allows users to install, switch be
 
 ### Prerequisites
 
-- Go 1.21 or later
+- Go 1.25 or later
 - Git
 - (Optional) Devbox for reproducible development environment
 
@@ -245,3 +245,9 @@ go mod tidy
 - [Viper Configuration](https://github.com/spf13/viper)
 - [Neovim Releases API](https://github.com/neovim/neovim/releases)
 
+## Related Documentation
+
+- [Installation Guide](INSTALLATION.md) - How to install nvs
+- [Usage Guide](USAGE.md) - Command reference and examples
+- [Configuration Guide](CONFIGURATION.md) - Environment setup
+- [Contributing Guide](CONTRIBUTING.md) - How to contribute
