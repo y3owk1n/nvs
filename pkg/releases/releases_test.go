@@ -62,15 +62,9 @@ func TestNormalizeVersion(t *testing.T) {
 func TestGetAssetURL(t *testing.T) {
 	release := &releases.Release{
 		Assets: []releases.Asset{
-			{Name: "linux-x86_64.tar.gz", BrowserDownloadURL: "http://example.com/linux.tar.gz"},
-			{
-				Name:               "nvim-macos-arm64.tar.gz",
-				BrowserDownloadURL: "http://example.com/macos.tar.gz",
-			},
-			{
-				Name:               "win64.zip",
-				BrowserDownloadURL: "http://example.com/win64.zip",
-			},
+			{Name: "nvim-linux-x86_64.tar.gz", BrowserDownloadURL: "http://example.com/linux.tar.gz"},
+			{Name: "nvim-macos-arm64.tar.gz", BrowserDownloadURL: "http://example.com/macos.tar.gz"},
+			{Name: "nvim-win64.zip", BrowserDownloadURL: "http://example.com/win64.zip"},
 		},
 	}
 
@@ -89,7 +83,7 @@ func TestGetAssetURL(t *testing.T) {
 	case "windows":
 		expected = "http://example.com/win64.zip"
 	default:
-		t.Fatalf("unsupported OS: %s", runtime.GOOS)
+		t.Skipf("unsupported OS: %s", runtime.GOOS)
 	}
 
 	if url != expected {
