@@ -223,11 +223,18 @@ func TestLaunchNvimWithConfig(t *testing.T) {
 
 	helpers.ExecCommandFunc = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
 		// Create a command that executes successfully but captures the intent
-		capturedCmd = exec.CommandContext(ctx, "true") // "true" exists and succeeds
+		var cmd *exec.Cmd
+		if runtime.GOOS == windowsOS {
+			cmd = exec.CommandContext(ctx, "cmd", "/C", "exit", "0") // Windows no-op
+		} else {
+			cmd = exec.CommandContext(ctx, "true") // Unix no-op
+		}
+
+		capturedCmd = cmd
 		// Store the original path for verification (don't modify the actual command)
 		originalPath = name
 
-		return capturedCmd
+		return cmd
 	}
 	defer func() { helpers.ExecCommandFunc = origExecFunc }()
 
