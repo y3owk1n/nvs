@@ -104,7 +104,7 @@ func TestUseVersion(t *testing.T) {
 		}
 	}
 
-	err = helpers.UseVersion(version, "current", tempDir, binDir)
+	err = helpers.UseVersion(version, filepath.Join(tempDir, "current"), tempDir, binDir)
 	if err != nil {
 		t.Errorf("UseVersion failed: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestUseVersion_NoBinary(t *testing.T) {
 	}
 
 	// No binary
-	err = helpers.UseVersion(version, "current", tempDir, binDir)
+	err = helpers.UseVersion(version, filepath.Join(tempDir, "current"), tempDir, binDir)
 	if err == nil {
 		t.Errorf("expected error when binary not found")
 	}
