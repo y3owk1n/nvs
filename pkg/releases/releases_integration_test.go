@@ -344,7 +344,7 @@ func TestFindSpecificVersion(t *testing.T) {
 }
 
 // createTempCache creates a temporary cache file with the given releases encoded as JSON.
-func createTempCache(t *testing.T, releases []releases.Release) string {
+func createTempCache(t *testing.T, rels []releases.Release) string {
 	t.Helper()
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "cache-*.json")
@@ -354,7 +354,7 @@ func createTempCache(t *testing.T, releases []releases.Release) string {
 
 	enc := json.NewEncoder(tmpFile)
 
-	err = enc.Encode(releases)
+	err = enc.Encode(rels)
 	if err != nil {
 		t.Fatalf("failed to encode releases: %v", err)
 	}
