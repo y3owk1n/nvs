@@ -54,6 +54,13 @@ lint:
 test-coverage:
     go test -coverprofile=coverage.txt ./...
 
+test-coverage-all:
+    go test -tags=integration -coverprofile=coverage-all.txt ./...
+
 test-coverage-html:
     just test-coverage
     go tool cover -html=coverage.txt -o coverage.html
+
+test-coverage-all-html:
+    just test-coverage-all
+    go tool cover -html=coverage-all.txt -o coverage-all.html
