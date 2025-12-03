@@ -221,10 +221,7 @@ func TestGetReleases(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		enc := json.NewEncoder(w)
 
-		err := enc.Encode(fakeReleases())
-		if err != nil {
-			panic(err)
-		}
+		_ = enc.Encode(fakeReleases()) // Error ignored; test will fail on decode side
 	}))
 	defer testServer.Close()
 
