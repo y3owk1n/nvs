@@ -168,11 +168,24 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		versionPath := filepath.Join(VersionsDir, alias)
 		logrus.Debug("Computed version path: ", versionPath)
 
-		logrus.Debug("Removing the old version")
-
-		err = os.RemoveAll(versionPath)
-		if err != nil {
-			return fmt.Errorf("failed to uninstall version %s: %w", alias, err)
+		// Create a backup of the existing version for rollback
+		backupPath := versionPath + ".backup"
+		if _, err := os.Stat(versionPath); err == nil {
+			logrus.Debug("Creating backup of existing version")
+			err = os.Rename(versionPath, backupPath)
+			if err != nil {
+				return fmt.Errorf("failed to create backup of version %s: %w", alias, err)
+			}
+			defer func() {
+				// Cleanup: remove backup if upgrade succeeds, restore if it fails
+				if _, statErr := os.Stat(versionPath); statErr == nil {
+					// Upgrade succeeded, remove backup
+					os.RemoveAll(backupPath)
+				} else {
+					// Upgrade failed, restore backup
+					os.Rename(backupPath, versionPath)
+				}
+			}()
 		}
 
 		// Download and install the upgrade.
