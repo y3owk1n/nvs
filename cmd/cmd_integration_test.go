@@ -196,7 +196,7 @@ func TestRunInstall(t *testing.T) {
 	cobraCmd.SetContext(context.Background())
 
 	// Test with invalid version
-	err := cmd.RunInstall(cobraCmd, []string{"invalid-version"}, tempDir, cacheFile)
+	err := cmd.RunInstall(cobraCmd, []string{"THIS-VERSION-DOES-NOT-EXIST-FOR-TESTS"}, tempDir, cacheFile)
 	if err == nil {
 		t.Errorf("expected error for invalid version")
 	}
