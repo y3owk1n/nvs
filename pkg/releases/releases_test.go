@@ -1,6 +1,7 @@
 package releases_test
 
 import (
+	"runtime"
 	"testing"
 	"time"
 
@@ -67,6 +68,10 @@ func TestGetAssetURL(t *testing.T) {
 				Name:               "nvim-macos-arm64.tar.gz",
 				BrowserDownloadURL: "http://example.com/macos.tar.gz",
 			},
+			{
+				Name:               "win64.zip",
+				BrowserDownloadURL: "http://example.com/win64.zip",
+			},
 		},
 	}
 
@@ -75,7 +80,19 @@ func TestGetAssetURL(t *testing.T) {
 		t.Fatalf("GetAssetURL failed: %v", err)
 	}
 
-	expected := "http://example.com/macos.tar.gz"
+	var expected string
+
+	switch runtime.GOOS {
+	case "darwin":
+		expected = "http://example.com/macos.tar.gz"
+	case "linux":
+		expected = "http://example.com/linux.tar.gz"
+	case "windows":
+		expected = "http://example.com/win64.zip"
+	default:
+		t.Fatalf("unsupported OS: %s", runtime.GOOS)
+	}
+
 	if url != expected {
 		t.Errorf("expected %s, got %s", expected, url)
 	}
