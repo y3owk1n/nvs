@@ -58,7 +58,7 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 	// Determine the latest stable release (if available) for reference.
 	stableRelease, err := releases.FindLatestStable(CacheFilePath)
 
-	stableTag := stable
+	stableTag := stableConst
 	if err == nil {
 		stableTag = stableRelease.TagName
 	} else {
