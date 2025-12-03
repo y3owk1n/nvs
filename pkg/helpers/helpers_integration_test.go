@@ -164,9 +164,81 @@ func TestGetInstalledReleaseIdentifier_NoFile(t *testing.T) {
 }
 
 func TestLaunchNvimWithConfig(t *testing.T) {
-	// This will try to launch nvim, which may not exist, but tests the logic
-	helpers.LaunchNvimWithConfig("testconfig")
-	// It may succeed or fail depending on system, but just test it doesn't panic
+	// Create a temporary config directory structure
+	tempDir := t.TempDir()
+	configName := "testconfig"
+	configBaseDir := filepath.Join(tempDir, ".config")
+	configDir := filepath.Join(configBaseDir, configName)
+
+	err := os.MkdirAll(configDir, 0755)
+	if err != nil {
+		t.Fatalf("failed to create config dir: %v", err)
+	}
+
+	// Mock UserHomeDir to return our temp dir
+	origUserHomeDir := helpers.UserHomeDir
+	helpers.UserHomeDir = func() (string, error) {
+		return tempDir, nil
+	}
+	defer func() { helpers.UserHomeDir = origUserHomeDir }()
+
+	// Mock LookPath to return a fake nvim path
+	origLookPath := helpers.LookPath
+	helpers.LookPath = func(file string) (string, error) {
+		if file == "nvim" {
+			return "/fake/nvim", nil
+		}
+		return origLookPath(file)
+	}
+	defer func() { helpers.LookPath = origLookPath }()
+
+	// Mock ExecCommandFunc to capture the command execution
+	var capturedCmd *exec.Cmd
+	origExecFunc := helpers.ExecCommandFunc
+	helpers.ExecCommandFunc = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
+		// Create a command that won't actually execute but captures the intent
+		capturedCmd = exec.CommandContext(ctx, "true") // "true" exists and succeeds
+		// Store the original path and args for verification
+		capturedCmd.Path = name
+		if len(arg) > 0 {
+			capturedCmd.Args = append([]string{name}, arg...)
+		} else {
+			capturedCmd.Args = []string{name}
+		}
+		return capturedCmd
+	}
+	defer func() { helpers.ExecCommandFunc = origExecFunc }()
+
+	// Mock Fatalf to prevent test exit (we expect it to be called due to missing nvim)
+	origFatalf := helpers.Fatalf
+	helpers.Fatalf = func(format string, args ...interface{}) {
+		// Don't call t.Fatalf, just return to allow test to continue
+	}
+	defer func() { helpers.Fatalf = origFatalf }()
+
+	// This should not panic and should set up the command correctly
+	helpers.LaunchNvimWithConfig(configName)
+
+	// Verify the command was set up correctly
+	if capturedCmd == nil {
+		t.Fatal("expected command to be created")
+	}
+
+	if capturedCmd.Path != "/fake/nvim" {
+		t.Errorf("expected command path to be /fake/nvim, got %s", capturedCmd.Path)
+	}
+
+	// Check that NVIM_APPNAME is in the environment
+	found := false
+	for _, env := range capturedCmd.Env {
+		if env == "NVIM_APPNAME="+configName {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected NVIM_APPNAME=%s in environment, got %v", configName, capturedCmd.Env)
+	}
 }
 
 func TestClearDirectory(t *testing.T) {
