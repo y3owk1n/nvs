@@ -35,7 +35,7 @@ var pathCmd = &cobra.Command{
 }
 
 // RunPath executes the path command.
-func RunPath(cmd *cobra.Command, args []string) error {
+func RunPath(_ *cobra.Command, _ []string) error {
 	logrus.Debug("Running path command")
 
 	var err error
