@@ -101,8 +101,8 @@ func RunCurrent(_ *cobra.Command, _ []string, versionsDir, cacheFilePath string)
 
 			publishedStr := nightly.PublishedAt
 
-			t, err := time.Parse(time.RFC3339, nightly.PublishedAt)
-			if err == nil {
+			t, parseErr := time.Parse(time.RFC3339, nightly.PublishedAt)
+			if parseErr == nil {
 				publishedStr = t.Format("2006-01-02")
 			}
 
