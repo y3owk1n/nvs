@@ -43,7 +43,7 @@ var envCmd = &cobra.Command{
 }
 
 // RunEnv executes the env command.
-func RunEnv(cmd *cobra.Command, args []string) error {
+func RunEnv(cmd *cobra.Command, _ []string) error {
 	logrus.Debug("Executing env command")
 
 	// Determine NVS_CONFIG_DIR from environment or default to <UserConfigDir>/nvs
