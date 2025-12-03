@@ -30,3 +30,9 @@ build/
 
 coverage.txt
 coverage.html
+
+# Temporary files and broken symlinks created during testing
+current
+**/current
+*.tmp
+/var/folders/*
