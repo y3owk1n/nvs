@@ -215,19 +215,15 @@ func TestLaunchNvimWithConfig(t *testing.T) {
 
 	// Mock ExecCommandFunc to capture the command execution
 	var capturedCmd *exec.Cmd
+	var originalPath string
 
 	origExecFunc := helpers.ExecCommandFunc
 
 	helpers.ExecCommandFunc = func(ctx context.Context, name string, arg ...string) *exec.Cmd {
-		// Create a command that won't actually execute but captures the intent
+		// Create a command that executes successfully but captures the intent
 		capturedCmd = exec.CommandContext(ctx, "true") // "true" exists and succeeds
-		// Store the original path and args for verification
-		capturedCmd.Path = name
-		if len(arg) > 0 {
-			capturedCmd.Args = append([]string{name}, arg...)
-		} else {
-			capturedCmd.Args = []string{name}
-		}
+		// Store the original path for verification (don't modify the actual command)
+		originalPath = name
 
 		return capturedCmd
 	}
@@ -242,15 +238,18 @@ func TestLaunchNvimWithConfig(t *testing.T) {
 	defer func() { helpers.Fatalf = origFatalf }()
 
 	// This should not panic and should set up the command correctly
-	helpers.LaunchNvimWithConfig(configName)
+	launchErr := helpers.LaunchNvimWithConfig(configName)
+	if launchErr != nil {
+		t.Fatalf("LaunchNvimWithConfig failed: %v", launchErr)
+	}
 
 	// Verify the command was set up correctly
 	if capturedCmd == nil {
 		t.Fatal("expected command to be created")
 	}
 
-	if capturedCmd.Path != "/fake/nvim" {
-		t.Errorf("expected command path to be /fake/nvim, got %s", capturedCmd.Path)
+	if originalPath != "/fake/nvim" {
+		t.Errorf("expected command path to be /fake/nvim, got %s", originalPath)
 	}
 
 	// Check that NVIM_APPNAME is in the environment

@@ -424,12 +424,12 @@ func GetInstalledReleaseIdentifier(versionsDir, alias string) (string, error) {
 //
 //	LaunchNvimWithConfig("myconfig")
 //	// Neovim will be launched with configuration located at ~/.config/myconfig
-func LaunchNvimWithConfig(configName string) {
+func LaunchNvimWithConfig(configName string) error {
 	var err error
 
 	baseConfigDir, err := GetNvimConfigBaseDir()
 	if err != nil {
-		Fatalf("Failed to determine config base dir: %v", err)
+		return fmt.Errorf("failed to determine config base dir: %w", err)
 	}
 
 	configDir := filepath.Join(baseConfigDir, configName)
@@ -451,17 +451,17 @@ func LaunchNvimWithConfig(configName string) {
 			logrus.Warnf("Failed to write to stdout: %v", err)
 		}
 
-		return
+		return fmt.Errorf("configuration '%s' does not exist", configName)
 	}
 
 	err = os.Setenv("NVIM_APPNAME", configName)
 	if err != nil {
-		Fatalf("Failed to set NVIM_APPNAME: %v", err)
+		return fmt.Errorf("failed to set NVIM_APPNAME: %w", err)
 	}
 
 	nvimExec, err := LookPath("nvim")
 	if err != nil {
-		Fatalf("nvim not found in PATH: %v", err)
+		return fmt.Errorf("nvim not found in PATH: %w", err)
 	}
 
 	launch := ExecCommandFunc(context.Background(), nvimExec)
@@ -474,8 +474,10 @@ func LaunchNvimWithConfig(configName string) {
 
 	err = launch.Run()
 	if err != nil {
-		Fatalf("Failed to launch nvim: %v", err)
+		return fmt.Errorf("failed to launch nvim: %w", err)
 	}
+
+	return nil
 }
 
 // ClearDirectory removes all contents within the specified directory.
