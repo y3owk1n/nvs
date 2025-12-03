@@ -115,7 +115,9 @@ func RunEnv(cmd *cobra.Command, _ []string) error {
 		var err error
 
 		// fail if we can't determine the required directories
-		if configDir == "" || cacheDir == "" || binDir == "" {
+		if configDir == "" || configDir == "Unavailable" ||
+			cacheDir == "" || cacheDir == "Unavailable" ||
+			binDir == "" {
 			logrus.Error("One or more required directories could not be determined")
 
 			return ErrRequiredDirsNotDetermined
