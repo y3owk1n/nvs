@@ -56,7 +56,7 @@ var listRemoteCmd = &cobra.Command{
 		}
 		logrus.Debugf("Latest stable release: %s", stableTag)
 
-		// Group releases into nightly, Stable, and Others.
+		// Group releases into nightly, stable, and Others.
 		var groupNightly, groupStable, groupOthers []releases.Release
 		for _, release := range releasesResult {
 			if release.Prerelease {
@@ -68,7 +68,7 @@ var listRemoteCmd = &cobra.Command{
 			}
 		}
 		logrus.Debugf(
-			"nightly: %d, Stable: %d, Others: %d",
+			"nightly: %d, stable: %d, Others: %d",
 			len(groupNightly),
 			len(groupStable),
 			len(groupOthers),
@@ -121,7 +121,7 @@ var listRemoteCmd = &cobra.Command{
 				}
 			} else if release.TagName == "stable" {
 				// For stable releases, reference the determined stableTag.
-				details = "Stable version: " + stableTag
+				details = "stable version: " + stableTag
 			}
 
 			key := release.TagName
