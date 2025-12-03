@@ -12,6 +12,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const windows = "windows"
+
 var (
 	// verbose controls the log level.
 	verbose bool
@@ -47,7 +49,8 @@ func Execute() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
 
 	// Execute the root command with the global context.
-	if err := rootCmd.ExecuteContext(ctx); err != nil {
+	err := rootCmd.ExecuteContext(ctx)
+	if err != nil {
 		os.Exit(1)
 	}
 }
@@ -60,6 +63,10 @@ func Execute() {
 //   - If NVS_CONFIG_DIR is set, it is used as the config directory; otherwise, the system config directory is used.
 //   - Similar logic applies for cache (NVS_CACHE_DIR) and binary directories (NVS_BIN_DIR).
 func initConfig() {
+	const DirPerm = 0o755
+
+	var err error
+
 	// Set logging level based on the verbose flag.
 	if verbose {
 		logrus.SetLevel(logrus.DebugLevel)
@@ -71,9 +78,17 @@ func initConfig() {
 	// Set up a signal handler to cancel the global context on an interrupt signal.
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt)
+
 	go func() {
 		<-sigCh
-		fmt.Println()
+
+		var err error
+
+		_, err = fmt.Fprintln(os.Stdout)
+		if err != nil {
+			logrus.Warnf("Failed to write to stdout: %v", err)
+		}
+
 		logrus.Debug("Interrupt received, canceling operations...")
 		cancel()
 		os.Exit(1)
@@ -85,30 +100,42 @@ func initConfig() {
 		baseConfigDir = custom
 		logrus.Debugf("Using custom config directory from NVS_CONFIG_DIR: %s", baseConfigDir)
 	} else {
-		if configDir, err := os.UserConfigDir(); err == nil {
+		var (
+			configDir string
+			configErr error
+		)
+
+		configDir, configErr = os.UserConfigDir()
+		if configErr == nil {
 			baseConfigDir = filepath.Join(configDir, "nvs")
 			logrus.Debugf("Using system config directory: %s", baseConfigDir)
 		} else {
-			home, err := os.UserHomeDir()
-			if err != nil {
-				logrus.Fatalf("Failed to get user home directory: %v", err)
+			home, homeErr := os.UserHomeDir()
+			if homeErr != nil {
+				logrus.Fatalf("Failed to get user home directory: %v", homeErr)
 			}
+
 			baseConfigDir = filepath.Join(home, ".nvs")
 			logrus.Debugf("Falling back to home directory for config: %s", baseConfigDir)
 		}
 	}
 
 	// Ensure the configuration directory exists.
-	if err := os.MkdirAll(baseConfigDir, 0755); err != nil {
+	err = os.MkdirAll(baseConfigDir, DirPerm)
+	if err != nil {
 		logrus.Fatalf("Failed to create config directory: %v", err)
 	}
+
 	logrus.Debugf("Config directory ensured: %s", baseConfigDir)
 
 	// Set the directory for installed versions.
 	versionsDir = filepath.Join(baseConfigDir, "versions")
-	if err := os.MkdirAll(versionsDir, 0755); err != nil {
+
+	err = os.MkdirAll(versionsDir, DirPerm)
+	if err != nil {
 		logrus.Fatalf("Failed to create versions directory: %v", err)
 	}
+
 	logrus.Debugf("Versions directory ensured: %s", versionsDir)
 
 	// Determine the base cache directory.
@@ -117,7 +144,13 @@ func initConfig() {
 		baseCacheDir = custom
 		logrus.Debugf("Using custom cache directory from NVS_CACHE_DIR: %s", baseCacheDir)
 	} else {
-		if cacheDir, err := os.UserCacheDir(); err == nil {
+		var (
+			cacheDir string
+			cacheErr error
+		)
+
+		cacheDir, cacheErr = os.UserCacheDir()
+		if cacheErr == nil {
 			baseCacheDir = filepath.Join(cacheDir, "nvs")
 			logrus.Debugf("Using system cache directory: %s", baseCacheDir)
 		} else {
@@ -126,9 +159,11 @@ func initConfig() {
 		}
 	}
 	// Ensure the cache directory exists.
-	if err := os.MkdirAll(baseCacheDir, 0755); err != nil {
+	err = os.MkdirAll(baseCacheDir, DirPerm)
+	if err != nil {
 		logrus.Fatalf("Failed to create cache directory: %v", err)
 	}
+
 	cacheFilePath = filepath.Join(baseCacheDir, "releases.json")
 	logrus.Debugf("Cache directory ensured: %s", baseCacheDir)
 	logrus.Debugf("Cache file path set: %s", cacheFilePath)
@@ -139,26 +174,30 @@ func initConfig() {
 		baseBinDir = custom
 		logrus.Debugf("Using custom binary directory from NVS_BIN_DIR: %s", baseBinDir)
 	} else {
-		if runtime.GOOS == "windows" {
-			home, err := os.UserHomeDir()
-			if err != nil {
-				logrus.Fatalf("Failed to get user home directory: %v", err)
+		if runtime.GOOS == windows {
+			home, homeErr := os.UserHomeDir()
+			if homeErr != nil {
+				logrus.Fatalf("Failed to get user home directory: %v", homeErr)
 			}
+
 			baseBinDir = filepath.Join(home, "AppData", "Local", "Programs")
 			logrus.Debugf("Using Windows binary directory: %s", baseBinDir)
 		} else {
-			home, err := os.UserHomeDir()
-			if err != nil {
-				logrus.Fatalf("Failed to get user home directory: %v", err)
+			home, homeErr := os.UserHomeDir()
+			if homeErr != nil {
+				logrus.Fatalf("Failed to get user home directory: %v", homeErr)
 			}
+
 			baseBinDir = filepath.Join(home, ".local", "bin")
 			logrus.Debugf("Using default binary directory: %s", baseBinDir)
 		}
 	}
 	// Ensure the binary directory exists.
-	if err := os.MkdirAll(baseBinDir, 0755); err != nil {
+	err = os.MkdirAll(baseBinDir, DirPerm)
+	if err != nil {
 		logrus.Fatalf("Failed to create binary directory: %v", err)
 	}
+
 	globalBinDir = baseBinDir
 	logrus.Debugf("Global binary directory ensured: %s", globalBinDir)
 }

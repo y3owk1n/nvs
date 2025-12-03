@@ -1,4 +1,4 @@
-package installer
+package installer_test
 
 import (
 	"archive/zip"
@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,16 +17,28 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/y3owk1n/nvs/pkg/installer"
 )
 
 // createValidZipArchive creates a valid ZIP archive and returns its bytes.
 func createValidZipArchive() []byte {
 	var buf bytes.Buffer
-	zw := zip.NewWriter(&buf)
+
+	zipWriter := zip.NewWriter(&buf)
 	// Create at least one file entry (its content is irrelevant).
-	f, _ := zw.Create("dummy.txt")
-	f.Write([]byte("dummy content"))
-	zw.Close()
+	f, _ := zipWriter.Create("dummy.txt")
+
+	_, err := f.Write([]byte("dummy content"))
+	if err != nil {
+		panic(err)
+	}
+
+	err = zipWriter.Close()
+	if err != nil {
+		panic(err)
+	}
+
 	return buf.Bytes()
 }
 
@@ -38,6 +51,7 @@ func createInvalidArchive() []byte {
 func computeSHA256(data []byte) string {
 	hasher := sha256.New()
 	hasher.Write(data)
+
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
@@ -45,7 +59,11 @@ func computeSHA256(data []byte) string {
 func newAssetServer(assetBytes []byte, status int) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(status)
-		w.Write(assetBytes)
+
+		_, err := w.Write(assetBytes)
+		if err != nil {
+			panic(err)
+		}
 	}))
 }
 
@@ -54,11 +72,14 @@ func newChecksumServer(checksum string, status int) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(status)
 		// The checksum file is assumed to have the checksum as the first field.
-		fmt.Fprintln(w, checksum)
+		_, err := fmt.Fprintln(w, checksum)
+		if err != nil {
+			panic(err)
+		}
 	}))
 }
 
-// TestDownloadAndInstall_Success_WithChecksum verifies that DownloadAndInstall works
+// TestDownloadAndInstall_Success_WithChecksum verifies that installer.DownloadAndInstall works
 // as expected when a valid asset and checksum are provided.
 func TestDownloadAndInstall_Success_WithChecksum(t *testing.T) {
 	assetBytes := createValidZipArchive()
@@ -66,22 +87,29 @@ func TestDownloadAndInstall_Success_WithChecksum(t *testing.T) {
 
 	assetSrv := newAssetServer(assetBytes, http.StatusOK)
 	defer assetSrv.Close()
+
 	checksumSrv := newChecksumServer(hash, http.StatusOK)
 	defer checksumSrv.Close()
 
-	var progressUpdates []int
-	var phaseUpdates []string
-	var mu sync.Mutex
+	var (
+		progressUpdates []int
+		phaseUpdates    []string
+		mutex           sync.Mutex
+	)
 
 	progressCb := func(p int) {
-		mu.Lock()
+		mutex.Lock()
+
 		progressUpdates = append(progressUpdates, p)
-		mu.Unlock()
+
+		mutex.Unlock()
 	}
 	phaseCb := func(phase string) {
-		mu.Lock()
+		mutex.Lock()
+
 		phaseUpdates = append(phaseUpdates, phase)
-		mu.Unlock()
+
+		mutex.Unlock()
 	}
 
 	// Use a temporary versions directory.
@@ -89,24 +117,36 @@ func TestDownloadAndInstall_Success_WithChecksum(t *testing.T) {
 	installName := "test-install"
 	releaseID := "v1.0.0"
 
-	// Call DownloadAndInstall.
-	err := DownloadAndInstall(context.Background(), versionsDir, installName, assetSrv.URL, checksumSrv.URL, releaseID, progressCb, phaseCb)
+	// Call installer.DownloadAndInstall.
+	err := installer.DownloadAndInstall(
+		context.Background(),
+		versionsDir,
+		installName,
+		assetSrv.URL,
+		checksumSrv.URL,
+		releaseID,
+		progressCb,
+		phaseCb,
+	)
 	if err != nil {
-		t.Fatalf("DownloadAndInstall failed: %v", err)
+		t.Fatalf("installer.DownloadAndInstall failed: %v", err)
 	}
 
 	// Verify that the version file is written correctly.
 	versionFile := filepath.Join(versionsDir, installName, "version.txt")
+
 	data, err := os.ReadFile(versionFile)
 	if err != nil {
 		t.Fatalf("failed to read version file: %v", err)
 	}
+
 	if string(data) != releaseID {
 		t.Errorf("version file content = %q, want %q", string(data), releaseID)
 	}
 
 	// Check that at least one progress update was made.
-	mu.Lock()
+	mutex.Lock()
+
 	if len(progressUpdates) == 0 {
 		t.Errorf("expected progress updates, got none")
 	}
@@ -118,7 +158,11 @@ func TestDownloadAndInstall_Success_WithChecksum(t *testing.T) {
 		"Writing version file...",
 	}
 	if len(phaseUpdates) != len(expectedPhases) {
-		t.Errorf("phase callback updates length = %d, want %d", len(phaseUpdates), len(expectedPhases))
+		t.Errorf(
+			"phase callback updates length = %d, want %d",
+			len(phaseUpdates),
+			len(expectedPhases),
+		)
 	} else {
 		for i, phase := range expectedPhases {
 			if phaseUpdates[i] != phase {
@@ -126,13 +170,15 @@ func TestDownloadAndInstall_Success_WithChecksum(t *testing.T) {
 			}
 		}
 	}
-	mu.Unlock()
+
+	mutex.Unlock()
 }
 
-// TestDownloadAndInstall_Success_NoChecksum verifies that DownloadAndInstall works
+// TestDownloadAndInstall_Success_NoChecksum verifies that installer.DownloadAndInstall works
 // when no checksum URL is provided.
 func TestDownloadAndInstall_Success_NoChecksum(t *testing.T) {
 	assetBytes := createValidZipArchive()
+
 	assetSrv := newAssetServer(assetBytes, http.StatusOK)
 	defer assetSrv.Close()
 
@@ -146,19 +192,31 @@ func TestDownloadAndInstall_Success_NoChecksum(t *testing.T) {
 		if strings.Contains(phase, "Verifying checksum") {
 			t.Errorf("checksum verification phase should not be called")
 		}
+
 		phaseCalled = true
 	}
 
-	err := DownloadAndInstall(context.Background(), versionsDir, installName, assetSrv.URL, "", releaseID, nil, phaseCb)
+	err := installer.DownloadAndInstall(
+		context.Background(),
+		versionsDir,
+		installName,
+		assetSrv.URL,
+		"",
+		releaseID,
+		nil,
+		phaseCb,
+	)
 	if err != nil {
-		t.Fatalf("DownloadAndInstall failed: %v", err)
+		t.Fatalf("installer.DownloadAndInstall failed: %v", err)
 	}
 
 	versionFile := filepath.Join(versionsDir, installName, "version.txt")
+
 	data, err := os.ReadFile(versionFile)
 	if err != nil {
 		t.Fatalf("failed to read version file: %v", err)
 	}
+
 	if string(data) != releaseID {
 		t.Errorf("version file content = %q, want %q", string(data), releaseID)
 	}
@@ -177,7 +235,16 @@ func TestDownloadAndInstall_AssetDownloadError(t *testing.T) {
 	installName := "error-install"
 	releaseID := "v3.0.0"
 
-	err := DownloadAndInstall(context.Background(), versionsDir, installName, assetSrv.URL, "", releaseID, nil, nil)
+	err := installer.DownloadAndInstall(
+		context.Background(),
+		versionsDir,
+		installName,
+		assetSrv.URL,
+		"",
+		releaseID,
+		nil,
+		nil,
+	)
 	if err == nil || !strings.Contains(err.Error(), "download failed with status") {
 		t.Errorf("expected asset download error, got: %v", err)
 	}
@@ -186,6 +253,7 @@ func TestDownloadAndInstall_AssetDownloadError(t *testing.T) {
 // TestDownloadAndInstall_ChecksumDownloadError simulates a non-200 response when downloading checksum.
 func TestDownloadAndInstall_ChecksumDownloadError(t *testing.T) {
 	assetBytes := createValidZipArchive()
+
 	assetSrv := newAssetServer(assetBytes, http.StatusOK)
 	defer assetSrv.Close()
 
@@ -197,7 +265,16 @@ func TestDownloadAndInstall_ChecksumDownloadError(t *testing.T) {
 	installName := "checksum-error-install"
 	releaseID := "v4.0.0"
 
-	err := DownloadAndInstall(context.Background(), versionsDir, installName, assetSrv.URL, checksumSrv.URL, releaseID, nil, nil)
+	err := installer.DownloadAndInstall(
+		context.Background(),
+		versionsDir,
+		installName,
+		assetSrv.URL,
+		checksumSrv.URL,
+		releaseID,
+		nil,
+		nil,
+	)
 	if err == nil || !strings.Contains(err.Error(), "checksum download failed") {
 		t.Errorf("expected checksum download error, got: %v", err)
 	}
@@ -206,6 +283,7 @@ func TestDownloadAndInstall_ChecksumDownloadError(t *testing.T) {
 // TestDownloadAndInstall_ChecksumMismatch simulates a checksum mismatch.
 func TestDownloadAndInstall_ChecksumMismatch(t *testing.T) {
 	assetBytes := createValidZipArchive()
+
 	assetSrv := newAssetServer(assetBytes, http.StatusOK)
 	defer assetSrv.Close()
 
@@ -217,7 +295,16 @@ func TestDownloadAndInstall_ChecksumMismatch(t *testing.T) {
 	installName := "mismatch-install"
 	releaseID := "v5.0.0"
 
-	err := DownloadAndInstall(context.Background(), versionsDir, installName, assetSrv.URL, checksumSrv.URL, releaseID, nil, nil)
+	err := installer.DownloadAndInstall(
+		context.Background(),
+		versionsDir,
+		installName,
+		assetSrv.URL,
+		checksumSrv.URL,
+		releaseID,
+		nil,
+		nil,
+	)
 	if err == nil || !strings.Contains(err.Error(), "checksum mismatch") {
 		t.Errorf("expected checksum mismatch error, got: %v", err)
 	}
@@ -231,6 +318,7 @@ func TestDownloadAndInstall_ExtractionError(t *testing.T) {
 
 	assetSrv := newAssetServer(assetBytes, http.StatusOK)
 	defer assetSrv.Close()
+
 	checksumSrv := newChecksumServer(hash, http.StatusOK)
 	defer checksumSrv.Close()
 
@@ -238,7 +326,16 @@ func TestDownloadAndInstall_ExtractionError(t *testing.T) {
 	installName := "extract-error-install"
 	releaseID := "v6.0.0"
 
-	err := DownloadAndInstall(context.Background(), versionsDir, installName, assetSrv.URL, checksumSrv.URL, releaseID, nil, nil)
+	err := installer.DownloadAndInstall(
+		context.Background(),
+		versionsDir,
+		installName,
+		assetSrv.URL,
+		checksumSrv.URL,
+		releaseID,
+		nil,
+		nil,
+	)
 	if err == nil || !strings.Contains(err.Error(), "extraction error") {
 		t.Errorf("expected extraction error, got: %v", err)
 	}
@@ -248,17 +345,21 @@ func TestDownloadAndInstall_ExtractionError(t *testing.T) {
 func TestDownloadFile_CopyError(t *testing.T) {
 	// Create a test server that writes valid asset content.
 	assetBytes := createValidZipArchive()
-	ts := newAssetServer(assetBytes, http.StatusOK)
-	defer ts.Close()
 
-	tmpFile, err := os.CreateTemp("", "download-error-*.tmp")
+	testServer := newAssetServer(assetBytes, http.StatusOK)
+	defer testServer.Close()
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "download-error-*.tmp")
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
 	// Close the destination file so that io.Copy fails.
-	tmpFile.Close()
+	err = tmpFile.Close()
+	if err != nil {
+		t.Errorf("failed to close temp file: %v", err)
+	}
 
-	err = downloadFile(context.Background(), ts.URL, tmpFile, nil)
+	err = installer.DownloadFile(context.Background(), testServer.URL, tmpFile, nil)
 	if err == nil || !strings.Contains(err.Error(), "failed to copy download content") {
 		t.Errorf("expected copy error, got: %v", err)
 	}
@@ -267,21 +368,38 @@ func TestDownloadFile_CopyError(t *testing.T) {
 // TestVerifyChecksum_ReadError simulates a failure in reading the checksum data.
 func TestVerifyChecksum_ReadError(t *testing.T) {
 	assetBytes := createValidZipArchive()
-	tmpFile, err := os.CreateTemp("", "verify-read-error-*.tmp")
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "verify-read-error-*.tmp")
+	// Return err
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
-	defer os.Remove(tmpFile.Name())
-	tmpFile.Write(assetBytes)
-	tmpFile.Seek(0, io.SeekStart)
+	defer func() {
+		err := os.Remove(tmpFile.Name())
+		if err != nil && !os.IsNotExist(err) {
+			t.Errorf("failed to remove temp file: %v", err)
+		}
+	}()
+
+	_, err = tmpFile.Write(assetBytes)
+	if err != nil {
+		t.Fatalf("failed to write to temp file: %v", err)
+	}
+
+	_, err = tmpFile.Seek(0, io.SeekStart)
+	if err != nil {
+		t.Fatalf("failed to seek temp file: %v", err)
+	}
 
 	// Create a checksum server that returns no data.
-	checksumSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Write nothing.
-	}))
+	checksumSrv := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Write nothing.
+		}),
+	)
 	defer checksumSrv.Close()
 
-	err = verifyChecksum(context.Background(), tmpFile, checksumSrv.URL)
+	err = installer.VerifyChecksum(context.Background(), tmpFile, checksumSrv.URL)
 	if err == nil || !strings.Contains(err.Error(), "checksum file is empty") {
 		t.Errorf("expected empty checksum error, got: %v", err)
 	}
@@ -290,40 +408,51 @@ func TestVerifyChecksum_ReadError(t *testing.T) {
 // TestVerifyChecksum_FileSeekError simulates a seek error by closing the file before checksum verification.
 func TestVerifyChecksum_FileSeekError(t *testing.T) {
 	assetBytes := createValidZipArchive()
-	tmpFile, err := os.CreateTemp("", "verify-seek-error-*.tmp")
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "verify-seek-error-*.tmp")
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
-	tmpFile.Write(assetBytes)
+
+	_, err = tmpFile.Write(assetBytes)
+	if err != nil {
+		t.Fatalf("failed to write to temp file: %v", err)
+	}
 	// Close file to cause seek error.
-	tmpFile.Close()
+	err = tmpFile.Close()
+	if err != nil {
+		t.Fatalf("failed to close temp file: %v", err)
+	}
 
 	checksumSrv := newChecksumServer("dummy", http.StatusOK)
 	defer checksumSrv.Close()
 
-	err = verifyChecksum(context.Background(), tmpFile, checksumSrv.URL)
-	if err == nil || !strings.Contains(err.Error(), "failed to seek file for checksum computation") {
+	err = installer.VerifyChecksum(context.Background(), tmpFile, checksumSrv.URL)
+	if err == nil ||
+		!strings.Contains(err.Error(), "failed to seek file for checksum computation") {
 		t.Errorf("expected seek error, got: %v", err)
 	}
 }
 
-// TestProgressReader verifies that progressReader calls the callback with proper percentages.
+// TestProgressReader verifies that installer.ProgressReader calls the callback with proper percentages.
 func TestProgressReader(t *testing.T) {
 	data := []byte("0123456789") // 10 bytes
 	reader := bytes.NewReader(data)
+
 	var updates []int
-	pr := &progressReader{
-		reader: reader,
-		total:  int64(len(data)),
-		callback: func(progress int) {
+
+	progressReader := &installer.ProgressReader{
+		Reader: reader,
+		Total:  int64(len(data)),
+		Callback: func(progress int) {
 			updates = append(updates, progress)
 		},
 	}
 	buf := make([]byte, 4)
 	// Read in chunks.
 	for {
-		_, err := pr.Read(buf)
-		if err == io.EOF {
+		_, err := progressReader.Read(buf)
+		if errors.Is(err, io.EOF) {
 			break
 		}
 	}
@@ -333,9 +462,12 @@ func TestProgressReader(t *testing.T) {
 	}
 }
 
-// Since DownloadAndInstall uses a package-level http.Client, we ensure that its timeout is set.
+// Since installer.DownloadAndInstall uses a package-level http.installer.Client, we ensure that its timeout is set.
 func TestHTTPClientTimeout(t *testing.T) {
-	if client.Timeout < 15*time.Second {
-		t.Errorf("expected http.Client Timeout to be at least 15 seconds, got %v", client.Timeout)
+	if installer.Client.Timeout < 15*time.Second {
+		t.Errorf(
+			"expected http.installer.Client Timeout to be at least 15 seconds, got %v",
+			installer.Client.Timeout,
+		)
 	}
 }

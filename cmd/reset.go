@@ -10,8 +10,11 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/nvs/pkg/utils"
+	"github.com/y3owk1n/nvs/pkg/helpers"
 )
+
+// Windows is the string for Windows OS.
+const Windows = "Windows"
 
 // resetCmd represents the "reset" command.
 // It removes all data from your configuration and cache directories and removes the symlinked nvim binary.
@@ -30,6 +33,8 @@ var resetCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		logrus.Debug("Starting reset command")
 
+		var err error
+
 		// Determine the base configuration directory:
 		//   If NVS_CONFIG_DIR is set, use that;
 		//   Otherwise, use the system config directory, falling back to the user's home directory if needed.
@@ -38,7 +43,8 @@ var resetCmd = &cobra.Command{
 			baseConfigDir = custom
 			logrus.Debugf("Using custom config directory from NVS_CONFIG_DIR: %s", baseConfigDir)
 		} else {
-			if configDir, err := os.UserConfigDir(); err == nil {
+			configDir, err := os.UserConfigDir()
+			if err == nil {
 				baseConfigDir = filepath.Join(configDir, "nvs")
 				logrus.Debugf("Using system config directory: %s", baseConfigDir)
 			} else {
@@ -46,7 +52,12 @@ var resetCmd = &cobra.Command{
 				if err != nil {
 					logrus.Fatalf("Failed to get user home directory: %v", err)
 				}
-				baseConfigDir = filepath.Join(home, ".nvs")
+
+				if runtime.GOOS == Windows {
+					baseConfigDir = filepath.Join(home, ".nvs")
+				} else {
+					baseConfigDir = filepath.Join(home, ".config", "nvs")
+				}
 				logrus.Debugf("Falling back to home directory for config: %s", baseConfigDir)
 			}
 		}
@@ -59,7 +70,8 @@ var resetCmd = &cobra.Command{
 			baseCacheDir = custom
 			logrus.Debugf("Using custom cache directory from NVS_CACHE_DIR: %s", baseCacheDir)
 		} else {
-			if cacheDir, err := os.UserCacheDir(); err == nil {
+			cacheDir, err := os.UserCacheDir()
+			if err == nil {
 				baseCacheDir = filepath.Join(cacheDir, "nvs")
 				logrus.Debugf("Using system cache directory: %s", baseCacheDir)
 			} else {
@@ -76,7 +88,7 @@ var resetCmd = &cobra.Command{
 			baseBinDir = custom
 			logrus.Debugf("Using custom binary directory from NVS_BIN_DIR: %s", baseBinDir)
 		} else {
-			if runtime.GOOS == "windows" {
+			if runtime.GOOS == "Windows" {
 				home, err := os.UserHomeDir()
 				if err != nil {
 					logrus.Fatalf("Failed to get user home directory: %v", err)
@@ -99,9 +111,20 @@ var resetCmd = &cobra.Command{
 				"- Config: %s\n"+
 				"- Cache: %s\n"+
 				"and remove the symlinked nvim binary in the binary directory: %s",
-			utils.CyanText(baseConfigDir), utils.CyanText(baseCacheDir), utils.CyanText(baseBinDir))
-		fmt.Printf("%s %s\n\n", utils.WarningIcon(), warningMsg)
-		fmt.Printf("%s %s ", utils.PromptIcon(), "Are you sure? (y/N): ")
+			helpers.CyanText(
+				baseConfigDir,
+			),
+			helpers.CyanText(baseCacheDir),
+			helpers.CyanText(baseBinDir),
+		)
+		_, err = fmt.Fprintf(os.Stdout, "%s %s\n\n", helpers.WarningIcon(), warningMsg)
+		if err != nil {
+			logrus.Warnf("Failed to write to stdout: %v", err)
+		}
+		_, err = fmt.Fprintf(os.Stdout, "%s %s ", helpers.PromptIcon(), "Are you sure? (y/N): ")
+		if err != nil {
+			logrus.Warnf("Failed to write to stdout: %v", err)
+		}
 
 		// Prompt the user for confirmation.
 		reader := bufio.NewReader(os.Stdin)
@@ -111,18 +134,28 @@ var resetCmd = &cobra.Command{
 		}
 		input = strings.TrimSpace(input)
 		if strings.ToLower(input) != "y" {
-			fmt.Println(utils.InfoIcon(), utils.WhiteText("Reset cancelled."))
-			logrus.Debug("Reset cancelled by user")
+			_, err = fmt.Fprintln(
+				os.Stdout,
+				helpers.InfoIcon(),
+				helpers.WhiteText("Reset canceled."),
+			)
+			if err != nil {
+				logrus.Warnf("Failed to write to stdout: %v", err)
+			}
+			logrus.Debug("Reset canceled by user")
+
 			return
 		}
 
 		// Remove all contents in the configuration directory.
 		logrus.Debugf("Cleaning up configuration directory: %s", baseConfigDir)
-		if entries, err := os.ReadDir(baseConfigDir); err == nil {
+		entries, err := os.ReadDir(baseConfigDir)
+		if err == nil {
 			for _, entry := range entries {
 				fullPath := filepath.Join(baseConfigDir, entry.Name())
 				logrus.Debugf("Removing %s", fullPath)
-				if err := os.RemoveAll(fullPath); err != nil {
+				err := os.RemoveAll(fullPath)
+				if err != nil {
 					logrus.Fatalf("Failed to remove %s: %v", fullPath, err)
 				}
 			}
@@ -132,11 +165,13 @@ var resetCmd = &cobra.Command{
 
 		// Remove all contents in the cache directory.
 		logrus.Debugf("Cleaning up cache directory: %s", baseCacheDir)
-		if entries, err := os.ReadDir(baseCacheDir); err == nil {
+		entries, err = os.ReadDir(baseCacheDir)
+		if err == nil {
 			for _, entry := range entries {
 				fullPath := filepath.Join(baseCacheDir, entry.Name())
 				logrus.Debugf("Removing %s", fullPath)
-				if err := os.RemoveAll(fullPath); err != nil {
+				err := os.RemoveAll(fullPath)
+				if err != nil {
 					logrus.Fatalf("Failed to remove %s: %v", fullPath, err)
 				}
 			}
@@ -146,13 +181,16 @@ var resetCmd = &cobra.Command{
 
 		// Remove the symlinked nvim binary in the binary directory.
 		symlinkPath := filepath.Join(baseBinDir, "nvim")
-		if fi, err := os.Lstat(symlinkPath); err == nil {
+		var fi os.FileInfo
+		fi, err = os.Lstat(symlinkPath)
+		if err == nil {
 			if fi.Mode()&os.ModeSymlink != 0 {
 				logrus.Debugf("Removing symlink: %s", symlinkPath)
 			} else {
 				logrus.Debugf("Removing linked binary/junction: %s", symlinkPath)
 			}
-			if err := os.Remove(symlinkPath); err != nil {
+			err := os.Remove(symlinkPath)
+			if err != nil {
 				logrus.Fatalf("Failed to remove %s: %v", symlinkPath, err)
 			}
 		} else if !os.IsNotExist(err) {
@@ -161,7 +199,13 @@ var resetCmd = &cobra.Command{
 			logrus.Debugf("No symlinked binary found at: %s", symlinkPath)
 		}
 
-		fmt.Println(utils.SuccessIcon(), utils.WhiteText("Reset successful. All data has been cleared."))
+		_, err = fmt.Fprintln(os.Stdout,
+			helpers.SuccessIcon(),
+			helpers.WhiteText("Reset successful. All data has been cleared."),
+		)
+		if err != nil {
+			logrus.Warnf("Failed to write to stdout: %v", err)
+		}
 		logrus.Debug("Reset completed successfully")
 	},
 }

@@ -1,8 +1,10 @@
+// Package builder provides functions for building Neovim from source.
 package builder
 
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,13 +14,27 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/sirupsen/logrus"
-	"github.com/y3owk1n/nvs/pkg/utils"
+	"github.com/y3owk1n/nvs/pkg/helpers"
+)
+
+// Constants for builder operations.
+const (
+	SpinnerSpeed = 100
+	CommitLen    = 7
+	DirPerm      = 0o755
+	FilePerm     = 0o644
+)
+
+// Errors for builder operations.
+var (
+	ErrCommitHashTooShort      = errors.New("commit hash too short")
+	ErrInstalledBinaryNotFound = errors.New("installed binary not found")
 )
 
 const repoURL = "https://github.com/neovim/neovim.git"
 
-// execCommandFunc is a variable to allow overriding the exec.CommandContext function in tests.
-var execCommandFunc = exec.CommandContext
+// ExecCommandFunc is a variable to allow overriding the exec.CommandContext function in tests.
+var ExecCommandFunc = exec.CommandContext
 
 // buildFromCommitInternal clones the Neovim repository (if not already present),
 // checks out the specified commit (or master branch), builds Neovim, and installs it into the provided versionsDir.
@@ -34,114 +50,166 @@ var execCommandFunc = exec.CommandContext
 //	    // handle error
 //	}
 func buildFromCommitInternal(ctx context.Context, commit, versionsDir, localPath string) error {
-	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-	s.Start()
-	defer s.Stop()
+	spinner := spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond)
+
+	spinner.Start()
+	defer spinner.Stop()
+
+	var err error
 
 	// Clone repository if localPath doesn't exist.
-	if _, err := os.Stat(localPath); os.IsNotExist(err) {
-		s.Suffix = " Cloning repository..."
+	_, statErr := os.Stat(localPath)
+	if os.IsNotExist(statErr) {
+		spinner.Suffix = " Cloning repository..."
+
 		logrus.Debug("Cloning repository from ", repoURL)
-		cloneCmd := execCommandFunc(ctx, "git", "clone", "--quiet", repoURL, localPath)
+		cloneCmd := ExecCommandFunc(ctx, "git", "clone", "--quiet", repoURL, localPath)
 		cloneCmd.Stdout = os.Stdout
+
 		cloneCmd.Stderr = os.Stderr
-		if err := cloneCmd.Run(); err != nil {
-			return fmt.Errorf("failed to clone repository: %v", err)
+
+		err = cloneCmd.Run()
+		if err != nil {
+			return fmt.Errorf("failed to clone repository: %w", err)
 		}
 	}
 
 	// Checkout the appropriate commit or master branch.
 	if commit == "master" {
-		s.Suffix = " Checking out master branch..."
+		spinner.Suffix = " Checking out master branch..."
+
 		logrus.Debug("Checking out master branch")
-		checkoutCmd := execCommandFunc(ctx, "git", "checkout", "--quiet", "master")
+
+		checkoutCmd := ExecCommandFunc(ctx, "git", "checkout", "--quiet", "master")
+
 		checkoutCmd.Dir = localPath
-		if err := checkoutCmd.Run(); err != nil {
-			return fmt.Errorf("failed to checkout master branch: %v", err)
+
+		err := checkoutCmd.Run()
+		if err != nil {
+			return fmt.Errorf("failed to checkout master branch: %w", err)
 		}
 
-		s.Suffix = " Pulling latest changes..."
+		spinner.Suffix = " Pulling latest changespinner..."
+
 		logrus.Debug("Pulling latest changes on master branch")
-		pullCmd := execCommandFunc(ctx, "git", "pull", "--quiet", "origin", "master")
+
+		pullCmd := ExecCommandFunc(ctx, "git", "pull", "--quiet", "origin", "master")
+
 		pullCmd.Dir = localPath
-		if err := pullCmd.Run(); err != nil {
-			return fmt.Errorf("failed to pull latest changes: %v", err)
+
+		err = pullCmd.Run()
+		if err != nil {
+			return fmt.Errorf("failed to pull latest changes: %w", err)
 		}
 	} else {
-		s.Suffix = " Checking out commit " + commit + "..."
+		spinner.Suffix = " Checking out commit " + commit + "..."
 		logrus.Debug("Checking out commit ", commit)
-		checkoutCmd := execCommandFunc(ctx, "git", "checkout", "--quiet", commit)
+		checkoutCmd := ExecCommandFunc(ctx, "git", "checkout", "--quiet", commit)
+
 		checkoutCmd.Dir = localPath
-		if err := checkoutCmd.Run(); err != nil {
-			return fmt.Errorf("failed to checkout commit %s: %v", commit, err)
+
+		err = checkoutCmd.Run()
+		if err != nil {
+			return fmt.Errorf("failed to checkout commit %s: %w", commit, err)
 		}
 	}
 
 	// Retrieve the current commit hash.
-	cmd := execCommandFunc(ctx, "git", "rev-parse", "--quiet", "HEAD")
+	cmd := ExecCommandFunc(ctx, "git", "rev-parse", "--quiet", "HEAD")
 	cmd.Dir = localPath
+
 	var out bytes.Buffer
+
 	cmd.Stdout = &out
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to get current commit hash: %v", err)
+
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to get current commit hash: %w", err)
 	}
+
 	commitHashFull := strings.TrimSpace(out.String())
-	if len(commitHashFull) < 7 {
-		return fmt.Errorf("commit hash too short")
+	if len(commitHashFull) < CommitLen {
+		return ErrCommitHashTooShort
 	}
+
 	commitHash := commitHashFull[:7]
 	logrus.Debug("Current commit hash: ", commitHash)
 
 	// Clear the build directory if it exists.
 	depsPath := filepath.Join(localPath, "build")
-	if _, err := os.Stat(depsPath); err == nil {
+
+	_, err = os.Stat(depsPath)
+	if err == nil {
 		logrus.Debug("Removing existing build directory...")
-		if err := os.RemoveAll(depsPath); err != nil {
-			return fmt.Errorf("failed to remove build directory: %v", err)
+
+		err := os.RemoveAll(depsPath)
+		if err != nil {
+			return fmt.Errorf("failed to remove build directory: %w", err)
 		}
 	}
 
 	// Build Neovim.
-	s.Suffix = " Building Neovim..."
+	spinner.Suffix = " Building Neovim..."
+
 	logrus.Debug("Building Neovim at: ", localPath)
-	buildCmd := execCommandFunc(ctx, "make", "CMAKE_BUILD_TYPE=Release")
+
+	buildCmd := ExecCommandFunc(ctx, "make", "CMAKE_BUILD_TYPE=Release")
 	buildCmd.Dir = localPath
 
-	if err := utils.RunCommandWithSpinner(ctx, s, buildCmd); err != nil {
-		return fmt.Errorf("build failed: %v", err)
+	err = helpers.RunCommandWithSpinner(ctx, spinner, buildCmd)
+	if err != nil {
+		return fmt.Errorf("build failed: %w", err)
 	}
 
 	// Create installation target directory.
 	targetDir := filepath.Join(versionsDir, commitHash)
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
-		return fmt.Errorf("failed to create installation directory: %v", err)
+
+	err = os.MkdirAll(targetDir, DirPerm)
+	if err != nil {
+		return fmt.Errorf("failed to create installation directory: %w", err)
 	}
 
 	// Install runtime files using cmake.
-	s.Suffix = " Installing Neovim..."
+	spinner.Suffix = " Installing Neovim..."
+
 	logrus.Debug("Running cmake install with PREFIX=", targetDir)
-	installCmd := execCommandFunc(ctx, "cmake", "--install", "build", "--prefix="+targetDir)
+	installCmd := ExecCommandFunc(ctx, "cmake", "--install", "build", "--prefix="+targetDir)
 	installCmd.Dir = localPath
 
-	if err := utils.RunCommandWithSpinner(ctx, s, installCmd); err != nil {
-		return fmt.Errorf("cmake install failed: %v", err)
+	err = helpers.RunCommandWithSpinner(ctx, spinner, installCmd)
+	if err != nil {
+		return fmt.Errorf("cmake install failed: %w", err)
 	}
 
 	// Verify that the installed binary exists.
 	installedBinaryPath := filepath.Join(targetDir, "bin", "nvim")
-	if _, err := os.Stat(installedBinaryPath); os.IsNotExist(err) {
-		return fmt.Errorf("installed binary not found at %s", installedBinaryPath)
+
+	_, err = os.Stat(installedBinaryPath)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("%w at %s", ErrInstalledBinaryNotFound, installedBinaryPath)
 	}
 
 	// Write the full commit hash to a version file.
 	versionFile := filepath.Join(targetDir, "version.txt")
-	if err := os.WriteFile(versionFile, []byte(commitHashFull), 0644); err != nil {
-		return fmt.Errorf("failed to write version file: %v", err)
+
+	err = os.WriteFile(versionFile, []byte(commitHashFull), FilePerm)
+	if err != nil {
+		return fmt.Errorf("failed to write version file: %w", err)
 	}
 
-	s.Suffix = " Build and installation complete!"
+	spinner.Suffix = " Build and installation complete!"
+
 	logrus.Debug("Build and installation successful")
-	fmt.Printf("\n%s %s\n", utils.SuccessIcon(), utils.CyanText("Build and installation successful!"))
+
+	_, err = fmt.Fprintf(os.Stdout,
+		"\n%s %s\n",
+		helpers.SuccessIcon(),
+		helpers.CyanText("Build and installation successful!"),
+	)
+	if err != nil {
+		logrus.Warnf("Failed to write to stdout: %v", err)
+	}
+
 	return nil
 }
 
@@ -162,6 +230,7 @@ func BuildFromCommit(ctx context.Context, commit, versionsDir string) error {
 	logrus.Debug("Temporary Neovim Src directory: ", localPath)
 
 	var err error
+
 	const maxAttempts = 2
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
@@ -169,15 +238,27 @@ func BuildFromCommit(ctx context.Context, commit, versionsDir string) error {
 		if err == nil {
 			return nil
 		}
+
 		logrus.Error("Error building from commit: ", err)
 		logrus.Debugf("Attempt %d failed: %v", attempt, err)
-		if removeErr := os.RemoveAll(localPath); removeErr != nil {
-			logrus.Errorf("Failed to remove temporary directory %s: %v", localPath, removeErr)
+
+		removeErr := os.RemoveAll(localPath)
+		if removeErr != nil {
+			logrus.Errorf(
+				"Failed to remove temporary directory %s: %v",
+				localPath,
+				removeErr,
+			)
 		}
+
 		if attempt < maxAttempts {
-			logrus.Errorf("Retrying build process with clean directory (attempt %d)...", attempt+1)
+			logrus.Errorf(
+				"Retrying build process with clean directory (attempt %d)...",
+				attempt+1,
+			)
 			time.Sleep(1 * time.Second)
 		}
 	}
-	return fmt.Errorf("build failed after %d attempts: %v", maxAttempts, err)
+
+	return fmt.Errorf("build failed after %d attempts: %w", maxAttempts, err)
 }
