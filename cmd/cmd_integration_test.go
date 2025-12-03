@@ -13,9 +13,16 @@ import (
 	"github.com/y3owk1n/nvs/cmd"
 )
 
-const testVersion = "v1.0.0"
+const (
+	testVersion = "v1.0.0"
+	windowsOS   = "windows"
+)
 
 func TestRunList(t *testing.T) {
+	if runtime.GOOS == windowsOS {
+		t.Skip("Skipping symlink test on Windows")
+	}
+
 	tempDir := t.TempDir()
 
 	// Create some version dirs
@@ -60,6 +67,10 @@ func TestRunList_NoVersions(t *testing.T) {
 }
 
 func TestRunCurrent(t *testing.T) {
+	if runtime.GOOS == windowsOS {
+		t.Skip("Skipping symlink test on Windows")
+	}
+
 	tempDir := t.TempDir()
 	cacheFile := filepath.Join(tempDir, "cache.json")
 
