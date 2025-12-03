@@ -152,18 +152,6 @@ func TestResolveVersion(t *testing.T) {
 
 			if result.TagName != test.expected.TagName {
 				t.Errorf("expected tag %s, got %s", test.expected.TagName, result.TagName)
-
-				return
-			}
-
-			if err != nil {
-				t.Errorf("unexpected error for version %s: %v", test.version, err)
-
-				return
-			}
-
-			if result.TagName != test.expected.TagName {
-				t.Errorf("expected tag %s, got %s", test.expected.TagName, result.TagName)
 			}
 		})
 	}
