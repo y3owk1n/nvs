@@ -100,8 +100,10 @@ func TestRunEnv(t *testing.T) {
 
 func TestRunEnv_Source(t *testing.T) {
 	cobraCmd := &cobra.Command{}
-	cobraCmd.Flags().Bool("source", true, "")
-	cobraCmd.Flags().String("shell", "bash", "")
+	cobraCmd.Flags().Bool("source", false, "") // default false
+	cobraCmd.Flags().String("shell", "", "")   // default empty
+	cobraCmd.Flags().Set("source", "true")
+	cobraCmd.Flags().Set("shell", "bash")
 	cobraCmd.SetContext(context.Background())
 
 	err := cmd.RunEnv(cobraCmd, []string{})
@@ -140,9 +142,9 @@ func TestInitConfig(t *testing.T) {
 
 func TestDetectShell(t *testing.T) {
 	shell := cmd.DetectShell()
-	if shell == "" {
-		t.Log("DetectShell returned empty")
-	}
+	// DetectShell may return empty in CI environments without a proper shell
+	t.Logf("DetectShell returned: %q", shell)
+	// Optionally assert non-empty if running in a known environment
 }
 
 func TestRunReset(t *testing.T) {
@@ -247,10 +249,9 @@ func TestRunConfig(t *testing.T) {
 
 	// Test with arg
 	err := cmd.RunConfig(cobraCmd, []string{"testconfig"})
-	// It may fail or exit, but for coverage
-	if err != nil {
-		t.Logf("RunConfig with arg returned error: %v", err)
-	}
+	// RunConfig with a nonexistent config will call LaunchNvimWithConfig
+	// which may fail in test environments - this is expected
+	_ = err // Error is acceptable for coverage purposes
 }
 
 func TestRunUse(t *testing.T) {
