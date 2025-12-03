@@ -187,14 +187,17 @@ func TestLaunchNvimWithConfig(t *testing.T) {
 	// Unset environment variables that might override our mocking
 	origXDGConfig := os.Getenv("XDG_CONFIG_HOME")
 	origLocalAppData := os.Getenv("LOCALAPPDATA")
-	os.Unsetenv("XDG_CONFIG_HOME")
-	os.Unsetenv("LOCALAPPDATA")
+
+	os.Unsetenv("XDG_CONFIG_HOME") //nolint:errcheck
+	os.Unsetenv("LOCALAPPDATA")    //nolint:errcheck
+
 	defer func() {
 		if origXDGConfig != "" {
-			os.Setenv("XDG_CONFIG_HOME", origXDGConfig)
+			t.Setenv("XDG_CONFIG_HOME", origXDGConfig)
 		}
+
 		if origLocalAppData != "" {
-			os.Setenv("LOCALAPPDATA", origLocalAppData)
+			t.Setenv("LOCALAPPDATA", origLocalAppData)
 		}
 	}()
 
