@@ -99,21 +99,21 @@ func RunInstall(cmd *cobra.Command, args []string, versionsDir, cacheFilePath st
 		logrus.Debugf("Start installing %s", alias)
 
 		// Create and start a spinner for download progress
-		spinner := spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond)
-		spinner.Prefix = fmt.Sprintf("%s %s ", helpers.InfoIcon(), helpers.WhiteText(fmt.Sprintf("Installing Neovim %s...", alias)))
-		spinner.Suffix = InitialSuffix
-		spinner.Start()
+		progressSpinner := spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond)
+		progressSpinner.Prefix = fmt.Sprintf("%s %s ", helpers.InfoIcon(), helpers.WhiteText(fmt.Sprintf("Installing Neovim %s...", alias)))
+		progressSpinner.Suffix = InitialSuffix
+		progressSpinner.Start()
 
 		err = installer.InstallVersion(ctx, alias, versionsDir, cacheFilePath, func(progress int) {
-			spinner.Suffix = fmt.Sprintf(" %d%%", progress)
+			progressSpinner.Suffix = fmt.Sprintf(" %d%%", progress)
 		})
 		if err != nil {
-			spinner.Stop()
+			progressSpinner.Stop()
 
 			return err
 		}
 
-		spinner.Stop()
+		progressSpinner.Stop()
 
 		_, err = fmt.Fprintf(
 			os.Stdout,
