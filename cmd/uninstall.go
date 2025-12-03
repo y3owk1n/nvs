@@ -31,14 +31,13 @@ var uninstallCmd = &cobra.Command{
 	Aliases: []string{"rm", "remove", "un"},
 	Short:   "Uninstall a specific version",
 	Args:    cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return RunUninstall(cmd, args)
-	},
+	RunE:    RunUninstall,
 }
 
 // RunUninstall executes the uninstall command.
 func RunUninstall(cmd *cobra.Command, args []string) error {
 	var err error
+
 	logrus.Debug("Running uninstall command")
 
 	// Normalize the provided version argument (e.g. add "v" prefix if missing)
@@ -60,6 +59,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 		if printErr != nil {
 			logrus.Warnf("Failed to write to stdout: %v", printErr)
 		}
+
 		logrus.Debug("Version not installed")
 
 		return nil
@@ -69,7 +69,9 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 
 	// Check if the version to uninstall is currently active.
 	isCurrent := false
+
 	var current string
+
 	current, err = helpers.GetCurrentVersion(VersionsDir)
 	if err == nil {
 		if current == versionArg {
@@ -88,12 +90,16 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 		if printErr != nil {
 			logrus.Warnf("Failed to write to stdout: %v", printErr)
 		}
+
 		reader := bufio.NewReader(os.Stdin)
+
 		var input string
+
 		input, err = reader.ReadString('\n')
 		if err != nil {
 			return fmt.Errorf("failed to read input: %w", err)
 		}
+
 		input = strings.TrimSpace(input)
 		if strings.ToLower(input) != "y" {
 			_, printErr := fmt.Fprintln(
@@ -104,6 +110,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 			if printErr != nil {
 				logrus.Warnf("Failed to write to stdout: %v", printErr)
 			}
+
 			logrus.Debug("Uninstall canceled by user")
 
 			return nil
@@ -112,27 +119,31 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 		logrus.Debugf("User confirmed removal of current version %s", versionArg)
 		// Remove the current symlink/junction if uninstalling the active version.
 		var info os.FileInfo
+
 		info, err = os.Lstat(currentSymlink)
 		if err != nil {
 			return fmt.Errorf("failed to lstat current symlink: %w", err)
 		}
 
-		if info.Mode()&os.ModeSymlink != 0 {
+		switch {
+		case info.Mode()&os.ModeSymlink != 0:
 			// POSIX symlink
 			err = os.Remove(currentSymlink)
 			if err != nil {
 				return fmt.Errorf("failed to remove current symlink: %w", err)
 			}
+
 			logrus.Debug("Removed current symlink")
-		} else if info.IsDir() {
+		case info.IsDir():
 			// Likely a Windows junction — requires RemoveAll
 			err := os.RemoveAll(currentSymlink)
 			if err != nil {
 				return fmt.Errorf("failed to remove current junction: %w", err)
 			}
+
 			logrus.Debug("Removed current junction")
-		} else {
-			logrus.Warnf("Current entry is neither a symlink nor a directory: %s", currentSymlink)
+		default:
+			logrus.Warnf("Current symlink is neither a symlink nor a directory: %s", currentSymlink)
 		}
 	}
 
@@ -145,6 +156,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 
 	successMsg := "Uninstalled version: " + helpers.CyanText(versionArg)
 	logrus.Debug(successMsg)
+
 	_, printErr := fmt.Fprintf(
 		os.Stdout,
 		"%s %s\n",
@@ -159,6 +171,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 	// prompt the user to switch to a different installed version.
 	if isCurrent {
 		var versions []string
+
 		versions, err = helpers.ListInstalledVersions(VersionsDir)
 		if err != nil {
 			return fmt.Errorf("error listing versions: %w", err)
@@ -191,11 +204,14 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 			}
 
 			logrus.Debug("Displaying selection prompt")
+
 			var selectedVersion string
+
 			_, selectedVersion, err = prompt.Run()
 			if err != nil {
 				if errors.Is(err, promptui.ErrInterrupt) {
 					logrus.Debug("User canceled selection")
+
 					_, printErr := fmt.Fprintf(os.Stdout, "%s %s\n", helpers.WarningIcon(), helpers.WhiteText("Selection canceled."))
 					if printErr != nil {
 						logrus.Warnf("Failed to write to stdout: %v", printErr)
@@ -203,6 +219,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 
 					return nil
 				}
+
 				return fmt.Errorf("prompt failed: %w", err)
 			}
 

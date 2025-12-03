@@ -25,9 +25,7 @@ var listRemoteCmd = &cobra.Command{
 	Use:     "list-remote [force]",
 	Aliases: []string{"ls-remote"},
 	Short:   "List available remote versions with installation status (cached for 5 minutes or force)",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return RunListRemote(cmd, args)
-	},
+	RunE:    RunListRemote,
 }
 
 // RunListRemote executes the list-remote command.
@@ -36,7 +34,9 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 	force := len(args) > 0 && args[0] == "force"
 
 	logrus.Debug("Fetching available versions...")
+
 	var err error
+
 	_, err = fmt.Fprintf(
 		os.Stdout,
 		"%s %s\n",
@@ -52,27 +52,32 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("error fetching releases: %w", err)
 	}
+
 	logrus.Debugf("Fetched %d releases", len(releasesResult))
 
 	// Determine the latest stable release (if available) for reference.
 	stableRelease, err := releases.FindLatestStable(CacheFilePath)
+
 	stableTag := stable
 	if err == nil {
 		stableTag = stableRelease.TagName
 	}
+
 	logrus.Debugf("Latest stable release: %s", stableTag)
 
 	// Group releases into nightly, stable, and Others.
 	var groupNightly, groupStable, groupOthers []releases.Release
 	for _, release := range releasesResult {
-		if release.Prerelease {
+		switch {
+		case release.Prerelease:
 			groupNightly = append(groupNightly, release)
-		} else if release.TagName == "stable" {
+		case release.TagName == "stable":
 			groupStable = append(groupStable, release)
-		} else {
+		default:
 			groupOthers = append(groupOthers, release)
 		}
 	}
+
 	logrus.Debugf(
 		"nightly: %d, stable: %d, Others: %d",
 		len(groupNightly),
@@ -88,6 +93,7 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		current = ""
 	}
+
 	logrus.Debugf("Current version: %s", current)
 
 	// Prepare a table for displaying the remote releases and their status.
@@ -131,7 +137,9 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 		}
 
 		key := release.TagName
-		localStatus := ""
+
+		var localStatus string
+
 		upgradeIndicator := ""
 
 		// Check if the release is installed locally.
@@ -147,12 +155,14 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				installedIdentifier = ""
 			}
+
 			remoteIdentifier := releases.GetReleaseIdentifier(release, key)
 
 			// If the installed version is different from the remote, indicate an upgrade is available.
 			if installedIdentifier != "" && installedIdentifier != remoteIdentifier {
 				upgradeIndicator = " (" + helpers.Upgrade + ")"
 			}
+
 			if key == current {
 				localStatus = "Current" + upgradeIndicator
 			} else {
@@ -169,6 +179,7 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 		if tag == "" {
 			tag = "(no tag)"
 		}
+
 		row := []string{tag, localStatus, details}
 
 		// Colorize the row based on status.

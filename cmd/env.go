@@ -17,13 +17,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	unavailableDir = "Unavailable"
+)
+
 var (
-	// ErrRequiredDirsNotDetermined is returned when required directories cannot be determined.
-	ErrRequiredDirsNotDetermined = errors.New(
-		"one or more required directories could not be determined",
-	)
 	// ErrUnsupportedShell is returned when the shell type is not supported.
 	ErrUnsupportedShell = errors.New("unsupported shell type")
+
+	// ErrRequiredDirsNotDetermined is returned when required directories cannot be determined.
+	ErrRequiredDirsNotDetermined = errors.New("required directories could not be determined")
 )
 
 // envCmd represents the "env" command.
@@ -55,7 +58,7 @@ func RunEnv(cmd *cobra.Command, _ []string) error {
 		} else {
 			logrus.Warn("Failed to retrieve user config directory")
 
-			configDir = "Unavailable"
+			configDir = unavailableDir
 		}
 	}
 
@@ -70,7 +73,7 @@ func RunEnv(cmd *cobra.Command, _ []string) error {
 		} else {
 			logrus.Warn("Failed to retrieve user cache directory")
 
-			cacheDir = "Unavailable"
+			cacheDir = unavailableDir
 		}
 	}
 
@@ -115,8 +118,8 @@ func RunEnv(cmd *cobra.Command, _ []string) error {
 		var err error
 
 		// fail if we can't determine the required directories
-		if configDir == "" || configDir == "Unavailable" ||
-			cacheDir == "" || cacheDir == "Unavailable" ||
+		if configDir == "" || configDir == unavailableDir ||
+			cacheDir == "" || cacheDir == unavailableDir ||
 			binDir == "" {
 			logrus.Error("One or more required directories could not be determined")
 

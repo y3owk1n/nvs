@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,6 +22,9 @@ const (
 	nightly = "nightly"
 )
 
+// ErrInvalidUpgradeTarget is returned when an invalid upgrade target is specified.
+var ErrInvalidUpgradeTarget = errors.New("upgrade can only be performed for 'stable' or 'nightly'")
+
 // upgradeCmd represents the "upgrade" command (aliases: up).
 // It upgrades the installed stable and/or nightly versions of Neovim.
 // If no argument is provided, both stable and nightly versions are upgraded (if installed).
@@ -39,16 +43,17 @@ var upgradeCmd = &cobra.Command{
 	Short:   "Upgrade installed stable and/or nightly versions",
 	Long:    "Upgrades the installed stable and/or nightly versions. If no argument is provided, both stable and nightly are upgraded (if installed).",
 	Args:    cobra.MaximumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return RunUpgrade(cmd, args)
-	},
+	RunE:    RunUpgrade,
 }
 
 // RunUpgrade executes the upgrade command.
 func RunUpgrade(cmd *cobra.Command, args []string) error {
-	const TimeoutMin = 30
-	const SpinnerSpeed = 100
-	const InitialSuffix = " 0%"
+	const (
+		TimeoutMin    = 30
+		SpinnerSpeed  = 100
+		InitialSuffix = " 0%"
+	)
+
 	logrus.Debug("Starting upgrade command")
 
 	// Create a context with a 30-minute timeout for the upgrade process.
@@ -62,8 +67,9 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		aliases = []string{stable, nightly}
 	} else {
 		if args[0] != stable && args[0] != nightly {
-			return fmt.Errorf("upgrade can only be performed for 'stable' or 'nightly'")
+			return ErrInvalidUpgradeTarget
 		}
+
 		aliases = []string{args[0]}
 	}
 
@@ -76,6 +82,7 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		// Check if the alias is installed.
 		if !helpers.IsInstalled(VersionsDir, alias) {
 			logrus.Debugf("'%s' is not installed. Skipping upgrade.", alias)
+
 			_, printErr = fmt.Fprintf(os.Stdout,
 				"%s %s %s\n",
 				helpers.WarningIcon(),
@@ -96,13 +103,16 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 
 			continue
 		}
+
 		logrus.Debugf("Resolved version for %s: %+v", alias, release)
 
 		// Compare installed and remote identifiers.
 		remoteIdentifier := releases.GetReleaseIdentifier(release, alias)
+
 		installedIdentifier, err := releases.GetInstalledReleaseIdentifier(VersionsDir, alias)
 		if err == nil && installedIdentifier == remoteIdentifier {
 			logrus.Debugf("%s is already up-to-date (%s)", alias, installedIdentifier)
+
 			_, printErr = fmt.Fprintf(os.Stdout,
 				"%s %s %s %s\n",
 				helpers.WarningIcon(),
@@ -119,13 +129,16 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 
 		// Retrieve asset and checksum URLs for the upgrade.
 		logrus.Debugf("Fetching asset URL for %s", alias)
+
 		assetURL, assetPattern, err := releases.GetAssetURL(release)
 		if err != nil {
 			logrus.Errorf("Error getting asset URL for %s: %v", alias, err)
 
 			continue
 		}
+
 		logrus.Debugf("Fetching checksum URL for %s", alias)
+
 		checksumURL, err := releases.GetChecksumURL(release, assetPattern)
 		if err != nil {
 			logrus.Errorf("Error getting checksum URL for %s: %v", alias, err)
@@ -144,6 +157,7 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		if printErr != nil {
 			logrus.Warnf("Failed to write to stdout: %v", printErr)
 		}
+
 		logrus.Debugf("Starting upgrade for %s to identifier %s", alias, remoteIdentifier)
 
 		// Create and start a spinner to show progress.
@@ -156,6 +170,7 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		logrus.Debug("Computed version path: ", versionPath)
 
 		logrus.Debug("Removing the old version")
+
 		err = os.RemoveAll(versionPath)
 		if err != nil {
 			return fmt.Errorf("failed to uninstall version %s: %w", alias, err)
@@ -179,7 +194,9 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 				}
 			},
 		)
+
 		spinner.Stop()
+
 		if err != nil {
 			logrus.Errorf("Upgrade failed for %s: %v", alias, err)
 
@@ -195,6 +212,7 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		if printErr != nil {
 			logrus.Warnf("Failed to write to stdout: %v", printErr)
 		}
+
 		logrus.Debugf("%s upgraded successfully", alias)
 	}
 

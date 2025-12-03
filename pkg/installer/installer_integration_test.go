@@ -475,7 +475,13 @@ func TestInstallVersion_Invalid(t *testing.T) {
 	tempDir := t.TempDir()
 	cacheFile := filepath.Join(tempDir, "cache.json")
 
-	err := installer.InstallVersion(context.Background(), "THIS-VERSION-DOES-NOT-EXIST-FOR-TESTS", tempDir, cacheFile, nil)
+	err := installer.InstallVersion(
+		context.Background(),
+		"THIS-VERSION-DOES-NOT-EXIST-FOR-TESTS",
+		tempDir,
+		cacheFile,
+		nil,
+	)
 	if err == nil {
 		t.Errorf("expected error for invalid version")
 	}

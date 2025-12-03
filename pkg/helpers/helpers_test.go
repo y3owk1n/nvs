@@ -9,6 +9,12 @@ import (
 	"github.com/y3owk1n/nvs/pkg/helpers"
 )
 
+const (
+	// windowsOSConst is defined separately from windowsOS in helpers_integration_test.go
+	// to avoid naming conflicts between files with different build tags.
+	windowsOSConst = "windows"
+)
+
 func TestIcons(t *testing.T) {
 	tests := []struct {
 		name string
@@ -69,7 +75,7 @@ func TestGetStandardNvimConfigDir_XDG(t *testing.T) {
 }
 
 func TestGetStandardNvimConfigDir_windowsOSLocalAppData(t *testing.T) {
-	if runtime.GOOS != "windows" {
+	if runtime.GOOS != windowsOSConst {
 		t.Skip("Windows-specific test")
 	}
 
@@ -88,7 +94,7 @@ func TestGetStandardNvimConfigDir_windowsOSLocalAppData(t *testing.T) {
 }
 
 func TestGetStandardNvimConfigDir_windowsOSFallback(t *testing.T) {
-	if runtime.GOOS != "windows" {
+	if runtime.GOOS != windowsOSConst {
 		t.Skip("Windows-specific test")
 	}
 
@@ -104,6 +110,7 @@ func TestGetStandardNvimConfigDir_windowsOSFallback(t *testing.T) {
 	if home == "" {
 		home = "C:\\Users\\Default"
 	}
+
 	expected := filepath.Join(home, ".config")
 	if result != expected {
 		t.Errorf("expected %s, got %s", expected, result)
@@ -111,7 +118,7 @@ func TestGetStandardNvimConfigDir_windowsOSFallback(t *testing.T) {
 }
 
 func TestGetStandardNvimConfigDir_UnixDefault(t *testing.T) {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == windowsOSConst {
 		t.Skip("Unix-specific test")
 	}
 

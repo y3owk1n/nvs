@@ -102,8 +102,8 @@ func TestRunEnv_Source(t *testing.T) {
 	cobraCmd := &cobra.Command{}
 	cobraCmd.Flags().Bool("source", false, "") // default false
 	cobraCmd.Flags().String("shell", "", "")   // default empty
-	cobraCmd.Flags().Set("source", "true")
-	cobraCmd.Flags().Set("shell", "bash")
+	_ = cobraCmd.Flags().Set("source", "true")
+	_ = cobraCmd.Flags().Set("shell", "bash")
 	cobraCmd.SetContext(context.Background())
 
 	err := cmd.RunEnv(cobraCmd, []string{})
@@ -198,7 +198,12 @@ func TestRunInstall(t *testing.T) {
 	cobraCmd.SetContext(context.Background())
 
 	// Test with invalid version
-	err := cmd.RunInstall(cobraCmd, []string{"THIS-VERSION-DOES-NOT-EXIST-FOR-TESTS"}, tempDir, cacheFile)
+	err := cmd.RunInstall(
+		cobraCmd,
+		[]string{"THIS-VERSION-DOES-NOT-EXIST-FOR-TESTS"},
+		tempDir,
+		cacheFile,
+	)
 	if err == nil {
 		t.Errorf("expected error for invalid version")
 	}

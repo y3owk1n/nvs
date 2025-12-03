@@ -62,8 +62,14 @@ func TestNormalizeVersion(t *testing.T) {
 func TestGetAssetURL(t *testing.T) {
 	release := &releases.Release{
 		Assets: []releases.Asset{
-			{Name: "nvim-linux-x86_64.tar.gz", BrowserDownloadURL: "http://example.com/linux.tar.gz"},
-			{Name: "nvim-macos-arm64.tar.gz", BrowserDownloadURL: "http://example.com/macos.tar.gz"},
+			{
+				Name:               "nvim-linux-x86_64.tar.gz",
+				BrowserDownloadURL: "http://example.com/linux.tar.gz",
+			},
+			{
+				Name:               "nvim-macos-arm64.tar.gz",
+				BrowserDownloadURL: "http://example.com/macos.tar.gz",
+			},
 			{Name: "nvim-win64.zip", BrowserDownloadURL: "http://example.com/win64.zip"},
 		},
 	}
@@ -130,7 +136,7 @@ func TestFilterReleases(t *testing.T) {
 		t.Fatalf("FilterReleases failed: %v", err)
 	}
 
-	if len(filtered) != 1 || filtered[0].TagName != "v1.0.0" {
+	if len(filtered) != 1 || filtered[0].TagName != testVersion {
 		t.Errorf("expected stable release, got %v", filtered)
 	}
 }

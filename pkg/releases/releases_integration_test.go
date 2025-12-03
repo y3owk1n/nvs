@@ -356,6 +356,7 @@ func TestGetInstalledReleaseIdentifier(t *testing.T) {
 	}
 
 	versionFile := filepath.Join(versionDir, "version.txt")
+
 	err = os.WriteFile(versionFile, []byte("v1.0.0"), 0o644)
 	if err != nil {
 		t.Fatalf("failed to create version file: %v", err)

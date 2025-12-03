@@ -148,6 +148,7 @@ func RunUse(cmd *cobra.Command, args []string) error {
 			if evalErr != nil {
 				logrus.Debugf("Failed to evaluate symlink %s: %v", currentSymlink, evalErr)
 			}
+
 			if absCurrent == absTarget {
 				_, printErr := fmt.Fprintf(os.Stdout, "%s Already using Neovim %s\n", helpers.WarningIcon(), helpers.CyanText(targetVersion))
 				if printErr != nil {
