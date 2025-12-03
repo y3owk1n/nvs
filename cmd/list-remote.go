@@ -139,7 +139,9 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 		}
 
 		key := release.TagName
+
 		var baseStatus string
+
 		upgradeIndicator := ""
 
 		// Check if the release is installed locally.

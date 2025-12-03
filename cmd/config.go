@@ -193,7 +193,10 @@ func RunConfig(cmd *cobra.Command, args []string) error {
 		logrus.Warnf("Failed to write to stdout: %v", err)
 	}
 
-	helpers.LaunchNvimWithConfig(selectedConfig)
+	err = helpers.LaunchNvimWithConfig(selectedConfig)
+	if err != nil {
+		return fmt.Errorf("failed to launch nvim with config: %w", err)
+	}
 
 	return nil
 }

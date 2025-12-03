@@ -28,8 +28,9 @@ const (
 
 // Errors for utils operations.
 var (
-	ErrNotSymlinkOrDir = errors.New("current is not a symlink or directory")
-	ErrNvimNotFound    = errors.New("neovim binary not found in")
+	ErrNotSymlinkOrDir    = errors.New("current is not a symlink or directory")
+	ErrNvimNotFound       = errors.New("neovim binary not found in")
+	ErrConfigDoesNotExist = errors.New("configuration does not exist")
 )
 
 // Variables for utils operations.
@@ -451,7 +452,11 @@ func LaunchNvimWithConfig(configName string) error {
 			logrus.Warnf("Failed to write to stdout: %v", err)
 		}
 
-		return fmt.Errorf("configuration '%s' does not exist", configName)
+		return fmt.Errorf(
+			"configuration '%s' does not exist: %w",
+			configName,
+			ErrConfigDoesNotExist,
+		)
 	}
 
 	err = os.Setenv("NVIM_APPNAME", configName)

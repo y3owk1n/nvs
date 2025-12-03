@@ -15,6 +15,9 @@ import (
 	"github.com/y3owk1n/nvs/pkg/releases"
 )
 
+// ErrVersionNotInstalled is returned when attempting to uninstall a version that is not installed.
+var ErrVersionNotInstalled = errors.New("version not installed")
+
 // uninstallCmd represents the "uninstall" command (aliases: rm, remove, un).
 // It uninstalls a specific installed Neovim version by removing its directory.
 // If the version to be uninstalled is currently active, it prompts for confirmation before
@@ -51,7 +54,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 	// Check if the version is installed.
 	_, err = os.Stat(versionPath)
 	if os.IsNotExist(err) {
-		return fmt.Errorf("version %s is not installed", versionArg)
+		return fmt.Errorf("version %s is not installed: %w", versionArg, ErrVersionNotInstalled)
 	}
 
 	currentSymlink := filepath.Join(VersionsDir, "current")

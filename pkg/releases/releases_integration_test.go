@@ -201,7 +201,8 @@ func TestGetCachedReleases_ForceRefresh(t *testing.T) {
 	}
 
 	// Cache file should exist after successful fetch
-	if _, err := os.Stat(cacheFile); os.IsNotExist(err) {
+	_, err = os.Stat(cacheFile)
+	if os.IsNotExist(err) {
 		t.Error("expected cache file to be created after force refresh")
 	}
 }

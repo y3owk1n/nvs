@@ -173,20 +173,31 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 
 		// Create a backup of the existing version for rollback
 		backupPath := versionPath + ".backup"
-		if _, err := os.Stat(versionPath); err == nil {
+
+		_, err = os.Stat(versionPath)
+		if err == nil {
 			logrus.Debug("Creating backup of existing version")
+
 			err = os.Rename(versionPath, backupPath)
 			if err != nil {
 				return fmt.Errorf("failed to create backup of version %s: %w", alias, err)
 			}
+
 			defer func() {
 				// Cleanup: remove backup if upgrade succeeds, restore if it fails
-				if _, statErr := os.Stat(versionPath); statErr == nil {
+				_, statErr := os.Stat(versionPath)
+				if statErr == nil {
 					// Upgrade succeeded, remove backup
-					os.RemoveAll(backupPath)
+					err := os.RemoveAll(backupPath)
+					if err != nil {
+						logrus.Warnf("Failed to remove backup directory %s: %v", backupPath, err)
+					}
 				} else {
 					// Upgrade failed, restore backup
-					os.Rename(backupPath, versionPath)
+					err := os.Rename(backupPath, versionPath)
+					if err != nil {
+						logrus.Warnf("Failed to restore backup from %s to %s: %v", backupPath, versionPath, err)
+					}
 				}
 			}()
 		}
@@ -214,7 +225,10 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 
 		if err != nil {
 			logrus.Errorf("Upgrade failed for %s: %v", alias, err)
-			upgradeErrors = append(upgradeErrors, fmt.Errorf("upgrade failed for %s: %w", alias, err))
+			upgradeErrors = append(
+				upgradeErrors,
+				fmt.Errorf("upgrade failed for %s: %w", alias, err),
+			)
 
 			continue
 		}

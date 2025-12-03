@@ -288,7 +288,12 @@ func TestRunUse(t *testing.T) {
 	}
 
 	// Create binary
-	binPath := filepath.Join(target, "nvim")
+	binName := "nvim"
+	if runtime.GOOS == "windows" {
+		binName = "nvim.exe"
+	}
+
+	binPath := filepath.Join(target, binName)
 
 	f, err := os.Create(binPath)
 	if err != nil {

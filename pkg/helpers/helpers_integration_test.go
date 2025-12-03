@@ -214,8 +214,10 @@ func TestLaunchNvimWithConfig(t *testing.T) {
 	defer func() { helpers.LookPath = origLookPath }()
 
 	// Mock ExecCommandFunc to capture the command execution
-	var capturedCmd *exec.Cmd
-	var originalPath string
+	var (
+		capturedCmd  *exec.Cmd
+		originalPath string
+	)
 
 	origExecFunc := helpers.ExecCommandFunc
 

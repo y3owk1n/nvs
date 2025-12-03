@@ -98,8 +98,12 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	if shell == "" {
 		shell = "/bin/bash"
 		// Verify the default shell exists
-		if _, err := os.Stat(shell); os.IsNotExist(err) {
-			logrus.Warnf("Default shell %s does not exist, PATH setup may not work correctly", shell)
+		_, err := os.Stat(shell)
+		if os.IsNotExist(err) {
+			logrus.Warnf(
+				"Default shell %s does not exist, PATH setup may not work correctly",
+				shell,
+			)
 		}
 	}
 
