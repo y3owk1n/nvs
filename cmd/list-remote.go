@@ -61,6 +61,8 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 	stableTag := stable
 	if err == nil {
 		stableTag = stableRelease.TagName
+	} else {
+		logrus.Debugf("Could not find latest stable release, using default: %v", err)
 	}
 
 	logrus.Debugf("Latest stable release: %s", stableTag)
@@ -137,9 +139,7 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 		}
 
 		key := release.TagName
-
-		var localStatus string
-
+		var baseStatus string
 		upgradeIndicator := ""
 
 		// Check if the release is installed locally.
@@ -164,13 +164,15 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 			}
 
 			if key == current {
-				localStatus = "Current" + upgradeIndicator
+				baseStatus = "Current"
 			} else {
-				localStatus = "Installed" + upgradeIndicator
+				baseStatus = "Installed"
 			}
 		} else {
-			localStatus = "Not Installed"
+			baseStatus = "Not Installed"
 		}
+
+		localStatus := baseStatus + upgradeIndicator
 
 		logrus.Debugf("Version: %s, Status: %s", key, localStatus)
 
@@ -183,10 +185,10 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 		row := []string{tag, localStatus, details}
 
 		// Colorize the row based on status.
-		switch localStatus {
-		case "Current" + upgradeIndicator:
+		switch baseStatus {
+		case "Current":
 			row = helpers.ColorizeRow(row, color.New(color.FgGreen))
-		case "Installed" + upgradeIndicator:
+		case "Installed":
 			row = helpers.ColorizeRow(row, color.New(color.FgYellow))
 		default:
 			row = helpers.ColorizeRow(row, color.New(color.FgWhite))
