@@ -94,6 +94,16 @@ func RunInstall(cmd *cobra.Command, args []string, versionsDir, cacheFilePath st
 		if err != nil {
 			return err
 		}
+
+		_, err = fmt.Fprintf(
+			os.Stdout,
+			"%s %s\n",
+			helpers.SuccessIcon(),
+			helpers.WhiteText("Build from commit successful!"),
+		)
+		if err != nil {
+			logrus.Warnf("Failed to write to stdout: %v", err)
+		}
 	} else {
 		// Otherwise, install the pre-built version.
 		logrus.Debugf("Start installing %s", alias)
