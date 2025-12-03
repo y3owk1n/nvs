@@ -35,6 +35,8 @@ var pathCmd = &cobra.Command{
 }
 
 // RunPath executes the path command.
+//
+//nolint:funlen
 func RunPath(_ *cobra.Command, _ []string) error {
 	logrus.Debug("Running path command")
 
