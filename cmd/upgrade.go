@@ -49,7 +49,6 @@ var upgradeCmd = &cobra.Command{
 // RunUpgrade executes the upgrade command.
 func RunUpgrade(cmd *cobra.Command, args []string) error {
 	const (
-		TimeoutMin    = 30
 		SpinnerSpeed  = 100
 		InitialSuffix = " 0%"
 	)
@@ -57,7 +56,7 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 	logrus.Debug("Starting upgrade command")
 
 	// Create a context with a 30-minute timeout for the upgrade process.
-	ctx, cancel := context.WithTimeout(cmd.Context(), TimeoutMin*time.Minute)
+	ctx, cancel := context.WithTimeout(cmd.Context(), TimeoutMinutes*time.Minute)
 	defer cancel()
 
 	// Determine which aliases (versions) to upgrade.
