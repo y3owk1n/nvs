@@ -51,7 +51,10 @@ if usePrebuilt then
       sha256 = archInfo.sha256;
     };
 
-    nativeBuildInputs = [ installShellFiles ];
+    nativeBuildInputs = [
+      installShellFiles
+      writableTmpDirAsHomeHook
+    ];
 
     dontUnpack = true;
     dontBuild = true;
