@@ -56,7 +56,7 @@ Run "nvim -V1 -v" for more info
   Easily toggle between Neovim configurations by scanning `~/.config` (including symlinks) and setting `NVIM_APPNAME` interactively or via a direct subcommand argument.
 - **Remote Version Listing:**
   List all available remote releases (stable, nightly, etc.) with cached results to avoid GitHub rate limits ⚡. Need fresh data? Just add the `force` flag.
-- **Upgrade for Stable and Nightly:**
+- **Upgrade for stable and nightly:**
   Easily upgrade your installed stable and/or nightly versions. The upgrade command checks if you’re already on the latest version and only performs an upgrade if needed.
 - **Uninstallation & Reset:**
   Remove individual versions or reset your entire configuration with ease.

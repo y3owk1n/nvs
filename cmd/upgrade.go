@@ -18,13 +18,13 @@ import (
 // Constants for upgrade types.
 const (
 	stable  = "stable"
-	Nightly = "Nightly"
+	nightly = "nightly"
 )
 
 // upgradeCmd represents the "upgrade" command (aliases: up).
-// It upgrades the installed stable and/or Nightly versions of Neovim.
-// If no argument is provided, both stable and Nightly versions are upgraded (if installed).
-// Only stable or "Nightly" are accepted as arguments.
+// It upgrades the installed stable and/or nightly versions of Neovim.
+// If no argument is provided, both stable and nightly versions are upgraded (if installed).
+// Only stable or "nightly" are accepted as arguments.
 // The command fetches the latest release data, compares remote and installed identifiers,
 // and if an upgrade is available, it downloads and installs the new version.
 //
@@ -32,12 +32,12 @@ const (
 //
 //	nvs upgrade
 //	nvs upgrade stable
-//	nvs up Nightly
+//	nvs up nightly
 var upgradeCmd = &cobra.Command{
-	Use:     "upgrade [stable|Nightly]",
+	Use:     "upgrade [stable|nightly]",
 	Aliases: []string{"up"},
-	Short:   "Upgrade installed stable and/or Nightly versions",
-	Long:    "Upgrades the installed stable and/or Nightly versions. If no argument is provided, both stable and Nightly are upgraded (if installed).",
+	Short:   "Upgrade installed stable and/or nightly versions",
+	Long:    "Upgrades the installed stable and/or nightly versions. If no argument is provided, both stable and nightly are upgraded (if installed).",
 	Args:    cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		const TimeoutMin = 30
@@ -50,13 +50,13 @@ var upgradeCmd = &cobra.Command{
 		defer cancel()
 
 		// Determine which aliases (versions) to upgrade.
-		// If no argument is given, upgrade both stable and "Nightly".
+		// If no argument is given, upgrade both stable and "nightly".
 		var aliases []string
 		if len(args) == 0 {
-			aliases = []string{stable, "Nightly"}
+			aliases = []string{stable, nightly}
 		} else {
-			if args[0] != stable && args[0] != "Nightly" {
-				logrus.Fatalf("Upgrade can only be performed for 'stable' or 'Nightly'")
+			if args[0] != stable && args[0] != nightly {
+				logrus.Fatalf("Upgrade can only be performed for 'stable' or 'nightly'")
 			}
 			aliases = []string{args[0]}
 		}
