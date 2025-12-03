@@ -127,14 +127,9 @@ func TestGetReleaseIdentifier(t *testing.T) {
 }
 
 func TestFilterReleases(t *testing.T) {
-	relPtrs := []*releases.Release{
+	rels := []releases.Release{
 		{TagName: "v1.0.0", Prerelease: false},
 		{TagName: "v1.0.0-rc1", Prerelease: true},
-	}
-
-	rels := make([]releases.Release, len(relPtrs))
-	for i, r := range relPtrs {
-		rels[i] = *r
 	}
 
 	filtered, err := releases.FilterReleases(rels, "0.5.0")
