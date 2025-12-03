@@ -436,7 +436,7 @@ func LaunchNvimWithConfig(configName string) error {
 	configDir := filepath.Join(baseConfigDir, configName)
 
 	info, err := os.Stat(configDir)
-	if os.IsNotExist(err) || !info.IsDir() {
+	if err != nil || !info.IsDir() {
 		_, err = fmt.Fprintf(os.Stdout,
 			"%s %s\n",
 			ErrorIcon(),
