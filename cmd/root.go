@@ -10,6 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/pkg/helpers"
 )
 
 const windows = "windows"
@@ -22,14 +23,14 @@ var (
 	// cancel cancels the context, e.g. on interrupt signals.
 	ctx, cancel = context.WithCancel(context.Background())
 
-	// versionsDir is the directory where installed Neovim versions are stored.
-	versionsDir string
+	// VersionsDir is the directory where installed Neovim versions are stored.
+	VersionsDir string
 
-	// cacheFilePath is the path to the file that caches remote release data.
-	cacheFilePath string
+	// CacheFilePath is the path to the file that caches remote release data.
+	CacheFilePath string
 
-	// globalBinDir is the directory where the global nvim symlink is created.
-	globalBinDir string
+	// GlobalBinDir is the directory where the global nvim symlink is created.
+	GlobalBinDir string
 
 	// Version of nvs, defaults to "v0.0.0" but may be set during build time.
 	Version = "v0.0.0"
@@ -39,11 +40,13 @@ var (
 // Example usage:
 //
 //	func main() {
-//	    cmd.Execute()
+//	    if err := cmd.Execute(); err != nil {
+//	        os.Exit(1)
+//	    }
 //	}
-func Execute() {
+func Execute() error {
 	// Initialize configuration before running any commands.
-	cobra.OnInitialize(initConfig)
+	cobra.OnInitialize(InitConfig)
 
 	// Set a persistent flag for verbose logging.
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
@@ -51,20 +54,20 @@ func Execute() {
 	// Execute the root command with the global context.
 	err := rootCmd.ExecuteContext(ctx)
 	if err != nil {
-		os.Exit(1)
+		return err
 	}
+
+	return nil
 }
 
-// initConfig is called automatically on command initialization.
+// InitConfig is called automatically on command initialization.
 // It sets up logging levels, handles OS signals for graceful shutdown, and ensures that necessary
 // directories (config, versions, cache, binary) exist, using environment variables as overrides when available.
 //
 // Example behavior:
 //   - If NVS_CONFIG_DIR is set, it is used as the config directory; otherwise, the system config directory is used.
 //   - Similar logic applies for cache (NVS_CACHE_DIR) and binary directories (NVS_BIN_DIR).
-func initConfig() {
-	const DirPerm = 0o755
-
+func InitConfig() {
 	var err error
 
 	// Set logging level based on the verbose flag.
@@ -121,7 +124,7 @@ func initConfig() {
 	}
 
 	// Ensure the configuration directory exists.
-	err = os.MkdirAll(baseConfigDir, DirPerm)
+	err = os.MkdirAll(baseConfigDir, helpers.DirPerm)
 	if err != nil {
 		logrus.Fatalf("Failed to create config directory: %v", err)
 	}
@@ -129,14 +132,14 @@ func initConfig() {
 	logrus.Debugf("Config directory ensured: %s", baseConfigDir)
 
 	// Set the directory for installed versions.
-	versionsDir = filepath.Join(baseConfigDir, "versions")
+	VersionsDir = filepath.Join(baseConfigDir, "versions")
 
-	err = os.MkdirAll(versionsDir, DirPerm)
+	err = os.MkdirAll(VersionsDir, helpers.DirPerm)
 	if err != nil {
 		logrus.Fatalf("Failed to create versions directory: %v", err)
 	}
 
-	logrus.Debugf("Versions directory ensured: %s", versionsDir)
+	logrus.Debugf("Versions directory ensured: %s", VersionsDir)
 
 	// Determine the base cache directory.
 	var baseCacheDir string
@@ -159,14 +162,14 @@ func initConfig() {
 		}
 	}
 	// Ensure the cache directory exists.
-	err = os.MkdirAll(baseCacheDir, DirPerm)
+	err = os.MkdirAll(baseCacheDir, helpers.DirPerm)
 	if err != nil {
 		logrus.Fatalf("Failed to create cache directory: %v", err)
 	}
 
-	cacheFilePath = filepath.Join(baseCacheDir, "releases.json")
+	CacheFilePath = filepath.Join(baseCacheDir, "releases.json")
 	logrus.Debugf("Cache directory ensured: %s", baseCacheDir)
-	logrus.Debugf("Cache file path set: %s", cacheFilePath)
+	logrus.Debugf("Cache file path set: %s", CacheFilePath)
 
 	// Determine the base binary directory.
 	var baseBinDir string
@@ -193,13 +196,13 @@ func initConfig() {
 		}
 	}
 	// Ensure the binary directory exists.
-	err = os.MkdirAll(baseBinDir, DirPerm)
+	err = os.MkdirAll(baseBinDir, helpers.DirPerm)
 	if err != nil {
 		logrus.Fatalf("Failed to create binary directory: %v", err)
 	}
 
-	globalBinDir = baseBinDir
-	logrus.Debugf("Global binary directory ensured: %s", globalBinDir)
+	GlobalBinDir = baseBinDir
+	logrus.Debugf("Global binary directory ensured: %s", GlobalBinDir)
 }
 
 // rootCmd is the base command for the CLI.

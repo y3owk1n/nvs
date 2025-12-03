@@ -1,3 +1,5 @@
+//go:build integration
+
 package builder_test
 
 import (
@@ -10,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/nvs/pkg/builder"
+	"github.com/y3owk1n/nvs/pkg/helpers"
 )
 
 const Abcdef1 = "Abcdef1"
@@ -161,11 +164,11 @@ func TestBuildFromCommit_Master(t *testing.T) {
 	}
 
 	// Override execCommand for testing.
-	oldExecCommand := builder.ExecCommandFunc
+	oldExecCommand := helpers.ExecCommandFunc
 
-	builder.ExecCommandFunc = fakeExecCommand
+	helpers.ExecCommandFunc = fakeExecCommand
 	defer func() {
-		builder.ExecCommandFunc = oldExecCommand
+		helpers.ExecCommandFunc = oldExecCommand
 	}()
 
 	versionsDir := t.TempDir()
@@ -213,11 +216,11 @@ func TestBuildFromCommit_Commit(t *testing.T) {
 	versionsDir := t.TempDir()
 
 	// Override execCommand for testing.
-	oldExecCommand := builder.ExecCommandFunc
+	oldExecCommand := helpers.ExecCommandFunc
 
-	builder.ExecCommandFunc = fakeExecCommand
+	helpers.ExecCommandFunc = fakeExecCommand
 	defer func() {
-		builder.ExecCommandFunc = oldExecCommand
+		helpers.ExecCommandFunc = oldExecCommand
 	}()
 
 	// Call builder.BuildFromCommit with a non-master commit (e.g. "abc1234").
@@ -256,11 +259,11 @@ func TestBuildFromCommit_Retry(t *testing.T) {
 	// Reset the counter.
 	simulateErrorCount = 0
 
-	oldExecCommand := builder.ExecCommandFunc
+	oldExecCommand := helpers.ExecCommandFunc
 
-	builder.ExecCommandFunc = fakeExecCommand
+	helpers.ExecCommandFunc = fakeExecCommand
 	defer func() {
-		builder.ExecCommandFunc = oldExecCommand
+		helpers.ExecCommandFunc = oldExecCommand
 
 		_ = os.Unsetenv("SIMULATE_RETRY")
 	}()

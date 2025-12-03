@@ -27,3 +27,11 @@ go.work.sum
 build/
 
 .direnv
+
+coverage.txt
+coverage.html
+
+# Temporary files and broken symlinks created during testing
+current
+**/current
+*.tmp

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,6 +22,9 @@ const (
 	nightly = "nightly"
 )
 
+// ErrInvalidUpgradeTarget is returned when an invalid upgrade target is specified.
+var ErrInvalidUpgradeTarget = errors.New("upgrade can only be performed for 'stable' or 'nightly'")
+
 // upgradeCmd represents the "upgrade" command (aliases: up).
 // It upgrades the installed stable and/or nightly versions of Neovim.
 // If no argument is provided, both stable and nightly versions are upgraded (if installed).
@@ -39,159 +43,234 @@ var upgradeCmd = &cobra.Command{
 	Short:   "Upgrade installed stable and/or nightly versions",
 	Long:    "Upgrades the installed stable and/or nightly versions. If no argument is provided, both stable and nightly are upgraded (if installed).",
 	Args:    cobra.MaximumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		const TimeoutMin = 30
-		const SpinnerSpeed = 100
-		const InitialSuffix = " 0%"
-		logrus.Debug("Starting upgrade command")
+	RunE:    RunUpgrade,
+}
 
-		// Create a context with a 30-minute timeout for the upgrade process.
-		ctx, cancel := context.WithTimeout(cmd.Context(), TimeoutMin*time.Minute)
-		defer cancel()
+// upgradeAlias handles the upgrade process for a single alias, including backup and cleanup.
+func upgradeAlias(
+	ctx context.Context,
+	alias string,
+	assetURL, checksumURL, remoteIdentifier string,
+	progressCallback func(int),
+	phaseCallback func(string),
+) error {
+	versionPath := filepath.Join(VersionsDir, alias)
+	backupPath := versionPath + ".backup"
 
-		// Determine which aliases (versions) to upgrade.
-		// If no argument is given, upgrade both stable and "nightly".
-		var aliases []string
-		if len(args) == 0 {
-			aliases = []string{stable, nightly}
-		} else {
-			if args[0] != stable && args[0] != nightly {
-				logrus.Fatalf("Upgrade can only be performed for 'stable' or 'nightly'")
-			}
-			aliases = []string{args[0]}
+	// Create backup if version exists
+	_, err := os.Stat(versionPath)
+	if err == nil {
+		logrus.Debug("Creating backup of existing version")
+
+		err = os.Rename(versionPath, backupPath)
+		if err != nil {
+			return fmt.Errorf("failed to create backup of version %s: %w", alias, err)
 		}
 
-		// Process each alias (version) for upgrade.
-		for _, alias := range aliases {
-			logrus.Debugf("Processing alias: %s", alias)
-
-			var printErr error
-
-			// Check if the alias is installed.
-			if !helpers.IsInstalled(versionsDir, alias) {
-				logrus.Debugf("'%s' is not installed. Skipping upgrade.", alias)
-				_, printErr = fmt.Fprintf(os.Stdout,
-					"%s %s %s\n",
-					helpers.WarningIcon(),
-					helpers.CyanText(alias),
-					helpers.WhiteText("is not installed. Skipping upgrade."),
-				)
-				if printErr != nil {
-					logrus.Warnf("Failed to write to stdout: %v", printErr)
+		defer func() {
+			// Cleanup: remove backup if upgrade succeeds, restore if it fails
+			_, statErr := os.Stat(versionPath)
+			if statErr == nil {
+				// Upgrade succeeded, remove backup
+				err := os.RemoveAll(backupPath)
+				if err != nil {
+					logrus.Warnf("Failed to remove backup directory %s: %v", backupPath, err)
 				}
-
-				continue
-			}
-
-			// Resolve the remote release for the given alias.
-			release, err := releases.ResolveVersion(alias, cacheFilePath)
-			if err != nil {
-				logrus.Errorf("Error resolving %s: %v", alias, err)
-
-				continue
-			}
-			logrus.Debugf("Resolved version for %s: %+v", alias, release)
-
-			// Compare installed and remote identifiers.
-			remoteIdentifier := releases.GetReleaseIdentifier(release, alias)
-			installedIdentifier, err := releases.GetInstalledReleaseIdentifier(versionsDir, alias)
-			if err == nil && installedIdentifier == remoteIdentifier {
-				logrus.Debugf("%s is already up-to-date (%s)", alias, installedIdentifier)
-				_, printErr = fmt.Fprintf(os.Stdout,
-					"%s %s %s %s\n",
-					helpers.WarningIcon(),
-					helpers.CyanText(alias),
-					helpers.WhiteText("is already up-to-date"),
-					helpers.CyanText("("+installedIdentifier+")"),
-				)
-				if printErr != nil {
-					logrus.Warnf("Failed to write to stdout: %v", printErr)
+			} else {
+				// Upgrade failed, restore backup
+				err := os.Rename(backupPath, versionPath)
+				if err != nil {
+					logrus.Warnf("Failed to restore backup from %s to %s: %v", backupPath, versionPath, err)
 				}
-
-				continue
 			}
+		}()
+	}
 
-			// Retrieve asset and checksum URLs for the upgrade.
-			logrus.Debugf("Fetching asset URL for %s", alias)
-			assetURL, assetPattern, err := releases.GetAssetURL(release)
-			if err != nil {
-				logrus.Errorf("Error getting asset URL for %s: %v", alias, err)
+	// Download and install the upgrade.
+	err = installer.DownloadAndInstall(
+		ctx,
+		VersionsDir,
+		alias,
+		assetURL,
+		checksumURL,
+		remoteIdentifier,
+		progressCallback,
+		phaseCallback,
+	)
 
-				continue
-			}
-			logrus.Debugf("Fetching checksum URL for %s", alias)
-			checksumURL, err := releases.GetChecksumURL(release, assetPattern)
-			if err != nil {
-				logrus.Errorf("Error getting checksum URL for %s: %v", alias, err)
+	return err
+}
 
-				continue
-			}
+// RunUpgrade executes the upgrade command.
+func RunUpgrade(cmd *cobra.Command, args []string) error {
+	const (
+		SpinnerSpeed  = 100
+		InitialSuffix = " 0%"
+	)
 
-			// Notify the user about the upgrade.
-			_, printErr = fmt.Fprintf(os.Stdout,
-				"%s %s %s %s...\n",
-				helpers.InfoIcon(),
-				helpers.CyanText(alias),
-				helpers.WhiteText("upgrading to new identifier"),
-				helpers.CyanText(remoteIdentifier),
-			)
-			if printErr != nil {
-				logrus.Warnf("Failed to write to stdout: %v", printErr)
-			}
-			logrus.Debugf("Starting upgrade for %s to identifier %s", alias, remoteIdentifier)
+	logrus.Debug("Starting upgrade command")
 
-			// Create and start a spinner to show progress.
-			spinner := spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond)
-			spinner.Suffix = InitialSuffix
-			spinner.Start()
+	// Track upgrade errors
+	var upgradeErrors []error
 
-			// Compute the path where the version is installed.
-			versionPath := filepath.Join(versionsDir, alias)
-			logrus.Debug("Computed version path: ", versionPath)
+	// Create a context with a 30-minute timeout for the upgrade process.
+	ctx, cancel := context.WithTimeout(cmd.Context(), TimeoutMinutes*time.Minute)
+	defer cancel()
 
-			logrus.Debug("Removing the old version")
-			err = os.RemoveAll(versionPath)
-			if err != nil {
-				logrus.Fatalf("Failed to uninstall version %s: %v", alias, err)
-			}
+	// Determine which aliases (versions) to upgrade.
+	// If no argument is given, upgrade both stable and "nightly".
+	var aliases []string
+	if len(args) == 0 {
+		aliases = []string{stable, nightly}
+	} else {
+		if args[0] != stable && args[0] != nightly {
+			return ErrInvalidUpgradeTarget
+		}
 
-			// Download and install the upgrade.
-			err = installer.DownloadAndInstall(
-				ctx,
-				versionsDir,
-				alias,
-				assetURL,
-				checksumURL,
-				remoteIdentifier,
-				func(progress int) {
-					spinner.Suffix = fmt.Sprintf(" %d%%", progress)
-				},
-				func(phase string) {
-					if phase != "" {
-						spinner.Prefix = phase + " "
-						spinner.Suffix = ""
-					}
-				},
-			)
-			spinner.Stop()
-			if err != nil {
-				logrus.Errorf("Upgrade failed for %s: %v", alias, err)
+		aliases = []string{args[0]}
+	}
 
-				continue
-			}
-			// Inform the user that the upgrade succeeded.
+	// Process each alias (version) for upgrade.
+	for _, alias := range aliases {
+		logrus.Debugf("Processing alias: %s", alias)
+
+		var printErr error
+
+		// Check if the alias is installed.
+		if !helpers.IsInstalled(VersionsDir, alias) {
+			logrus.Debugf("'%s' is not installed. Skipping upgrade.", alias)
+
 			_, printErr = fmt.Fprintf(os.Stdout,
 				"%s %s %s\n",
-				helpers.SuccessIcon(),
+				helpers.WarningIcon(),
 				helpers.CyanText(alias),
-				helpers.WhiteText("upgraded successfully!"),
+				helpers.WhiteText("is not installed. Skipping upgrade."),
 			)
 			if printErr != nil {
 				logrus.Warnf("Failed to write to stdout: %v", printErr)
 			}
-			logrus.Debugf("%s upgraded successfully", alias)
+
+			continue
 		}
-	},
+
+		// Resolve the remote release for the given alias.
+		release, err := releases.ResolveVersion(alias, CacheFilePath)
+		if err != nil {
+			logrus.Errorf("Error resolving %s: %v", alias, err)
+
+			continue
+		}
+
+		logrus.Debugf("Resolved version for %s: %+v", alias, release)
+
+		// Compare installed and remote identifiers.
+		remoteIdentifier := releases.GetReleaseIdentifier(release, alias)
+
+		installedIdentifier, err := helpers.GetInstalledReleaseIdentifier(VersionsDir, alias)
+		if err == nil && installedIdentifier == remoteIdentifier {
+			logrus.Debugf("%s is already up-to-date (%s)", alias, installedIdentifier)
+
+			_, printErr = fmt.Fprintf(os.Stdout,
+				"%s %s %s %s\n",
+				helpers.WarningIcon(),
+				helpers.CyanText(alias),
+				helpers.WhiteText("is already up-to-date"),
+				helpers.CyanText("("+installedIdentifier+")"),
+			)
+			if printErr != nil {
+				logrus.Warnf("Failed to write to stdout: %v", printErr)
+			}
+
+			continue
+		}
+
+		// Retrieve asset and checksum URLs for the upgrade.
+		logrus.Debugf("Fetching asset URL for %s", alias)
+
+		assetURL, assetPattern, err := releases.GetAssetURL(release)
+		if err != nil {
+			logrus.Errorf("Error getting asset URL for %s: %v", alias, err)
+
+			continue
+		}
+
+		logrus.Debugf("Fetching checksum URL for %s", alias)
+
+		checksumURL, err := releases.GetChecksumURL(release, assetPattern)
+		if err != nil {
+			logrus.Errorf("Error getting checksum URL for %s: %v", alias, err)
+
+			continue
+		}
+
+		// Notify the user about the upgrade.
+		_, printErr = fmt.Fprintf(os.Stdout,
+			"%s %s %s %s...\n",
+			helpers.InfoIcon(),
+			helpers.CyanText(alias),
+			helpers.WhiteText("upgrading to new identifier"),
+			helpers.CyanText(remoteIdentifier),
+		)
+		if printErr != nil {
+			logrus.Warnf("Failed to write to stdout: %v", printErr)
+		}
+
+		logrus.Debugf("Starting upgrade for %s to identifier %s", alias, remoteIdentifier)
+
+		// Create and start a spinner to show progress.
+		spinner := spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond)
+		spinner.Suffix = InitialSuffix
+		spinner.Start()
+
+		// Perform the upgrade for this alias.
+		err = upgradeAlias(
+			ctx,
+			alias,
+			assetURL,
+			checksumURL,
+			remoteIdentifier,
+			func(progress int) {
+				spinner.Suffix = fmt.Sprintf(" %d%%", progress)
+			},
+			func(phase string) {
+				if phase != "" {
+					spinner.Prefix = phase + " "
+					spinner.Suffix = ""
+				}
+			},
+		)
+
+		spinner.Stop()
+
+		if err != nil {
+			logrus.Errorf("Upgrade failed for %s: %v", alias, err)
+			upgradeErrors = append(
+				upgradeErrors,
+				fmt.Errorf("upgrade failed for %s: %w", alias, err),
+			)
+
+			continue
+		}
+		// Inform the user that the upgrade succeeded.
+		_, printErr = fmt.Fprintf(os.Stdout,
+			"%s %s %s\n",
+			helpers.SuccessIcon(),
+			helpers.CyanText(alias),
+			helpers.WhiteText("upgraded successfully!"),
+		)
+		if printErr != nil {
+			logrus.Warnf("Failed to write to stdout: %v", printErr)
+		}
+
+		logrus.Debugf("%s upgraded successfully", alias)
+	}
+
+	// Return error if any upgrades failed
+	if len(upgradeErrors) > 0 {
+		return fmt.Errorf("upgrade completed with errors: %w", errors.Join(upgradeErrors...))
+	}
+
+	return nil
 }
 
 // init registers the upgradeCmd with the root command.

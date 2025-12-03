@@ -1,8 +1,15 @@
 // Package main provides the entry point for the nvs application.
 package main
 
-import "github.com/y3owk1n/nvs/cmd"
+import (
+	"os"
+
+	"github.com/y3owk1n/nvs/cmd"
+)
 
 func main() {
-	cmd.Execute()
+	err := cmd.Execute()
+	if err != nil {
+		os.Exit(1)
+	}
 }

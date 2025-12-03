@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -62,6 +61,7 @@ type Asset struct {
 // Variables for releases operations.
 var (
 	Client           = &http.Client{Timeout: ClientTimeoutSec * time.Second}
+	apiBaseURL       = "https://api.github.com"
 	releasesCacheTTL = 5 * time.Minute
 )
 
@@ -148,7 +148,7 @@ func GetReleases() ([]Release, error) {
 	req, err := http.NewRequestWithContext(
 		context.Background(),
 		http.MethodGet,
-		"https://api.github.com/repos/neovim/neovim/releases",
+		apiBaseURL+"/repos/neovim/neovim/releases",
 		nil,
 	)
 	if err != nil {
@@ -281,7 +281,7 @@ func FindLatestNightly(cachePath string) (Release, error) {
 	}
 
 	for _, r := range releases {
-		if r.Prerelease {
+		if r.Prerelease && strings.HasPrefix(strings.ToLower(r.TagName), NightlyLower) {
 			return r, nil
 		}
 	}
@@ -356,27 +356,6 @@ func GetAssetURL(release Release) (string, string, error) {
 	}
 
 	return "", "", fmt.Errorf("%w for %s/%s", ErrNoMatchingAsset, runtime.GOOS, runtime.GOARCH)
-}
-
-// GetInstalledReleaseIdentifier reads the version.txt file from the installed release directory
-// and returns its content as the release identifier.
-//
-// Example usage:
-//
-//	id, err := GetInstalledReleaseIdentifier("/path/to/versions", "v0.6.0")
-//	if err != nil {
-//	    // handle error
-//	}
-//	fmt.Println("Installed release identifier:", id)
-func GetInstalledReleaseIdentifier(versionsDir string, alias string) (string, error) {
-	versionFile := filepath.Join(versionsDir, alias, "version.txt")
-
-	data, err := os.ReadFile(versionFile)
-	if err != nil {
-		return "", err
-	}
-
-	return strings.TrimSpace(string(data)), nil
 }
 
 // GetChecksumURL returns the checksum URL for a given release by matching the asset whose name

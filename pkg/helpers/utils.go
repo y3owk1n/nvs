@@ -28,15 +28,17 @@ const (
 
 // Errors for utils operations.
 var (
-	ErrNotSymlinkOrDir = errors.New("current is not a symlink or directory")
-	ErrNvimNotFound    = errors.New("neovim binary not found in")
+	ErrNotSymlinkOrDir    = errors.New("current is not a symlink or directory")
+	ErrNvimNotFound       = errors.New("neovim binary not found in")
+	ErrConfigDoesNotExist = errors.New("configuration does not exist")
 )
 
 // Variables for utils operations.
 var (
-	UserHomeDir = os.UserHomeDir
-	LookPath    = exec.LookPath
-	Fatalf      = logrus.Fatalf
+	UserHomeDir     = os.UserHomeDir
+	LookPath        = exec.LookPath
+	Fatalf          = logrus.Fatalf
+	ExecCommandFunc = exec.CommandContext
 )
 
 // IsInstalled checks if a version directory exists within the versionsDir.
@@ -114,7 +116,7 @@ func UpdateSymlink(target, link string, isDir bool) error {
 	// Windows fallback
 	if isDir {
 		// Directory junction
-		cmd := exec.CommandContext(context.Background(), "cmd", "/C", "mklink", "/J", link, target)
+		cmd := ExecCommandFunc(context.Background(), "cmd", "/C", "mklink", "/J", link, target)
 		cmd.Stdout = os.Stdout
 
 		cmd.Stderr = os.Stderr
@@ -127,7 +129,7 @@ func UpdateSymlink(target, link string, isDir bool) error {
 		logrus.Debugf("Created junction instead of symlink: %s -> %s", link, target)
 	} else {
 		// File hardlink
-		cmd := exec.CommandContext(context.Background(), "cmd", "/C", "mklink", "/H", link, target)
+		cmd := ExecCommandFunc(context.Background(), "cmd", "/C", "mklink", "/H", link, target)
 		cmd.Stdout = os.Stdout
 
 		cmd.Stderr = os.Stderr
@@ -259,8 +261,8 @@ func FindNvimBinary(dir string) string {
 		if !dirEntry.IsDir() {
 			name := dirEntry.Name()
 			if runtime.GOOS == WindowsOS {
-				if name == "nvim.exe" ||
-					(strings.HasPrefix(name, "nvim-") && filepath.Ext(name) == ".exe") {
+				if strings.EqualFold(name, "nvim.exe") ||
+					(strings.HasPrefix(strings.ToLower(name), "nvim-") && filepath.Ext(name) == ".exe") {
 					// Go two levels up: ../../nvim-win64
 					binaryPath = filepath.Dir(filepath.Dir(path))
 
@@ -421,20 +423,22 @@ func GetInstalledReleaseIdentifier(versionsDir, alias string) (string, error) {
 //
 // Example usage:
 //
-//	LaunchNvimWithConfig("myconfig")
-//	// Neovim will be launched with configuration located at ~/.config/myconfig
-func LaunchNvimWithConfig(configName string) {
+//	err := helpers.LaunchNvimWithConfig("myconfig")
+//	if err != nil {
+//		// handle error
+//	}
+func LaunchNvimWithConfig(configName string) error {
 	var err error
 
 	baseConfigDir, err := GetNvimConfigBaseDir()
 	if err != nil {
-		Fatalf("Failed to determine config base dir: %v", err)
+		return fmt.Errorf("failed to determine config base dir: %w", err)
 	}
 
 	configDir := filepath.Join(baseConfigDir, configName)
 
 	info, err := os.Stat(configDir)
-	if os.IsNotExist(err) || !info.IsDir() {
+	if os.IsNotExist(err) || (err == nil && !info.IsDir()) {
 		_, err = fmt.Fprintf(os.Stdout,
 			"%s %s\n",
 			ErrorIcon(),
@@ -450,20 +454,28 @@ func LaunchNvimWithConfig(configName string) {
 			logrus.Warnf("Failed to write to stdout: %v", err)
 		}
 
-		return
+		return fmt.Errorf(
+			"configuration '%s' does not exist: %w",
+			configName,
+			ErrConfigDoesNotExist,
+		)
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to stat config directory %s: %w", configDir, err)
 	}
 
 	err = os.Setenv("NVIM_APPNAME", configName)
 	if err != nil {
-		Fatalf("Failed to set NVIM_APPNAME: %v", err)
+		return fmt.Errorf("failed to set NVIM_APPNAME: %w", err)
 	}
 
 	nvimExec, err := LookPath("nvim")
 	if err != nil {
-		Fatalf("nvim not found in PATH: %v", err)
+		return fmt.Errorf("nvim not found in PATH: %w", err)
 	}
 
-	launch := exec.CommandContext(context.Background(), nvimExec)
+	launch := ExecCommandFunc(context.Background(), nvimExec)
 
 	launch.Env = append(os.Environ(), "NVIM_APPNAME="+configName)
 	launch.Stdin = os.Stdin
@@ -473,8 +485,10 @@ func LaunchNvimWithConfig(configName string) {
 
 	err = launch.Run()
 	if err != nil {
-		Fatalf("Failed to launch nvim: %v", err)
+		return fmt.Errorf("failed to launch nvim: %w", err)
 	}
+
+	return nil
 }
 
 // ClearDirectory removes all contents within the specified directory.
