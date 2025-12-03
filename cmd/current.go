@@ -88,7 +88,7 @@ func RunCurrent(_ *cobra.Command, _ []string, versionsDir, cacheFilePath string)
 			_, err = fmt.Fprintf(os.Stdout,
 				"%s %s\n",
 				helpers.InfoIcon(),
-				helpers.WhiteText(fmt.Sprintf("%s (%s)", stableConst, current)),
+				helpers.WhiteText(fmt.Sprintf("nightly (%s)", current)),
 			)
 			if err != nil {
 				logrus.Warnf("Failed to write to stdout: %v", err)
