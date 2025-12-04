@@ -10,6 +10,7 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/internal/domain/version"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -105,7 +106,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 	// Uninstall using service
 	err = GetVersionService().Uninstall(versionArg, false)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") { // Should use errors.Is
+		if errors.Is(err, version.ErrVersionNotFound) {
 			return fmt.Errorf("version %s is not installed: %w", versionArg, ErrVersionNotInstalled)
 		}
 
