@@ -69,9 +69,9 @@ func (t Type) String() string {
 	}
 }
 
-// IsCommitHash checks if a string looks like a commit hash or branch reference.
-// Accepts "master" and hexadecimal strings of length 7-40.
-func IsCommitHash(str string) bool {
+// IsCommitReference checks if a string looks like a commit hash or branch reference.
+// Accepts "master" branch and hexadecimal strings of length 7-40.
+func IsCommitReference(str string) bool {
 	if str == "master" {
 		return true
 	}

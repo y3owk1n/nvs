@@ -288,7 +288,7 @@ func determineVersionType(name string) domainversion.Type {
 		return domainversion.TypeStable
 	case strings.HasPrefix(strings.ToLower(name), "nightly"):
 		return domainversion.TypeNightly
-	case domainversion.IsCommitHash(name):
+	case domainversion.IsCommitReference(name):
 		return domainversion.TypeCommit
 	default:
 		return domainversion.TypeTag

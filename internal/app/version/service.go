@@ -62,7 +62,7 @@ func (s *Service) Install(
 	normalized := normalizeVersion(versionAlias)
 
 	// Check if it's a commit hash
-	if version.IsCommitHash(normalized) {
+	if version.IsCommitReference(normalized) {
 		// Build from source for commit hashes
 		dest := filepath.Join(s.config.VersionsDir, normalized)
 
@@ -136,7 +136,7 @@ func (s *Service) Use(ctx context.Context, versionAlias string) (string, error) 
 	// Determine target version
 	var targetVersion version.Version
 
-	if version.IsCommitHash(normalized) {
+	if version.IsCommitReference(normalized) {
 		// For commit hash, the version name is the hash itself
 		targetVersion = version.New(normalized, version.TypeCommit, normalized, "")
 	} else {
@@ -337,7 +337,7 @@ func (s *Service) Upgrade(
 // normalizeVersion normalizes a version string.
 func normalizeVersion(versionStr string) string {
 	if versionStr == StableVersion || versionStr == NightlyVersion ||
-		version.IsCommitHash(versionStr) {
+		version.IsCommitReference(versionStr) {
 		return versionStr
 	}
 
@@ -370,7 +370,7 @@ func (s *Service) FindNightly() (release.Release, error) {
 	return s.releaseRepo.FindNightly()
 }
 
-// IsCommitHash checks if a string is a commit hash.
-func (s *Service) IsCommitHash(str string) bool {
-	return version.IsCommitHash(str)
+// IsCommitReference checks if a string is a commit reference.
+func (s *Service) IsCommitReference(str string) bool {
+	return version.IsCommitReference(str)
 }

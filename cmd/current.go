@@ -114,7 +114,7 @@ func RunCurrent(_ *cobra.Command, _ []string) error {
 		}
 	default:
 		// Handle custom version or commit hash
-		isCommitHash := GetVersionService().IsCommitHash(current.Name())
+		isCommitHash := GetVersionService().IsCommitReference(current.Name())
 		logrus.Debugf("isCommitHash: %t", isCommitHash)
 
 		if isCommitHash {
