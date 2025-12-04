@@ -63,8 +63,9 @@ func (s *Service) Install(
 
 	// Check if it's a commit hash
 	if version.IsCommitHash(normalized) {
-		// This will be handled by a separate installer implementation
-		return ErrCommitHashNotImplemented
+		// Build from source for commit hashes
+		dest := filepath.Join(s.config.VersionsDir, normalized)
+		return s.installer.BuildFromCommit(ctx, normalized, dest)
 	}
 
 	// Resolve release

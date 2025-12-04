@@ -87,7 +87,9 @@ func (m *mockVersionManager) GetInstalledReleaseIdentifier(versionName string) (
 
 // mockInstaller implements installer.Installer for testing.
 type mockInstaller struct {
-	installed map[string]bool
+	installed             map[string]bool
+	buildFromCommitCalled bool
+	lastCommit            string
 }
 
 func (m *mockInstaller) InstallRelease(
@@ -102,6 +104,8 @@ func (m *mockInstaller) InstallRelease(
 }
 
 func (m *mockInstaller) BuildFromCommit(ctx context.Context, commit, dest string) error {
+	m.buildFromCommitCalled = true
+	m.lastCommit = commit
 	return nil
 }
 
@@ -255,5 +259,30 @@ func TestService_Use_VersionNotFound(t *testing.T) {
 
 	if !errors.Is(err, version.ErrVersionNotFound) {
 		t.Errorf("Expected ErrVersionNotFound, got %v", err)
+	}
+}
+
+func TestService_Install_CommitHash(t *testing.T) {
+	// Test installing from a commit hash
+	repo := &mockReleaseRepo{}
+	manager := &mockVersionManager{
+		installed: make(map[string]bool),
+	}
+	install := &mockInstaller{installed: make(map[string]bool)}
+
+	service := appversion.New(repo, manager, install, &appversion.Config{})
+
+	commitHash := "abc123def456"
+	err := service.Install(context.Background(), commitHash, nil)
+	if err != nil {
+		t.Errorf("Install commit hash failed: %v", err)
+	}
+
+	// Verify BuildFromCommit was called
+	if !install.buildFromCommitCalled {
+		t.Errorf("BuildFromCommit should have been called")
+	}
+	if install.lastCommit != commitHash {
+		t.Errorf("Expected commit %s, got %s", commitHash, install.lastCommit)
 	}
 }
