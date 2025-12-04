@@ -104,26 +104,25 @@ func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, err
 			return nil, fmt.Errorf("failed to fetch releases: %w", err)
 		}
 
-		defer func() {
-			closeErr := resp.Body.Close()
-			if closeErr != nil {
-				logrus.Debugf("Failed to close response body: %v", closeErr)
-			}
-		}()
-
 		logrus.Debugf("GitHub API status code: %d", resp.StatusCode)
 
 		if resp.StatusCode == http.StatusForbidden {
+			_ = resp.Body.Close()
+
 			return nil, fmt.Errorf("%w: please try again later", ErrRateLimitExceeded)
 		}
 
 		if resp.StatusCode != http.StatusOK {
+			_ = resp.Body.Close()
+
 			return nil, fmt.Errorf("%w: %d", ErrAPIRequestFailed, resp.StatusCode)
 		}
 
 		var apiReleases []apiRelease
 
 		err = json.NewDecoder(resp.Body).Decode(&apiReleases)
+		_ = resp.Body.Close()
+
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode response: %w", err)
 		}
