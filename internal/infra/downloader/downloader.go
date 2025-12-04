@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -24,10 +25,14 @@ type Downloader struct {
 	httpClient *http.Client
 }
 
+const defaultTimeout = 30 * time.Second
+
 // New creates a new Downloader instance.
 func New() *Downloader {
 	return &Downloader{
-		httpClient: &http.Client{},
+		httpClient: &http.Client{
+			Timeout: defaultTimeout,
+		},
 	}
 }
 
