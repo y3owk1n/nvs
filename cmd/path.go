@@ -96,7 +96,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	}
 
 	if found {
-		logrus.Debug("PATH already contains GetGlobalBinDir()")
+		logrus.Debugf("PATH already contains %s", GetGlobalBinDir())
 
 		_, err = fmt.Fprintf(os.Stdout,
 			"%s %s\n",
