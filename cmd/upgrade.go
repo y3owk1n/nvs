@@ -74,20 +74,19 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		logrus.Debugf("Processing alias: %s", alias)
 
 		// Create and start a spinner to show progress.
-		spinner := spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond)
-		spinner.Suffix = InitialSuffix
-		spinner.Start()
+		progressSpinner := spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond)
+		progressSpinner.Suffix = InitialSuffix
+		progressSpinner.Start()
 
 		err := GetVersionService().Upgrade(ctx, alias, func(phase string, progress int) {
 			if phase != "" {
-				spinner.Prefix = phase + " "
-				spinner.Suffix = ""
+				progressSpinner.Prefix = phase + " "
 			}
 
-			spinner.Suffix = fmt.Sprintf(" %d%%", progress)
+			progressSpinner.Suffix = fmt.Sprintf(" %d%%", progress)
 		})
 		if err != nil {
-			spinner.Stop()
+			progressSpinner.Stop()
 
 			if err.Error() == "not installed" { // Should use errors.Is
 				logrus.Debugf("'%s' is not installed. Skipping upgrade.", alias)
@@ -126,7 +125,7 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("upgrade failed for %s: %w", alias, err)
 		}
 
-		spinner.Stop()
+		progressSpinner.Stop()
 
 		// Inform the user that the upgrade succeeded.
 		_, printErr := fmt.Fprintf(os.Stdout,
