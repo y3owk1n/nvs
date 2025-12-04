@@ -257,7 +257,7 @@ func TestService_ListRemote_ForceFalse(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	_, err = service.ListRemote(false)
+	_, err = service.ListRemote(context.Background(), false)
 	if err != nil {
 		t.Fatalf("ListRemote(false) failed: %v", err)
 	}
@@ -282,7 +282,7 @@ func TestService_ListRemote_ForceTrue(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	_, err = service.ListRemote(true)
+	_, err = service.ListRemote(context.Background(), true)
 	if err != nil {
 		t.Fatalf("ListRemote(true) failed: %v", err)
 	}

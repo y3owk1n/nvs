@@ -85,11 +85,11 @@ func (s *Service) Install(
 
 	switch normalized {
 	case StableVersion:
-		rel, err = s.releaseRepo.FindStable(context.Background())
+		rel, err = s.releaseRepo.FindStable(ctx)
 	case NightlyVersion:
-		rel, err = s.releaseRepo.FindNightly(context.Background())
+		rel, err = s.releaseRepo.FindNightly(ctx)
 	default:
-		rel, err = s.releaseRepo.FindByTag(context.Background(), normalized)
+		rel, err = s.releaseRepo.FindByTag(ctx, normalized)
 	}
 
 	if err != nil {
@@ -244,8 +244,8 @@ func (s *Service) Uninstall(versionAlias string, force bool) error {
 }
 
 // ListRemote returns available remote releases.
-func (s *Service) ListRemote(force bool) ([]release.Release, error) {
-	return s.releaseRepo.GetAll(context.Background(), force)
+func (s *Service) ListRemote(ctx context.Context, force bool) ([]release.Release, error) {
+	return s.releaseRepo.GetAll(ctx, force)
 }
 
 // Upgrade upgrades a version (stable or nightly).

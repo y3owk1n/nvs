@@ -48,7 +48,7 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 	}
 
 	// Retrieve the remote releases via version service
-	releasesResult, err := GetVersionService().ListRemote(force)
+	releasesResult, err := GetVersionService().ListRemote(cmd.Context(), force)
 	if err != nil {
 		return fmt.Errorf("error fetching releases: %w", err)
 	}
