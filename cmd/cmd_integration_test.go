@@ -472,12 +472,31 @@ func TestRunUse_InstallAndSwitch(t *testing.T) {
 	mockInstaller := &mockInstallerForIntegration{
 		installed: sharedInstalled,
 	}
+	// Create assets based on current platform
+	var assets []release.Asset
+	switch runtime.GOOS {
+	case "darwin":
+		assets = []release.Asset{
+			release.NewAsset("macos.tar.gz", "https://example.com/macos.tar.gz", 1000000),
+		}
+	case "linux":
+		assets = []release.Asset{
+			release.NewAsset("nvim-linux64.tar.gz", "https://example.com/nvim-linux64.tar.gz", 1000000),
+		}
+	case "windows":
+		assets = []release.Asset{
+			release.NewAsset("nvim-win64.zip", "https://example.com/nvim-win64.zip", 1000000),
+		}
+	default:
+		// Fallback for unknown platforms
+		assets = []release.Asset{
+			release.NewAsset("generic.tar.gz", "https://example.com/generic.tar.gz", 1000000),
+		}
+	}
+
 	mockReleaseRepo := &mockReleaseRepoForIntegration{
 		releases: map[string]release.Release{
-			"stable": release.New("stable", false, "abc123", time.Now(), []release.Asset{
-				release.NewAsset("macos.tar.gz", "https://example.com/macos.tar.gz", 1000000),
-				release.NewAsset("nvim-linux64.tar.gz", "https://example.com/nvim-linux64.tar.gz", 1000000),
-			}),
+			"stable": release.New("stable", false, "abc123", time.Now(), assets),
 		},
 	}
 
