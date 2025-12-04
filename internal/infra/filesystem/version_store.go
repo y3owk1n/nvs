@@ -101,6 +101,7 @@ func (s *VersionStore) Current() (domainversion.Version, error) {
 		if err != nil {
 			return domainversion.Version{}, fmt.Errorf("failed to resolve junction: %w", err)
 		}
+
 		targetName = filepath.Base(resolved)
 	default:
 		return domainversion.Version{}, domainversion.ErrNoCurrentVersion

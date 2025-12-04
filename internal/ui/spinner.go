@@ -72,6 +72,12 @@ func RunCommandWithSpinner(ctx context.Context, spinner *spinner.Spinner, cmd *e
 	// Wait for either the command to finish or the context to be canceled.
 	select {
 	case <-ctx.Done():
+		// Kill the process to ensure pipes close and goroutines can exit
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
+		// Wait for goroutines to finish reading
+		waitGroup.Wait()
 		return fmt.Errorf("command canceled: %w", ctx.Err())
 	case err := <-cmdErrChan:
 		// Wait for spinner update routines to finish.
