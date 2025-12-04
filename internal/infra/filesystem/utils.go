@@ -14,8 +14,8 @@ const (
 )
 
 // CopyFile copies the content of the file from src to dst,
-// sets the destination file's permissions to 0755, and returns an error if any step fails.
-func CopyFile(src, dst string) (err error) {
+// sets the destination file's permissions to the specified mode, and returns an error if any step fails.
+func CopyFile(src, dst string, mode os.FileMode) (err error) {
 	inputFile, err := os.Open(src)
 	if err != nil {
 		return err
@@ -45,7 +45,7 @@ func CopyFile(src, dst string) (err error) {
 		return err
 	}
 
-	err = os.Chmod(dst, DirPerm)
+	err = os.Chmod(dst, mode)
 	if err != nil {
 		return err
 	}
