@@ -1,5 +1,4 @@
 // Package version provides the application service for version management.
-// Package version provides the application service for version management.
 package version
 
 import (
