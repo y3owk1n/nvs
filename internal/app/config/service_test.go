@@ -1,12 +1,17 @@
 package config_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 
 	"github.com/y3owk1n/nvs/internal/app/config"
+)
+
+const (
+	windowsOS = "windows"
 )
 
 func TestService_List(t *testing.T) {
@@ -19,8 +24,8 @@ func TestService_List(t *testing.T) {
 
 	// Create test config directories
 	configs := []string{"nvim", "nvim-custom", "other-config"}
-	for _, config := range configs {
-		dir := filepath.Join(tempDir, config)
+	for _, cfg := range configs {
+		dir := filepath.Join(tempDir, cfg)
 
 		err := os.MkdirAll(dir, 0o755)
 		if err != nil {
@@ -45,7 +50,7 @@ func TestService_List(t *testing.T) {
 	linkPath := filepath.Join(tempDir, "nvim-link")
 
 	err = os.Symlink(linkTarget, linkPath)
-	if err != nil && runtime.GOOS == "windows" {
+	if err != nil && runtime.GOOS == windowsOS {
 		t.Skip("Symlinks not supported on Windows")
 	} else if err != nil {
 		t.Fatal(err)
@@ -92,9 +97,9 @@ func TestService_Launch_ConfigNotFound(t *testing.T) {
 		t.Errorf("expected error for nonexistent config")
 	}
 
-	// Check it's the right error
-	if err.Error() != "configuration not found: nonexistent-config" {
-		t.Errorf("unexpected error: %v", err)
+	// Check it's the right error using sentinel
+	if !errors.Is(err, config.ErrConfigNotFound) {
+		t.Errorf("expected ErrConfigNotFound, got: %v", err)
 	}
 }
 
@@ -120,11 +125,18 @@ func TestService_Launch_ConfigExists(t *testing.T) {
 	fakeNvimDir := t.TempDir()
 
 	fakeNvim := filepath.Join(fakeNvimDir, "nvim")
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == windowsOS {
 		fakeNvim += ".exe"
 	}
 
-	err = os.WriteFile(fakeNvim, []byte("#!/bin/bash\necho fake nvim"), 0o755)
+	var content []byte
+	if runtime.GOOS == windowsOS {
+		content = []byte{} // Empty file for Windows .exe
+	} else {
+		content = []byte("#!/bin/bash\necho fake nvim")
+	}
+
+	err = os.WriteFile(fakeNvim, content, 0o755)
 	if err != nil {
 		t.Fatal(err)
 	}
