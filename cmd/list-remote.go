@@ -86,7 +86,9 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 	current, err := GetVersionService().Current()
 
 	currentName := ""
-	if err == nil {
+	if err != nil {
+		logrus.Debugf("No current version set: %v", err)
+	} else {
 		currentName = current.Name()
 	}
 
