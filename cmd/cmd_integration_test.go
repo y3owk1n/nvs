@@ -19,8 +19,9 @@ import (
 )
 
 const (
-	testVersion = "v1.0.0"
-	windowsOS   = "windows"
+	testVersion    = "v1.0.0"
+	testCommitHash = "abc1234"
+	windowsOS      = "windows"
 )
 
 // mockVersionManagerForIntegration implements version.Manager for integration testing.
@@ -408,7 +409,7 @@ func TestRunUse(t *testing.T) {
 	cmd.InitConfig()
 
 	// Create version (use a fake commit hash to avoid release lookup)
-	version := "abc1234"
+	version := testCommitHash
 	target := filepath.Join(cmd.GetVersionsDir(), version)
 
 	err := os.MkdirAll(target, 0o755)
@@ -577,7 +578,7 @@ func TestFullWorkflow(t *testing.T) {
 	// This may succeed or fail depending on implementation, just ensure it doesn't crash
 
 	// 3. Create a fake installed version for testing (use commit hash to avoid network)
-	targetVersion := "abc1234"
+	targetVersion := testCommitHash
 	versionDir := filepath.Join(cmd.GetVersionsDir(), targetVersion)
 
 	err = os.MkdirAll(versionDir, 0o755)
@@ -715,4 +716,631 @@ func TestFullWorkflow(t *testing.T) {
 	if err == nil {
 		t.Errorf("Version directory should have been removed")
 	}
+}
+
+func TestRunListRemote(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Set env vars
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+	t.Setenv("NVS_TEST_MODE", "1")
+
+	// Save original services
+	originalVersionService := cmd.GetVersionService()
+	defer func() {
+		cmd.SetVersionServiceForTesting(originalVersionService)
+	}()
+
+	// Create mocked services
+	mockManager := &mockVersionManagerForIntegration{
+		installed: make(map[string]bool),
+		current:   version.Version{},
+	}
+	mockInstaller := &mockInstallerForIntegration{
+		installed: make(map[string]bool),
+	}
+
+	assets := createPlatformAssets()
+
+	mockReleaseRepo := &mockReleaseRepoForIntegration{
+		releases: map[string]release.Release{
+			"stable":  release.New("stable", false, "abc123", time.Now(), assets),
+			"nightly": release.New("nightly", true, "def456", time.Now(), assets),
+			"v0.10.0": release.New("v0.10.0", false, "", time.Now(), assets),
+		},
+	}
+
+	mockService, err := appversion.New(
+		mockReleaseRepo,
+		mockManager,
+		mockInstaller,
+		&appversion.Config{
+			VersionsDir:   tempDir,
+			CacheFilePath: filepath.Join(tempDir, "cache.json"),
+			GlobalBinDir:  tempDir,
+		},
+	)
+	if err != nil {
+		t.Fatalf("Failed to create mock service: %v", err)
+	}
+
+	cmd.SetVersionServiceForTesting(mockService)
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.SetContext(context.Background())
+
+	err = cmd.RunListRemote(cobraCmd, []string{})
+	if err != nil {
+		t.Errorf("RunListRemote failed: %v", err)
+	}
+}
+
+func TestRunListRemote_Force(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+	t.Setenv("NVS_TEST_MODE", "1")
+
+	originalVersionService := cmd.GetVersionService()
+	defer func() {
+		cmd.SetVersionServiceForTesting(originalVersionService)
+	}()
+
+	mockManager := &mockVersionManagerForIntegration{
+		installed: make(map[string]bool),
+		current:   version.Version{},
+	}
+	mockInstaller := &mockInstallerForIntegration{
+		installed: make(map[string]bool),
+	}
+
+	assets := createPlatformAssets()
+
+	mockReleaseRepo := &mockReleaseRepoForIntegration{
+		releases: map[string]release.Release{
+			"stable": release.New("stable", false, "abc123", time.Now(), assets),
+		},
+	}
+
+	mockService, err := appversion.New(
+		mockReleaseRepo,
+		mockManager,
+		mockInstaller,
+		&appversion.Config{
+			VersionsDir:   tempDir,
+			CacheFilePath: filepath.Join(tempDir, "cache.json"),
+			GlobalBinDir:  tempDir,
+		},
+	)
+	if err != nil {
+		t.Fatalf("Failed to create mock service: %v", err)
+	}
+
+	cmd.SetVersionServiceForTesting(mockService)
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.SetContext(context.Background())
+
+	// Test with force argument
+	err = cmd.RunListRemote(cobraCmd, []string{"force"})
+	if err != nil {
+		t.Errorf("RunListRemote with force failed: %v", err)
+	}
+}
+
+func TestRunListRemote_WithInstalledVersions(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+	t.Setenv("NVS_TEST_MODE", "1")
+
+	originalVersionService := cmd.GetVersionService()
+	defer func() {
+		cmd.SetVersionServiceForTesting(originalVersionService)
+	}()
+
+	// Mark stable as installed
+	mockManager := &mockVersionManagerForIntegration{
+		installed: map[string]bool{"stable": true},
+		current:   version.New("stable", version.TypeTag, "stable", ""),
+	}
+	mockInstaller := &mockInstallerForIntegration{
+		installed: map[string]bool{"stable": true},
+	}
+
+	assets := createPlatformAssets()
+
+	mockReleaseRepo := &mockReleaseRepoForIntegration{
+		releases: map[string]release.Release{
+			"stable":  release.New("stable", false, "abc123", time.Now(), assets),
+			"nightly": release.New("nightly", true, "def456", time.Now(), assets),
+		},
+	}
+
+	mockService, err := appversion.New(
+		mockReleaseRepo,
+		mockManager,
+		mockInstaller,
+		&appversion.Config{
+			VersionsDir:   tempDir,
+			CacheFilePath: filepath.Join(tempDir, "cache.json"),
+			GlobalBinDir:  tempDir,
+		},
+	)
+	if err != nil {
+		t.Fatalf("Failed to create mock service: %v", err)
+	}
+
+	cmd.SetVersionServiceForTesting(mockService)
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.SetContext(context.Background())
+
+	err = cmd.RunListRemote(cobraCmd, []string{})
+	if err != nil {
+		t.Errorf("RunListRemote with installed versions failed: %v", err)
+	}
+}
+
+func TestRunUpgrade_InvalidTarget(t *testing.T) {
+	cobraCmd := &cobra.Command{}
+	cobraCmd.SetContext(context.Background())
+
+	// Test with invalid target (not stable or nightly)
+	err := cmd.RunUpgrade(cobraCmd, []string{"invalid-target"})
+	if err == nil {
+		t.Errorf("expected error for invalid upgrade target")
+	}
+}
+
+func TestRunUpgrade_NotInstalled(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+	t.Setenv("NVS_TEST_MODE", "1")
+
+	originalVersionService := cmd.GetVersionService()
+	defer func() {
+		cmd.SetVersionServiceForTesting(originalVersionService)
+	}()
+
+	// No versions installed
+	mockManager := &mockVersionManagerForIntegration{
+		installed: make(map[string]bool),
+		current:   version.Version{},
+	}
+	mockInstaller := &mockInstallerForIntegration{
+		installed: make(map[string]bool),
+	}
+
+	assets := createPlatformAssets()
+
+	mockReleaseRepo := &mockReleaseRepoForIntegration{
+		releases: map[string]release.Release{
+			"stable": release.New("stable", false, "abc123", time.Now(), assets),
+		},
+	}
+
+	mockService, err := appversion.New(
+		mockReleaseRepo,
+		mockManager,
+		mockInstaller,
+		&appversion.Config{
+			VersionsDir:   tempDir,
+			CacheFilePath: filepath.Join(tempDir, "cache.json"),
+			GlobalBinDir:  tempDir,
+		},
+	)
+	if err != nil {
+		t.Fatalf("Failed to create mock service: %v", err)
+	}
+
+	cmd.SetVersionServiceForTesting(mockService)
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.SetContext(context.Background())
+
+	// Should skip (not error) when version not installed
+	err = cmd.RunUpgrade(cobraCmd, []string{"stable"})
+	if err != nil {
+		t.Errorf("RunUpgrade should skip not installed version, got error: %v", err)
+	}
+}
+
+func TestRunUpgrade_BothVersions(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+	t.Setenv("NVS_TEST_MODE", "1")
+
+	originalVersionService := cmd.GetVersionService()
+	defer func() {
+		cmd.SetVersionServiceForTesting(originalVersionService)
+	}()
+
+	// No versions installed - both should be skipped
+	mockManager := &mockVersionManagerForIntegration{
+		installed: make(map[string]bool),
+		current:   version.Version{},
+	}
+	mockInstaller := &mockInstallerForIntegration{
+		installed: make(map[string]bool),
+	}
+
+	assets := createPlatformAssets()
+
+	mockReleaseRepo := &mockReleaseRepoForIntegration{
+		releases: map[string]release.Release{
+			"stable":  release.New("stable", false, "abc123", time.Now(), assets),
+			"nightly": release.New("nightly", true, "def456", time.Now(), assets),
+		},
+	}
+
+	mockService, err := appversion.New(
+		mockReleaseRepo,
+		mockManager,
+		mockInstaller,
+		&appversion.Config{
+			VersionsDir:   tempDir,
+			CacheFilePath: filepath.Join(tempDir, "cache.json"),
+			GlobalBinDir:  tempDir,
+		},
+	)
+	if err != nil {
+		t.Fatalf("Failed to create mock service: %v", err)
+	}
+
+	cmd.SetVersionServiceForTesting(mockService)
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.SetContext(context.Background())
+
+	// No args = both stable and nightly
+	err = cmd.RunUpgrade(cobraCmd, []string{})
+	if err != nil {
+		t.Errorf("RunUpgrade both versions failed: %v", err)
+	}
+}
+
+func TestRunEnv_SourceFish(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.Flags().Bool("source", false, "")
+	cobraCmd.Flags().String("shell", "", "")
+	_ = cobraCmd.Flags().Set("source", "true")
+	_ = cobraCmd.Flags().Set("shell", "fish")
+	cobraCmd.SetContext(context.Background())
+
+	err := cmd.RunEnv(cobraCmd, []string{})
+	if err != nil {
+		t.Errorf("RunEnv with fish shell failed: %v", err)
+	}
+}
+
+func TestRunEnv_SourceZsh(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.Flags().Bool("source", false, "")
+	cobraCmd.Flags().String("shell", "", "")
+	_ = cobraCmd.Flags().Set("source", "true")
+	_ = cobraCmd.Flags().Set("shell", "zsh")
+	cobraCmd.SetContext(context.Background())
+
+	err := cmd.RunEnv(cobraCmd, []string{})
+	if err != nil {
+		t.Errorf("RunEnv with zsh shell failed: %v", err)
+	}
+}
+
+func TestRunEnv_SourceSh(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.Flags().Bool("source", false, "")
+	cobraCmd.Flags().String("shell", "", "")
+	_ = cobraCmd.Flags().Set("source", "true")
+	_ = cobraCmd.Flags().Set("shell", "sh")
+	cobraCmd.SetContext(context.Background())
+
+	err := cmd.RunEnv(cobraCmd, []string{})
+	if err != nil {
+		t.Errorf("RunEnv with sh shell failed: %v", err)
+	}
+}
+
+func TestRunEnv_SourceUnsupportedShell(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.Flags().Bool("source", false, "")
+	cobraCmd.Flags().String("shell", "", "")
+	_ = cobraCmd.Flags().Set("source", "true")
+	_ = cobraCmd.Flags().Set("shell", "unsupported-shell")
+	cobraCmd.SetContext(context.Background())
+
+	err := cmd.RunEnv(cobraCmd, []string{})
+	if err == nil {
+		t.Errorf("expected error for unsupported shell")
+	}
+}
+
+func TestRunUninstall_NotInstalled(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.SetContext(context.Background())
+
+	// Try to uninstall a version that doesn't exist
+	err := cmd.RunUninstall(cobraCmd, []string{"nonexistent-version"})
+	if err == nil {
+		t.Errorf("expected error when uninstalling non-existent version")
+	}
+}
+
+func TestRunUninstall_CurrentAborted(t *testing.T) {
+	if runtime.GOOS == windowsOS {
+		t.Skip("Skipping symlink test on Windows")
+	}
+
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
+
+	// Create a version directory
+	versionName := "v1.0.0"
+	versionDir := filepath.Join(cmd.GetVersionsDir(), versionName)
+
+	err := os.MkdirAll(versionDir, 0o755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create current symlink pointing to this version
+	currentLink := filepath.Join(cmd.GetVersionsDir(), "current")
+
+	err = os.Symlink(versionDir, currentLink)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Mock stdin with "n\n" to abort
+	oldStdin := os.Stdin
+	defer func() { os.Stdin = oldStdin }()
+
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	os.Stdin = reader
+
+	go func() {
+		defer func() { _ = writer.Close() }()
+
+		_, _ = writer.WriteString("n\n") // Abort
+	}()
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.SetContext(context.Background())
+
+	// Should not error - just abort
+	err = cmd.RunUninstall(cobraCmd, []string{versionName})
+	if err != nil {
+		t.Errorf("RunUninstall aborted should not error: %v", err)
+	}
+
+	// Version should still exist
+	_, err = os.Stat(versionDir)
+	if err != nil {
+		t.Errorf("Version directory should still exist after abort")
+	}
+}
+
+func TestRunCurrent_NoCurrent(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.SetContext(context.Background())
+
+	// No current version set - should return error
+	err := cmd.RunCurrent(cobraCmd, []string{})
+	if err == nil {
+		t.Log("RunCurrent with no current version may or may not error depending on implementation")
+	}
+}
+
+func TestRunCurrent_WithStable(t *testing.T) {
+	if runtime.GOOS == windowsOS {
+		t.Skip("Skipping symlink test on Windows")
+	}
+
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+	t.Setenv("NVS_TEST_MODE", "1")
+
+	cmd.InitConfig()
+
+	// Create stable version directory
+	versionDir := filepath.Join(cmd.GetVersionsDir(), "stable")
+
+	err := os.MkdirAll(versionDir, 0o755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create current symlink
+	currentLink := filepath.Join(cmd.GetVersionsDir(), "current")
+
+	err = os.Symlink(versionDir, currentLink)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.SetContext(context.Background())
+
+	err = cmd.RunCurrent(cobraCmd, []string{})
+	// May error if release fetch fails, but shouldn't crash
+	t.Logf("RunCurrent with stable result: %v", err)
+}
+
+func TestRunCurrent_WithNightly(t *testing.T) {
+	if runtime.GOOS == windowsOS {
+		t.Skip("Skipping symlink test on Windows")
+	}
+
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+	t.Setenv("NVS_TEST_MODE", "1")
+
+	cmd.InitConfig()
+
+	// Create nightly version directory
+	versionDir := filepath.Join(cmd.GetVersionsDir(), "nightly")
+
+	err := os.MkdirAll(versionDir, 0o755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create current symlink
+	currentLink := filepath.Join(cmd.GetVersionsDir(), "current")
+
+	err = os.Symlink(versionDir, currentLink)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.SetContext(context.Background())
+
+	err = cmd.RunCurrent(cobraCmd, []string{})
+	// May error if release fetch fails, but shouldn't crash
+	t.Logf("RunCurrent with nightly result: %v", err)
+}
+
+func TestRunCurrent_WithCommitHash(t *testing.T) {
+	if runtime.GOOS == windowsOS {
+		t.Skip("Skipping symlink test on Windows")
+	}
+
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
+
+	// Create commit hash version directory
+	commitHash := testCommitHash
+	versionDir := filepath.Join(cmd.GetVersionsDir(), commitHash)
+
+	err := os.MkdirAll(versionDir, 0o755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create current symlink
+	currentLink := filepath.Join(cmd.GetVersionsDir(), "current")
+
+	err = os.Symlink(versionDir, currentLink)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.SetContext(context.Background())
+
+	err = cmd.RunCurrent(cobraCmd, []string{})
+	if err != nil {
+		t.Errorf("RunCurrent with commit hash failed: %v", err)
+	}
+}
+
+// createPlatformAssets creates test assets based on the current platform.
+func createPlatformAssets() []release.Asset {
+	var assets []release.Asset
+	switch runtime.GOOS {
+	case "darwin":
+		assets = []release.Asset{
+			release.NewAsset("macos.tar.gz", "https://example.com/macos.tar.gz", 1000000),
+		}
+	case "linux":
+		assets = []release.Asset{
+			release.NewAsset(
+				"nvim-linux64.tar.gz",
+				"https://example.com/nvim-linux64.tar.gz",
+				1000000,
+			),
+		}
+	case windowsOS:
+		assets = []release.Asset{
+			release.NewAsset("nvim-win64.zip", "https://example.com/nvim-win64.zip", 1000000),
+		}
+	default:
+		assets = []release.Asset{
+			release.NewAsset("generic.tar.gz", "https://example.com/generic.tar.gz", 1000000),
+		}
+	}
+
+	return assets
 }

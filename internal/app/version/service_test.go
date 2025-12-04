@@ -13,8 +13,9 @@ import (
 	"github.com/y3owk1n/nvs/internal/domain/version"
 )
 
-// mockReleaseRepo implements release.Repository for testing.
 var errTagNotFound = errors.New("tag not found")
+
+const testVersionTag = "v0.10.0"
 
 type mockReleaseRepo struct {
 	stable         release.Release
@@ -175,7 +176,7 @@ func TestService_Use_Stable(t *testing.T) {
 		t.Errorf("Expected current version type 'stable', got '%s'", manager.current.Type())
 	}
 
-	if manager.current.Identifier() != "v0.10.0" {
+	if manager.current.Identifier() != testVersionTag {
 		t.Errorf(
 			"Expected current version identifier 'v0.10.0', got '%s'",
 			manager.current.Identifier(),
@@ -353,5 +354,215 @@ func TestService_Install_CommitHash(t *testing.T) {
 	expectedDest := filepath.Join(config.VersionsDir, commitHash)
 	if install.lastDest != expectedDest {
 		t.Errorf("Expected dest %s, got %s", expectedDest, install.lastDest)
+	}
+}
+
+func TestService_List(t *testing.T) {
+	repo := &mockReleaseRepo{}
+	manager := &mockVersionManager{
+		installed: map[string]version.Version{
+			"stable":  version.New("stable", version.TypeStable, "v0.10.0", ""),
+			"nightly": version.New("nightly", version.TypeNightly, "nightly", "abc123"),
+		},
+	}
+	install := &mockInstaller{installed: make(map[string]version.Version)}
+
+	service, err := appversion.New(repo, manager, install, &appversion.Config{VersionsDir: "/tmp"})
+	if err != nil {
+		t.Fatalf("Failed to create service: %v", err)
+	}
+
+	list, err := service.List()
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+
+	if len(list) != 2 {
+		t.Errorf("Expected 2 versions, got %d", len(list))
+	}
+}
+
+func TestService_Current(t *testing.T) {
+	repo := &mockReleaseRepo{}
+	manager := &mockVersionManager{
+		current: version.New("stable", version.TypeStable, "v0.10.0", ""),
+	}
+	install := &mockInstaller{installed: make(map[string]version.Version)}
+
+	service, err := appversion.New(repo, manager, install, &appversion.Config{VersionsDir: "/tmp"})
+	if err != nil {
+		t.Fatalf("Failed to create service: %v", err)
+	}
+
+	current, err := service.Current()
+	if err != nil {
+		t.Fatalf("Current failed: %v", err)
+	}
+
+	if current.Name() != "stable" {
+		t.Errorf("Expected current name 'stable', got '%s'", current.Name())
+	}
+}
+
+func TestService_Uninstall(t *testing.T) {
+	repo := &mockReleaseRepo{}
+	manager := &mockVersionManager{
+		installed: map[string]version.Version{
+			"v0.10.0": version.New("v0.10.0", version.TypeTag, "v0.10.0", ""),
+		},
+	}
+	install := &mockInstaller{installed: make(map[string]version.Version)}
+
+	service, err := appversion.New(repo, manager, install, &appversion.Config{VersionsDir: "/tmp"})
+	if err != nil {
+		t.Fatalf("Failed to create service: %v", err)
+	}
+
+	err = service.Uninstall("v0.10.0", true)
+	if err != nil {
+		t.Fatalf("Uninstall failed: %v", err)
+	}
+
+	// Verify version was removed from manager
+	if _, exists := manager.installed["v0.10.0"]; exists {
+		t.Error("Version should have been removed from manager")
+	}
+}
+
+func TestService_Uninstall_NotInstalled(t *testing.T) {
+	repo := &mockReleaseRepo{}
+	manager := &mockVersionManager{
+		installed: make(map[string]version.Version),
+	}
+	install := &mockInstaller{installed: make(map[string]version.Version)}
+
+	service, err := appversion.New(repo, manager, install, &appversion.Config{VersionsDir: "/tmp"})
+	if err != nil {
+		t.Fatalf("Failed to create service: %v", err)
+	}
+
+	err = service.Uninstall("nonexistent", true)
+	if err == nil {
+		t.Error("Expected error when uninstalling non-existent version")
+	}
+}
+
+func TestService_IsVersionInstalled(t *testing.T) {
+	repo := &mockReleaseRepo{}
+	manager := &mockVersionManager{
+		installed: map[string]version.Version{
+			"stable": version.New("stable", version.TypeStable, "v0.10.0", ""),
+		},
+	}
+	install := &mockInstaller{installed: make(map[string]version.Version)}
+
+	service, err := appversion.New(repo, manager, install, &appversion.Config{VersionsDir: "/tmp"})
+	if err != nil {
+		t.Fatalf("Failed to create service: %v", err)
+	}
+
+	if !service.IsVersionInstalled("stable") {
+		t.Error("Expected stable to be installed")
+	}
+
+	if service.IsVersionInstalled("nightly") {
+		t.Error("Expected nightly to NOT be installed")
+	}
+}
+
+func TestService_FindStable(t *testing.T) {
+	repo := &mockReleaseRepo{
+		stable: release.New("v0.10.0", false, "abc123", time.Time{}, nil),
+	}
+	manager := &mockVersionManager{}
+	install := &mockInstaller{installed: make(map[string]version.Version)}
+
+	service, err := appversion.New(repo, manager, install, &appversion.Config{VersionsDir: "/tmp"})
+	if err != nil {
+		t.Fatalf("Failed to create service: %v", err)
+	}
+
+	stable, err := service.FindStable(context.Background())
+	if err != nil {
+		t.Fatalf("FindStable failed: %v", err)
+	}
+
+	if stable.TagName() != "v0.10.0" {
+		t.Errorf("Expected tag 'v0.10.0', got '%s'", stable.TagName())
+	}
+}
+
+func TestService_FindNightly(t *testing.T) {
+	repo := &mockReleaseRepo{
+		nightly: release.New("nightly", true, "def456", time.Time{}, nil),
+	}
+	manager := &mockVersionManager{}
+	install := &mockInstaller{installed: make(map[string]version.Version)}
+
+	service, err := appversion.New(repo, manager, install, &appversion.Config{VersionsDir: "/tmp"})
+	if err != nil {
+		t.Fatalf("Failed to create service: %v", err)
+	}
+
+	nightly, err := service.FindNightly(context.Background())
+	if err != nil {
+		t.Fatalf("FindNightly failed: %v", err)
+	}
+
+	if nightly.CommitHash() != "def456" {
+		t.Errorf("Expected commit 'def456', got '%s'", nightly.CommitHash())
+	}
+}
+
+func TestService_IsCommitReference(t *testing.T) {
+	repo := &mockReleaseRepo{}
+	manager := &mockVersionManager{}
+	install := &mockInstaller{installed: make(map[string]version.Version)}
+
+	service, err := appversion.New(repo, manager, install, &appversion.Config{VersionsDir: "/tmp"})
+	if err != nil {
+		t.Fatalf("Failed to create service: %v", err)
+	}
+
+	// Valid commit references
+	if !service.IsCommitReference("abc1234") {
+		t.Error("Expected 'abc1234' to be a commit reference")
+	}
+
+	if !service.IsCommitReference("master") {
+		t.Error("Expected 'master' to be a commit reference")
+	}
+
+	// Invalid commit references
+	if service.IsCommitReference("stable") {
+		t.Error("Expected 'stable' to NOT be a commit reference")
+	}
+
+	if service.IsCommitReference("v0.10.0") {
+		t.Error("Expected 'v0.10.0' to NOT be a commit reference")
+	}
+}
+
+func TestService_GetInstalledVersionIdentifier(t *testing.T) {
+	repo := &mockReleaseRepo{}
+	manager := &mockVersionManager{
+		identifiers: map[string]string{
+			"stable": "v0.10.0",
+		},
+	}
+	install := &mockInstaller{installed: make(map[string]version.Version)}
+
+	service, err := appversion.New(repo, manager, install, &appversion.Config{VersionsDir: "/tmp"})
+	if err != nil {
+		t.Fatalf("Failed to create service: %v", err)
+	}
+
+	identifier, err := service.GetInstalledVersionIdentifier("stable")
+	if err != nil {
+		t.Fatalf("GetInstalledVersionIdentifier failed: %v", err)
+	}
+
+	if identifier != testVersionTag {
+		t.Errorf("Expected identifier 'v0.10.0', got '%s'", identifier)
 	}
 }
