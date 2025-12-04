@@ -303,14 +303,16 @@ func (s *Service) Upgrade(
 		return fmt.Errorf("failed to backup version: %w", err)
 	}
 
+	upgradeSuccess := false
+
 	// Cleanup backup on success or restore on failure
 	defer func() {
-		_, statErr := os.Stat(versionPath)
-		if statErr == nil {
+		if upgradeSuccess {
 			// Upgrade succeeded, remove backup
 			_ = os.RemoveAll(backupPath)
 		} else {
 			// Upgrade failed, restore backup
+			_ = os.RemoveAll(versionPath) // Clean partial install
 			_ = os.Rename(backupPath, versionPath)
 		}
 	}()
@@ -325,6 +327,7 @@ func (s *Service) Upgrade(
 		return fmt.Errorf("failed to install release: %w", err)
 	}
 
+	upgradeSuccess = true
 	return nil
 }
 
