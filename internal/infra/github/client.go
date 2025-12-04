@@ -76,48 +76,73 @@ func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, err
 
 	logrus.Debug("Fetching fresh releases from GitHub")
 
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodGet,
-		apiBaseURL+"/repos/neovim/neovim/releases",
-		nil,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
+	var allAPIReleases []apiRelease
 
-	req.Header.Set("User-Agent", "nvs")
+	page := 1
+	perPage := 100
 
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch releases: %w", err)
-	}
-
-	defer func() {
-		closeErr := resp.Body.Close()
-		if closeErr != nil {
-			logrus.Debugf("Failed to close response body: %v", closeErr)
+	for {
+		req, err := http.NewRequestWithContext(
+			ctx,
+			http.MethodGet,
+			fmt.Sprintf(
+				"%s/repos/neovim/neovim/releases?page=%d&per_page=%d",
+				apiBaseURL,
+				page,
+				perPage,
+			),
+			nil,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %w", err)
 		}
-	}()
 
-	logrus.Debugf("GitHub API status code: %d", resp.StatusCode)
+		req.Header.Set("User-Agent", "nvs")
 
-	if resp.StatusCode == http.StatusForbidden {
-		return nil, fmt.Errorf("%w: please try again later", ErrRateLimitExceeded)
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch releases: %w", err)
+		}
+
+		defer func() {
+			closeErr := resp.Body.Close()
+			if closeErr != nil {
+				logrus.Debugf("Failed to close response body: %v", closeErr)
+			}
+		}()
+
+		logrus.Debugf("GitHub API status code: %d", resp.StatusCode)
+
+		if resp.StatusCode == http.StatusForbidden {
+			return nil, fmt.Errorf("%w: please try again later", ErrRateLimitExceeded)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("%w: %d", ErrAPIRequestFailed, resp.StatusCode)
+		}
+
+		var apiReleases []apiRelease
+
+		err = json.NewDecoder(resp.Body).Decode(&apiReleases)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode response: %w", err)
+		}
+
+		if len(apiReleases) == 0 {
+			break
+		}
+
+		allAPIReleases = append(allAPIReleases, apiReleases...)
+
+		// Check if there are more pages
+		if len(apiReleases) < perPage {
+			break
+		}
+
+		page++
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%w: %d", ErrAPIRequestFailed, resp.StatusCode)
-	}
-
-	var apiReleases []apiRelease
-
-	err = json.NewDecoder(resp.Body).Decode(&apiReleases)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	releases := c.convertReleases(apiReleases)
+	releases := c.convertReleases(allAPIReleases)
 
 	// Filter releases >= minVersion
 	filtered, err := filterReleases(releases, c.minVersion)
