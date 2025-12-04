@@ -128,6 +128,9 @@ func (e *Extractor) extractTarGz(src *os.File, dest string) error {
 
 	tarReader := tar.NewReader(gzr)
 
+	// Precompute cleaned destination for path traversal checks
+	cleanDest := filepath.Clean(dest)
+
 	for {
 		header, err := tarReader.Next()
 		if errors.Is(err, io.EOF) {
@@ -141,8 +144,6 @@ func (e *Extractor) extractTarGz(src *os.File, dest string) error {
 		target := filepath.Join(dest, header.Name)
 
 		// Prevent path traversal attacks (Zip Slip vulnerability)
-		cleanDest := filepath.Clean(dest)
-
 		cleanTarget := filepath.Clean(target)
 
 		rel, err := filepath.Rel(cleanDest, cleanTarget)
@@ -186,12 +187,15 @@ func (e *Extractor) extractZip(src *os.File, dest string) error {
 		return fmt.Errorf("failed to stat file: %w", err)
 	}
 
-	r, err := zip.NewReader(src, info.Size())
+	zipReader, err := zip.NewReader(src, info.Size())
 	if err != nil {
 		return fmt.Errorf("failed to create zip reader: %w", err)
 	}
 
-	for _, fileEntry := range r.File {
+	// Precompute cleaned destination for path traversal checks
+	cleanDest := filepath.Clean(dest)
+
+	for _, fileEntry := range zipReader.File {
 		// Skip symlinks to prevent symlink attacks
 		if fileEntry.FileInfo().Mode()&os.ModeSymlink != 0 {
 			logrus.Debugf("Skipping symlink entry: %s", fileEntry.Name)
@@ -202,8 +206,6 @@ func (e *Extractor) extractZip(src *os.File, dest string) error {
 		path := filepath.Join(dest, fileEntry.Name)
 
 		// Prevent path traversal attacks (Zip Slip vulnerability)
-		cleanDest := filepath.Clean(dest)
-
 		cleanPath := filepath.Clean(path)
 
 		rel, err := filepath.Rel(cleanDest, cleanPath)
