@@ -23,18 +23,19 @@ const (
 	windowsOS   = "windows"
 )
 
-// mockVersionManagerForIntegration implements version.Manager for integration testing
+// mockVersionManagerForIntegration implements version.Manager for integration testing.
 type mockVersionManagerForIntegration struct {
 	installed map[string]bool
 	current   version.Version
 }
 
 func (m *mockVersionManagerForIntegration) List() ([]version.Version, error) {
-	var versions []version.Version
+	versions := make([]version.Version, 0, len(m.installed))
 	for name := range m.installed {
 		v := version.New(name, version.TypeTag, name, "")
 		versions = append(versions, v)
 	}
+
 	return versions, nil
 }
 
@@ -44,6 +45,7 @@ func (m *mockVersionManagerForIntegration) Current() (version.Version, error) {
 
 func (m *mockVersionManagerForIntegration) Switch(v version.Version) error {
 	m.current = v
+
 	return nil
 }
 
@@ -53,29 +55,41 @@ func (m *mockVersionManagerForIntegration) IsInstalled(v version.Version) bool {
 
 func (m *mockVersionManagerForIntegration) Uninstall(v version.Version, force bool) error {
 	delete(m.installed, v.Name())
+
 	return nil
 }
 
-func (m *mockVersionManagerForIntegration) GetInstalledReleaseIdentifier(versionName string) (string, error) {
+func (m *mockVersionManagerForIntegration) GetInstalledReleaseIdentifier(
+	versionName string,
+) (string, error) {
 	return versionName, nil
 }
 
-// mockInstallerForIntegration implements installer.Installer for integration testing
+// mockInstallerForIntegration implements installer.Installer for integration testing.
 type mockInstallerForIntegration struct {
 	installed map[string]bool
 }
 
-func (m *mockInstallerForIntegration) InstallRelease(ctx context.Context, rel installer.ReleaseInfo, dest, installName string, progress installer.ProgressFunc) error {
+func (m *mockInstallerForIntegration) InstallRelease(
+	ctx context.Context,
+	rel installer.ReleaseInfo,
+	dest, installName string,
+	progress installer.ProgressFunc,
+) error {
 	// Simulate successful installation
 	m.installed[installName] = true
+
 	return nil
 }
 
-func (m *mockInstallerForIntegration) BuildFromCommit(ctx context.Context, commit, dest string) error {
+func (m *mockInstallerForIntegration) BuildFromCommit(
+	ctx context.Context,
+	commit, dest string,
+) error {
 	return nil
 }
 
-// mockReleaseRepoForIntegration implements release.Repository for integration testing
+// mockReleaseRepoForIntegration implements release.Repository for integration testing.
 type mockReleaseRepoForIntegration struct {
 	releases map[string]release.Release
 }
@@ -84,6 +98,7 @@ func (m *mockReleaseRepoForIntegration) FindStable() (release.Release, error) {
 	if rel, ok := m.releases["stable"]; ok {
 		return rel, nil
 	}
+
 	return release.Release{}, release.ErrReleaseNotFound
 }
 
@@ -91,6 +106,7 @@ func (m *mockReleaseRepoForIntegration) FindNightly() (release.Release, error) {
 	if rel, ok := m.releases["nightly"]; ok {
 		return rel, nil
 	}
+
 	return release.Release{}, release.ErrReleaseNotFound
 }
 
@@ -98,14 +114,16 @@ func (m *mockReleaseRepoForIntegration) FindByTag(tag string) (release.Release, 
 	if rel, ok := m.releases[tag]; ok {
 		return rel, nil
 	}
+
 	return release.Release{}, release.ErrReleaseNotFound
 }
 
 func (m *mockReleaseRepoForIntegration) GetAll(force bool) ([]release.Release, error) {
-	var releases []release.Release
+	releases := make([]release.Release, 0, len(m.releases))
 	for _, rel := range m.releases {
 		releases = append(releases, rel)
 	}
+
 	return releases, nil
 }
 

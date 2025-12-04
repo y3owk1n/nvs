@@ -33,6 +33,7 @@ func New() *Extractor {
 
 // Extract extracts an archive file to the destination directory.
 func (e *Extractor) Extract(src *os.File, dest string) error {
+	logrus.Debugf("Starting extraction to: %s", dest)
 	// Detect archive format
 	_, err := src.Seek(0, io.SeekStart)
 	if err != nil {
@@ -139,9 +140,10 @@ func (e *Extractor) extractTarGz(src *os.File, dest string) error {
 
 		// Prevent path traversal attacks (Zip Slip vulnerability)
 		cleanDest := filepath.Clean(dest)
+
 		cleanTarget := filepath.Clean(target)
-		if !strings.HasPrefix(cleanTarget, cleanDest+string(os.PathSeparator)) && cleanTarget != cleanDest {
-			return fmt.Errorf("illegal file path in archive: %s", header.Name)
+		if !strings.HasPrefix(cleanTarget, cleanDest+string(os.PathSeparator)) {
+			return &IllegalPathError{Path: header.Name}
 		}
 
 		switch header.Typeflag {
@@ -184,9 +186,10 @@ func (e *Extractor) extractZip(src *os.File, dest string) error {
 
 		// Prevent path traversal attacks (Zip Slip vulnerability)
 		cleanDest := filepath.Clean(dest)
+
 		cleanPath := filepath.Clean(path)
-		if !strings.HasPrefix(cleanPath, cleanDest+string(os.PathSeparator)) && cleanPath != cleanDest {
-			return fmt.Errorf("illegal file path in archive: %s", fileEntry.Name)
+		if !strings.HasPrefix(cleanPath, cleanDest+string(os.PathSeparator)) {
+			return &IllegalPathError{Path: fileEntry.Name}
 		}
 
 		if fileEntry.FileInfo().IsDir() {

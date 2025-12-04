@@ -12,4 +12,10 @@ var (
 
 	// ErrBinaryNotFound is returned when the built binary is not found.
 	ErrBinaryNotFound = errors.New("built binary not found")
+
+	// ErrStdoutPipeNotReader is returned when stdout pipe cannot be cast to io.Reader.
+	ErrStdoutPipeNotReader = errors.New("stdout pipe is not a reader")
+
+	// ErrStderrPipeNotReader is returned when stderr pipe cannot be cast to io.Reader.
+	ErrStderrPipeNotReader = errors.New("stderr pipe is not a reader")
 )

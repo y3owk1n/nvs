@@ -106,6 +106,7 @@ func (m *mockInstaller) InstallRelease(
 func (m *mockInstaller) BuildFromCommit(ctx context.Context, commit, dest string) error {
 	m.buildFromCommitCalled = true
 	m.lastCommit = commit
+
 	return nil
 }
 
@@ -273,6 +274,7 @@ func TestService_Install_CommitHash(t *testing.T) {
 	service := appversion.New(repo, manager, install, &appversion.Config{})
 
 	commitHash := "abc123def456"
+
 	err := service.Install(context.Background(), commitHash, nil)
 	if err != nil {
 		t.Errorf("Install commit hash failed: %v", err)
@@ -282,6 +284,7 @@ func TestService_Install_CommitHash(t *testing.T) {
 	if !install.buildFromCommitCalled {
 		t.Errorf("BuildFromCommit should have been called")
 	}
+
 	if install.lastCommit != commitHash {
 		t.Errorf("Expected commit %s, got %s", commitHash, install.lastCommit)
 	}

@@ -86,7 +86,8 @@ func (c *Client) GetAll(force bool) ([]release.Release, error) {
 	}
 
 	defer func() {
-		if closeErr := resp.Body.Close(); closeErr != nil {
+		closeErr := resp.Body.Close()
+		if closeErr != nil {
 			logrus.Debugf("Failed to close response body: %v", closeErr)
 		}
 	}()

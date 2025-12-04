@@ -65,6 +65,7 @@ func (s *Service) Install(
 	if version.IsCommitHash(normalized) {
 		// Build from source for commit hashes
 		dest := filepath.Join(s.config.VersionsDir, normalized)
+
 		return s.installer.BuildFromCommit(ctx, normalized, dest)
 	}
 
@@ -329,12 +330,14 @@ func (s *Service) Upgrade(
 	}
 
 	upgradeSuccess = true
+
 	return nil
 }
 
 // normalizeVersion normalizes a version string.
 func normalizeVersion(versionStr string) string {
-	if versionStr == StableVersion || versionStr == NightlyVersion || version.IsCommitHash(versionStr) {
+	if versionStr == StableVersion || versionStr == NightlyVersion ||
+		version.IsCommitHash(versionStr) {
 		return versionStr
 	}
 

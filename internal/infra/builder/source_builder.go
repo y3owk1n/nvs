@@ -16,12 +16,13 @@ import (
 )
 
 const (
-	repoURL      = "https://github.com/neovim/neovim.git"
+	maxAttempts  = 3
+	bufferSize   = 1024
 	spinnerSpeed = 100
+	repoURL      = "https://github.com/neovim/neovim.git"
 	commitLen    = 7
 	dirPerm      = 0o755
 	filePerm     = 0o644
-	maxAttempts  = 2
 )
 
 // SourceBuilder builds Neovim from source code.
@@ -230,14 +231,14 @@ func runCommandWithSpinner(cmd Commander) error {
 	}
 
 	// Cast pipes to io.Reader for reading
-	stdoutReader, ok := stdoutPipe.(io.Reader)
-	if !ok {
-		return fmt.Errorf("stdout pipe is not a reader")
+	stdoutReader, stdoutOk := stdoutPipe.(io.Reader)
+	if !stdoutOk {
+		return ErrStdoutPipeNotReader
 	}
 
-	stderrReader, ok := stderrPipe.(io.Reader)
-	if !ok {
-		return fmt.Errorf("stderr pipe is not a reader")
+	stderrReader, stderrOk := stderrPipe.(io.Reader)
+	if !stderrOk {
+		return ErrStderrPipeNotReader
 	}
 
 	// Run command and capture output concurrently
@@ -249,7 +250,7 @@ func runCommandWithSpinner(cmd Commander) error {
 
 	// Read from both pipes concurrently
 	go func() {
-		buf := make([]byte, 1024)
+		buf := make([]byte, bufferSize)
 		for {
 			n, err := stdoutReader.Read(buf)
 			if n > 0 {
@@ -258,6 +259,7 @@ func runCommandWithSpinner(cmd Commander) error {
 					logrus.Debugf("Build output: %s", line)
 				}
 			}
+
 			if err != nil {
 				break
 			}
@@ -265,7 +267,7 @@ func runCommandWithSpinner(cmd Commander) error {
 	}()
 
 	go func() {
-		buf := make([]byte, 1024)
+		buf := make([]byte, bufferSize)
 		for {
 			n, err := stderrReader.Read(buf)
 			if n > 0 {
@@ -274,6 +276,24 @@ func runCommandWithSpinner(cmd Commander) error {
 					logrus.Debugf("Build error: %s", line)
 				}
 			}
+
+			if err != nil {
+				break
+			}
+		}
+	}()
+
+	go func() {
+		buf := make([]byte, bufferSize)
+		for {
+			n, err := stderrReader.Read(buf)
+			if n > 0 {
+				line := strings.TrimSpace(string(buf[:n]))
+				if line != "" {
+					logrus.Debugf("Build error: %s", line)
+				}
+			}
+
 			if err != nil {
 				break
 			}
