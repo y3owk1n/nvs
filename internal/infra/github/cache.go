@@ -34,7 +34,7 @@ func (c *Cache) Get() ([]release.Release, error) {
 
 	// Check if cache is stale
 	if time.Since(info.ModTime()) >= c.ttl {
-		return nil, os.ErrNotExist
+		return nil, ErrCacheStale
 	}
 
 	data, err := os.ReadFile(c.filePath)

@@ -18,4 +18,7 @@ var (
 
 	// ErrChecksumNotFound is returned when a checksum asset is not found.
 	ErrChecksumNotFound = errors.New("checksum not found")
+
+	// ErrCacheStale is returned when the cache file exists but has expired.
+	ErrCacheStale = errors.New("cache is stale")
 )
