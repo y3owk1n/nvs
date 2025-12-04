@@ -451,6 +451,8 @@ func TestRunUse(t *testing.T) {
 }
 
 func TestRunUse_InstallAndSwitch(t *testing.T) {
+	var err error
+
 	// Test that RunUse installs a missing version and switches to it
 	// This tests the regression where use would install but not switch
 	tempDir := t.TempDir()
@@ -512,7 +514,7 @@ func TestRunUse_InstallAndSwitch(t *testing.T) {
 	}
 
 	// Create service with mocks
-	mockService := appversion.New(
+	mockService, err := appversion.New(
 		mockReleaseRepo,
 		mockManager,
 		mockInstaller,
@@ -522,6 +524,10 @@ func TestRunUse_InstallAndSwitch(t *testing.T) {
 			GlobalBinDir:  tempDir,
 		},
 	)
+	if err != nil {
+		t.Fatalf("Failed to create mock service: %v", err)
+	}
+
 	cmd.SetVersionServiceForTesting(mockService)
 
 	targetVersion := "stable"
@@ -530,7 +536,7 @@ func TestRunUse_InstallAndSwitch(t *testing.T) {
 	cobraCmd.SetContext(context.Background())
 
 	// This should install stable and switch to it
-	err := cmd.RunUse(cobraCmd, []string{targetVersion})
+	err = cmd.RunUse(cobraCmd, []string{targetVersion})
 	if err != nil {
 		t.Errorf("RunUse install and switch failed: %v", err)
 	}

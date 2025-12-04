@@ -42,13 +42,21 @@ func New(
 	versionManager version.Manager,
 	installer installer.Installer,
 	config *Config,
-) *Service {
+) (*Service, error) {
+	if config == nil {
+		return nil, fmt.Errorf("%w", ErrConfigNil)
+	}
+
+	if config.VersionsDir == "" {
+		return nil, fmt.Errorf("%w", ErrVersionsDirEmpty)
+	}
+
 	return &Service{
 		releaseRepo:    releaseRepo,
 		versionManager: versionManager,
 		installer:      installer,
 		config:         config,
-	}
+	}, nil
 }
 
 // Install installs a Neovim version.

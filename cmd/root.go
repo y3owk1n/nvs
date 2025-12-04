@@ -228,7 +228,7 @@ func InitConfig() {
 
 	installService := installer.New(dl, extractor, srcBuilder)
 
-	versionService = appversion.New(
+	versionService, err = appversion.New(
 		githubClient,
 		versionManager,
 		installService,
@@ -238,6 +238,9 @@ func InitConfig() {
 			GlobalBinDir:  globalBinDir,
 		},
 	)
+	if err != nil {
+		panic(fmt.Sprintf("failed to create version service: %v", err))
+	}
 
 	configService = config.New()
 
