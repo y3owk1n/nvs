@@ -49,8 +49,18 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 	isCurrent := false
 
 	current, err := GetVersionService().Current()
-	if err == nil && current.Name() == versionArg { // Simplified check, ideally normalize first
-		isCurrent = true
+	if err == nil {
+		// Normalize both versions for comparison
+		normalize := func(v string) string {
+			if !strings.HasPrefix(v, "v") {
+				return "v" + v
+			}
+
+			return v
+		}
+		if normalize(current.Name()) == normalize(versionArg) {
+			isCurrent = true
+		}
 	}
 
 	// If the version is currently active, prompt for confirmation.
