@@ -58,7 +58,14 @@ func (r Release) PublishedAt() time.Time {
 
 // Assets returns the list of downloadable assets.
 func (r Release) Assets() []Asset {
-	return r.assets
+	if r.assets == nil {
+		return nil
+	}
+
+	result := make([]Asset, len(r.assets))
+	copy(result, r.assets)
+
+	return result
 }
 
 // NewAsset creates a new Asset instance.
