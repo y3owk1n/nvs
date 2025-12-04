@@ -12,14 +12,8 @@ import (
 func TestFindNvimBinary(t *testing.T) {
 	tempDir := t.TempDir()
 
-	var versionDir string
-	if runtime.GOOS == platform.WindowsOS {
-		// For Windows, create nvim-win64/v0.10.0 structure
-		nvimWin64Dir := filepath.Join(tempDir, "nvim-win64")
-		versionDir = filepath.Join(nvimWin64Dir, "v0.10.0")
-	} else {
-		versionDir = filepath.Join(tempDir, "v0.10.0")
-	}
+	// Create a fake nvim structure
+	versionDir := filepath.Join(tempDir, "v0.10.0")
 
 	err := os.MkdirAll(versionDir, 0o755)
 	if err != nil {
@@ -42,11 +36,10 @@ func TestFindNvimBinary(t *testing.T) {
 
 	found := platform.FindNvimBinary(tempDir)
 
-	var expected string
+	expected := binPath
 	if runtime.GOOS == platform.WindowsOS {
-		expected = filepath.Dir(versionDir) // nvim-win64
-	} else {
-		expected = filepath.Join(versionDir, binName)
+		// On Windows FindNvimBinary returns two levels up from the .exe location.
+		expected = tempDir
 	}
 
 	if found != expected {
@@ -87,11 +80,10 @@ func TestFindNvimBinary_Prefixed(t *testing.T) {
 
 	found := platform.FindNvimBinary(tempDir)
 
-	var expected string
+	expected := filepath.Join(versionDir, binName)
 	if runtime.GOOS == platform.WindowsOS {
-		expected = filepath.Dir(versionDir) // nvim-win64
-	} else {
-		expected = filepath.Join(versionDir, binName)
+		// On Windows FindNvimBinary returns two levels up from the .exe location.
+		expected = tempDir
 	}
 
 	if found != expected {
