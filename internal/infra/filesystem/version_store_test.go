@@ -51,8 +51,9 @@ func TestVersionStore_Switch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if filepath.Base(target) != "v1.0.0" {
-		t.Errorf("current symlink points to %s, expected v1.0.0", filepath.Base(target))
+	expectedVersionDir := filepath.Join(tempDir, "v1.0.0")
+	if target != expectedVersionDir {
+		t.Errorf("current symlink points to %s, expected %s", target, expectedVersionDir)
 	}
 
 	// Check global bin symlink
@@ -63,7 +64,8 @@ func TestVersionStore_Switch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if filepath.Base(target) != "nvim" {
-		t.Errorf("global bin symlink points to %s, expected nvim", filepath.Base(target))
+	expectedNvimPath := filepath.Join(versionDir, "nvim")
+	if target != expectedNvimPath {
+		t.Errorf("global bin symlink points to %s, expected %s", target, expectedNvimPath)
 	}
 }
