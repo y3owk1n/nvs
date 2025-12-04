@@ -36,7 +36,13 @@ func TestFindNvimBinary(t *testing.T) {
 
 	found := platform.FindNvimBinary(tempDir)
 
-	expected := filepath.Join(versionDir, binName)
+	var expected string
+	if runtime.GOOS == platform.WindowsOS {
+		expected = versionDir
+	} else {
+		expected = filepath.Join(versionDir, binName)
+	}
+
 	if found != expected {
 		t.Errorf("expected %s, got %s", expected, found)
 	}
@@ -68,7 +74,13 @@ func TestFindNvimBinary_Prefixed(t *testing.T) {
 
 	found := platform.FindNvimBinary(tempDir)
 
-	expected := filepath.Join(versionDir, binName)
+	var expected string
+	if runtime.GOOS == platform.WindowsOS {
+		expected = versionDir
+	} else {
+		expected = filepath.Join(versionDir, binName)
+	}
+
 	if found != expected {
 		t.Errorf("expected %s, got %s", expected, found)
 	}
