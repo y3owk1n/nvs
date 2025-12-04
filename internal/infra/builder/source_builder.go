@@ -124,6 +124,18 @@ func (b *SourceBuilder) buildFromCommitInternal(
 
 		err = checkoutCmd.Run()
 		if err != nil {
+			return fmt.Errorf("failed to checkout master: %w", err)
+		}
+	} else {
+		spinner.Suffix = " Checking out commit..."
+
+		logrus.Debugf("Checking out commit %s", commit)
+
+		checkoutCmd := b.execCommand(ctx, "git", "checkout", "--quiet", commit)
+		checkoutCmd.SetDir(localPath)
+
+		err = checkoutCmd.Run()
+		if err != nil {
 			return fmt.Errorf("failed to checkout commit %s: %w", commit, err)
 		}
 	}
