@@ -7,13 +7,25 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/nvs/pkg/helpers"
+	"github.com/y3owk1n/nvs/internal/app/config"
+	appversion "github.com/y3owk1n/nvs/internal/app/version"
+	"github.com/y3owk1n/nvs/internal/infra/archive"
+	"github.com/y3owk1n/nvs/internal/infra/builder"
+	"github.com/y3owk1n/nvs/internal/infra/downloader"
+	"github.com/y3owk1n/nvs/internal/infra/filesystem"
+	"github.com/y3owk1n/nvs/internal/infra/github"
+	"github.com/y3owk1n/nvs/internal/infra/installer"
 )
 
-const windows = "windows"
+const (
+	windows  = "windows"
+	dirPerm  = 0o755
+	cacheTTL = 5 * time.Minute
+)
 
 var (
 	// verbose controls the log level.
@@ -23,14 +35,14 @@ var (
 	// cancel cancels the context, e.g. on interrupt signals.
 	ctx, cancel = context.WithCancel(context.Background())
 
-	// VersionsDir is the directory where installed Neovim versions are stored.
-	VersionsDir string
+	// Services (initialized in InitConfig)
+	versionService *appversion.Service
+	configService  *config.Service
 
-	// CacheFilePath is the path to the file that caches remote release data.
-	CacheFilePath string
-
-	// GlobalBinDir is the directory where the global nvim symlink is created.
-	GlobalBinDir string
+	// Configuration paths (initialized in InitConfig)
+	versionsDir   string
+	cacheFilePath string
+	globalBinDir  string
 
 	// Version of nvs, defaults to "v0.0.0" but may be set during build time.
 	Version = "v0.0.0"
@@ -61,12 +73,7 @@ func Execute() error {
 }
 
 // InitConfig is called automatically on command initialization.
-// It sets up logging levels, handles OS signals for graceful shutdown, and ensures that necessary
-// directories (config, versions, cache, binary) exist, using environment variables as overrides when available.
-//
-// Example behavior:
-//   - If NVS_CONFIG_DIR is set, it is used as the config directory; otherwise, the system config directory is used.
-//   - Similar logic applies for cache (NVS_CACHE_DIR) and binary directories (NVS_BIN_DIR).
+// It sets up logging levels, handles OS signals for graceful shutdown, and initializes services.
 func InitConfig() {
 	var err error
 
@@ -124,7 +131,7 @@ func InitConfig() {
 	}
 
 	// Ensure the configuration directory exists.
-	err = os.MkdirAll(baseConfigDir, helpers.DirPerm)
+	err = os.MkdirAll(baseConfigDir, dirPerm)
 	if err != nil {
 		logrus.Fatalf("Failed to create config directory: %v", err)
 	}
@@ -132,14 +139,14 @@ func InitConfig() {
 	logrus.Debugf("Config directory ensured: %s", baseConfigDir)
 
 	// Set the directory for installed versions.
-	VersionsDir = filepath.Join(baseConfigDir, "versions")
+	versionsDir = filepath.Join(baseConfigDir, "versions")
 
-	err = os.MkdirAll(VersionsDir, helpers.DirPerm)
+	err = os.MkdirAll(versionsDir, dirPerm)
 	if err != nil {
 		logrus.Fatalf("Failed to create versions directory: %v", err)
 	}
 
-	logrus.Debugf("Versions directory ensured: %s", VersionsDir)
+	logrus.Debugf("Versions directory ensured: %s", versionsDir)
 
 	// Determine the base cache directory.
 	var baseCacheDir string
@@ -162,14 +169,14 @@ func InitConfig() {
 		}
 	}
 	// Ensure the cache directory exists.
-	err = os.MkdirAll(baseCacheDir, helpers.DirPerm)
+	err = os.MkdirAll(baseCacheDir, dirPerm)
 	if err != nil {
 		logrus.Fatalf("Failed to create cache directory: %v", err)
 	}
 
-	CacheFilePath = filepath.Join(baseCacheDir, "releases.json")
+	cacheFilePath = filepath.Join(baseCacheDir, "releases.json")
 	logrus.Debugf("Cache directory ensured: %s", baseCacheDir)
-	logrus.Debugf("Cache file path set: %s", CacheFilePath)
+	logrus.Debugf("Cache file path set: %s", cacheFilePath)
 
 	// Determine the base binary directory.
 	var baseBinDir string
@@ -196,13 +203,67 @@ func InitConfig() {
 		}
 	}
 	// Ensure the binary directory exists.
-	err = os.MkdirAll(baseBinDir, helpers.DirPerm)
+	err = os.MkdirAll(baseBinDir, dirPerm)
 	if err != nil {
 		logrus.Fatalf("Failed to create binary directory: %v", err)
 	}
 
-	GlobalBinDir = baseBinDir
-	logrus.Debugf("Global binary directory ensured: %s", GlobalBinDir)
+	globalBinDir = baseBinDir
+	logrus.Debugf("Global binary directory ensured: %s", globalBinDir)
+
+	// Initialize services
+	githubClient := github.NewClient(cacheFilePath, cacheTTL)
+	versionManager := filesystem.New()
+
+	// Installer components
+	dl := downloader.New()
+	extractor := archive.New()
+	srcBuilder := builder.New(nil) // nil for default exec command
+
+	installService := installer.New(dl, extractor, srcBuilder)
+
+	versionService = appversion.New(
+		githubClient,
+		versionManager,
+		installService,
+		&appversion.Config{
+			VersionsDir:   versionsDir,
+			CacheFilePath: cacheFilePath,
+			GlobalBinDir:  globalBinDir,
+		},
+	)
+
+	configService = config.New()
+
+	logrus.Debug("Services initialized")
+}
+
+// GetVersionsDir returns the versions directory path.
+// This is a compatibility function during migration.
+func GetVersionsDir() string {
+	return versionsDir
+}
+
+// GetCacheFilePath returns the cache file path.
+// This is a compatibility function during migration.
+func GetCacheFilePath() string {
+	return cacheFilePath
+}
+
+// GetGlobalBinDir returns the global binary directory path.
+// This is a compatibility function during migration.
+func GetGlobalBinDir() string {
+	return globalBinDir
+}
+
+// GetVersionService returns the version service instance.
+func GetVersionService() *appversion.Service {
+	return versionService
+}
+
+// GetConfigService returns the config service instance.
+func GetConfigService() *config.Service {
+	return configService
 }
 
 // rootCmd is the base command for the CLI.

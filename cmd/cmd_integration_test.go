@@ -138,15 +138,15 @@ func TestExecute(t *testing.T) {
 func TestInitConfig(t *testing.T) {
 	cmd.InitConfig()
 
-	if cmd.VersionsDir == "" {
+	if cmd.GetVersionsDir() == "" {
 		t.Errorf("versionsDir not set")
 	}
 
-	if cmd.CacheFilePath == "" {
+	if cmd.GetCacheFilePath() == "" {
 		t.Errorf("cacheFilePath not set")
 	}
 
-	if cmd.GlobalBinDir == "" {
+	if cmd.GetGlobalBinDir() == "" {
 		t.Errorf("globalBinDir not set")
 	}
 }
@@ -243,10 +243,10 @@ func TestRunPath(t *testing.T) {
 	cobraCmd.SetContext(context.Background())
 
 	// Set globalBinDir to temp
-	oldBin := cmd.GlobalBinDir
-	defer func() { cmd.GlobalBinDir = oldBin }()
+	oldBin := cmd.GetGlobalBinDir()
+	defer func() { cmd.GetGlobalBinDir() = oldBin }()
 
-	cmd.GlobalBinDir = tempDir
+	cmd.GetGlobalBinDir() = tempDir
 
 	err = cmd.RunPath(cobraCmd, []string{})
 	if err != nil {
@@ -272,19 +272,19 @@ func TestRunUse(t *testing.T) {
 	cacheFile := filepath.Join(tempDir, "cache.json")
 
 	// Save globals
-	originalVersionsDir := cmd.VersionsDir
-	originalCacheFilePath := cmd.CacheFilePath
+	originalVersionsDir := cmd.GetVersionsDir()
+	originalCacheFilePath := cmd.GetCacheFilePath()
 
-	originalGlobalBinDir := cmd.GlobalBinDir
+	originalGlobalBinDir := cmd.GetGlobalBinDir()
 	defer func() {
-		cmd.VersionsDir = originalVersionsDir
-		cmd.CacheFilePath = originalCacheFilePath
-		cmd.GlobalBinDir = originalGlobalBinDir
+		cmd.GetVersionsDir() = originalVersionsDir
+		cmd.GetCacheFilePath() = originalCacheFilePath
+		cmd.GetGlobalBinDir() = originalGlobalBinDir
 	}()
 
-	cmd.VersionsDir = tempDir
-	cmd.CacheFilePath = cacheFile
-	cmd.GlobalBinDir = tempDir
+	cmd.GetVersionsDir() = tempDir
+	cmd.GetCacheFilePath() = cacheFile
+	cmd.GetGlobalBinDir() = tempDir
 
 	// Create version
 	version := testVersion

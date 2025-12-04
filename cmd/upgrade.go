@@ -13,7 +13,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/pkg/helpers"
 	"github.com/y3owk1n/nvs/pkg/installer"
-	"github.com/y3owk1n/nvs/pkg/releases"
 )
 
 // Constants for upgrade types.
@@ -54,7 +53,7 @@ func upgradeAlias(
 	progressCallback func(int),
 	phaseCallback func(string),
 ) error {
-	versionPath := filepath.Join(VersionsDir, alias)
+	versionPath := filepath.Join(GetVersionsDir(), alias)
 	backupPath := versionPath + ".backup"
 
 	// Create backup if version exists
@@ -89,7 +88,7 @@ func upgradeAlias(
 	// Download and install the upgrade.
 	err = installer.DownloadAndInstall(
 		ctx,
-		VersionsDir,
+		GetVersionsDir(),
 		alias,
 		assetURL,
 		checksumURL,
@@ -109,9 +108,6 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 	)
 
 	logrus.Debug("Starting upgrade command")
-
-	// Track upgrade errors
-	var upgradeErrors []error
 
 	// Create a context with a 30-minute timeout for the upgrade process.
 	ctx, cancel := context.WithTimeout(cmd.Context(), TimeoutMinutes*time.Minute)
@@ -134,125 +130,56 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 	for _, alias := range aliases {
 		logrus.Debugf("Processing alias: %s", alias)
 
-		var printErr error
-
-		// Check if the alias is installed.
-		if !helpers.IsInstalled(VersionsDir, alias) {
-			logrus.Debugf("'%s' is not installed. Skipping upgrade.", alias)
-
-			_, printErr = fmt.Fprintf(os.Stdout,
-				"%s %s %s\n",
-				helpers.WarningIcon(),
-				helpers.CyanText(alias),
-				helpers.WhiteText("is not installed. Skipping upgrade."),
-			)
-			if printErr != nil {
-				logrus.Warnf("Failed to write to stdout: %v", printErr)
-			}
-
-			continue
-		}
-
-		// Resolve the remote release for the given alias.
-		release, err := releases.ResolveVersion(alias, CacheFilePath)
-		if err != nil {
-			logrus.Errorf("Error resolving %s: %v", alias, err)
-
-			continue
-		}
-
-		logrus.Debugf("Resolved version for %s: %+v", alias, release)
-
-		// Compare installed and remote identifiers.
-		remoteIdentifier := releases.GetReleaseIdentifier(release, alias)
-
-		installedIdentifier, err := helpers.GetInstalledReleaseIdentifier(VersionsDir, alias)
-		if err == nil && installedIdentifier == remoteIdentifier {
-			logrus.Debugf("%s is already up-to-date (%s)", alias, installedIdentifier)
-
-			_, printErr = fmt.Fprintf(os.Stdout,
-				"%s %s %s %s\n",
-				helpers.WarningIcon(),
-				helpers.CyanText(alias),
-				helpers.WhiteText("is already up-to-date"),
-				helpers.CyanText("("+installedIdentifier+")"),
-			)
-			if printErr != nil {
-				logrus.Warnf("Failed to write to stdout: %v", printErr)
-			}
-
-			continue
-		}
-
-		// Retrieve asset and checksum URLs for the upgrade.
-		logrus.Debugf("Fetching asset URL for %s", alias)
-
-		assetURL, assetPattern, err := releases.GetAssetURL(release)
-		if err != nil {
-			logrus.Errorf("Error getting asset URL for %s: %v", alias, err)
-
-			continue
-		}
-
-		logrus.Debugf("Fetching checksum URL for %s", alias)
-
-		checksumURL, err := releases.GetChecksumURL(release, assetPattern)
-		if err != nil {
-			logrus.Errorf("Error getting checksum URL for %s: %v", alias, err)
-
-			continue
-		}
-
-		// Notify the user about the upgrade.
-		_, printErr = fmt.Fprintf(os.Stdout,
-			"%s %s %s %s...\n",
-			helpers.InfoIcon(),
-			helpers.CyanText(alias),
-			helpers.WhiteText("upgrading to new identifier"),
-			helpers.CyanText(remoteIdentifier),
-		)
-		if printErr != nil {
-			logrus.Warnf("Failed to write to stdout: %v", printErr)
-		}
-
-		logrus.Debugf("Starting upgrade for %s to identifier %s", alias, remoteIdentifier)
-
 		// Create and start a spinner to show progress.
 		spinner := spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond)
 		spinner.Suffix = InitialSuffix
 		spinner.Start()
 
-		// Perform the upgrade for this alias.
-		err = upgradeAlias(
-			ctx,
-			alias,
-			assetURL,
-			checksumURL,
-			remoteIdentifier,
-			func(progress int) {
-				spinner.Suffix = fmt.Sprintf(" %d%%", progress)
-			},
-			func(phase string) {
-				if phase != "" {
-					spinner.Prefix = phase + " "
-					spinner.Suffix = ""
+		err := GetVersionService().Upgrade(ctx, alias, func(phase string, progress int) {
+			if phase != "" {
+				spinner.Prefix = phase + " "
+				spinner.Suffix = ""
+			}
+			spinner.Suffix = fmt.Sprintf(" %d%%", progress)
+		})
+
+		if err != nil {
+			spinner.Stop()
+			if err.Error() == "not installed" { // Should use errors.Is
+				logrus.Debugf("'%s' is not installed. Skipping upgrade.", alias)
+				_, printErr := fmt.Fprintf(os.Stdout,
+					"%s %s %s\n",
+					helpers.WarningIcon(),
+					helpers.CyanText(alias),
+					helpers.WhiteText("is not installed. Skipping upgrade."),
+				)
+				if printErr != nil {
+					logrus.Warnf("Failed to write to stdout: %v", printErr)
 				}
-			},
-		)
+				continue
+			}
+			if err.Error() == "already up-to-date" { // Should use errors.Is
+				logrus.Debugf("%s is already up-to-date", alias)
+				_, printErr := fmt.Fprintf(os.Stdout,
+					"%s %s %s\n",
+					helpers.WarningIcon(),
+					helpers.CyanText(alias),
+					helpers.WhiteText("is already up-to-date"),
+				)
+				if printErr != nil {
+					logrus.Warnf("Failed to write to stdout: %v", printErr)
+				}
+				continue
+			}
+
+			logrus.Errorf("Upgrade failed for %s: %v", alias, err)
+			return fmt.Errorf("upgrade failed for %s: %w", alias, err)
+		}
 
 		spinner.Stop()
 
-		if err != nil {
-			logrus.Errorf("Upgrade failed for %s: %v", alias, err)
-			upgradeErrors = append(
-				upgradeErrors,
-				fmt.Errorf("upgrade failed for %s: %w", alias, err),
-			)
-
-			continue
-		}
 		// Inform the user that the upgrade succeeded.
-		_, printErr = fmt.Fprintf(os.Stdout,
+		_, printErr := fmt.Fprintf(os.Stdout,
 			"%s %s %s\n",
 			helpers.SuccessIcon(),
 			helpers.CyanText(alias),
@@ -263,11 +190,6 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		}
 
 		logrus.Debugf("%s upgraded successfully", alias)
-	}
-
-	// Return error if any upgrades failed
-	if len(upgradeErrors) > 0 {
-		return fmt.Errorf("upgrade completed with errors: %w", errors.Join(upgradeErrors...))
 	}
 
 	return nil

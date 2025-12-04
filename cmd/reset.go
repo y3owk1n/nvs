@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -37,66 +36,17 @@ var resetCmd = &cobra.Command{
 func RunReset(_ *cobra.Command, _ []string) error {
 	logrus.Debug("Starting reset command")
 
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("failed to get user home directory: %w", err)
-	}
+	var err error
 
-	// Determine the base configuration directory:
-	//   If NVS_CONFIG_DIR is set, use that;
-	//   Otherwise, use the system config directory, falling back to the user's home directory if needed.
-	var baseConfigDir string
-	if custom := os.Getenv("NVS_CONFIG_DIR"); custom != "" {
-		baseConfigDir = custom
-		logrus.Debugf("Using custom config directory from NVS_CONFIG_DIR: %s", baseConfigDir)
-	} else {
-		configDir, err := os.UserConfigDir()
-		if err == nil {
-			baseConfigDir = filepath.Join(configDir, "nvs")
-			logrus.Debugf("Using system config directory: %s", baseConfigDir)
-		} else {
-			baseConfigDir = filepath.Join(home, ".nvs")
-			logrus.Debugf("Falling back to home directory for config: %s", baseConfigDir)
-		}
-	}
+	// Determine directories using getter functions
+	baseConfigDir := filepath.Dir(GetVersionsDir())
+	logrus.Debugf("Resolved configDir: %s", baseConfigDir)
 
-	// Note: We don't create the config directory here to avoid leaving empty directories
-	// if the user cancels the reset operation.
+	baseCacheDir := filepath.Dir(GetCacheFilePath())
+	logrus.Debugf("Resolved cacheDir: %s", baseCacheDir)
 
-	// Determine the base cache directory:
-	//   If NVS_CACHE_DIR is set, use that;
-	//   Otherwise, use the system cache directory, falling back to the config directory if needed.
-	var baseCacheDir string
-	if custom := os.Getenv("NVS_CACHE_DIR"); custom != "" {
-		baseCacheDir = custom
-		logrus.Debugf("Using custom cache directory from NVS_CACHE_DIR: %s", baseCacheDir)
-	} else {
-		cacheDir, err := os.UserCacheDir()
-		if err == nil {
-			baseCacheDir = filepath.Join(cacheDir, "nvs")
-			logrus.Debugf("Using system cache directory: %s", baseCacheDir)
-		} else {
-			baseCacheDir = filepath.Join(baseConfigDir, "cache")
-			logrus.Debugf("Falling back to config directory for cache: %s", baseCacheDir)
-		}
-	}
-
-	// Determine the base binary directory:
-	//   If NVS_BIN_DIR is set, use that;
-	//   Otherwise, use the default binary directory based on the OS.
-	var baseBinDir string
-	if custom := os.Getenv("NVS_BIN_DIR"); custom != "" {
-		baseBinDir = custom
-		logrus.Debugf("Using custom binary directory from NVS_BIN_DIR: %s", baseBinDir)
-	} else {
-		if runtime.GOOS == Windows {
-			baseBinDir = filepath.Join(home, "AppData", "Local", "Programs")
-			logrus.Debugf("Using Windows binary directory: %s", baseBinDir)
-		} else {
-			baseBinDir = filepath.Join(home, ".local", "bin")
-			logrus.Debugf("Using default binary directory: %s", baseBinDir)
-		}
-	}
+	baseBinDir := GetGlobalBinDir()
+	logrus.Debugf("Resolved binDir: %s", baseBinDir)
 
 	// Display a warning about the destructive nature of this command.
 	_, err = fmt.Fprintf(

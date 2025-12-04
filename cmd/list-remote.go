@@ -3,13 +3,15 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/internal/domain/release"
 	"github.com/y3owk1n/nvs/pkg/helpers"
-	"github.com/y3owk1n/nvs/pkg/releases"
+	"github.com/y3owk1n/nvs/pkg/releases" // Keep for FindLatestStable if needed, or replace
 )
 
 // listRemoteCmd represents the "list-remote" command (aliases: ls-remote).
@@ -35,9 +37,7 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 
 	logrus.Debug("Fetching available versions...")
 
-	var err error
-
-	_, err = fmt.Fprintf(
+	_, err := fmt.Fprintf(
 		os.Stdout,
 		"%s %s\n",
 		helpers.InfoIcon(),
@@ -47,8 +47,8 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 		logrus.Warnf("Failed to write to stdout: %v", err)
 	}
 
-	// Retrieve the remote releases, using cache unless "force" is specified.
-	releasesResult, err := releases.GetCachedReleases(force, CacheFilePath)
+	// Retrieve the remote releases via version service
+	releasesResult, err := GetVersionService().ListRemote(force)
 	if err != nil {
 		return fmt.Errorf("error fetching releases: %w", err)
 	}
@@ -56,8 +56,7 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 	logrus.Debugf("Fetched %d releases", len(releasesResult))
 
 	// Determine the latest stable release (if available) for reference.
-	stableRelease, err := releases.FindLatestStable(CacheFilePath)
-
+	stableRelease, err := releases.FindLatestStable(GetCacheFilePath())
 	stableTag := stableConst
 	if err == nil {
 		stableTag = stableRelease.TagName
@@ -68,12 +67,12 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 	logrus.Debugf("Latest stable release: %s", stableTag)
 
 	// Group releases into nightly, stable, and Others.
-	var groupNightly, groupStable, groupOthers []releases.Release
+	var groupNightly, groupStable, groupOthers []release.Release
 	for _, release := range releasesResult {
 		switch {
-		case release.Prerelease:
+		case release.Prerelease():
 			groupNightly = append(groupNightly, release)
-		case release.TagName == stableConst:
+		case release.TagName() == stableConst:
 			groupStable = append(groupStable, release)
 		default:
 			groupOthers = append(groupOthers, release)
@@ -91,12 +90,13 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 	combined := append(append(groupNightly, groupStable...), groupOthers...)
 
 	// Determine the current installed version (if any).
-	current, err := helpers.GetCurrentVersion(VersionsDir)
-	if err != nil {
-		current = ""
+	current, err := GetVersionService().Current()
+	currentName := ""
+	if err == nil {
+		currentName = current.Name()
 	}
 
-	logrus.Debugf("Current version: %s", current)
+	logrus.Debugf("Current version: %s", currentName)
 
 	// Prepare a table for displaying the remote releases and their status.
 	table := tablewriter.NewWriter(os.Stdout)
@@ -118,54 +118,55 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 		var details string
 
 		// For nightly releases, display published date and commit hash.
-		if release.Prerelease {
-			if release.TagName == "nightly" {
-				shortCommit := releases.GetReleaseIdentifier(release, "nightly")
+		if release.Prerelease() {
+			if release.TagName() == "nightly" {
+				shortCommit := release.CommitHash()
+				if len(shortCommit) > 7 {
+					shortCommit = shortCommit[:7]
+				}
 				details = fmt.Sprintf(
 					"Published: %s, Commit: %s",
-					helpers.TimeFormat(release.PublishedAt),
+					helpers.TimeFormat(release.PublishedAt().Format(time.RFC3339)),
 					shortCommit,
 				)
 			} else {
 				// Skip non-nightly prerelease rows if no details are available.
-				row := []string{release.TagName, "nightly", ""}
+				row := []string{release.TagName(), "nightly", ""}
 				table.Append(row)
 
 				continue
 			}
-		} else if release.TagName == "stable" {
+		} else if release.TagName() == "stable" {
 			// For stable releases, reference the determined stableTag.
 			details = "stable version: " + stableTag
 		}
 
-		key := release.TagName
+		key := release.TagName()
 
 		var baseStatus string
 
 		upgradeIndicator := ""
 
 		// Check if the release is installed locally.
-		if helpers.IsInstalled(VersionsDir, key) {
-			resolvedRelease, err := releases.ResolveVersion(key, CacheFilePath)
-			if err != nil {
-				logrus.Errorf("Error resolving %s: %v", key, err)
-
-				continue
-			}
-
-			installedIdentifier, err := helpers.GetInstalledReleaseIdentifier(VersionsDir, key)
+		if GetVersionService().IsVersionInstalled(key) {
+			// Check for upgrade availability
+			// Note: This logic is simplified; ideally use service to check for updates
+			installedIdentifier, err := GetVersionService().GetInstalledVersionIdentifier(key)
 			if err != nil {
 				installedIdentifier = ""
 			}
 
-			remoteIdentifier := releases.GetReleaseIdentifier(resolvedRelease, key)
+			remoteIdentifier := release.CommitHash()
+			if remoteIdentifier == "" {
+				remoteIdentifier = release.TagName()
+			}
 
 			// If the installed version is different from the remote, indicate an upgrade is available.
 			if installedIdentifier != "" && installedIdentifier != remoteIdentifier {
 				upgradeIndicator = " (" + helpers.Upgrade + ")"
 			}
 
-			if key == current {
+			if key == currentName {
 				baseStatus = "Current"
 			} else {
 				baseStatus = "Installed"
@@ -179,7 +180,7 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 		logrus.Debugf("Version: %s, Status: %s", key, localStatus)
 
 		// Build the row for the table.
-		tag := release.TagName
+		tag := release.TagName()
 		if tag == "" {
 			tag = "(no tag)"
 		}

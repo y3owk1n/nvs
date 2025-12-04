@@ -49,58 +49,17 @@ var envCmd = &cobra.Command{
 func RunEnv(cmd *cobra.Command, _ []string) error {
 	logrus.Debug("Executing env command")
 
-	// Determine NVS_CONFIG_DIR from environment or default to <UserConfigDir>/nvs
-	configDir := os.Getenv("NVS_CONFIG_DIR")
-	if configDir == "" {
-		c, err := os.UserConfigDir()
-		if err == nil {
-			configDir = filepath.Join(c, "nvs")
-		} else {
-			logrus.Warn("Failed to retrieve user config directory")
-
-			configDir = unavailableDir
-		}
-	}
-
+	// Determine directories using getter functions
+	// NVS_CONFIG_DIR is the parent of versions directory
+	configDir := filepath.Dir(GetVersionsDir())
 	logrus.Debugf("Resolved configDir: %s", configDir)
 
-	// Determine NVS_CACHE_DIR from environment or default to <UserCacheDir>/nvs
-	cacheDir := os.Getenv("NVS_CACHE_DIR")
-	if cacheDir == "" {
-		c, err := os.UserCacheDir()
-		if err == nil {
-			cacheDir = filepath.Join(c, "nvs")
-		} else {
-			logrus.Warn("Failed to retrieve user cache directory")
-
-			cacheDir = unavailableDir
-		}
-	}
-
+	// NVS_CACHE_DIR is the directory containing the cache file
+	cacheDir := filepath.Dir(GetCacheFilePath())
 	logrus.Debugf("Resolved cacheDir: %s", cacheDir)
 
-	// Determine NVS_BIN_DIR from environment or default to <UserHomeDir>/.local/bin
-	binDir := os.Getenv("NVS_BIN_DIR")
-	if binDir == "" {
-		if runtime.GOOS == windows {
-			home, err := os.UserHomeDir()
-			if err != nil {
-				return fmt.Errorf("failed to get user home directory: %w", err)
-			}
-
-			binDir = filepath.Join(home, "AppData", "Local", "Programs")
-			logrus.Debugf("Using Windows binary directory: %s", binDir)
-		} else {
-			home, err := os.UserHomeDir()
-			if err != nil {
-				return fmt.Errorf("failed to get user home directory: %w", err)
-			}
-
-			binDir = filepath.Join(home, ".local", "bin")
-			logrus.Debugf("Using default binary directory: %s", binDir)
-		}
-	}
-
+	// NVS_BIN_DIR is the global binary directory
+	binDir := GetGlobalBinDir()
 	logrus.Debugf("Resolved binDir: %s", binDir)
 
 	source, _ := cmd.Flags().GetBool("source")

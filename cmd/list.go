@@ -24,7 +24,7 @@ var listCmd = &cobra.Command{
 	Aliases: []string{"ls"},
 	Short:   "List installed versions",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return RunList(cmd, args, VersionsDir)
+		return RunList(cmd, args, GetVersionsDir())
 	},
 }
 
@@ -32,8 +32,8 @@ var listCmd = &cobra.Command{
 func RunList(_ *cobra.Command, _ []string, versionsDir string) error {
 	logrus.Debug("Executing list command")
 
-	// Retrieve installed versions from the versions directory.
-	versions, err := helpers.ListInstalledVersions(versionsDir)
+	// Retrieve installed versions from the version service.
+	versions, err := GetVersionService().List()
 	if err != nil {
 		return fmt.Errorf("error listing versions: %w", err)
 	}
@@ -58,14 +58,12 @@ func RunList(_ *cobra.Command, _ []string, versionsDir string) error {
 	}
 
 	// Get the current active version.
-	current, err := helpers.GetCurrentVersion(versionsDir)
+	current, err := GetVersionService().Current()
 	if err != nil {
 		logrus.Warn("No current version set or unable to determine the current version")
-
-		current = "none"
 	}
 
-	logrus.Debugf("Current version: %s", current)
+	logrus.Debugf("Current version: %s", current.Name())
 
 	// Set up a table for displaying versions and their status.
 	table := tablewriter.NewWriter(os.Stdout)
@@ -82,17 +80,17 @@ func RunList(_ *cobra.Command, _ []string, versionsDir string) error {
 	table.SetAutoWrapText(false)
 
 	// Append each version to the table.
-	for _, version := range versions {
+	for _, v := range versions {
 		var row []string
-		if version == current {
+		if current.Name() != "" && v.Name() == current.Name() {
 			// Mark the current version with an arrow and use a highlighted green color.
 			row = []string{
-				color.New(color.Bold, color.FgHiGreen).Sprintf("→ %s", version),
+				color.New(color.Bold, color.FgHiGreen).Sprintf("→ %s", v.Name()),
 				color.New(color.Bold, color.FgHiGreen).Sprintf("Current"),
 			}
-			logrus.Debugf("Marked version %s as current", version)
+			logrus.Debugf("Marked version %s as current", v.Name())
 		} else {
-			row = []string{version, "Installed"}
+			row = []string{v.Name(), "Installed"}
 		}
 
 		table.Append(row)

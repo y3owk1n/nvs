@@ -31,27 +31,26 @@ var currentCmd = &cobra.Command{
 	Use:   "current",
 	Short: "Show current active version with details",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return RunCurrent(cmd, args, VersionsDir, CacheFilePath)
+		return RunCurrent(cmd, args)
 	},
 }
 
 // RunCurrent executes the current command.
-func RunCurrent(_ *cobra.Command, _ []string, versionsDir, cacheFilePath string) error {
-	logrus.Debug("Fetching current active version")
+func RunCurrent(_ *cobra.Command, _ []string) error {
+	logrus.Debug("Executing current command")
 
-	current, err := helpers.GetCurrentVersion(versionsDir)
+	current, err := GetVersionService().Current()
 	if err != nil {
 		return fmt.Errorf("error getting current version: %w", err)
 	}
 
-	logrus.Debugf("Current version detected: %s", current)
+	logrus.Debugf("Current version detected: %s", current.Name())
 
 	// Handle "stable" active version
-	switch current {
-	case stableConst:
+	if current.Name() == stableConst {
 		logrus.Debug("Fetching latest stable release")
 
-		stable, err := releases.FindLatestStable(cacheFilePath)
+		stable, err := releases.FindLatestStable(GetCacheFilePath())
 		if err != nil {
 			logrus.Warnf("Error fetching latest stable release: %v", err)
 
@@ -77,18 +76,17 @@ func RunCurrent(_ *cobra.Command, _ []string, versionsDir, cacheFilePath string)
 			logrus.Debugf("Latest stable version: %s", stable.TagName)
 		}
 
-	// Handle "nightly" active version
-	case "nightly":
+	} else if current.Name() == "nightly" {
 		logrus.Debug("Fetching latest nightly release")
 
-		nightly, err := releases.FindLatestNightly(cacheFilePath)
+		nightly, err := releases.FindLatestNightly(GetCacheFilePath())
 		if err != nil {
 			logrus.Warnf("Error fetching latest nightly release: %v", err)
 
 			_, err = fmt.Fprintf(os.Stdout,
 				"%s %s\n",
 				helpers.InfoIcon(),
-				helpers.WhiteText(fmt.Sprintf("nightly (%s)", current)),
+				helpers.WhiteText(fmt.Sprintf("nightly (%s)", current.Name())),
 			)
 			if err != nil {
 				logrus.Warnf("Failed to write to stdout: %v", err)
@@ -124,26 +122,26 @@ func RunCurrent(_ *cobra.Command, _ []string, versionsDir, cacheFilePath string)
 			logrus.Debugf("Latest nightly commit: %s, Published: %s", shortCommit, publishedStr)
 		}
 
-	// Handle custom version or commit hash
-	default:
-		isCommitHash := releases.IsCommitHash(current)
+	} else {
+		// Handle custom version or commit hash
+		isCommitHash := releases.IsCommitHash(current.Name())
 		logrus.Debugf("isCommitHash: %t", isCommitHash)
 
 		if isCommitHash {
-			logrus.Debugf("Displaying custom commit hash: %s", current)
+			logrus.Debugf("Displaying custom commit hash: %s", current.Name())
 
 			_, err = fmt.Fprintf(os.Stdout,
 				"%s %s\n",
 				helpers.InfoIcon(),
-				helpers.WhiteText(fmt.Sprintf("commit (%s)", current)),
+				helpers.WhiteText(fmt.Sprintf("commit (%s)", current.Name())),
 			)
 			if err != nil {
 				logrus.Warnf("Failed to write to stdout: %v", err)
 			}
 		} else {
-			logrus.Debugf("Displaying custom version: %s", current)
+			logrus.Debugf("Displaying custom version: %s", current.Name())
 
-			_, err = fmt.Fprintf(os.Stdout, "%s %s\n", helpers.InfoIcon(), helpers.WhiteText(current))
+			_, err = fmt.Fprintf(os.Stdout, "%s %s\n", helpers.InfoIcon(), helpers.WhiteText(current.Name()))
 			if err != nil {
 				logrus.Warnf("Failed to write to stdout: %v", err)
 			}

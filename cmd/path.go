@@ -47,7 +47,8 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 	// On Windows, automatic PATH modifications are not implemented.
 	if runtime.GOOS == "windows" {
-		nvimBinDir := filepath.Join(GlobalBinDir, "nvim", "bin")
+		// Use GetGlobalBinDir() to get the path
+		nvimBinDir := filepath.Join(GetGlobalBinDir(), "nvim", "bin")
 
 		logrus.Debug("Detected Windows OS")
 
@@ -81,13 +82,13 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	pathEnv := os.Getenv("PATH")
 	logrus.Debug("Current PATH: ", pathEnv)
 
-	// Check if GlobalBinDir is already in PATH
+	// Check if GetGlobalBinDir() is already in PATH
 	pathSeparator := string(os.PathListSeparator)
 	paths := strings.Split(pathEnv, pathSeparator)
 
 	found := false
 	for _, p := range paths {
-		if filepath.Clean(p) == filepath.Clean(GlobalBinDir) {
+		if filepath.Clean(p) == filepath.Clean(GetGlobalBinDir()) {
 			found = true
 
 			break
@@ -95,13 +96,13 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	}
 
 	if found {
-		logrus.Debug("PATH already contains GlobalBinDir")
+		logrus.Debug("PATH already contains GetGlobalBinDir()")
 
 		_, err = fmt.Fprintf(os.Stdout,
 			"%s %s\n",
 			helpers.InfoIcon(),
 			helpers.WhiteText(
-				fmt.Sprintf("Your PATH already contains %s.", helpers.CyanText(GlobalBinDir)),
+				fmt.Sprintf("Your PATH already contains %s.", helpers.CyanText(GetGlobalBinDir())),
 			),
 		)
 		if err != nil {
@@ -147,7 +148,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 			helpers.WhiteText(
 				fmt.Sprintf(
 					"Please update your Nix configuration manually to include %s in your PATH.",
-					helpers.CyanText(GlobalBinDir),
+					helpers.CyanText(GetGlobalBinDir()),
 				),
 			),
 		)
@@ -197,7 +198,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	switch shellName {
 	case "bash", "zsh":
 		rcFile = filepath.Join(home, fmt.Sprintf(".%src", shellName))
-		exportCmd = fmt.Sprintf("export PATH=\"$PATH:%s\"", GlobalBinDir)
+		exportCmd = fmt.Sprintf("export PATH=\"$PATH:%s\"", GetGlobalBinDir())
 	case "fish":
 		rcFile = filepath.Join(home, ".config", "fish", "config.fish")
 		// Ensure parent directory exists for fish config
@@ -206,7 +207,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 			return fmt.Errorf("failed to create fish config directory: %w", err)
 		}
 
-		exportCmd = "set -gx PATH $PATH " + GlobalBinDir
+		exportCmd = "set -gx PATH $PATH " + GetGlobalBinDir()
 	default:
 		logrus.Debug("Unsupported shell: ", shellName)
 
@@ -217,7 +218,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 				fmt.Sprintf(
 					"Shell '%s' is not automatically supported. Please add %s to your PATH manually.",
 					helpers.CyanText(shellName),
-					helpers.CyanText(GlobalBinDir),
+					helpers.CyanText(GetGlobalBinDir()),
 				),
 			),
 		)

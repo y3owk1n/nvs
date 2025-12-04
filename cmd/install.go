@@ -9,10 +9,7 @@ import (
 	"github.com/briandowns/spinner"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/nvs/pkg/builder"
-	"github.com/y3owk1n/nvs/pkg/helpers"
-	"github.com/y3owk1n/nvs/pkg/installer"
-	"github.com/y3owk1n/nvs/pkg/releases"
+	"github.com/y3owk1n/nvs/internal/ui"
 )
 
 // TimeoutMinutes is the timeout in minutes for installation.
@@ -41,7 +38,7 @@ var installCmd = &cobra.Command{
 	Short:   "Install a Neovim version or commit",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return RunInstall(cmd, args, VersionsDir, CacheFilePath)
+		return RunInstall(cmd, args, GetVersionsDir(), GetCacheFilePath())
 	},
 }
 
@@ -58,82 +55,35 @@ func RunInstall(cmd *cobra.Command, args []string, versionsDir, cacheFilePath st
 	ctx, cancel := context.WithTimeout(cmd.Context(), TimeoutMinutes*time.Minute)
 	defer cancel()
 
-	// Normalize the input version (e.g., prefix with "v" if needed)
-	alias := releases.NormalizeVersion(args[0])
-	logrus.Debugf("Normalized version: %s", alias)
+	alias := args[0]
+	logrus.Debugf("Requested version: %s", alias)
 
-	var err error
+	// Create and start a spinner for progress
+	progressSpinner := spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond)
+	progressSpinner.Prefix = fmt.Sprintf("%s %s ", ui.InfoIcon(), ui.WhiteText(fmt.Sprintf("Installing Neovim %s...", alias)))
+	progressSpinner.Suffix = InitialSuffix
+	progressSpinner.Start()
 
-	_, err = fmt.Fprintf(os.Stdout,
+	// Use version service to install
+	err := GetVersionService().Install(ctx, alias, func(phase string, progress int) {
+		progressSpinner.Suffix = fmt.Sprintf(" %s %d%%", phase, progress)
+	})
+
+	if err != nil {
+		progressSpinner.Stop()
+		return err
+	}
+
+	progressSpinner.Stop()
+
+	_, err = fmt.Fprintf(
+		os.Stdout,
 		"%s %s\n",
-		helpers.InfoIcon(),
-		helpers.WhiteText(fmt.Sprintf("Resolving version %s...", helpers.CyanText(alias))),
+		ui.SuccessIcon(),
+		ui.WhiteText("Installation successful!"),
 	)
 	if err != nil {
 		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
-
-	// Check if the alias is a commit hash
-	isCommitHash := releases.IsCommitHash(alias)
-	logrus.Debugf("isCommitHash: %t", isCommitHash)
-
-	// If it is a commit hash, build Neovim from that commit.
-	if isCommitHash {
-		logrus.Debugf("Building Neovim from commit %s", alias)
-
-		_, err = fmt.Fprintf(os.Stdout,
-			"%s %s\n",
-			helpers.InfoIcon(),
-			helpers.WhiteText("Building Neovim from commit "+helpers.CyanText(alias)),
-		)
-		if err != nil {
-			logrus.Warnf("Failed to write to stdout: %v", err)
-		}
-
-		err = builder.BuildFromCommit(ctx, alias, versionsDir)
-		if err != nil {
-			return err
-		}
-
-		_, err = fmt.Fprintf(
-			os.Stdout,
-			"%s %s\n",
-			helpers.SuccessIcon(),
-			helpers.WhiteText("Build from commit successful!"),
-		)
-		if err != nil {
-			logrus.Warnf("Failed to write to stdout: %v", err)
-		}
-	} else {
-		// Otherwise, install the pre-built version.
-		logrus.Debugf("Start installing %s", alias)
-
-		// Create and start a spinner for download progress
-		progressSpinner := spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond)
-		progressSpinner.Prefix = fmt.Sprintf("%s %s ", helpers.InfoIcon(), helpers.WhiteText(fmt.Sprintf("Installing Neovim %s...", alias)))
-		progressSpinner.Suffix = InitialSuffix
-		progressSpinner.Start()
-
-		err = installer.InstallVersion(ctx, alias, versionsDir, cacheFilePath, func(progress int) {
-			progressSpinner.Suffix = fmt.Sprintf(" %d%%", progress)
-		})
-		if err != nil {
-			progressSpinner.Stop()
-
-			return err
-		}
-
-		progressSpinner.Stop()
-
-		_, err = fmt.Fprintf(
-			os.Stdout,
-			"%s %s\n",
-			helpers.SuccessIcon(),
-			helpers.WhiteText("Installation successful!"),
-		)
-		if err != nil {
-			logrus.Warnf("Failed to write to stdout: %v", err)
-		}
 	}
 
 	return nil
