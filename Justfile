@@ -14,7 +14,10 @@ build:
     env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-linux-amd64 ./main.go
 
     # Build for windows-amd64
-    env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-windows64.exe ./main.go
+    env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-windows-amd64.exe ./main.go
+
+    # Build for windows-arm64
+    env GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-windows-arm64.exe ./main.go
 
 release-ci VERSION_OVERRIDE:
     mkdir -p build
@@ -31,7 +34,10 @@ release-ci VERSION_OVERRIDE:
     env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version={{ VERSION_OVERRIDE }}" -trimpath -o ./build/nvs-linux-amd64 ./main.go
 
     # Build for windows-amd64
-    env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version={{ VERSION_OVERRIDE }}" -trimpath -o ./build/nvs-windows64.exe ./main.go
+    env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version={{ VERSION_OVERRIDE }}" -trimpath -o ./build/nvs-windows-amd64.exe ./main.go
+
+    # Build for windows-arm64
+    env GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version={{ VERSION_OVERRIDE }}" -trimpath -o ./build/nvs-windows-arm64.exe ./main.go
 
 test: test-unit test-integration
 

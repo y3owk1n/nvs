@@ -10,14 +10,12 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/nvs/pkg/helpers"
+	"github.com/y3owk1n/nvs/internal/infra/filesystem"
+	"github.com/y3owk1n/nvs/internal/ui"
 )
 
 // FilePerm is the file permission for created files.
 const FilePerm = 0o644
-
-// DirPerm is the directory permission for created directories.
-const DirPerm = 0o755
 
 // pathCmd represents the "path" command.
 // It automatically adds the global binary directory to the user's PATH by modifying the appropriate shell configuration file.
@@ -47,14 +45,15 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 	// On Windows, automatic PATH modifications are not implemented.
 	if runtime.GOOS == "windows" {
-		nvimBinDir := filepath.Join(GlobalBinDir, "nvim", "bin")
+		// Use GetGlobalBinDir() to get the path
+		nvimBinDir := filepath.Join(GetGlobalBinDir(), "nvim", "bin")
 
 		logrus.Debug("Detected Windows OS")
 
 		_, err = fmt.Fprintf(os.Stdout,
 			"%s %s\n",
-			helpers.WarningIcon(),
-			helpers.WhiteText("Automatic PATH setup is not implemented for Windows."),
+			ui.WarningIcon(),
+			ui.WhiteText("Automatic PATH setup is not implemented for Windows."),
 		)
 		if err != nil {
 			logrus.Warnf("Failed to write to stdout: %v", err)
@@ -62,11 +61,11 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 		_, err = fmt.Fprintf(os.Stdout,
 			"%s %s\n",
-			helpers.InfoIcon(),
-			helpers.WhiteText(
+			ui.InfoIcon(),
+			ui.WhiteText(
 				fmt.Sprintf(
 					"Please add %s to your PATH environment variable manually.",
-					helpers.CyanText(nvimBinDir),
+					ui.CyanText(nvimBinDir),
 				),
 			),
 		)
@@ -81,13 +80,13 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	pathEnv := os.Getenv("PATH")
 	logrus.Debug("Current PATH: ", pathEnv)
 
-	// Check if GlobalBinDir is already in PATH
+	// Check if GetGlobalBinDir() is already in PATH
 	pathSeparator := string(os.PathListSeparator)
 	paths := strings.Split(pathEnv, pathSeparator)
 
 	found := false
 	for _, p := range paths {
-		if filepath.Clean(p) == filepath.Clean(GlobalBinDir) {
+		if filepath.Clean(p) == filepath.Clean(GetGlobalBinDir()) {
 			found = true
 
 			break
@@ -95,13 +94,13 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	}
 
 	if found {
-		logrus.Debug("PATH already contains GlobalBinDir")
+		logrus.Debugf("PATH already contains %s", GetGlobalBinDir())
 
 		_, err = fmt.Fprintf(os.Stdout,
 			"%s %s\n",
-			helpers.InfoIcon(),
-			helpers.WhiteText(
-				fmt.Sprintf("Your PATH already contains %s.", helpers.CyanText(GlobalBinDir)),
+			ui.InfoIcon(),
+			ui.WhiteText(
+				fmt.Sprintf("Your PATH already contains %s.", ui.CyanText(GetGlobalBinDir())),
 			),
 		)
 		if err != nil {
@@ -132,8 +131,8 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 		_, err = fmt.Fprintf(os.Stdout,
 			"%s %s\n",
-			helpers.WarningIcon(),
-			helpers.WhiteText(
+			ui.WarningIcon(),
+			ui.WhiteText(
 				"It appears your shell is managed by Nix. Automatic PATH modifications may not work as expected.",
 			),
 		)
@@ -143,11 +142,11 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 		_, err = fmt.Fprintf(os.Stdout,
 			"%s %s\n",
-			helpers.InfoIcon(),
-			helpers.WhiteText(
+			ui.InfoIcon(),
+			ui.WhiteText(
 				fmt.Sprintf(
 					"Please update your Nix configuration manually to include %s in your PATH.",
-					helpers.CyanText(GlobalBinDir),
+					ui.CyanText(GetGlobalBinDir()),
 				),
 			),
 		)
@@ -181,8 +180,8 @@ func RunPath(_ *cobra.Command, _ []string) error {
 			_, err = fmt.Fprintf(
 				os.Stdout,
 				"%s %s\n",
-				helpers.WarningIcon(),
-				helpers.WhiteText(
+				ui.WarningIcon(),
+				ui.WhiteText(
 					"Cannot determine home directory. Please set HOME environment variable.",
 				),
 			)
@@ -197,27 +196,27 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	switch shellName {
 	case "bash", "zsh":
 		rcFile = filepath.Join(home, fmt.Sprintf(".%src", shellName))
-		exportCmd = fmt.Sprintf("export PATH=\"$PATH:%s\"", GlobalBinDir)
+		exportCmd = fmt.Sprintf("export PATH=\"$PATH:%s\"", GetGlobalBinDir())
 	case "fish":
 		rcFile = filepath.Join(home, ".config", "fish", "config.fish")
 		// Ensure parent directory exists for fish config
-		err := os.MkdirAll(filepath.Dir(rcFile), DirPerm)
+		err := os.MkdirAll(filepath.Dir(rcFile), filesystem.DirPerm)
 		if err != nil {
 			return fmt.Errorf("failed to create fish config directory: %w", err)
 		}
 
-		exportCmd = "set -gx PATH $PATH " + GlobalBinDir
+		exportCmd = "set -gx PATH $PATH " + GetGlobalBinDir()
 	default:
 		logrus.Debug("Unsupported shell: ", shellName)
 
 		_, err = fmt.Fprintf(os.Stdout,
 			"%s %s\n",
-			helpers.WarningIcon(),
-			helpers.WhiteText(
+			ui.WarningIcon(),
+			ui.WhiteText(
 				fmt.Sprintf(
 					"Shell '%s' is not automatically supported. Please add %s to your PATH manually.",
-					helpers.CyanText(shellName),
-					helpers.CyanText(GlobalBinDir),
+					ui.CyanText(shellName),
+					ui.CyanText(GetGlobalBinDir()),
 				),
 			),
 		)
@@ -234,9 +233,9 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	// Display the diff of the changes that will be applied.
 	_, err = fmt.Fprintf(os.Stdout,
 		"%s %s\n\n",
-		helpers.InfoIcon(),
-		helpers.WhiteText(
-			fmt.Sprintf("The following diff will be applied to %s:", helpers.CyanText(rcFile)),
+		ui.InfoIcon(),
+		ui.WhiteText(
+			fmt.Sprintf("The following diff will be applied to %s:", ui.CyanText(rcFile)),
 		),
 	)
 	if err != nil {
@@ -246,7 +245,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	_, err = fmt.Fprintf(
 		os.Stdout,
 		"%s\n",
-		helpers.GreenText(fmt.Sprintf("+ %s\n+ %s", exportCmdComment, exportCmd)),
+		ui.GreenText(fmt.Sprintf("+ %s\n+ %s", exportCmdComment, exportCmd)),
 	)
 	if err != nil {
 		logrus.Warnf("Failed to write to stdout: %v", err)
@@ -256,7 +255,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	_, err = fmt.Fprintf(
 		os.Stdout,
 		"\n%s %s ",
-		helpers.PromptIcon(),
+		ui.PromptIcon(),
 		"Do you want to proceed? (y/N): ",
 	)
 	if err != nil {
@@ -277,8 +276,8 @@ func RunPath(_ *cobra.Command, _ []string) error {
 		_, err = fmt.Fprintf(
 			os.Stdout,
 			"%s %s\n",
-			helpers.InfoIcon(),
-			helpers.WhiteText("Aborted by user."),
+			ui.InfoIcon(),
+			ui.WhiteText("Aborted by user."),
 		)
 		if err != nil {
 			logrus.Warnf("Failed to write to stdout: %v", err)
@@ -308,7 +307,9 @@ func RunPath(_ *cobra.Command, _ []string) error {
 			return fmt.Errorf("failed to read %s: %w", rcFile, err)
 		}
 
-		if !strings.Contains(string(data), exportCmd) {
+		// Check if the global bin directory is already in PATH
+		globalBinDir := GetGlobalBinDir()
+		if !strings.Contains(string(data), globalBinDir) {
 			file, err := os.OpenFile(rcFile, os.O_APPEND|os.O_WRONLY, FilePerm)
 			if err != nil {
 				return fmt.Errorf("failed to open %s: %w", rcFile, err)
@@ -331,9 +332,9 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	_, err = fmt.Fprintf(
 		os.Stdout,
 		"%s %s\n",
-		helpers.SuccessIcon(),
-		helpers.WhiteText(
-			fmt.Sprintf("Done applying changes to %s:", helpers.CyanText(rcFile)),
+		ui.SuccessIcon(),
+		ui.WhiteText(
+			fmt.Sprintf("Done applying changes to %s:", ui.CyanText(rcFile)),
 		),
 	)
 	if err != nil {
@@ -342,8 +343,8 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 	_, err = fmt.Fprintf(os.Stdout,
 		"%s Please restart your terminal or source %s to apply changes.\n",
-		helpers.WarningIcon(),
-		helpers.CyanText(rcFile),
+		ui.WarningIcon(),
+		ui.CyanText(rcFile),
 	)
 	if err != nil {
 		logrus.Warnf("Failed to write to stdout: %v", err)

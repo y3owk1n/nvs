@@ -5,14 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
-	"runtime"
-	"strings"
 
 	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/nvs/pkg/helpers"
+	"github.com/y3owk1n/nvs/internal/ui"
 )
 
 // configCmd represents the "config" command.
@@ -49,16 +46,16 @@ func RunConfig(cmd *cobra.Command, args []string) error {
 
 		_, err := fmt.Fprintf(os.Stdout,
 			"%s %s\n",
-			helpers.InfoIcon(),
-			helpers.WhiteText(
-				"Launching Neovim with configuration: "+helpers.CyanText(args[0]),
+			ui.InfoIcon(),
+			ui.WhiteText(
+				"Launching Neovim with configuration: "+ui.CyanText(args[0]),
 			),
 		)
 		if err != nil {
 			logrus.Warnf("Failed to write to stdout: %v", err)
 		}
 
-		err = helpers.LaunchNvimWithConfig(args[0])
+		err = GetConfigService().Launch(cmd.Context(), args[0])
 		if err != nil {
 			return err
 		}
@@ -66,82 +63,20 @@ func RunConfig(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	configDir, err := helpers.GetNvimConfigBaseDir()
+	// List available configurations
+	configs, err := GetConfigService().List()
 	if err != nil {
-		return fmt.Errorf("failed to determine config base dir: %w", err)
+		return fmt.Errorf("failed to list configurations: %w", err)
 	}
 
-	logrus.Debugf("Neovim config directory: %s", configDir)
-
-	entries, err := os.ReadDir(configDir)
-	if err != nil {
-		return fmt.Errorf("failed to read config directory %s: %w", configDir, err)
-	}
-
-	logrus.Debugf("Found %d entries in config directory (%s)", len(entries), configDir)
-
-	var nvimConfigs []string
-	for _, entry := range entries {
-		entryPath := filepath.Join(configDir, entry.Name())
-		logrus.Debugf("Processing entry: %s", entryPath)
-
-		info, err := os.Lstat(entryPath)
-		if err != nil {
-			logrus.Warnf("Failed to lstat %s: %v", entryPath, err)
-
-			continue
-		}
-
-		var isDir bool
-		if info.Mode()&os.ModeSymlink != 0 {
-			// Proper symlink
-			resolvedPath, err := os.Readlink(entryPath)
-			if err != nil {
-				logrus.Warnf("Failed to resolve symlink %s: %v", entry.Name(), err)
-
-				continue
-			}
-
-			targetInfo, err := os.Stat(resolvedPath)
-			if err != nil {
-				logrus.Warnf("Failed to stat resolved path for %s: %v", entry.Name(), err)
-
-				continue
-			}
-
-			isDir = targetInfo.IsDir()
-			logrus.Debugf("%s resolved to %s (isDir: %t)", entry.Name(), resolvedPath, isDir)
-		} else {
-			// Could be a real dir or a junction (Windows treats junctions as dirs)
-			isDir = info.IsDir()
-		}
-
-		// Add directories whose name contains "nvim" (case-insensitive) to the list.
-		if isDir {
-			name := strings.ToLower(entry.Name())
-
-			if strings.Contains(name, "nvim") {
-				// Exclude nvim-data only on Windows
-				if runtime.GOOS == "windows" && strings.HasSuffix(name, "-data") {
-					logrus.Debugf("Skipping Windows nvim-data: %s", entry.Name())
-
-					continue
-				}
-
-				logrus.Debugf("Adding Neovim config: %s", entry.Name())
-				nvimConfigs = append(nvimConfigs, entry.Name())
-			}
-		}
-	}
-
-	if len(nvimConfigs) == 0 {
-		logrus.Debugf("No Neovim configurations found in config directory: %s", configDir)
+	if len(configs) == 0 {
+		logrus.Debug("No Neovim configurations found")
 
 		_, err := fmt.Fprintf(os.Stdout,
 			"%s %s\n",
-			helpers.WarningIcon(),
-			helpers.WhiteText(
-				"No Neovim configuration found in "+helpers.CyanText(configDir),
+			ui.WarningIcon(),
+			ui.WhiteText(
+				"No Neovim configurations found",
 			),
 		)
 		if err != nil {
@@ -151,10 +86,10 @@ func RunConfig(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	logrus.Debugf("Available Neovim configurations: %v", nvimConfigs)
+	logrus.Debugf("Available Neovim configurations: %v", configs)
 	prompt := promptui.Select{
 		Label: "Select Neovim configuration",
-		Items: nvimConfigs,
+		Items: configs,
 	}
 
 	logrus.Debug("Displaying selection prompt")
@@ -167,8 +102,8 @@ func RunConfig(cmd *cobra.Command, args []string) error {
 			_, err := fmt.Fprintf(
 				os.Stdout,
 				"%s %s\n",
-				helpers.WarningIcon(),
-				helpers.WhiteText("Selection canceled."),
+				ui.WarningIcon(),
+				ui.WhiteText("Selection canceled."),
 			)
 			if err != nil {
 				logrus.Warnf("Failed to write to stdout: %v", err)
@@ -184,16 +119,16 @@ func RunConfig(cmd *cobra.Command, args []string) error {
 
 	_, err = fmt.Fprintf(os.Stdout,
 		"%s %s\n",
-		helpers.InfoIcon(),
-		helpers.WhiteText(
-			"Launching Neovim with configuration: "+helpers.CyanText(selectedConfig),
+		ui.InfoIcon(),
+		ui.WhiteText(
+			"Launching Neovim with configuration: "+ui.CyanText(selectedConfig),
 		),
 	)
 	if err != nil {
 		logrus.Warnf("Failed to write to stdout: %v", err)
 	}
 
-	err = helpers.LaunchNvimWithConfig(selectedConfig)
+	err = GetConfigService().Launch(cmd.Context(), selectedConfig)
 	if err != nil {
 		return fmt.Errorf("failed to launch nvim with config: %w", err)
 	}

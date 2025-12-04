@@ -1,0 +1,66 @@
+// Package platform provides platform-specific utilities.
+package platform
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"runtime"
+
+	"github.com/sirupsen/logrus"
+)
+
+const (
+	// WindowsOS is the string representation of the Windows operating system.
+	WindowsOS = "windows"
+)
+
+// UpdateSymlink creates a symlink (or junction/hardlink fallback on Windows).
+// If isDir = true, fallback uses junctions (mklink /J).
+// If isDir = false, fallback uses hardlinks (mklink /H).
+func UpdateSymlink(target, link string, isDir bool) error {
+	// Remove old symlink if it exists.
+	var err error
+
+	_, err = os.Lstat(link)
+	if err == nil {
+		err = os.Remove(link)
+		if err != nil {
+			return err
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("failed to stat existing link %s: %w", link, err)
+	}
+
+	// Try normal symlink
+	err = os.Symlink(target, link)
+	if err == nil {
+		return nil
+	} else if runtime.GOOS != WindowsOS {
+		// On non-Windows, fail fast
+		return err
+	}
+
+	// Windows fallback
+	flag := "/H"
+
+	linkType := "hardlink"
+	if isDir {
+		flag = "/J"
+		linkType = "junction"
+	}
+
+	cmd := exec.CommandContext(context.Background(), "cmd", "/C", "mklink", flag, link, target)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to create %s for %s: %w", linkType, link, err)
+	}
+
+	logrus.Debugf("Created %s instead of symlink: %s -> %s", linkType, link, target)
+
+	return nil
+}

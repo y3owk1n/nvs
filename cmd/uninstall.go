@@ -5,14 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/nvs/pkg/helpers"
-	"github.com/y3owk1n/nvs/pkg/releases"
+	"github.com/y3owk1n/nvs/internal/domain/version"
+	"github.com/y3owk1n/nvs/internal/ui"
 )
 
 // ErrVersionNotInstalled is returned when attempting to uninstall a version that is not installed.
@@ -43,34 +42,27 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 
 	logrus.Debug("Running uninstall command")
 
-	// Normalize the provided version argument (e.g. add "v" prefix if missing)
-	versionArg := releases.NormalizeVersion(args[0])
-	logrus.Debug("Normalized version: ", versionArg)
-
-	// Compute the path where the version is installed.
-	versionPath := filepath.Join(VersionsDir, versionArg)
-	logrus.Debug("Computed version path: ", versionPath)
-
-	// Check if the version is installed.
-	_, err = os.Stat(versionPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("version %s is not installed: %w", versionArg, ErrVersionNotInstalled)
-		}
-
-		return fmt.Errorf("failed to check version path %s: %w", versionPath, err)
-	}
-
-	currentSymlink := filepath.Join(VersionsDir, "current")
+	versionArg := args[0]
+	logrus.Debug("Requested version: ", versionArg)
 
 	// Check if the version to uninstall is currently active.
 	isCurrent := false
 
-	var current string
-
-	current, err = helpers.GetCurrentVersion(VersionsDir)
+	current, err := GetVersionService().Current()
 	if err == nil {
-		if current == versionArg {
+		// Normalize both versions for comparison
+		normalizedCurrent := current.Name()
+		normalizedArg := versionArg
+
+		if !strings.HasPrefix(normalizedCurrent, "v") {
+			normalizedCurrent = "v" + normalizedCurrent
+		}
+
+		if !strings.HasPrefix(normalizedArg, "v") {
+			normalizedArg = "v" + normalizedArg
+		}
+
+		if normalizedCurrent == normalizedArg {
 			isCurrent = true
 		}
 	}
@@ -80,8 +72,8 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 		_, printErr := fmt.Fprintf(
 			os.Stdout,
 			"%s The version %s is currently in use. Do you really want to uninstall it? (y/N): ",
-			helpers.WarningIcon(),
-			helpers.CyanText(versionArg),
+			ui.WarningIcon(),
+			ui.CyanText(versionArg),
 		)
 		if printErr != nil {
 			logrus.Warnf("Failed to write to stdout: %v", printErr)
@@ -100,8 +92,8 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 		if strings.ToLower(input) != "y" {
 			_, printErr := fmt.Fprintln(
 				os.Stdout,
-				helpers.InfoIcon(),
-				helpers.WhiteText("Aborted uninstall."),
+				ui.InfoIcon(),
+				ui.WhiteText("Aborted uninstall."),
 			)
 			if printErr != nil {
 				logrus.Warnf("Failed to write to stdout: %v", printErr)
@@ -113,51 +105,27 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 		}
 
 		logrus.Debugf("User confirmed removal of current version %s", versionArg)
-		// Remove the current symlink/junction if uninstalling the active version.
-		var info os.FileInfo
-
-		info, err = os.Lstat(currentSymlink)
-		if err != nil {
-			return fmt.Errorf("failed to lstat current symlink: %w", err)
-		}
-
-		switch {
-		case info.Mode()&os.ModeSymlink != 0:
-			// POSIX symlink
-			err = os.Remove(currentSymlink)
-			if err != nil {
-				return fmt.Errorf("failed to remove current symlink: %w", err)
-			}
-
-			logrus.Debug("Removed current symlink")
-		case info.IsDir():
-			// Likely a Windows junction — requires RemoveAll
-			err = os.RemoveAll(currentSymlink)
-			if err != nil {
-				return fmt.Errorf("failed to remove current junction: %w", err)
-			}
-
-			logrus.Debug("Removed current junction")
-		default:
-			logrus.Warnf("Current symlink is neither a symlink nor a directory: %s", currentSymlink)
-		}
 	}
 
-	logrus.Debug("Version is installed, proceeding with removal")
-	// Remove the version's directory.
-	err = os.RemoveAll(versionPath)
+	// Uninstall using service
+	// Force uninstall if it's the current version (user already confirmed)
+	err = GetVersionService().Uninstall(versionArg, isCurrent)
 	if err != nil {
+		if errors.Is(err, version.ErrVersionNotFound) {
+			return fmt.Errorf("version %s is not installed: %w", versionArg, ErrVersionNotInstalled)
+		}
+
 		return fmt.Errorf("failed to uninstall version %s: %w", versionArg, err)
 	}
 
-	successMsg := "Uninstalled version: " + helpers.CyanText(versionArg)
+	successMsg := "Uninstalled version: " + ui.CyanText(versionArg)
 	logrus.Debug(successMsg)
 
 	_, printErr := fmt.Fprintf(
 		os.Stdout,
 		"%s %s\n",
-		helpers.SuccessIcon(),
-		helpers.WhiteText(successMsg),
+		ui.SuccessIcon(),
+		ui.WhiteText(successMsg),
 	)
 	if printErr != nil {
 		logrus.Warnf("Failed to write to stdout: %v", printErr)
@@ -166,20 +134,16 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 	// If the uninstalled version was the current version,
 	// prompt the user to switch to a different installed version.
 	if isCurrent {
-		var versions []string
-
-		versions, err = helpers.ListInstalledVersions(VersionsDir)
+		versions, err := GetVersionService().List()
 		if err != nil {
 			return fmt.Errorf("error listing versions: %w", err)
 		}
 
-		availableVersions := versions // ListInstalledVersions already excludes "current"
-
-		if len(availableVersions) == 0 {
+		if len(versions) == 0 {
 			_, printErr := fmt.Fprintf(os.Stdout,
 				"%s %s\n",
-				helpers.WarningIcon(),
-				helpers.WhiteText(
+				ui.WarningIcon(),
+				ui.WhiteText(
 					"No other versions available. Your current version has been unset.",
 				),
 			)
@@ -187,6 +151,11 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 				logrus.Warnf("Failed to write to stdout: %v", printErr)
 			}
 		} else {
+			availableVersions := make([]string, 0, len(versions))
+			for _, v := range versions {
+				availableVersions = append(availableVersions, v.Name())
+			}
+
 			logrus.Debugf("Switchable Installed Neovim Versions: %v", availableVersions)
 			prompt := promptui.Select{
 				Label: "Switchable Installed Neovim Versions",
@@ -202,7 +171,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 				if errors.Is(err, promptui.ErrInterrupt) {
 					logrus.Debug("User canceled selection")
 
-					_, printErr := fmt.Fprintf(os.Stdout, "%s %s\n", helpers.WarningIcon(), helpers.WhiteText("Selection canceled."))
+					_, printErr := fmt.Fprintf(os.Stdout, "%s %s\n", ui.WarningIcon(), ui.WhiteText("Selection canceled."))
 					if printErr != nil {
 						logrus.Warnf("Failed to write to stdout: %v", printErr)
 					}
@@ -214,7 +183,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 			}
 
 			// Use the selected version as the new current version.
-			err = helpers.UseVersion(selectedVersion, currentSymlink, VersionsDir, GlobalBinDir)
+			_, err = GetVersionService().Use(cmd.Context(), selectedVersion)
 			if err != nil {
 				return err
 			}
