@@ -287,7 +287,16 @@ func (s *Service) Upgrade(
 
 	// Check if update is needed
 	currentIdentifier, err := s.versionManager.GetInstalledReleaseIdentifier(normalized)
-	if err == nil && currentIdentifier == rel.TagName() {
+	if err != nil {
+		return fmt.Errorf("failed to get installed release identifier: %w", err)
+	}
+
+	expectedIdentifier := rel.TagName()
+	if normalized == NightlyVersion {
+		expectedIdentifier = rel.CommitHash()
+	}
+
+	if currentIdentifier == expectedIdentifier {
 		return ErrAlreadyUpToDate
 	}
 
