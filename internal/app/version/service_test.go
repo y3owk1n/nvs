@@ -3,6 +3,7 @@ package version_test
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -16,10 +17,11 @@ import (
 var errTagNotFound = errors.New("tag not found")
 
 type mockReleaseRepo struct {
-	stable      release.Release
-	nightly     release.Release
-	tags        map[string]release.Release
-	getAllForce bool // records if GetAll was called with force=true
+	stable         release.Release
+	nightly        release.Release
+	tags           map[string]release.Release
+	findNightlyErr error
+	getAllForce    bool // records if GetAll was called with force=true
 }
 
 func (m *mockReleaseRepo) FindStable(ctx context.Context) (release.Release, error) {
@@ -27,6 +29,9 @@ func (m *mockReleaseRepo) FindStable(ctx context.Context) (release.Release, erro
 }
 
 func (m *mockReleaseRepo) FindNightly(ctx context.Context) (release.Release, error) {
+	if m.findNightlyErr != nil {
+		return release.Release{}, m.findNightlyErr
+	}
 	return m.nightly, nil
 }
 
@@ -91,6 +96,7 @@ type mockInstaller struct {
 	installed             map[string]version.Version
 	buildFromCommitCalled bool
 	lastCommit            string
+	lastDest              string
 }
 
 func (m *mockInstaller) InstallRelease(
@@ -109,6 +115,7 @@ func (m *mockInstaller) InstallRelease(
 func (m *mockInstaller) BuildFromCommit(ctx context.Context, commit, dest string) error {
 	m.buildFromCommitCalled = true
 	m.lastCommit = commit
+	m.lastDest = dest
 
 	return nil
 }
@@ -173,8 +180,8 @@ func TestService_Use_Nightly(t *testing.T) {
 			appversion.NightlyVersion: version.New(
 				appversion.NightlyVersion,
 				version.TypeNightly,
-				appversion.NightlyVersion,
-				"",
+				"nightly-2024-12-04",
+				"def456",
 			),
 		},
 		current: version.New(appversion.StableVersion, version.TypeStable, "v0.9.0", ""),
@@ -194,6 +201,29 @@ func TestService_Use_Nightly(t *testing.T) {
 
 	if manager.current.Type() != version.TypeNightly {
 		t.Errorf("Expected current version type 'nightly', got '%s'", manager.current.Type())
+	}
+
+	if manager.current.Identifier() != "nightly-2024-12-04" {
+		t.Errorf("Expected current version identifier 'nightly-2024-12-04', got '%s'", manager.current.Identifier())
+	}
+
+	if manager.current.CommitHash() != "def456" {
+		t.Errorf("Expected current version commit hash 'def456', got '%s'", manager.current.CommitHash())
+	}
+}
+
+func TestService_Use_Nightly_NotAvailable(t *testing.T) {
+	repo := &mockReleaseRepo{
+		findNightlyErr: release.ErrNoNightlyRelease,
+	}
+	manager := &mockVersionManager{}
+	install := &mockInstaller{}
+
+	service := appversion.New(repo, manager, install, &appversion.Config{})
+
+	_, err := service.Use(context.Background(), appversion.NightlyVersion)
+	if err == nil {
+		t.Error("Expected error when nightly release is not available")
 	}
 }
 
@@ -295,7 +325,8 @@ func TestService_Install_CommitHash(t *testing.T) {
 	}
 	install := &mockInstaller{installed: make(map[string]version.Version)}
 
-	service := appversion.New(repo, manager, install, &appversion.Config{})
+	config := &appversion.Config{VersionsDir: "/tmp/versions"}
+	service := appversion.New(repo, manager, install, config)
 
 	commitHash := "abc123def456"
 
@@ -311,5 +342,10 @@ func TestService_Install_CommitHash(t *testing.T) {
 
 	if install.lastCommit != commitHash {
 		t.Errorf("Expected commit %s, got %s", commitHash, install.lastCommit)
+	}
+
+	expectedDest := filepath.Join(config.VersionsDir, commitHash)
+	if install.lastDest != expectedDest {
+		t.Errorf("Expected dest %s, got %s", expectedDest, install.lastDest)
 	}
 }
