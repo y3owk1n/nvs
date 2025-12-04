@@ -210,28 +210,33 @@ func (e *Extractor) extractZip(src *os.File, dest string) error {
 			return fmt.Errorf("failed to create directory for file %s: %w", path, err)
 		}
 
-		readerCloser, err := fileEntry.Open()
+		err = e.extractZipFile(fileEntry, path)
 		if err != nil {
-			return fmt.Errorf("failed to open file %s in zip: %w", fileEntry.Name, err)
+			return err
 		}
+	}
 
-		out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, fileEntry.Mode())
-		if err != nil {
-			_ = readerCloser.Close()
+	return nil
+}
 
-			return fmt.Errorf("failed to create output file %s: %w", path, err)
-		}
+func (e *Extractor) extractZipFile(fileEntry *zip.File, path string) error {
+	readerCloser, err := fileEntry.Open()
+	if err != nil {
+		return fmt.Errorf("failed to open file %s in zip: %w", fileEntry.Name, err)
+	}
 
-		_, err = io.Copy(out, readerCloser)
-		if err != nil {
-			_ = readerCloser.Close()
-			_ = out.Close()
+	defer func() { _ = readerCloser.Close() }()
 
-			return fmt.Errorf("failed to copy file %s: %w", path, err)
-		}
+	out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, fileEntry.Mode())
+	if err != nil {
+		return fmt.Errorf("failed to create output file %s: %w", path, err)
+	}
 
-		_ = readerCloser.Close()
-		_ = out.Close()
+	defer func() { _ = out.Close() }()
+
+	_, err = io.Copy(out, readerCloser)
+	if err != nil {
+		return fmt.Errorf("failed to copy file %s: %w", path, err)
 	}
 
 	return nil
