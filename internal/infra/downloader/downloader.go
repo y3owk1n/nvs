@@ -142,7 +142,7 @@ func (d *Downloader) VerifyChecksum(ctx context.Context, file *os.File, checksum
 		return fmt.Errorf("failed to seek file: %w", err)
 	}
 
-	if actualHash != expectedHash {
+	if !strings.EqualFold(actualHash, expectedHash) {
 		return fmt.Errorf("%w: expected %s, got %s", ErrChecksumMismatch, expectedHash, actualHash)
 	}
 
