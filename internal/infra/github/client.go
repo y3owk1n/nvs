@@ -129,8 +129,8 @@ func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, err
 }
 
 // FindStable returns the latest stable release.
-func (c *Client) FindStable() (release.Release, error) {
-	releases, err := c.GetAll(context.Background(), false)
+func (c *Client) FindStable(ctx context.Context) (release.Release, error) {
+	releases, err := c.GetAll(ctx, false)
 	if err != nil {
 		return release.Release{}, err
 	}
@@ -145,8 +145,8 @@ func (c *Client) FindStable() (release.Release, error) {
 }
 
 // FindNightly returns the latest nightly release.
-func (c *Client) FindNightly() (release.Release, error) {
-	releases, err := c.GetAll(context.Background(), false)
+func (c *Client) FindNightly(ctx context.Context) (release.Release, error) {
+	releases, err := c.GetAll(ctx, false)
 	if err != nil {
 		return release.Release{}, err
 	}
@@ -161,8 +161,8 @@ func (c *Client) FindNightly() (release.Release, error) {
 }
 
 // FindByTag returns a specific release by tag.
-func (c *Client) FindByTag(tag string) (release.Release, error) {
-	releases, err := c.GetAll(context.Background(), false)
+func (c *Client) FindByTag(ctx context.Context, tag string) (release.Release, error) {
+	releases, err := c.GetAll(ctx, false)
 	if err != nil {
 		return release.Release{}, err
 	}

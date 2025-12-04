@@ -94,7 +94,7 @@ type mockReleaseRepoForIntegration struct {
 	releases map[string]release.Release
 }
 
-func (m *mockReleaseRepoForIntegration) FindStable() (release.Release, error) {
+func (m *mockReleaseRepoForIntegration) FindStable(ctx context.Context) (release.Release, error) {
 	if rel, ok := m.releases["stable"]; ok {
 		return rel, nil
 	}
@@ -102,7 +102,7 @@ func (m *mockReleaseRepoForIntegration) FindStable() (release.Release, error) {
 	return release.Release{}, release.ErrReleaseNotFound
 }
 
-func (m *mockReleaseRepoForIntegration) FindNightly() (release.Release, error) {
+func (m *mockReleaseRepoForIntegration) FindNightly(ctx context.Context) (release.Release, error) {
 	if rel, ok := m.releases["nightly"]; ok {
 		return rel, nil
 	}
@@ -110,7 +110,10 @@ func (m *mockReleaseRepoForIntegration) FindNightly() (release.Release, error) {
 	return release.Release{}, release.ErrReleaseNotFound
 }
 
-func (m *mockReleaseRepoForIntegration) FindByTag(tag string) (release.Release, error) {
+func (m *mockReleaseRepoForIntegration) FindByTag(
+	ctx context.Context,
+	tag string,
+) (release.Release, error) {
 	if rel, ok := m.releases[tag]; ok {
 		return rel, nil
 	}

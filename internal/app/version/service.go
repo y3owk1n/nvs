@@ -77,11 +77,11 @@ func (s *Service) Install(
 
 	switch normalized {
 	case StableVersion:
-		rel, err = s.releaseRepo.FindStable()
+		rel, err = s.releaseRepo.FindStable(context.Background())
 	case NightlyVersion:
-		rel, err = s.releaseRepo.FindNightly()
+		rel, err = s.releaseRepo.FindNightly(context.Background())
 	default:
-		rel, err = s.releaseRepo.FindByTag(normalized)
+		rel, err = s.releaseRepo.FindByTag(context.Background(), normalized)
 	}
 
 	if err != nil {
@@ -148,11 +148,11 @@ func (s *Service) Use(ctx context.Context, versionAlias string) (string, error) 
 
 		switch normalized {
 		case StableVersion:
-			rel, err = s.releaseRepo.FindStable()
+			rel, err = s.releaseRepo.FindStable(context.Background())
 		case NightlyVersion:
-			rel, err = s.releaseRepo.FindNightly()
+			rel, err = s.releaseRepo.FindNightly(context.Background())
 		default:
-			rel, err = s.releaseRepo.FindByTag(normalized)
+			rel, err = s.releaseRepo.FindByTag(context.Background(), normalized)
 		}
 
 		if err != nil {
@@ -281,9 +281,9 @@ func (s *Service) Upgrade(
 
 	switch normalized {
 	case StableVersion:
-		rel, err = s.releaseRepo.FindStable()
+		rel, err = s.releaseRepo.FindStable(context.Background())
 	case NightlyVersion:
-		rel, err = s.releaseRepo.FindNightly()
+		rel, err = s.releaseRepo.FindNightly(context.Background())
 	}
 
 	if err != nil {
@@ -376,13 +376,13 @@ func (s *Service) GetInstalledVersionIdentifier(versionName string) (string, err
 }
 
 // FindStable returns the latest stable release.
-func (s *Service) FindStable() (release.Release, error) {
-	return s.releaseRepo.FindStable()
+func (s *Service) FindStable(ctx context.Context) (release.Release, error) {
+	return s.releaseRepo.FindStable(ctx)
 }
 
 // FindNightly returns the latest nightly release.
-func (s *Service) FindNightly() (release.Release, error) {
-	return s.releaseRepo.FindNightly()
+func (s *Service) FindNightly(ctx context.Context) (release.Release, error) {
+	return s.releaseRepo.FindNightly(ctx)
 }
 
 // IsCommitReference checks if a string is a commit reference.

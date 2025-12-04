@@ -102,11 +102,11 @@ type Repository interface {
 	GetAll(ctx context.Context, force bool) ([]Release, error)
 
 	// FindStable returns the latest stable release.
-	FindStable() (Release, error)
+	FindStable(ctx context.Context) (Release, error)
 
 	// FindNightly returns the latest nightly release.
-	FindNightly() (Release, error)
+	FindNightly(ctx context.Context) (Release, error)
 
 	// FindByTag returns a specific release by tag.
-	FindByTag(tag string) (Release, error)
+	FindByTag(ctx context.Context, tag string) (Release, error)
 }

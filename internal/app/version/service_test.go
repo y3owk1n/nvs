@@ -22,15 +22,15 @@ type mockReleaseRepo struct {
 	getAllForce bool // records if GetAll was called with force=true
 }
 
-func (m *mockReleaseRepo) FindStable() (release.Release, error) {
+func (m *mockReleaseRepo) FindStable(ctx context.Context) (release.Release, error) {
 	return m.stable, nil
 }
 
-func (m *mockReleaseRepo) FindNightly() (release.Release, error) {
+func (m *mockReleaseRepo) FindNightly(ctx context.Context) (release.Release, error) {
 	return m.nightly, nil
 }
 
-func (m *mockReleaseRepo) FindByTag(tag string) (release.Release, error) {
+func (m *mockReleaseRepo) FindByTag(ctx context.Context, tag string) (release.Release, error) {
 	rel, ok := m.tags[tag]
 	if !ok {
 		return release.Release{}, errTagNotFound
