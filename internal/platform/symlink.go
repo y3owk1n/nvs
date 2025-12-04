@@ -42,6 +42,7 @@ func UpdateSymlink(target, link string, isDir bool) error {
 
 	// Windows fallback
 	flag := "/H"
+
 	linkType := "hardlink"
 	if isDir {
 		flag = "/J"
@@ -52,7 +53,8 @@ func UpdateSymlink(target, link string, isDir bool) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
+	err = cmd.Run()
+	if err != nil {
 		return fmt.Errorf("failed to create %s for %s: %w", linkType, link, err)
 	}
 
