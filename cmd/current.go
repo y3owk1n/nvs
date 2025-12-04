@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -94,12 +93,7 @@ func RunCurrent(_ *cobra.Command, _ []string) error {
 				shortCommit = shortCommit[:ShortCommitLen]
 			}
 
-			publishedStr := nightly.PublishedAt().Format(time.RFC3339)
-
-			t, parseErr := time.Parse(time.RFC3339, publishedStr)
-			if parseErr == nil {
-				publishedStr = t.Format("2006-01-02")
-			}
+			publishedStr := nightly.PublishedAt().Format("2006-01-02")
 
 			_, err = fmt.Fprintf(os.Stdout, "%s %s\n", ui.InfoIcon(), ui.CyanText("nightly"))
 			if err != nil {
