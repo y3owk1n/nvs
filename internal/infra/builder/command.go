@@ -25,12 +25,16 @@ func (e *execCommand) SetDir(dir string) {
 }
 
 func (e *execCommand) SetStdout(stdout any) {
+	// Only io.Writer types are applied; other types are silently ignored
+	// to allow test doubles to pass alternative implementations.
 	if w, ok := stdout.(io.Writer); ok {
 		e.cmd.Stdout = w
 	}
 }
 
 func (e *execCommand) SetStderr(stderr any) {
+	// Only io.Writer types are applied; other types are silently ignored
+	// to allow test doubles to pass alternative implementations.
 	if w, ok := stderr.(io.Writer); ok {
 		e.cmd.Stderr = w
 	}
