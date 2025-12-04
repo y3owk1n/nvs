@@ -15,4 +15,7 @@ var (
 
 	// ErrChecksumMismatch is returned when checksum verification fails.
 	ErrChecksumMismatch = errors.New("checksum mismatch")
+
+	// ErrInvalidChecksumFormat is returned when checksum format is invalid.
+	ErrInvalidChecksumFormat = errors.New("invalid checksum format")
 )

@@ -15,7 +15,8 @@ import (
 )
 
 const (
-	progressDiv = 100
+	progressDiv   = 100
+	sha256HashLen = 64
 )
 
 // Downloader handles file downloads with progress tracking.
@@ -104,6 +105,16 @@ func (d *Downloader) VerifyChecksum(ctx context.Context, file *os.File, checksum
 	}
 
 	expectedHash := expectedFields[0]
+
+	// SHA256 hash should be 64 hex characters
+	if len(expectedHash) != sha256HashLen {
+		return fmt.Errorf(
+			"invalid checksum format: expected %d characters, got %d: %w",
+			sha256HashLen,
+			len(expectedHash),
+			ErrInvalidChecksumFormat,
+		)
+	}
 
 	// Compute actual hash
 	_, err = file.Seek(0, io.SeekStart)

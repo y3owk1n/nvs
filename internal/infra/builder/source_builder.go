@@ -79,7 +79,7 @@ func (b *SourceBuilder) BuildFromCommit(ctx context.Context, commit string, dest
 		}
 	}
 
-	return fmt.Errorf("%w after %d attempts: %v", ErrBuildFailed, maxAttempts, err)
+	return fmt.Errorf("%w after %d attempts: %w", ErrBuildFailed, maxAttempts, err)
 }
 
 // buildFromCommitInternal performs the actual build process.
