@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -240,6 +239,8 @@ func updateSymlink(target, link string, isDir bool) error {
 	return nil
 }
 
+var errFound = errors.New("found")
+
 // findNvimLinkTarget searches for the nvim binary and returns the appropriate link target.
 // On Unix, returns the binary path. On Windows, returns the version directory for junction creation.
 func findNvimLinkTarget(dir string) string {
@@ -257,7 +258,7 @@ func findNvimLinkTarget(dir string) string {
 					(strings.HasPrefix(strings.ToLower(name), "nvim-") && filepath.Ext(name) == ".exe") {
 					binaryPath = filepath.Dir(filepath.Dir(path))
 
-					return io.EOF
+					return errFound
 				}
 			} else {
 				if name == "nvim" || strings.HasPrefix(name, "nvim-") {
@@ -265,7 +266,7 @@ func findNvimLinkTarget(dir string) string {
 					if err == nil && info.Mode()&0o111 != 0 {
 						binaryPath = path
 
-						return io.EOF
+						return errFound
 					}
 				}
 			}
@@ -274,7 +275,7 @@ func findNvimLinkTarget(dir string) string {
 		return nil
 	})
 
-	if err != nil && !errors.Is(err, io.EOF) {
+	if err != nil && !errors.Is(err, errFound) {
 		logrus.Warnf("Error walking directory: %v", err)
 	}
 
