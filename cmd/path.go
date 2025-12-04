@@ -10,14 +10,12 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/internal/infra/filesystem"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
 // FilePerm is the file permission for created files.
 const FilePerm = 0o644
-
-// DirPerm is the directory permission for created directories.
-const DirPerm = 0o755
 
 // pathCmd represents the "path" command.
 // It automatically adds the global binary directory to the user's PATH by modifying the appropriate shell configuration file.
@@ -202,7 +200,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	case "fish":
 		rcFile = filepath.Join(home, ".config", "fish", "config.fish")
 		// Ensure parent directory exists for fish config
-		err := os.MkdirAll(filepath.Dir(rcFile), DirPerm)
+		err := os.MkdirAll(filepath.Dir(rcFile), filesystem.DirPerm)
 		if err != nil {
 			return fmt.Errorf("failed to create fish config directory: %w", err)
 		}
