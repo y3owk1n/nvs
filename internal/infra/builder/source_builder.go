@@ -295,23 +295,6 @@ func runCommandWithSpinner(cmd Commander) error {
 		}
 	}()
 
-	go func() {
-		buf := make([]byte, bufferSize)
-		for {
-			n, err := stderrReader.Read(buf)
-			if n > 0 {
-				line := strings.TrimSpace(string(buf[:n]))
-				if line != "" {
-					logrus.Debugf("Build error: %s", line)
-				}
-			}
-
-			if err != nil {
-				break
-			}
-		}
-	}()
-
 	// Wait for command to complete
 	return <-errChan
 }
