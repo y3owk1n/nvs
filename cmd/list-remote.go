@@ -151,20 +151,23 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 			// Use the same logic as the Upgrade function:
 			// For nightly, compare commit hash. For stable, fetch the actual stable release's tag.
 			var remoteIdentifier string
-			if release.Prerelease() && strings.HasPrefix(strings.ToLower(release.TagName()), "nightly") {
+			switch {
+			case release.Prerelease() &&
+				strings.HasPrefix(strings.ToLower(release.TagName()), "nightly"):
 				remoteIdentifier = release.CommitHash()
-			} else if release.TagName() == stableConst {
+			case release.TagName() == stableConst:
 				// For the "stable" tag, fetch the actual stable release to get the real version tag
 				stableRelease, stableErr := svc.FindStable(cmd.Context())
 				if stableErr == nil {
 					remoteIdentifier = stableRelease.TagName()
 				}
-			} else {
+			default:
 				remoteIdentifier = release.TagName()
 			}
 
 			// If the installed version is different from the remote, indicate an upgrade is available.
-			if installedIdentifier != "" && remoteIdentifier != "" && installedIdentifier != remoteIdentifier {
+			if installedIdentifier != "" && remoteIdentifier != "" &&
+				installedIdentifier != remoteIdentifier {
 				upgradeIndicator = " (" + ui.Upgrade + ")"
 			}
 
