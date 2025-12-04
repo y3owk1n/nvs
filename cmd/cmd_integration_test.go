@@ -661,9 +661,6 @@ func TestFullWorkflow(t *testing.T) {
 	}
 
 	// 11. Test reset command (with mocked input)
-	oldStdinReset := os.Stdin
-	defer func() { os.Stdin = oldStdinReset }()
-
 	reader, writer, err = os.Pipe()
 	if err != nil {
 		t.Fatal(err)
