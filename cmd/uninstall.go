@@ -11,7 +11,7 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/nvs/pkg/helpers"
+	"github.com/y3owk1n/nvs/internal/ui"
 )
 
 // ErrVersionNotInstalled is returned when attempting to uninstall a version that is not installed.
@@ -57,8 +57,8 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 		_, printErr := fmt.Fprintf(
 			os.Stdout,
 			"%s The version %s is currently in use. Do you really want to uninstall it? (y/N): ",
-			helpers.WarningIcon(),
-			helpers.CyanText(versionArg),
+			ui.WarningIcon(),
+			ui.CyanText(versionArg),
 		)
 		if printErr != nil {
 			logrus.Warnf("Failed to write to stdout: %v", printErr)
@@ -75,8 +75,8 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 		if strings.ToLower(input) != "y" {
 			_, printErr := fmt.Fprintln(
 				os.Stdout,
-				helpers.InfoIcon(),
-				helpers.WhiteText("Aborted uninstall."),
+				ui.InfoIcon(),
+				ui.WhiteText("Aborted uninstall."),
 			)
 			if printErr != nil {
 				logrus.Warnf("Failed to write to stdout: %v", printErr)
@@ -96,14 +96,14 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to uninstall version %s: %w", versionArg, err)
 	}
 
-	successMsg := "Uninstalled version: " + helpers.CyanText(versionArg)
+	successMsg := "Uninstalled version: " + ui.CyanText(versionArg)
 	logrus.Debug(successMsg)
 
 	_, printErr := fmt.Fprintf(
 		os.Stdout,
 		"%s %s\n",
-		helpers.SuccessIcon(),
-		helpers.WhiteText(successMsg),
+		ui.SuccessIcon(),
+		ui.WhiteText(successMsg),
 	)
 	if printErr != nil {
 		logrus.Warnf("Failed to write to stdout: %v", printErr)
@@ -120,8 +120,8 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 		if len(versions) == 0 {
 			_, printErr := fmt.Fprintf(os.Stdout,
 				"%s %s\n",
-				helpers.WarningIcon(),
-				helpers.WhiteText(
+				ui.WarningIcon(),
+				ui.WhiteText(
 					"No other versions available. Your current version has been unset.",
 				),
 			)
@@ -149,7 +149,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 				if errors.Is(err, promptui.ErrInterrupt) {
 					logrus.Debug("User canceled selection")
 
-					_, printErr := fmt.Fprintf(os.Stdout, "%s %s\n", helpers.WarningIcon(), helpers.WhiteText("Selection canceled."))
+					_, printErr := fmt.Fprintf(os.Stdout, "%s %s\n", ui.WarningIcon(), ui.WhiteText("Selection canceled."))
 					if printErr != nil {
 						logrus.Warnf("Failed to write to stdout: %v", printErr)
 					}

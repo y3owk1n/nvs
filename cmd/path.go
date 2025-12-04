@@ -10,7 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/nvs/pkg/helpers"
+	"github.com/y3owk1n/nvs/internal/ui"
 )
 
 // FilePerm is the file permission for created files.
@@ -54,8 +54,8 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 		_, err = fmt.Fprintf(os.Stdout,
 			"%s %s\n",
-			helpers.WarningIcon(),
-			helpers.WhiteText("Automatic PATH setup is not implemented for Windows."),
+			ui.WarningIcon(),
+			ui.WhiteText("Automatic PATH setup is not implemented for Windows."),
 		)
 		if err != nil {
 			logrus.Warnf("Failed to write to stdout: %v", err)
@@ -63,11 +63,11 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 		_, err = fmt.Fprintf(os.Stdout,
 			"%s %s\n",
-			helpers.InfoIcon(),
-			helpers.WhiteText(
+			ui.InfoIcon(),
+			ui.WhiteText(
 				fmt.Sprintf(
 					"Please add %s to your PATH environment variable manually.",
-					helpers.CyanText(nvimBinDir),
+					ui.CyanText(nvimBinDir),
 				),
 			),
 		)
@@ -100,9 +100,9 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 		_, err = fmt.Fprintf(os.Stdout,
 			"%s %s\n",
-			helpers.InfoIcon(),
-			helpers.WhiteText(
-				fmt.Sprintf("Your PATH already contains %s.", helpers.CyanText(GetGlobalBinDir())),
+			ui.InfoIcon(),
+			ui.WhiteText(
+				fmt.Sprintf("Your PATH already contains %s.", ui.CyanText(GetGlobalBinDir())),
 			),
 		)
 		if err != nil {
@@ -133,8 +133,8 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 		_, err = fmt.Fprintf(os.Stdout,
 			"%s %s\n",
-			helpers.WarningIcon(),
-			helpers.WhiteText(
+			ui.WarningIcon(),
+			ui.WhiteText(
 				"It appears your shell is managed by Nix. Automatic PATH modifications may not work as expected.",
 			),
 		)
@@ -144,11 +144,11 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 		_, err = fmt.Fprintf(os.Stdout,
 			"%s %s\n",
-			helpers.InfoIcon(),
-			helpers.WhiteText(
+			ui.InfoIcon(),
+			ui.WhiteText(
 				fmt.Sprintf(
 					"Please update your Nix configuration manually to include %s in your PATH.",
-					helpers.CyanText(GetGlobalBinDir()),
+					ui.CyanText(GetGlobalBinDir()),
 				),
 			),
 		)
@@ -182,8 +182,8 @@ func RunPath(_ *cobra.Command, _ []string) error {
 			_, err = fmt.Fprintf(
 				os.Stdout,
 				"%s %s\n",
-				helpers.WarningIcon(),
-				helpers.WhiteText(
+				ui.WarningIcon(),
+				ui.WhiteText(
 					"Cannot determine home directory. Please set HOME environment variable.",
 				),
 			)
@@ -213,12 +213,12 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 		_, err = fmt.Fprintf(os.Stdout,
 			"%s %s\n",
-			helpers.WarningIcon(),
-			helpers.WhiteText(
+			ui.WarningIcon(),
+			ui.WhiteText(
 				fmt.Sprintf(
 					"Shell '%s' is not automatically supported. Please add %s to your PATH manually.",
-					helpers.CyanText(shellName),
-					helpers.CyanText(GetGlobalBinDir()),
+					ui.CyanText(shellName),
+					ui.CyanText(GetGlobalBinDir()),
 				),
 			),
 		)
@@ -235,9 +235,9 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	// Display the diff of the changes that will be applied.
 	_, err = fmt.Fprintf(os.Stdout,
 		"%s %s\n\n",
-		helpers.InfoIcon(),
-		helpers.WhiteText(
-			fmt.Sprintf("The following diff will be applied to %s:", helpers.CyanText(rcFile)),
+		ui.InfoIcon(),
+		ui.WhiteText(
+			fmt.Sprintf("The following diff will be applied to %s:", ui.CyanText(rcFile)),
 		),
 	)
 	if err != nil {
@@ -247,7 +247,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	_, err = fmt.Fprintf(
 		os.Stdout,
 		"%s\n",
-		helpers.GreenText(fmt.Sprintf("+ %s\n+ %s", exportCmdComment, exportCmd)),
+		ui.GreenText(fmt.Sprintf("+ %s\n+ %s", exportCmdComment, exportCmd)),
 	)
 	if err != nil {
 		logrus.Warnf("Failed to write to stdout: %v", err)
@@ -257,7 +257,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	_, err = fmt.Fprintf(
 		os.Stdout,
 		"\n%s %s ",
-		helpers.PromptIcon(),
+		ui.PromptIcon(),
 		"Do you want to proceed? (y/N): ",
 	)
 	if err != nil {
@@ -278,8 +278,8 @@ func RunPath(_ *cobra.Command, _ []string) error {
 		_, err = fmt.Fprintf(
 			os.Stdout,
 			"%s %s\n",
-			helpers.InfoIcon(),
-			helpers.WhiteText("Aborted by user."),
+			ui.InfoIcon(),
+			ui.WhiteText("Aborted by user."),
 		)
 		if err != nil {
 			logrus.Warnf("Failed to write to stdout: %v", err)
@@ -332,9 +332,9 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	_, err = fmt.Fprintf(
 		os.Stdout,
 		"%s %s\n",
-		helpers.SuccessIcon(),
-		helpers.WhiteText(
-			fmt.Sprintf("Done applying changes to %s:", helpers.CyanText(rcFile)),
+		ui.SuccessIcon(),
+		ui.WhiteText(
+			fmt.Sprintf("Done applying changes to %s:", ui.CyanText(rcFile)),
 		),
 	)
 	if err != nil {
@@ -343,8 +343,8 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 	_, err = fmt.Fprintf(os.Stdout,
 		"%s Please restart your terminal or source %s to apply changes.\n",
-		helpers.WarningIcon(),
-		helpers.CyanText(rcFile),
+		ui.WarningIcon(),
+		ui.CyanText(rcFile),
 	)
 	if err != nil {
 		logrus.Warnf("Failed to write to stdout: %v", err)

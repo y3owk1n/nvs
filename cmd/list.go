@@ -8,7 +8,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/nvs/pkg/helpers"
+	"github.com/y3owk1n/nvs/internal/ui"
 )
 
 // listCmd represents the "list" command (aliases: ls).
@@ -24,12 +24,12 @@ var listCmd = &cobra.Command{
 	Aliases: []string{"ls"},
 	Short:   "List installed versions",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return RunList(cmd, args, GetVersionsDir())
+		return RunList(cmd, args)
 	},
 }
 
 // RunList executes the list command.
-func RunList(_ *cobra.Command, _ []string, versionsDir string) error {
+func RunList(_ *cobra.Command, _ []string) error {
 	logrus.Debug("Executing list command")
 
 	// Retrieve installed versions from the version service.
@@ -45,8 +45,8 @@ func RunList(_ *cobra.Command, _ []string, versionsDir string) error {
 		_, err = fmt.Fprintf(
 			os.Stdout,
 			"%s %s\n",
-			helpers.InfoIcon(),
-			helpers.WhiteText("No installed versions..."),
+			ui.InfoIcon(),
+			ui.WhiteText("No installed versions..."),
 		)
 		if err != nil {
 			logrus.Warnf("Failed to write to stdout: %v", err)

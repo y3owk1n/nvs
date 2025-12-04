@@ -45,7 +45,7 @@ func RunUse(cmd *cobra.Command, args []string) error {
 		if err.Error() == "version not found" { // Simplified check, should use error wrapping check
 			logrus.Infof("Version %s not found. Installing...", alias)
 			// Fallback to install
-			return RunInstall(cmd, args, GetVersionsDir(), GetCacheFilePath())
+			return RunInstall(cmd, args)
 		}
 		return err
 	}

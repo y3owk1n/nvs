@@ -9,7 +9,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/nvs/pkg/helpers"
+	"github.com/y3owk1n/nvs/internal/ui"
 )
 
 // Windows is the string for Windows OS.
@@ -52,8 +52,8 @@ func RunReset(_ *cobra.Command, _ []string) error {
 	_, err = fmt.Fprintf(
 		os.Stdout,
 		"%s %s\n",
-		helpers.WarningIcon(),
-		helpers.RedText(
+		ui.WarningIcon(),
+		ui.RedText(
 			"WARNING: This will remove all NVS data, including downloaded versions and cache.",
 		),
 	)
@@ -64,19 +64,19 @@ func RunReset(_ *cobra.Command, _ []string) error {
 	_, err = fmt.Fprintf(
 		os.Stdout,
 		"%s %s\n",
-		helpers.InfoIcon(),
-		helpers.WhiteText("Directories to be removed:"),
+		ui.InfoIcon(),
+		ui.WhiteText("Directories to be removed:"),
 	)
 	if err != nil {
 		logrus.Warnf("Failed to write to stdout: %v", err)
 	}
 
-	_, err = fmt.Fprintf(os.Stdout, "  - %s\n", helpers.CyanText(baseConfigDir))
+	_, err = fmt.Fprintf(os.Stdout, "  - %s\n", ui.CyanText(baseConfigDir))
 	if err != nil {
 		logrus.Warnf("Failed to write to stdout: %v", err)
 	}
 
-	_, err = fmt.Fprintf(os.Stdout, "  - %s\n", helpers.CyanText(baseCacheDir))
+	_, err = fmt.Fprintf(os.Stdout, "  - %s\n", ui.CyanText(baseCacheDir))
 	if err != nil {
 		logrus.Warnf("Failed to write to stdout: %v", err)
 	}
@@ -84,7 +84,7 @@ func RunReset(_ *cobra.Command, _ []string) error {
 	_, err = fmt.Fprintf(
 		os.Stdout,
 		"  - %s (if it exists)\n",
-		helpers.CyanText(filepath.Join(baseBinDir, "nvim")),
+		ui.CyanText(filepath.Join(baseBinDir, "nvim")),
 	)
 	if err != nil {
 		logrus.Warnf("Failed to write to stdout: %v", err)
@@ -94,7 +94,7 @@ func RunReset(_ *cobra.Command, _ []string) error {
 	_, err = fmt.Fprintf(
 		os.Stdout,
 		"\n%s %s ",
-		helpers.PromptIcon(),
+		ui.PromptIcon(),
 		"Are you sure you want to proceed? (y/N): ",
 	)
 	if err != nil {
@@ -115,8 +115,8 @@ func RunReset(_ *cobra.Command, _ []string) error {
 		_, err = fmt.Fprintf(
 			os.Stdout,
 			"%s %s\n",
-			helpers.InfoIcon(),
-			helpers.WhiteText("Aborted by user."),
+			ui.InfoIcon(),
+			ui.WhiteText("Aborted by user."),
 		)
 		if err != nil {
 			logrus.Warnf("Failed to write to stdout: %v", err)
@@ -153,8 +153,8 @@ func RunReset(_ *cobra.Command, _ []string) error {
 	_, err = fmt.Fprintf(
 		os.Stdout,
 		"%s %s\n",
-		helpers.SuccessIcon(),
-		helpers.WhiteText("Reset complete. All NVS data has been removed."),
+		ui.SuccessIcon(),
+		ui.WhiteText("Reset complete. All NVS data has been removed."),
 	)
 	if err != nil {
 		logrus.Warnf("Failed to write to stdout: %v", err)

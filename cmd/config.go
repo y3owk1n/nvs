@@ -9,7 +9,7 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/nvs/pkg/helpers"
+	"github.com/y3owk1n/nvs/internal/ui"
 )
 
 // configCmd represents the "config" command.
@@ -46,9 +46,9 @@ func RunConfig(cmd *cobra.Command, args []string) error {
 
 		_, err := fmt.Fprintf(os.Stdout,
 			"%s %s\n",
-			helpers.InfoIcon(),
-			helpers.WhiteText(
-				"Launching Neovim with configuration: "+helpers.CyanText(args[0]),
+			ui.InfoIcon(),
+			ui.WhiteText(
+				"Launching Neovim with configuration: "+ui.CyanText(args[0]),
 			),
 		)
 		if err != nil {
@@ -74,8 +74,8 @@ func RunConfig(cmd *cobra.Command, args []string) error {
 
 		_, err := fmt.Fprintf(os.Stdout,
 			"%s %s\n",
-			helpers.WarningIcon(),
-			helpers.WhiteText(
+			ui.WarningIcon(),
+			ui.WhiteText(
 				"No Neovim configurations found",
 			),
 		)
@@ -102,8 +102,8 @@ func RunConfig(cmd *cobra.Command, args []string) error {
 			_, err := fmt.Fprintf(
 				os.Stdout,
 				"%s %s\n",
-				helpers.WarningIcon(),
-				helpers.WhiteText("Selection canceled."),
+				ui.WarningIcon(),
+				ui.WhiteText("Selection canceled."),
 			)
 			if err != nil {
 				logrus.Warnf("Failed to write to stdout: %v", err)
@@ -119,9 +119,9 @@ func RunConfig(cmd *cobra.Command, args []string) error {
 
 	_, err = fmt.Fprintf(os.Stdout,
 		"%s %s\n",
-		helpers.InfoIcon(),
-		helpers.WhiteText(
-			"Launching Neovim with configuration: "+helpers.CyanText(selectedConfig),
+		ui.InfoIcon(),
+		ui.WhiteText(
+			"Launching Neovim with configuration: "+ui.CyanText(selectedConfig),
 		),
 	)
 	if err != nil {

@@ -38,12 +38,12 @@ var installCmd = &cobra.Command{
 	Short:   "Install a Neovim version or commit",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return RunInstall(cmd, args, GetVersionsDir(), GetCacheFilePath())
+		return RunInstall(cmd, args)
 	},
 }
 
 // RunInstall executes the install command.
-func RunInstall(cmd *cobra.Command, args []string, versionsDir, cacheFilePath string) error {
+func RunInstall(cmd *cobra.Command, args []string) error {
 	const (
 		SpinnerSpeed  = 100
 		InitialSuffix = " 0%"

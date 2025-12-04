@@ -5,14 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/briandowns/spinner"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/nvs/pkg/helpers"
-	"github.com/y3owk1n/nvs/pkg/installer"
+	"github.com/y3owk1n/nvs/internal/ui"
 )
 
 // Constants for upgrade types.
@@ -43,61 +41,6 @@ var upgradeCmd = &cobra.Command{
 	Long:    "Upgrades the installed stable and/or nightly versions. If no argument is provided, both stable and nightly are upgraded (if installed).",
 	Args:    cobra.MaximumNArgs(1),
 	RunE:    RunUpgrade,
-}
-
-// upgradeAlias handles the upgrade process for a single alias, including backup and cleanup.
-func upgradeAlias(
-	ctx context.Context,
-	alias string,
-	assetURL, checksumURL, remoteIdentifier string,
-	progressCallback func(int),
-	phaseCallback func(string),
-) error {
-	versionPath := filepath.Join(GetVersionsDir(), alias)
-	backupPath := versionPath + ".backup"
-
-	// Create backup if version exists
-	_, err := os.Stat(versionPath)
-	if err == nil {
-		logrus.Debug("Creating backup of existing version")
-
-		err = os.Rename(versionPath, backupPath)
-		if err != nil {
-			return fmt.Errorf("failed to create backup of version %s: %w", alias, err)
-		}
-
-		defer func() {
-			// Cleanup: remove backup if upgrade succeeds, restore if it fails
-			_, statErr := os.Stat(versionPath)
-			if statErr == nil {
-				// Upgrade succeeded, remove backup
-				err := os.RemoveAll(backupPath)
-				if err != nil {
-					logrus.Warnf("Failed to remove backup directory %s: %v", backupPath, err)
-				}
-			} else {
-				// Upgrade failed, restore backup
-				err := os.Rename(backupPath, versionPath)
-				if err != nil {
-					logrus.Warnf("Failed to restore backup from %s to %s: %v", backupPath, versionPath, err)
-				}
-			}
-		}()
-	}
-
-	// Download and install the upgrade.
-	err = installer.DownloadAndInstall(
-		ctx,
-		GetVersionsDir(),
-		alias,
-		assetURL,
-		checksumURL,
-		remoteIdentifier,
-		progressCallback,
-		phaseCallback,
-	)
-
-	return err
 }
 
 // RunUpgrade executes the upgrade command.
@@ -149,9 +92,9 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 				logrus.Debugf("'%s' is not installed. Skipping upgrade.", alias)
 				_, printErr := fmt.Fprintf(os.Stdout,
 					"%s %s %s\n",
-					helpers.WarningIcon(),
-					helpers.CyanText(alias),
-					helpers.WhiteText("is not installed. Skipping upgrade."),
+					ui.WarningIcon(),
+					ui.CyanText(alias),
+					ui.WhiteText("is not installed. Skipping upgrade."),
 				)
 				if printErr != nil {
 					logrus.Warnf("Failed to write to stdout: %v", printErr)
@@ -162,9 +105,9 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 				logrus.Debugf("%s is already up-to-date", alias)
 				_, printErr := fmt.Fprintf(os.Stdout,
 					"%s %s %s\n",
-					helpers.WarningIcon(),
-					helpers.CyanText(alias),
-					helpers.WhiteText("is already up-to-date"),
+					ui.WarningIcon(),
+					ui.CyanText(alias),
+					ui.WhiteText("is already up-to-date"),
 				)
 				if printErr != nil {
 					logrus.Warnf("Failed to write to stdout: %v", printErr)
@@ -181,9 +124,9 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		// Inform the user that the upgrade succeeded.
 		_, printErr := fmt.Fprintf(os.Stdout,
 			"%s %s %s\n",
-			helpers.SuccessIcon(),
-			helpers.CyanText(alias),
-			helpers.WhiteText("upgraded successfully!"),
+			ui.SuccessIcon(),
+			ui.CyanText(alias),
+			ui.WhiteText("upgraded successfully!"),
 		)
 		if printErr != nil {
 			logrus.Warnf("Failed to write to stdout: %v", printErr)

@@ -10,8 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/domain/release"
-	"github.com/y3owk1n/nvs/pkg/helpers"
-	"github.com/y3owk1n/nvs/pkg/releases" // Keep for FindLatestStable if needed, or replace
+	"github.com/y3owk1n/nvs/internal/ui"
 )
 
 // listRemoteCmd represents the "list-remote" command (aliases: ls-remote).
@@ -40,8 +39,8 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 	_, err := fmt.Fprintf(
 		os.Stdout,
 		"%s %s\n",
-		helpers.InfoIcon(),
-		helpers.WhiteText("Fetching available versions..."),
+		ui.InfoIcon(),
+		ui.WhiteText("Fetching available versions..."),
 	)
 	if err != nil {
 		logrus.Warnf("Failed to write to stdout: %v", err)
@@ -55,16 +54,10 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 
 	logrus.Debugf("Fetched %d releases", len(releasesResult))
 
-	// Determine the latest stable release (if available) for reference.
-	stableRelease, err := releases.FindLatestStable(GetCacheFilePath())
+	// Use default stable tag
 	stableTag := stableConst
-	if err == nil {
-		stableTag = stableRelease.TagName
-	} else {
-		logrus.Debugf("Could not find latest stable release, using default: %v", err)
-	}
 
-	logrus.Debugf("Latest stable release: %s", stableTag)
+	logrus.Debugf("Using stable tag: %s", stableTag)
 
 	// Group releases into nightly, stable, and Others.
 	var groupNightly, groupStable, groupOthers []release.Release
@@ -126,7 +119,7 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 				}
 				details = fmt.Sprintf(
 					"Published: %s, Commit: %s",
-					helpers.TimeFormat(release.PublishedAt().Format(time.RFC3339)),
+					ui.TimeFormat(release.PublishedAt().Format(time.RFC3339)),
 					shortCommit,
 				)
 			} else {
@@ -163,7 +156,7 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 
 			// If the installed version is different from the remote, indicate an upgrade is available.
 			if installedIdentifier != "" && installedIdentifier != remoteIdentifier {
-				upgradeIndicator = " (" + helpers.Upgrade + ")"
+				upgradeIndicator = " (" + ui.Upgrade + ")"
 			}
 
 			if key == currentName {
@@ -190,11 +183,11 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 		// Colorize the row based on status.
 		switch baseStatus {
 		case "Current":
-			row = helpers.ColorizeRow(row, color.New(color.FgGreen))
+			row = ui.ColorizeRow(row, color.New(color.FgGreen))
 		case "Installed":
-			row = helpers.ColorizeRow(row, color.New(color.FgYellow))
+			row = ui.ColorizeRow(row, color.New(color.FgYellow))
 		default:
-			row = helpers.ColorizeRow(row, color.New(color.FgWhite))
+			row = ui.ColorizeRow(row, color.New(color.FgWhite))
 		}
 
 		table.Append(row)

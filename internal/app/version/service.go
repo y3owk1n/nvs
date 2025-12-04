@@ -337,3 +337,18 @@ func (s *Service) IsVersionInstalled(versionName string) bool {
 func (s *Service) GetInstalledVersionIdentifier(versionName string) (string, error) {
 	return s.versionManager.GetInstalledReleaseIdentifier(versionName, s.config.VersionsDir)
 }
+
+// FindStable returns the latest stable release.
+func (s *Service) FindStable() (release.Release, error) {
+	return s.releaseRepo.FindStable()
+}
+
+// FindNightly returns the latest nightly release.
+func (s *Service) FindNightly() (release.Release, error) {
+	return s.releaseRepo.FindNightly()
+}
+
+// IsCommitHash checks if a string is a commit hash.
+func (s *Service) IsCommitHash(str string) bool {
+	return isCommitHash(str)
+}

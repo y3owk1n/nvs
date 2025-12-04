@@ -25,10 +25,15 @@ func TestRunList(t *testing.T) {
 
 	tempDir := t.TempDir()
 
+	// Set env var
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+
+	cmd.InitConfig()
+
 	// Create some version dirs
 	versions := []string{"v1.0.0", "v1.1.0"}
 	for _, v := range versions {
-		err := os.Mkdir(filepath.Join(tempDir, v), 0o755)
+		err := os.Mkdir(filepath.Join(cmd.GetVersionsDir(), v), 0o755)
 		if err != nil {
 			t.Fatalf("failed to create version dir: %v", err)
 		}
@@ -37,7 +42,7 @@ func TestRunList(t *testing.T) {
 	// Create current symlink
 	current := testVersion
 
-	err := os.Symlink(filepath.Join(tempDir, current), filepath.Join(tempDir, "current"))
+	err := os.Symlink(filepath.Join(cmd.GetVersionsDir(), current), filepath.Join(cmd.GetVersionsDir(), "current"))
 	if err != nil {
 		t.Fatalf("failed to create current symlink: %v", err)
 	}
@@ -46,7 +51,7 @@ func TestRunList(t *testing.T) {
 	cobraCmd := &cobra.Command{}
 	cobraCmd.SetContext(context.Background())
 
-	err = cmd.RunList(cobraCmd, []string{}, tempDir)
+	err = cmd.RunList(cobraCmd, []string{})
 	if err != nil {
 		t.Errorf("RunList failed: %v", err)
 	}
@@ -55,12 +60,17 @@ func TestRunList(t *testing.T) {
 func TestRunList_NoVersions(t *testing.T) {
 	tempDir := t.TempDir()
 
+	// Set env var
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+
+	cmd.InitConfig()
+
 	// No versions
 
 	cobraCmd := &cobra.Command{}
 	cobraCmd.SetContext(context.Background())
 
-	err := cmd.RunList(cobraCmd, []string{}, tempDir)
+	err := cmd.RunList(cobraCmd, []string{})
 	if err != nil {
 		t.Errorf("RunList failed: %v", err)
 	}
@@ -72,18 +82,24 @@ func TestRunCurrent(t *testing.T) {
 	}
 
 	tempDir := t.TempDir()
-	cacheFile := filepath.Join(tempDir, "cache.json")
+
+	// Set env vars
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
 
 	// Create current symlink to a version
 	version := testVersion
-	target := filepath.Join(tempDir, version)
+	target := filepath.Join(cmd.GetVersionsDir(), version)
 
 	err := os.Mkdir(target, 0o755)
 	if err != nil {
 		t.Fatalf("failed to create version dir: %v", err)
 	}
 
-	err = os.Symlink(target, filepath.Join(tempDir, "current"))
+	err = os.Symlink(target, filepath.Join(cmd.GetVersionsDir(), "current"))
 	if err != nil {
 		t.Fatalf("failed to create current symlink: %v", err)
 	}
@@ -91,7 +107,7 @@ func TestRunCurrent(t *testing.T) {
 	cobraCmd := &cobra.Command{}
 	cobraCmd.SetContext(context.Background())
 
-	err = cmd.RunCurrent(cobraCmd, []string{}, tempDir, cacheFile)
+	err = cmd.RunCurrent(cobraCmd, []string{})
 	if err != nil {
 		t.Errorf("RunCurrent failed: %v", err)
 	}
@@ -197,9 +213,6 @@ func TestRunReset(t *testing.T) {
 }
 
 func TestRunInstall(t *testing.T) {
-	tempDir := t.TempDir()
-	cacheFile := filepath.Join(tempDir, "cache.json")
-
 	cobraCmd := &cobra.Command{}
 	cobraCmd.SetContext(context.Background())
 
@@ -207,8 +220,6 @@ func TestRunInstall(t *testing.T) {
 	err := cmd.RunInstall(
 		cobraCmd,
 		[]string{"THIS-VERSION-DOES-NOT-EXIST-FOR-TESTS"},
-		tempDir,
-		cacheFile,
 	)
 	if err == nil {
 		t.Errorf("expected error for invalid version")
@@ -217,6 +228,11 @@ func TestRunInstall(t *testing.T) {
 
 func TestRunPath(t *testing.T) {
 	tempDir := t.TempDir()
+
+	// Set env var
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
 
 	// Mock stdin with "y\n"
 	oldStdin := os.Stdin
@@ -242,12 +258,6 @@ func TestRunPath(t *testing.T) {
 	cobraCmd := &cobra.Command{}
 	cobraCmd.SetContext(context.Background())
 
-	// Set globalBinDir to temp
-	oldBin := cmd.GetGlobalBinDir()
-	defer func() { cmd.GetGlobalBinDir() = oldBin }()
-
-	cmd.GetGlobalBinDir() = tempDir
-
 	err = cmd.RunPath(cobraCmd, []string{})
 	if err != nil {
 		t.Errorf("RunPath failed: %v", err)
@@ -269,26 +279,17 @@ func TestRunConfig(t *testing.T) {
 
 func TestRunUse(t *testing.T) {
 	tempDir := t.TempDir()
-	cacheFile := filepath.Join(tempDir, "cache.json")
 
-	// Save globals
-	originalVersionsDir := cmd.GetVersionsDir()
-	originalCacheFilePath := cmd.GetCacheFilePath()
+	// Set env vars
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	originalGlobalBinDir := cmd.GetGlobalBinDir()
-	defer func() {
-		cmd.GetVersionsDir() = originalVersionsDir
-		cmd.GetCacheFilePath() = originalCacheFilePath
-		cmd.GetGlobalBinDir() = originalGlobalBinDir
-	}()
+	cmd.InitConfig()
 
-	cmd.GetVersionsDir() = tempDir
-	cmd.GetCacheFilePath() = cacheFile
-	cmd.GetGlobalBinDir() = tempDir
-
-	// Create version
-	version := testVersion
-	target := filepath.Join(tempDir, version)
+	// Create version (use a fake commit hash to avoid release lookup)
+	version := "abc1234"
+	target := filepath.Join(cmd.GetVersionsDir(), version)
 
 	err := os.MkdirAll(target, 0o755)
 	if err != nil {
