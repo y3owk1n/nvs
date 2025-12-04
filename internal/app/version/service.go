@@ -130,7 +130,7 @@ func (r *releaseAdapter) GetIdentifier() string {
 }
 
 // Use switches to a specific version.
-func (s *Service) Use(ctx context.Context, versionAlias string) error {
+func (s *Service) Use(ctx context.Context, versionAlias string) (string, error) {
 	normalized := normalizeVersion(versionAlias)
 
 	// Determine target version
@@ -156,7 +156,7 @@ func (s *Service) Use(ctx context.Context, versionAlias string) error {
 		}
 
 		if err != nil {
-			return fmt.Errorf("failed to resolve version: %w", err)
+			return "", fmt.Errorf("failed to resolve version: %w", err)
 		}
 
 		// Determine version type
@@ -172,7 +172,7 @@ func (s *Service) Use(ctx context.Context, versionAlias string) error {
 
 	// Check if already installed
 	if !s.versionManager.IsInstalled(targetVersion) {
-		return fmt.Errorf("%w: %s", version.ErrVersionNotFound, targetVersion.Name())
+		return "", fmt.Errorf("%w: %s", version.ErrVersionNotFound, targetVersion.Name())
 	}
 
 	// Check if already current
@@ -180,16 +180,16 @@ func (s *Service) Use(ctx context.Context, versionAlias string) error {
 	if err == nil && current.Name() == targetVersion.Name() {
 		logrus.Debugf("Already using version: %s", targetVersion.Name())
 
-		return nil
+		return targetVersion.Identifier(), nil
 	}
 
 	// Switch version
 	err = s.versionManager.Switch(targetVersion)
 	if err != nil {
-		return fmt.Errorf("failed to switch version: %w", err)
+		return "", fmt.Errorf("failed to switch version: %w", err)
 	}
 
-	return nil
+	return targetVersion.Identifier(), nil
 }
 
 // List returns all installed versions.

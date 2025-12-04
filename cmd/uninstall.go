@@ -178,7 +178,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 			}
 
 			// Use the selected version as the new current version.
-			err = GetVersionService().Use(cmd.Context(), selectedVersion)
+			_, err = GetVersionService().Use(cmd.Context(), selectedVersion)
 			if err != nil {
 				return err
 			}

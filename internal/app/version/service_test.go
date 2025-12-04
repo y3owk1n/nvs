@@ -141,9 +141,14 @@ func TestService_Use_Stable(t *testing.T) {
 
 	service := appversion.New(repo, manager, install, &appversion.Config{})
 
-	err := service.Use(context.Background(), appversion.StableVersion)
+	resolvedVersion, err := service.Use(context.Background(), appversion.StableVersion)
 	if err != nil {
 		t.Fatalf("Use stable failed: %v", err)
+	}
+
+	expectedVersion := "v0.10.0" // From mock release
+	if resolvedVersion != expectedVersion {
+		t.Errorf("Expected resolved version '%s', got '%s'", expectedVersion, resolvedVersion)
 	}
 
 	if manager.current.Name() != appversion.StableVersion {
@@ -178,7 +183,7 @@ func TestService_Use_Nightly(t *testing.T) {
 
 	service := appversion.New(repo, manager, install, &appversion.Config{})
 
-	err := service.Use(context.Background(), appversion.NightlyVersion)
+	_, err := service.Use(context.Background(), appversion.NightlyVersion)
 	if err != nil {
 		t.Fatalf("Use nightly failed: %v", err)
 	}
@@ -207,7 +212,7 @@ func TestService_Use_Tag(t *testing.T) {
 
 	service := appversion.New(repo, manager, install, &appversion.Config{})
 
-	err := service.Use(context.Background(), "v0.9.5")
+	_, err := service.Use(context.Background(), "v0.9.5")
 	if err != nil {
 		t.Fatalf("Use v0.9.5 failed: %v", err)
 	}
@@ -272,7 +277,7 @@ func TestService_Use_VersionNotFound(t *testing.T) {
 
 	service := appversion.New(repo, manager, install, &appversion.Config{})
 
-	err := service.Use(context.Background(), appversion.NightlyVersion)
+	_, err := service.Use(context.Background(), appversion.NightlyVersion)
 	if err == nil {
 		t.Fatalf("Expected error for non-installed version, got nil")
 	}

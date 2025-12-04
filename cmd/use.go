@@ -41,7 +41,7 @@ func RunUse(cmd *cobra.Command, args []string) error {
 	logrus.Debugf("Requested version: %s", alias)
 
 	// Use version service to switch
-	err := GetVersionService().Use(ctx, alias)
+	resolvedVersion, err := GetVersionService().Use(ctx, alias)
 	if err != nil {
 		// If version not found, install it first, then try to use again
 		if errors.Is(err, version.ErrVersionNotFound) {
@@ -52,7 +52,7 @@ func RunUse(cmd *cobra.Command, args []string) error {
 				return err
 			}
 			// Now try to use it (single retry, no recursion)
-			err = GetVersionService().Use(ctx, alias)
+			resolvedVersion, err = GetVersionService().Use(ctx, alias)
 			if err != nil {
 				return err
 			}
@@ -65,7 +65,7 @@ func RunUse(cmd *cobra.Command, args []string) error {
 		os.Stdout,
 		"%s %s\n",
 		ui.SuccessIcon(),
-		ui.WhiteText("Switched to "+alias),
+		ui.WhiteText("Switched to "+resolvedVersion),
 	)
 	if err != nil {
 		logrus.Warnf("Failed to write to stdout: %v", err)
