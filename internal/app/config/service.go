@@ -58,6 +58,11 @@ func (s *Service) List() ([]string, error) {
 				continue
 			}
 
+			// Make relative paths absolute based on the symlink's directory
+			if !filepath.IsAbs(resolvedPath) {
+				resolvedPath = filepath.Clean(filepath.Join(filepath.Dir(entryPath), resolvedPath))
+			}
+
 			targetInfo, err := os.Stat(resolvedPath)
 			if err != nil {
 				logrus.Warnf("Failed to stat resolved path for %s: %v", entry.Name(), err)
