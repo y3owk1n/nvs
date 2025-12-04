@@ -61,6 +61,10 @@ jobs:
         if: matrix.check == 'test' && runner.os != 'Windows'
         run: devbox run -- just test
 
+      - name: Run just build
+        if: matrix.check == 'build' && runner.os != 'Windows'
+        run: devbox run -- just build
+
       # Run checks directly on Windows
       - name: Run just lint
         if: matrix.check == 'lint' && runner.os == 'Windows'
@@ -75,4 +79,9 @@ jobs:
       - name: Run just test
         if: matrix.check == 'test' && runner.os == 'Windows'
         run: just test
+        shell: pwsh
+
+      - name: Run just build
+        if: matrix.check == 'build' && runner.os == 'Windows'
+        run: just build
         shell: pwsh
