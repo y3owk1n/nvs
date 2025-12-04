@@ -165,7 +165,7 @@ func (s *VersionStore) Switch(version domainversion.Version) error {
 func (s *VersionStore) IsInstalled(v domainversion.Version) bool {
 	_, err := os.Stat(filepath.Join(s.config.VersionsDir, v.Name()))
 
-	return !os.IsNotExist(err)
+	return err == nil
 }
 
 // Uninstall removes an installed version.
