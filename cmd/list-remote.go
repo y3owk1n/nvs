@@ -54,11 +54,6 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 
 	logrus.Debugf("Fetched %d releases", len(releasesResult))
 
-	// Use default stable tag
-	stableTag := stableConst
-
-	logrus.Debugf("Using stable tag: %s", stableTag)
-
 	// Group releases into nightly, stable, and Others.
 	var groupNightly, groupStable, groupOthers []release.Release
 	for _, release := range releasesResult {
@@ -135,7 +130,7 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 			}
 		} else if release.TagName() == "stable" {
 			// For stable releases, reference the determined stableTag.
-			details = "stable version: " + stableTag
+			details = "stable version: " + stableConst
 		}
 
 		key := release.TagName()
