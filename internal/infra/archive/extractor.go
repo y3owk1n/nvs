@@ -165,6 +165,10 @@ func (e *Extractor) extractTarGz(src *os.File, dest string) error {
 			if err != nil {
 				return err
 			}
+
+		case tar.TypeSymlink, tar.TypeLink:
+			// Reject symlinks and hard links to prevent symlink attacks
+			logrus.Debugf("Skipping unsupported entry type %d: %s", header.Typeflag, header.Name)
 		}
 	}
 
@@ -227,17 +231,5 @@ func (e *Extractor) extractZipFile(fileEntry *zip.File, path string) error {
 
 	defer func() { _ = readerCloser.Close() }()
 
-	out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, fileEntry.Mode())
-	if err != nil {
-		return fmt.Errorf("failed to create output file %s: %w", path, err)
-	}
-
-	defer func() { _ = out.Close() }()
-
-	_, err = io.Copy(out, readerCloser)
-	if err != nil {
-		return fmt.Errorf("failed to copy file %s: %w", path, err)
-	}
-
-	return nil
+	return writeFile(path, fileEntry.Mode(), readerCloser)
 }
