@@ -18,7 +18,10 @@ func TestVersionStore_Switch(t *testing.T) {
 	tempDir := t.TempDir()
 	binDir := t.TempDir()
 
-	store := filesystem.New(&filesystem.Config{})
+	store := filesystem.New(&filesystem.Config{
+		VersionsDir:  tempDir,
+		GlobalBinDir: binDir,
+	})
 
 	// Create version dir
 	versionDir := filepath.Join(tempDir, "v1.0.0")
@@ -38,7 +41,7 @@ func TestVersionStore_Switch(t *testing.T) {
 
 	v := version.New("v1.0.0", version.TypeTag, "v1.0.0", "")
 
-	err = store.Switch(v, tempDir, binDir)
+	err = store.Switch(v)
 	if err != nil {
 		t.Fatalf("Switch failed: %v", err)
 	}

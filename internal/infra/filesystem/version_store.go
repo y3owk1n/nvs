@@ -29,7 +29,8 @@ type VersionStore struct {
 
 // Config holds configuration for the version store.
 type Config struct {
-	VersionsDir string
+	VersionsDir  string
+	GlobalBinDir string
 }
 
 // New creates a new VersionStore.
@@ -40,8 +41,8 @@ func New(config *Config) *VersionStore {
 }
 
 // List returns all installed versions.
-func (s *VersionStore) List(versionsDir string) ([]domainversion.Version, error) {
-	entries, err := os.ReadDir(versionsDir)
+func (s *VersionStore) List() ([]domainversion.Version, error) {
+	entries, err := os.ReadDir(s.config.VersionsDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read versions directory: %w", err)
 	}
@@ -51,7 +52,7 @@ func (s *VersionStore) List(versionsDir string) ([]domainversion.Version, error)
 	for _, entry := range entries {
 		if entry.IsDir() && entry.Name() != "current" {
 			// Read version.txt to get full info
-			versionFile := filepath.Join(versionsDir, entry.Name(), "version.txt")
+			versionFile := filepath.Join(s.config.VersionsDir, entry.Name(), "version.txt")
 			data, err := os.ReadFile(versionFile)
 
 			var commitHash string
@@ -75,8 +76,8 @@ func (s *VersionStore) List(versionsDir string) ([]domainversion.Version, error)
 }
 
 // Current returns the currently active version.
-func (s *VersionStore) Current(versionsDir string) (domainversion.Version, error) {
-	link := filepath.Join(versionsDir, "current")
+func (s *VersionStore) Current() (domainversion.Version, error) {
+	link := filepath.Join(s.config.VersionsDir, "current")
 
 	info, err := os.Lstat(link)
 	if err != nil {
@@ -102,7 +103,7 @@ func (s *VersionStore) Current(versionsDir string) (domainversion.Version, error
 	}
 
 	// Read version info
-	versionFile := filepath.Join(versionsDir, targetName, "version.txt")
+	versionFile := filepath.Join(s.config.VersionsDir, targetName, "version.txt")
 	data, err := os.ReadFile(versionFile)
 
 	var commitHash string
@@ -116,9 +117,9 @@ func (s *VersionStore) Current(versionsDir string) (domainversion.Version, error
 }
 
 // Switch activates a specific version.
-func (s *VersionStore) Switch(version domainversion.Version, versionsDir, binDir string) error {
-	versionPath := filepath.Join(versionsDir, version.Name())
-	currentLink := filepath.Join(versionsDir, "current")
+func (s *VersionStore) Switch(version domainversion.Version) error {
+	versionPath := filepath.Join(s.config.VersionsDir, version.Name())
+	currentLink := filepath.Join(s.config.VersionsDir, "current")
 
 	// Update current symlink
 	err := updateSymlink(versionPath, currentLink, true)
@@ -133,7 +134,7 @@ func (s *VersionStore) Switch(version domainversion.Version, versionsDir, binDir
 	}
 
 	// Update global binary link
-	targetBin := filepath.Join(binDir, "nvim")
+	targetBin := filepath.Join(s.config.GlobalBinDir, "nvim")
 
 	// Remove existing link
 	_, err = os.Lstat(targetBin)
@@ -158,27 +159,23 @@ func (s *VersionStore) Switch(version domainversion.Version, versionsDir, binDir
 }
 
 // IsInstalled checks if a version is installed.
-func (s *VersionStore) IsInstalled(v domainversion.Version, versionsDir string) bool {
-	_, err := os.Stat(filepath.Join(versionsDir, v.Name()))
+func (s *VersionStore) IsInstalled(v domainversion.Version) bool {
+	_, err := os.Stat(filepath.Join(s.config.VersionsDir, v.Name()))
 
 	return !os.IsNotExist(err)
 }
 
 // Uninstall removes an installed version.
-func (s *VersionStore) Uninstall(
-	version domainversion.Version,
-	versionsDir string,
-	force bool,
-) error {
+func (s *VersionStore) Uninstall(version domainversion.Version, force bool) error {
 	// Check if version is current
 	if !force {
-		current, err := s.Current(versionsDir)
+		current, err := s.Current()
 		if err == nil && current.Name() == version.Name() {
 			return domainversion.ErrVersionInUse
 		}
 	}
 
-	versionPath := filepath.Join(versionsDir, version.Name())
+	versionPath := filepath.Join(s.config.VersionsDir, version.Name())
 
 	err := os.RemoveAll(versionPath)
 	if err != nil {
@@ -189,10 +186,8 @@ func (s *VersionStore) Uninstall(
 }
 
 // GetInstalledReleaseIdentifier returns the release identifier (e.g. commit hash) for an installed version.
-func (s *VersionStore) GetInstalledReleaseIdentifier(
-	versionName, versionsDir string,
-) (string, error) {
-	versionFile := filepath.Join(versionsDir, versionName, "version.txt")
+func (s *VersionStore) GetInstalledReleaseIdentifier(versionName string) (string, error) {
+	versionFile := filepath.Join(s.config.VersionsDir, versionName, "version.txt")
 
 	data, err := os.ReadFile(versionFile)
 	if err != nil {

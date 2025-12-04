@@ -72,20 +72,20 @@ func (t Type) String() string {
 // Manager handles version operations.
 type Manager interface {
 	// List returns all installed versions.
-	List(versionsDir string) ([]Version, error)
+	List() ([]Version, error)
 
 	// Current returns the currently active version.
-	Current(versionsDir string) (Version, error)
+	Current() (Version, error)
 
 	// Switch activates a specific version.
-	Switch(version Version, versionsDir, binDir string) error
+	Switch(version Version) error
 
 	// IsInstalled checks if a version is installed.
-	IsInstalled(version Version, versionsDir string) bool
+	IsInstalled(version Version) bool
 
 	// Uninstall removes an installed version.
-	Uninstall(version Version, versionsDir string, force bool) error
+	Uninstall(version Version, force bool) error
 
 	// GetInstalledReleaseIdentifier returns the release identifier (e.g. commit hash) for an installed version.
-	GetInstalledReleaseIdentifier(versionName, versionsDir string) (string, error)
+	GetInstalledReleaseIdentifier(versionName string) (string, error)
 }

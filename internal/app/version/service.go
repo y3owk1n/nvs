@@ -169,12 +169,12 @@ func (s *Service) Use(ctx context.Context, versionAlias string) error {
 	}
 
 	// Check if already installed
-	if !s.versionManager.IsInstalled(targetVersion, s.config.VersionsDir) {
+	if !s.versionManager.IsInstalled(targetVersion) {
 		return fmt.Errorf("%w: %s", version.ErrVersionNotFound, targetVersion.Name())
 	}
 
 	// Check if already current
-	current, err := s.versionManager.Current(s.config.VersionsDir)
+	current, err := s.versionManager.Current()
 	if err == nil && current.Name() == targetVersion.Name() {
 		logrus.Debugf("Already using version: %s", targetVersion.Name())
 
@@ -182,7 +182,7 @@ func (s *Service) Use(ctx context.Context, versionAlias string) error {
 	}
 
 	// Switch version
-	err = s.versionManager.Switch(targetVersion, s.config.VersionsDir, s.config.GlobalBinDir)
+	err = s.versionManager.Switch(targetVersion)
 	if err != nil {
 		return fmt.Errorf("failed to switch version: %w", err)
 	}
@@ -192,7 +192,7 @@ func (s *Service) Use(ctx context.Context, versionAlias string) error {
 
 // List returns all installed versions.
 func (s *Service) List() ([]version.Version, error) {
-	versions, err := s.versionManager.List(s.config.VersionsDir)
+	versions, err := s.versionManager.List()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list versions: %w", err)
 	}
@@ -202,7 +202,7 @@ func (s *Service) List() ([]version.Version, error) {
 
 // Current returns the currently active version.
 func (s *Service) Current() (version.Version, error) {
-	current, err := s.versionManager.Current(s.config.VersionsDir)
+	current, err := s.versionManager.Current()
 	if err != nil {
 		return version.Version{}, fmt.Errorf("failed to get current version: %w", err)
 	}
@@ -215,7 +215,7 @@ func (s *Service) Uninstall(versionAlias string, force bool) error {
 	normalized := normalizeVersion(versionAlias)
 
 	// Find the version
-	versions, err := s.versionManager.List(s.config.VersionsDir)
+	versions, err := s.versionManager.List()
 	if err != nil {
 		return fmt.Errorf("failed to list versions: %w", err)
 	}
@@ -238,7 +238,7 @@ func (s *Service) Uninstall(versionAlias string, force bool) error {
 	}
 
 	// Uninstall
-	err = s.versionManager.Uninstall(targetVersion, s.config.VersionsDir, force)
+	err = s.versionManager.Uninstall(targetVersion, force)
 	if err != nil {
 		return fmt.Errorf("failed to uninstall version: %w", err)
 	}
@@ -267,7 +267,6 @@ func (s *Service) Upgrade(
 	// Check if installed
 	if !s.versionManager.IsInstalled(
 		version.New(normalized, version.TypeTag, normalized, ""),
-		s.config.VersionsDir,
 	) {
 		return ErrNotInstalled
 	}
@@ -290,10 +289,7 @@ func (s *Service) Upgrade(
 	}
 
 	// Check if update is needed
-	currentIdentifier, err := s.versionManager.GetInstalledReleaseIdentifier(
-		normalized,
-		s.config.VersionsDir,
-	)
+	currentIdentifier, err := s.versionManager.GetInstalledReleaseIdentifier(normalized)
 	if err == nil && currentIdentifier == rel.TagName() {
 		return ErrAlreadyUpToDate
 	}
@@ -368,12 +364,12 @@ func isCommitHash(str string) bool {
 func (s *Service) IsVersionInstalled(versionName string) bool {
 	v := version.New(versionName, version.TypeTag, versionName, "")
 
-	return s.versionManager.IsInstalled(v, s.config.VersionsDir)
+	return s.versionManager.IsInstalled(v)
 }
 
 // GetInstalledVersionIdentifier returns the identifier (commit hash) of an installed version.
 func (s *Service) GetInstalledVersionIdentifier(versionName string) (string, error) {
-	return s.versionManager.GetInstalledReleaseIdentifier(versionName, s.config.VersionsDir)
+	return s.versionManager.GetInstalledReleaseIdentifier(versionName)
 }
 
 // FindStable returns the latest stable release.

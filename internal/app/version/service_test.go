@@ -51,7 +51,7 @@ type mockVersionManager struct {
 	current   version.Version
 }
 
-func (m *mockVersionManager) List(versionsDir string) ([]version.Version, error) {
+func (m *mockVersionManager) List() ([]version.Version, error) {
 	versions := make([]version.Version, 0, len(m.installed))
 	for name := range m.installed {
 		v := version.New(name, version.TypeTag, name, "")
@@ -61,29 +61,27 @@ func (m *mockVersionManager) List(versionsDir string) ([]version.Version, error)
 	return versions, nil
 }
 
-func (m *mockVersionManager) Current(versionsDir string) (version.Version, error) {
+func (m *mockVersionManager) Current() (version.Version, error) {
 	return m.current, nil
 }
 
-func (m *mockVersionManager) Switch(v version.Version, versionsDir, binDir string) error {
+func (m *mockVersionManager) Switch(v version.Version) error {
 	m.current = v
 
 	return nil
 }
 
-func (m *mockVersionManager) IsInstalled(v version.Version, versionsDir string) bool {
+func (m *mockVersionManager) IsInstalled(v version.Version) bool {
 	return m.installed[v.Name()]
 }
 
-func (m *mockVersionManager) Uninstall(v version.Version, versionsDir string, force bool) error {
+func (m *mockVersionManager) Uninstall(v version.Version, force bool) error {
 	delete(m.installed, v.Name())
 
 	return nil
 }
 
-func (m *mockVersionManager) GetInstalledReleaseIdentifier(
-	versionName, versionsDir string,
-) (string, error) {
+func (m *mockVersionManager) GetInstalledReleaseIdentifier(versionName string) (string, error) {
 	return versionName, nil
 }
 
