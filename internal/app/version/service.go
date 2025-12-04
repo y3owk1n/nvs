@@ -87,7 +87,7 @@ func (s *Service) Install(ctx context.Context, versionAlias string, progress ins
 		Release: rel,
 	}
 
-	return s.installer.InstallRelease(ctx, releaseInfo, s.config.VersionsDir, progress)
+	return s.installer.InstallRelease(ctx, releaseInfo, s.config.VersionsDir, normalized, progress)
 }
 
 // releaseAdapter adapts release.Release to installer.ReleaseInfo
@@ -143,11 +143,13 @@ func (s *Service) Use(ctx context.Context, versionAlias string) error {
 
 		// Determine version type
 		vType := version.TypeTag
-		if rel.Prerelease() {
+		if normalized == "stable" {
+			vType = version.TypeStable
+		} else if rel.Prerelease() {
 			vType = version.TypeNightly
 		}
 
-		targetVersion = version.New(rel.TagName(), vType, rel.TagName(), rel.CommitHash())
+		targetVersion = version.New(normalized, vType, rel.TagName(), rel.CommitHash())
 	}
 
 	// Check if already installed
@@ -225,8 +227,7 @@ func (s *Service) Uninstall(versionAlias string, force bool) error {
 
 // ListRemote returns available remote releases.
 func (s *Service) ListRemote(force bool) ([]release.Release, error) {
-	// TODO: Pass force flag to repository if supported
-	return s.releaseRepo.GetAll()
+	return s.releaseRepo.GetAll(force)
 }
 
 // Upgrade upgrades a version (stable or nightly).
@@ -288,7 +289,7 @@ func (s *Service) Upgrade(ctx context.Context, versionAlias string, progress ins
 		Release: rel,
 	}
 
-	if err := s.installer.InstallRelease(ctx, releaseInfo, s.config.VersionsDir, progress); err != nil {
+	if err := s.installer.InstallRelease(ctx, releaseInfo, s.config.VersionsDir, normalized, progress); err != nil {
 		return fmt.Errorf("failed to install upgrade: %w", err)
 	}
 

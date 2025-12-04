@@ -82,7 +82,8 @@ func (a Asset) Size() int64 {
 // Repository fetches releases from a remote source.
 type Repository interface {
 	// GetAll fetches all available releases.
-	GetAll() ([]Release, error)
+	// If force is true, bypasses any caching.
+	GetAll(force bool) ([]Release, error)
 
 	// FindStable returns the latest stable release.
 	FindStable() (Release, error)

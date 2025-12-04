@@ -331,3 +331,53 @@ func TestRunUse(t *testing.T) {
 		t.Errorf("RunUse failed: %v", err)
 	}
 }
+
+func TestRunUse_InstallAndSwitch(t *testing.T) {
+	// Test that RunUse installs a missing version and switches to it
+	// This tests the regression where use would install but not switch
+
+	tempDir := t.TempDir()
+
+	// Set env vars
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
+
+	// Use a fake commit hash that doesn't exist, so it will try to "install" but since it's fake, it will fail
+	// But to test the logic, we need a real installable version
+	// For integration test, use "stable" but check if it's already installed
+
+	version := "stable"
+
+	// Check if stable is already installed
+	versionsDir := cmd.GetVersionsDir()
+	stableDir := filepath.Join(versionsDir, "stable")
+	if _, err := os.Stat(stableDir); err == nil {
+		t.Skip("Stable is already installed, skipping install test")
+	}
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.SetContext(context.Background())
+
+	// This should install stable and switch to it
+	err := cmd.RunUse(cobraCmd, []string{version})
+	if err != nil {
+		t.Errorf("RunUse install and switch failed: %v", err)
+	}
+
+	// Verify stable is now installed
+	if _, err := os.Stat(stableDir); os.IsNotExist(err) {
+		t.Errorf("Stable was not installed")
+	}
+
+	// Verify it's current (check symlink)
+	currentLink := filepath.Join(versionsDir, "current")
+	target, err := os.Readlink(currentLink)
+	if err != nil {
+		t.Errorf("Current symlink not found: %v", err)
+	} else if filepath.Base(target) != "stable" {
+		t.Errorf("Current is not stable, got %s", filepath.Base(target))
+	}
+}

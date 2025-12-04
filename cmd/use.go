@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/internal/domain/version"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -41,11 +43,16 @@ func RunUse(cmd *cobra.Command, args []string) error {
 	// Use version service to switch
 	err := GetVersionService().Use(ctx, alias)
 	if err != nil {
-		// If version not found, suggest installing
-		if err.Error() == "version not found" { // Simplified check, should use error wrapping check
+		// If version not found, install it first, then try to use again
+		if errors.Is(err, version.ErrVersionNotFound) {
 			logrus.Infof("Version %s not found. Installing...", alias)
-			// Fallback to install
-			return RunInstall(cmd, args)
+			// Install the version
+			err = RunInstall(cmd, args)
+			if err != nil {
+				return err
+			}
+			// Now try to use it
+			return RunUse(cmd, args)
 		}
 		return err
 	}

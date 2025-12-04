@@ -51,11 +51,13 @@ type apiAsset struct {
 }
 
 // GetAll fetches all available releases from GitHub.
-func (c *Client) GetAll() ([]release.Release, error) {
-	// Try cache first
-	if cached, err := c.cache.Get(); err == nil {
-		logrus.Debug("Using cached releases")
-		return cached, nil
+func (c *Client) GetAll(force bool) ([]release.Release, error) {
+	// Try cache first unless force is true
+	if !force {
+		if cached, err := c.cache.Get(); err == nil {
+			logrus.Debug("Using cached releases")
+			return cached, nil
+		}
 	}
 
 	logrus.Debug("Fetching fresh releases from GitHub")
@@ -111,7 +113,7 @@ func (c *Client) GetAll() ([]release.Release, error) {
 
 // FindStable returns the latest stable release.
 func (c *Client) FindStable() (release.Release, error) {
-	releases, err := c.GetAll()
+	releases, err := c.GetAll(false)
 	if err != nil {
 		return release.Release{}, err
 	}
@@ -127,7 +129,7 @@ func (c *Client) FindStable() (release.Release, error) {
 
 // FindNightly returns the latest nightly release.
 func (c *Client) FindNightly() (release.Release, error) {
-	releases, err := c.GetAll()
+	releases, err := c.GetAll(false)
 	if err != nil {
 		return release.Release{}, err
 	}
@@ -143,7 +145,7 @@ func (c *Client) FindNightly() (release.Release, error) {
 
 // FindByTag returns a specific release by tag.
 func (c *Client) FindByTag(tag string) (release.Release, error) {
-	releases, err := c.GetAll()
+	releases, err := c.GetAll(false)
 	if err != nil {
 		return release.Release{}, err
 	}

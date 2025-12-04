@@ -44,6 +44,7 @@ func (s *Service) InstallRelease(
 	ctx context.Context,
 	rel installer.ReleaseInfo,
 	dest string,
+	installName string,
 	progress installer.ProgressFunc,
 ) error {
 	// 1. Get asset URL
@@ -90,7 +91,7 @@ func (s *Service) InstallRelease(
 	}
 
 	// Create destination directory
-	installPath := filepath.Join(dest, rel.GetIdentifier())
+	installPath := filepath.Join(dest, installName)
 	if err := os.MkdirAll(installPath, dirPerm); err != nil {
 		return fmt.Errorf("failed to create install directory: %w", err)
 	}

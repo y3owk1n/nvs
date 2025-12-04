@@ -7,7 +7,7 @@ import "context"
 type Installer interface {
 	// InstallRelease installs a pre-built release to the destination directory.
 	// Progress is reported via the progress callback function.
-	InstallRelease(ctx context.Context, release ReleaseInfo, dest string, progress ProgressFunc) error
+	InstallRelease(ctx context.Context, release ReleaseInfo, dest string, installName string, progress ProgressFunc) error
 
 	// BuildFromCommit builds Neovim from source at a specific commit.
 	// The built version is installed to the destination directory.
