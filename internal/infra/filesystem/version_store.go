@@ -1,5 +1,4 @@
 // Package filesystem provides version storage operations on the filesystem.
-// Package filesystem provides version storage operations on the filesystem.
 package filesystem
 
 import (
