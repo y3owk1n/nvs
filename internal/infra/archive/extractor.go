@@ -142,7 +142,8 @@ func (e *Extractor) extractTarGz(src *os.File, dest string) error {
 		cleanDest := filepath.Clean(dest)
 
 		cleanTarget := filepath.Clean(target)
-		if !strings.HasPrefix(cleanTarget, cleanDest+string(os.PathSeparator)) {
+		if cleanTarget != cleanDest &&
+			!strings.HasPrefix(cleanTarget, cleanDest+string(os.PathSeparator)) {
 			return &IllegalPathError{Path: header.Name}
 		}
 
