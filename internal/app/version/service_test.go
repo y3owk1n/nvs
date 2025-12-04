@@ -53,8 +53,9 @@ func (m *mockReleaseRepo) GetAll(ctx context.Context, force bool) ([]release.Rel
 
 // mockVersionManager implements version.Manager for testing.
 type mockVersionManager struct {
-	installed map[string]version.Version
-	current   version.Version
+	installed   map[string]version.Version
+	current     version.Version
+	identifiers map[string]string
 }
 
 func (m *mockVersionManager) List() ([]version.Version, error) {
@@ -89,6 +90,10 @@ func (m *mockVersionManager) Uninstall(v version.Version, force bool) error {
 }
 
 func (m *mockVersionManager) GetInstalledReleaseIdentifier(versionName string) (string, error) {
+	if id, ok := m.identifiers[versionName]; ok {
+		return id, nil
+	}
+
 	return versionName, nil
 }
 
@@ -268,8 +273,6 @@ func TestService_ListRemote_ForceFalse(t *testing.T) {
 }
 
 func TestService_ListRemote_ForceTrue(t *testing.T) {
-	var err error
-
 	repo := &mockReleaseRepo{
 		stable:  release.New("v0.10.0", false, "abc123", time.Time{}, nil),
 		nightly: release.New("nightly-2024-12-04", true, "def456", time.Time{}, nil),
@@ -293,8 +296,6 @@ func TestService_ListRemote_ForceTrue(t *testing.T) {
 }
 
 func TestService_Use_VersionNotFound(t *testing.T) {
-	var err error
-
 	repo := &mockReleaseRepo{
 		stable: release.New("v0.10.0", false, "abc123", time.Time{}, nil),
 	}
@@ -319,8 +320,6 @@ func TestService_Use_VersionNotFound(t *testing.T) {
 }
 
 func TestService_Install_CommitHash(t *testing.T) {
-	var err error
-
 	// Test installing from a commit hash
 	repo := &mockReleaseRepo{}
 	manager := &mockVersionManager{
