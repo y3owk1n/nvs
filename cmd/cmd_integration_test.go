@@ -459,6 +459,7 @@ func TestRunUse_InstallAndSwitch(t *testing.T) {
 	t.Setenv("NVS_CONFIG_DIR", tempDir)
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
+	t.Setenv("NVS_TEST_MODE", "1")
 
 	// Save original services
 	originalVersionService := cmd.GetVersionService()
@@ -546,14 +547,13 @@ func TestRunUse_InstallAndSwitch(t *testing.T) {
 }
 
 func TestFullWorkflow(t *testing.T) {
-	// Comprehensive integration test covering the main nvs workflows
-	// This tests install, switch, list, current, and uninstall operations
 	tempDir := t.TempDir()
 
-	// Set isolated environment
+	// Set env vars
 	t.Setenv("NVS_CONFIG_DIR", tempDir)
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
+	t.Setenv("NVS_TEST_MODE", "1")
 
 	cmd.InitConfig()
 

@@ -270,6 +270,10 @@ func GetVersionService() *appversion.Service {
 // SetVersionServiceForTesting sets the version service for testing.
 // This should only be used in tests.
 func SetVersionServiceForTesting(service *appversion.Service) {
+	if os.Getenv("NVS_TEST_MODE") == "" {
+		panic("SetVersionServiceForTesting should only be called in tests")
+	}
+
 	versionService = service
 }
 
