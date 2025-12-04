@@ -88,14 +88,6 @@ func (s *Service) Install(
 		return fmt.Errorf("failed to resolve version: %w", err)
 	}
 
-	// Get asset URL for current platform
-	assetURL, _, err := github.GetAssetURL(rel)
-	if err != nil {
-		return fmt.Errorf("failed to get asset URL: %w", err)
-	}
-
-	logrus.Debugf("Asset URL: %s", assetURL)
-
 	// Installation logic
 	releaseInfo := &releaseAdapter{
 		Release: rel,
@@ -160,12 +152,7 @@ func (s *Service) Use(ctx context.Context, versionAlias string) (string, error) 
 		}
 
 		// Determine version type
-		vType := version.TypeTag
-		if normalized == StableVersion {
-			vType = version.TypeStable
-		} else if rel.Prerelease() {
-			vType = version.TypeNightly
-		}
+		vType := determineVersionType(normalized)
 
 		targetVersion = version.New(normalized, vType, rel.TagName(), rel.CommitHash())
 	}
@@ -268,7 +255,7 @@ func (s *Service) Upgrade(
 
 	// Check if installed
 	if !s.versionManager.IsInstalled(
-		version.New(normalized, version.TypeTag, normalized, ""),
+		version.New(normalized, determineVersionType(normalized), normalized, ""),
 	) {
 		return ErrNotInstalled
 	}
@@ -311,11 +298,21 @@ func (s *Service) Upgrade(
 	defer func() {
 		if upgradeSuccess {
 			// Upgrade succeeded, remove backup
-			_ = os.RemoveAll(backupPath)
+			removeErr := os.RemoveAll(backupPath)
+			if removeErr != nil {
+				logrus.Errorf("Failed to remove backup after successful upgrade: %v", removeErr)
+			}
 		} else {
 			// Upgrade failed, restore backup
-			_ = os.RemoveAll(versionPath) // Clean partial install
-			_ = os.Rename(backupPath, versionPath)
+			removeErr := os.RemoveAll(versionPath)
+			if removeErr != nil {
+				logrus.Errorf("Failed to clean partial install during rollback: %v", removeErr)
+			}
+
+			renameErr := os.Rename(backupPath, versionPath)
+			if renameErr != nil {
+				logrus.Errorf("Failed to restore backup during rollback: %v", renameErr)
+			}
 		}
 	}()
 
