@@ -476,6 +476,7 @@ func TestRunUse_InstallAndSwitch(t *testing.T) {
 		releases: map[string]release.Release{
 			"stable": release.New("stable", false, "abc123", time.Now(), []release.Asset{
 				release.NewAsset("macos.tar.gz", "https://example.com/macos.tar.gz", 1000000),
+				release.NewAsset("nvim-linux64.tar.gz", "https://example.com/nvim-linux64.tar.gz", 1000000),
 			}),
 		},
 	}
