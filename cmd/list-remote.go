@@ -121,12 +121,6 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 					ui.TimeFormat(release.PublishedAt().Format(time.RFC3339)),
 					shortCommit,
 				)
-			} else {
-				// Skip non-nightly prerelease rows if no details are available.
-				row := []string{release.TagName(), "nightly", ""}
-				table.Append(row)
-
-				continue
 			}
 		} else if release.TagName() == "stable" {
 			// For stable releases, reference the determined stableTag.
