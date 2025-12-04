@@ -13,6 +13,8 @@ import (
 )
 
 // mockReleaseRepo implements release.Repository for testing.
+var errTagNotFound = errors.New("tag not found")
+
 type mockReleaseRepo struct {
 	stable      release.Release
 	nightly     release.Release
@@ -29,7 +31,12 @@ func (m *mockReleaseRepo) FindNightly() (release.Release, error) {
 }
 
 func (m *mockReleaseRepo) FindByTag(tag string) (release.Release, error) {
-	return m.tags[tag], nil
+	rel, ok := m.tags[tag]
+	if !ok {
+		return release.Release{}, errTagNotFound
+	}
+
+	return rel, nil
 }
 
 func (m *mockReleaseRepo) GetAll(force bool) ([]release.Release, error) {
@@ -147,7 +154,7 @@ func TestService_Use_Nightly(t *testing.T) {
 		installed: map[string]bool{appversion.NightlyVersion: true},
 		current:   version.New(appversion.StableVersion, version.TypeStable, "v0.9.0", ""),
 	}
-	install := &mockInstaller{}
+	install := &mockInstaller{installed: make(map[string]bool)}
 
 	service := appversion.New(repo, manager, install, &appversion.Config{})
 
@@ -174,7 +181,7 @@ func TestService_Use_Tag(t *testing.T) {
 	manager := &mockVersionManager{
 		installed: map[string]bool{"v0.9.5": true},
 	}
-	install := &mockInstaller{}
+	install := &mockInstaller{installed: make(map[string]bool)}
 
 	service := appversion.New(repo, manager, install, &appversion.Config{})
 
@@ -198,7 +205,7 @@ func TestService_ListRemote_ForceFalse(t *testing.T) {
 		nightly: release.New("nightly-2024-12-04", true, "def456", time.Time{}, nil),
 	}
 	manager := &mockVersionManager{}
-	install := &mockInstaller{}
+	install := &mockInstaller{installed: make(map[string]bool)}
 
 	service := appversion.New(repo, manager, install, &appversion.Config{})
 
@@ -218,7 +225,7 @@ func TestService_ListRemote_ForceTrue(t *testing.T) {
 		nightly: release.New("nightly-2024-12-04", true, "def456", time.Time{}, nil),
 	}
 	manager := &mockVersionManager{}
-	install := &mockInstaller{}
+	install := &mockInstaller{installed: make(map[string]bool)}
 
 	service := appversion.New(repo, manager, install, &appversion.Config{})
 
@@ -239,7 +246,7 @@ func TestService_Use_VersionNotFound(t *testing.T) {
 	manager := &mockVersionManager{
 		installed: map[string]bool{}, // nightly not installed
 	}
-	install := &mockInstaller{}
+	install := &mockInstaller{installed: make(map[string]bool)}
 
 	service := appversion.New(repo, manager, install, &appversion.Config{})
 
