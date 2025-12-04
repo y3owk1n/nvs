@@ -96,8 +96,12 @@ func (s *VersionStore) Current() (domainversion.Version, error) {
 
 		targetName = filepath.Base(target)
 	case info.IsDir():
-		// Windows junction
-		targetName = filepath.Base(link)
+		// Windows junction - resolve using EvalSymlinks
+		resolved, err := filepath.EvalSymlinks(link)
+		if err != nil {
+			return domainversion.Version{}, fmt.Errorf("failed to resolve junction: %w", err)
+		}
+		targetName = filepath.Base(resolved)
 	default:
 		return domainversion.Version{}, domainversion.ErrNoCurrentVersion
 	}
