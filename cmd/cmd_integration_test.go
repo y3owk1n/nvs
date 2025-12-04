@@ -520,13 +520,13 @@ func TestRunUse_InstallAndSwitch(t *testing.T) {
 	)
 	cmd.SetVersionServiceForTesting(mockService)
 
-	version := "stable"
+	targetVersion := "stable"
 
 	cobraCmd := &cobra.Command{}
 	cobraCmd.SetContext(context.Background())
 
 	// This should install stable and switch to it
-	err := cmd.RunUse(cobraCmd, []string{version})
+	err := cmd.RunUse(cobraCmd, []string{targetVersion})
 	if err != nil {
 		t.Errorf("RunUse install and switch failed: %v", err)
 	}
@@ -568,8 +568,8 @@ func TestFullWorkflow(t *testing.T) {
 	// This may succeed or fail depending on implementation, just ensure it doesn't crash
 
 	// 3. Create a fake installed version for testing (use commit hash to avoid network)
-	version := "abc1234"
-	versionDir := filepath.Join(cmd.GetVersionsDir(), version)
+	targetVersion := "abc1234"
+	versionDir := filepath.Join(cmd.GetVersionsDir(), targetVersion)
 
 	err = os.MkdirAll(versionDir, 0o755)
 	if err != nil {
@@ -579,7 +579,7 @@ func TestFullWorkflow(t *testing.T) {
 	// Create version.txt
 	versionFile := filepath.Join(versionDir, "version.txt")
 
-	err = os.WriteFile(versionFile, []byte(version), 0o644)
+	err = os.WriteFile(versionFile, []byte(targetVersion), 0o644)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -604,7 +604,7 @@ func TestFullWorkflow(t *testing.T) {
 	}
 
 	// 5. Test switching to the version
-	err = cmd.RunUse(cobraCmd, []string{version})
+	err = cmd.RunUse(cobraCmd, []string{targetVersion})
 	if err != nil {
 		t.Errorf("RunUse failed: %v", err)
 	}
@@ -696,7 +696,7 @@ func TestFullWorkflow(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = cmd.RunUninstall(cobraCmd, []string{version})
+	err = cmd.RunUninstall(cobraCmd, []string{targetVersion})
 	if err != nil {
 		t.Errorf("RunUninstall failed: %v", err)
 	}
