@@ -483,17 +483,35 @@ func TestFullWorkflow(t *testing.T) {
 	_ = cmd.RunEnv(cobraCmd, []string{})
 	// May fail in test env, but shouldn't crash
 
-	// 10. Test path command
+	// 10. Test path command (with mocked input)
+	oldStdinPath := os.Stdin
+	defer func() { os.Stdin = oldStdinPath }()
+
+	var reader, writer *os.File
+
+	reader, writer, err = os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	os.Stdin = reader
+
+	go func() {
+		defer func() { _ = writer.Close() }()
+
+		_, _ = writer.WriteString("y\n") // Confirm path setup
+	}()
+
 	err = cmd.RunPath(cobraCmd, []string{})
 	if err != nil {
 		t.Errorf("RunPath failed: %v", err)
 	}
 
 	// 11. Test reset command (with mocked input)
-	oldStdin := os.Stdin
-	defer func() { os.Stdin = oldStdin }()
+	oldStdinReset := os.Stdin
+	defer func() { os.Stdin = oldStdinReset }()
 
-	reader, writer, err := os.Pipe()
+	reader, writer, err = os.Pipe()
 	if err != nil {
 		t.Fatal(err)
 	}
