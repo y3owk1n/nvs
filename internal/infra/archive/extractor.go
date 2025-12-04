@@ -18,9 +18,10 @@ import (
 )
 
 const (
-	bufSize   = 262
-	dirPerm   = 0o755
-	zipFormat = "zip"
+	bufSize      = 262
+	dirPerm      = 0o755
+	zipFormat    = "zip"
+	fileModeMask = 0o777
 )
 
 // Extractor handles archive extraction operations.
@@ -92,6 +93,7 @@ func detectFormat(file *os.File) (string, error) {
 	case zipFormat:
 		return "zip", nil
 	case "gz":
+		// Assumption: all .gz files are tar.gz (valid for Neovim releases)
 		return "tar.gz", nil
 	default:
 		return "", fmt.Errorf("%w: %s", ErrUnsupportedFormat, kind.Extension)
@@ -99,13 +101,18 @@ func detectFormat(file *os.File) (string, error) {
 }
 
 // writeFile writes data from reader to a file at target path with given mode.
-func writeFile(target string, mode os.FileMode, reader io.Reader) error {
+func writeFile(target string, mode os.FileMode, reader io.Reader) (err error) {
 	file, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
 	if err != nil {
 		return fmt.Errorf("failed to open file %s: %w", target, err)
 	}
 
-	defer func() { _ = file.Close() }()
+	defer func() {
+		cerr := file.Close()
+		if cerr != nil && err == nil {
+			err = fmt.Errorf("failed to close file %s: %w", target, cerr)
+		}
+	}()
 
 	_, err = io.Copy(file, reader)
 	if err != nil {
@@ -161,7 +168,9 @@ func (e *Extractor) extractTarGz(src *os.File, dest string) error {
 				return fmt.Errorf("failed to create directory for file %s: %w", target, err)
 			}
 
-			err := writeFile(target, os.FileMode(header.Mode), tarReader)
+			mode := os.FileMode(header.Mode) & fileModeMask
+
+			err := writeFile(target, mode, tarReader)
 			if err != nil {
 				return err
 			}
@@ -188,6 +197,13 @@ func (e *Extractor) extractZip(src *os.File, dest string) error {
 	}
 
 	for _, fileEntry := range r.File {
+		// Skip symlinks to prevent symlink attacks
+		if fileEntry.FileInfo().Mode()&os.ModeSymlink != 0 {
+			logrus.Debugf("Skipping symlink entry: %s", fileEntry.Name)
+
+			continue
+		}
+
 		path := filepath.Join(dest, fileEntry.Name)
 
 		// Prevent path traversal attacks (Zip Slip vulnerability)
