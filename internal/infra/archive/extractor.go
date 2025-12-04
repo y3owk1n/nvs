@@ -142,8 +142,9 @@ func (e *Extractor) extractTarGz(src *os.File, dest string) error {
 		cleanDest := filepath.Clean(dest)
 
 		cleanTarget := filepath.Clean(target)
-		if cleanTarget != cleanDest &&
-			!strings.HasPrefix(cleanTarget, cleanDest+string(os.PathSeparator)) {
+
+		rel, err := filepath.Rel(cleanDest, cleanTarget)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 			return &IllegalPathError{Path: header.Name}
 		}
 
@@ -189,7 +190,9 @@ func (e *Extractor) extractZip(src *os.File, dest string) error {
 		cleanDest := filepath.Clean(dest)
 
 		cleanPath := filepath.Clean(path)
-		if !strings.HasPrefix(cleanPath, cleanDest+string(os.PathSeparator)) {
+
+		rel, err := filepath.Rel(cleanDest, cleanPath)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 			return &IllegalPathError{Path: fileEntry.Name}
 		}
 
