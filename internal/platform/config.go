@@ -2,6 +2,7 @@ package platform
 
 import (
 	"os"
+	"path/filepath"
 	"runtime"
 )
 
@@ -57,5 +58,5 @@ func GetNvimConfigBaseDir() (string, error) {
 		return "", err
 	}
 
-	return home + "/.config", nil
+	return filepath.Join(home, ".config"), nil
 }
