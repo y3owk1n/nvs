@@ -82,7 +82,7 @@ func RunCurrent(_ *cobra.Command, _ []string) error {
 			_, err = fmt.Fprintf(os.Stdout,
 				"%s %s\n",
 				ui.InfoIcon(),
-				ui.WhiteText(fmt.Sprintf("nightly (%s)", current.Name())),
+				ui.WhiteText("nightly (version details unavailable)"),
 			)
 			if err != nil {
 				logrus.Warnf("Failed to write to stdout: %v", err)
