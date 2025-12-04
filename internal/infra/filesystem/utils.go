@@ -54,7 +54,7 @@ func CopyFile(src, dst string, mode os.FileMode) (err error) {
 }
 
 // ClearDirectory removes all contents within the specified directory.
-// It returns an error if any removal fails.
+// It returns an error on the first removal failure, leaving remaining entries unprocessed.
 func ClearDirectory(dir string) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
