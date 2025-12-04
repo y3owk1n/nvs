@@ -104,8 +104,18 @@ func (c *Cache) Set(releases []release.Release) error {
 		return err
 	}
 
-	err = os.WriteFile(c.filePath, data, cacheFilePerm)
+	// Write to temp file first for atomic operation
+	tempFile := c.filePath + ".tmp"
+	err = os.WriteFile(tempFile, data, cacheFilePerm)
 	if err != nil {
+		return err
+	}
+
+	// Atomically rename temp file to final location
+	err = os.Rename(tempFile, c.filePath)
+	if err != nil {
+		// Clean up temp file on failure
+		os.Remove(tempFile)
 		return err
 	}
 
