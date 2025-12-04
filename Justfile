@@ -16,6 +16,9 @@ build:
     # Build for windows-amd64
     env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-windows64.exe ./main.go
 
+    # Build for windows-arm64
+    env GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-windows-arm64.exe ./main.go
+
 release-ci VERSION_OVERRIDE:
     mkdir -p build
     # Build for darwin-arm64
@@ -32,6 +35,9 @@ release-ci VERSION_OVERRIDE:
 
     # Build for windows-amd64
     env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version={{ VERSION_OVERRIDE }}" -trimpath -o ./build/nvs-windows64.exe ./main.go
+
+    # Build for windows-arm64
+    env GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version={{ VERSION_OVERRIDE }}" -trimpath -o ./build/nvs-windows-arm64.exe ./main.go
 
 test: test-unit test-integration
 
