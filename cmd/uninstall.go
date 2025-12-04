@@ -104,7 +104,8 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 	}
 
 	// Uninstall using service
-	err = GetVersionService().Uninstall(versionArg, false)
+	// Force uninstall if it's the current version (user already confirmed)
+	err = GetVersionService().Uninstall(versionArg, isCurrent)
 	if err != nil {
 		if errors.Is(err, version.ErrVersionNotFound) {
 			return fmt.Errorf("version %s is not installed: %w", versionArg, ErrVersionNotInstalled)
