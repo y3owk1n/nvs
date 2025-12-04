@@ -8,15 +8,106 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/cmd"
+	appversion "github.com/y3owk1n/nvs/internal/app/version"
+	"github.com/y3owk1n/nvs/internal/domain/installer"
+	"github.com/y3owk1n/nvs/internal/domain/release"
+	"github.com/y3owk1n/nvs/internal/domain/version"
 )
 
 const (
 	testVersion = "v1.0.0"
 	windowsOS   = "windows"
 )
+
+// mockVersionManagerForIntegration implements version.Manager for integration testing
+type mockVersionManagerForIntegration struct {
+	installed map[string]bool
+	current   version.Version
+}
+
+func (m *mockVersionManagerForIntegration) List() ([]version.Version, error) {
+	var versions []version.Version
+	for name := range m.installed {
+		v := version.New(name, version.TypeTag, name, "")
+		versions = append(versions, v)
+	}
+	return versions, nil
+}
+
+func (m *mockVersionManagerForIntegration) Current() (version.Version, error) {
+	return m.current, nil
+}
+
+func (m *mockVersionManagerForIntegration) Switch(v version.Version) error {
+	m.current = v
+	return nil
+}
+
+func (m *mockVersionManagerForIntegration) IsInstalled(v version.Version) bool {
+	return m.installed[v.Name()]
+}
+
+func (m *mockVersionManagerForIntegration) Uninstall(v version.Version, force bool) error {
+	delete(m.installed, v.Name())
+	return nil
+}
+
+func (m *mockVersionManagerForIntegration) GetInstalledReleaseIdentifier(versionName string) (string, error) {
+	return versionName, nil
+}
+
+// mockInstallerForIntegration implements installer.Installer for integration testing
+type mockInstallerForIntegration struct {
+	installed map[string]bool
+}
+
+func (m *mockInstallerForIntegration) InstallRelease(ctx context.Context, rel installer.ReleaseInfo, dest, installName string, progress installer.ProgressFunc) error {
+	// Simulate successful installation
+	m.installed[installName] = true
+	return nil
+}
+
+func (m *mockInstallerForIntegration) BuildFromCommit(ctx context.Context, commit, dest string) error {
+	return nil
+}
+
+// mockReleaseRepoForIntegration implements release.Repository for integration testing
+type mockReleaseRepoForIntegration struct {
+	releases map[string]release.Release
+}
+
+func (m *mockReleaseRepoForIntegration) FindStable() (release.Release, error) {
+	if rel, ok := m.releases["stable"]; ok {
+		return rel, nil
+	}
+	return release.Release{}, release.ErrReleaseNotFound
+}
+
+func (m *mockReleaseRepoForIntegration) FindNightly() (release.Release, error) {
+	if rel, ok := m.releases["nightly"]; ok {
+		return rel, nil
+	}
+	return release.Release{}, release.ErrReleaseNotFound
+}
+
+func (m *mockReleaseRepoForIntegration) FindByTag(tag string) (release.Release, error) {
+	if rel, ok := m.releases[tag]; ok {
+		return rel, nil
+	}
+	return release.Release{}, release.ErrReleaseNotFound
+}
+
+func (m *mockReleaseRepoForIntegration) GetAll(force bool) ([]release.Release, error) {
+	var releases []release.Release
+	for _, rel := range m.releases {
+		releases = append(releases, rel)
+	}
+	return releases, nil
+}
 
 func TestRunList(t *testing.T) {
 	if runtime.GOOS == windowsOS {
@@ -345,47 +436,64 @@ func TestRunUse_InstallAndSwitch(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	// Save original services
+	originalVersionService := cmd.GetVersionService()
+	defer func() {
+		// Restore original services
+		cmd.SetVersionServiceForTesting(originalVersionService)
+	}()
 
-	// Use a fake commit hash that doesn't exist, so it will try to "install" but since it's fake, it will fail
-	// But to test the logic, we need a real installable version
-	// For integration test, use "stable" but check if it's already installed
+	// Create shared installed map for mocked services
+	sharedInstalled := make(map[string]bool)
+
+	// Create mocked services for testing without network dependency
+	mockManager := &mockVersionManagerForIntegration{
+		installed: sharedInstalled,
+		current:   version.Version{},
+	}
+	mockInstaller := &mockInstallerForIntegration{
+		installed: sharedInstalled,
+	}
+	mockReleaseRepo := &mockReleaseRepoForIntegration{
+		releases: map[string]release.Release{
+			"stable": release.New("stable", false, "abc123", time.Now(), []release.Asset{
+				release.NewAsset("macos.tar.gz", "https://example.com/macos.tar.gz", 1000000),
+			}),
+		},
+	}
+
+	// Create service with mocks
+	mockService := appversion.New(
+		mockReleaseRepo,
+		mockManager,
+		mockInstaller,
+		&appversion.Config{
+			VersionsDir:   tempDir,
+			CacheFilePath: filepath.Join(tempDir, "cache.json"),
+			GlobalBinDir:  tempDir,
+		},
+	)
+	cmd.SetVersionServiceForTesting(mockService)
 
 	version := "stable"
-
-	// Check if stable is already installed
-	versionsDir := cmd.GetVersionsDir()
-
-	stableDir := filepath.Join(versionsDir, "stable")
-
-	_, err := os.Stat(stableDir)
-	if err == nil {
-		t.Skip("Stable is already installed, skipping install test")
-	}
 
 	cobraCmd := &cobra.Command{}
 	cobraCmd.SetContext(context.Background())
 
 	// This should install stable and switch to it
-	err = cmd.RunUse(cobraCmd, []string{version})
+	err := cmd.RunUse(cobraCmd, []string{version})
 	if err != nil {
 		t.Errorf("RunUse install and switch failed: %v", err)
 	}
 
-	// Verify stable is now installed
-	_, err = os.Stat(stableDir)
-	if os.IsNotExist(err) {
+	// Verify stable is now "installed" (in our mock)
+	if !mockManager.installed["stable"] {
 		t.Errorf("Stable was not installed")
 	}
 
-	// Verify it's current (check symlink)
-	currentLink := filepath.Join(versionsDir, "current")
-
-	target, err := os.Readlink(currentLink)
-	if err != nil {
-		t.Errorf("Current symlink not found: %v", err)
-	} else if filepath.Base(target) != "stable" {
-		t.Errorf("Current is not stable, got %s", filepath.Base(target))
+	// Verify it's current (check our mock)
+	if mockManager.current.Name() != "stable" {
+		t.Errorf("Current is not stable, got %s", mockManager.current.Name())
 	}
 }
 

@@ -264,6 +264,12 @@ func GetVersionService() *appversion.Service {
 	return versionService
 }
 
+// SetVersionServiceForTesting sets the version service for testing.
+// This should only be used in tests.
+func SetVersionServiceForTesting(service *appversion.Service) {
+	versionService = service
+}
+
 // GetConfigService returns the config service instance.
 func GetConfigService() *config.Service {
 	return configService
