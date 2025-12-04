@@ -113,3 +113,43 @@ func TestTypeString(t *testing.T) {
 		})
 	}
 }
+
+func TestIsCommitReference(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  bool
+	}{
+		// Valid branch names
+		{"master branch", "master", true},
+		{"main branch", "main", true},
+
+		// Valid commit hashes (different lengths)
+		{"7 char hex", "abc1234", true},
+		{"8 char hex", "abc12345", true},
+		{"40 char hex (full SHA)", "1234567890abcdef1234567890abcdef12345678", true},
+		{"mixed case hex", "AbC1234", true},
+		{"all digits", "1234567", true},
+		{"all hex letters", "abcdefab", true},
+
+		// Invalid inputs
+		{"too short (6 chars)", "abc123", false},
+		{"too long (41 chars)", "abc1234567890abcdef1234567890abcdef1234567", false},
+		{"empty string", "", false},
+		{"contains invalid char g", "abc123g", false},
+		{"contains space", "abc 123", false},
+		{"stable keyword", "stable", false},
+		{"nightly keyword", "nightly", false},
+		{"version tag", "v0.10.0", false},
+		{"contains dash", "abc-123", false},
+		{"contains underscore", "abc_123", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := version.IsCommitReference(tt.input); got != tt.want {
+				t.Errorf("IsCommitReference(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
