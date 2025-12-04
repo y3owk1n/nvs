@@ -153,7 +153,9 @@ func (e *Extractor) extractTarGz(src *os.File, dest string) error {
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			err := os.MkdirAll(target, dirPerm)
+			mode := os.FileMode(header.Mode)&fileModeMask | os.ModeDir
+
+			err := os.MkdirAll(target, mode)
 			if err != nil {
 				return fmt.Errorf("failed to create directory %s: %w", target, err)
 			}
