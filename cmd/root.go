@@ -213,7 +213,9 @@ func InitConfig() {
 
 	// Initialize services
 	githubClient := github.NewClient(cacheFilePath, cacheTTL)
-	versionManager := filesystem.New(&filesystem.Config{})
+	versionManager := filesystem.New(&filesystem.Config{
+		VersionsDir: versionsDir,
+	})
 
 	// Installer components
 	dl := downloader.New()
