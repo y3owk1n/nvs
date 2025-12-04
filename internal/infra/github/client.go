@@ -20,6 +20,7 @@ import (
 const (
 	apiBaseURL       = "https://api.github.com"
 	clientTimeoutSec = 15
+	arm64Arch        = "arm64"
 )
 
 // Client implements the release.Repository interface for GitHub.
@@ -289,19 +290,26 @@ func GetAssetURL(rel release.Release) (string, string, error) {
 		switch runtime.GOARCH {
 		case "amd64":
 			patterns = []string{"linux-x86_64.tar.gz", "linux-64.tar.gz", "linux64.tar.gz"}
-		case "arm64":
+		case arm64Arch:
 			patterns = []string{"linux-arm64.tar.gz"}
 		default:
 			return "", "", fmt.Errorf("%w: %s", ErrUnsupportedArch, runtime.GOARCH)
 		}
 	case "darwin":
-		if runtime.GOARCH == "arm64" {
+		if runtime.GOARCH == arm64Arch {
 			patterns = []string{"macos-arm64.tar.gz", "macos.tar.gz"}
 		} else {
 			patterns = []string{"macos-x86_64.tar.gz", "macos.tar.gz"}
 		}
 	case "windows":
-		patterns = []string{"win64.zip"}
+		switch runtime.GOARCH {
+		case "amd64":
+			patterns = []string{"win64.zip"}
+		case arm64Arch:
+			patterns = []string{"win-arm64.zip", "win64.zip"}
+		default:
+			return "", "", fmt.Errorf("%w: %s", ErrUnsupportedArch, runtime.GOARCH)
+		}
 	default:
 		return "", "", fmt.Errorf("%w: %s", ErrUnsupportedOS, runtime.GOOS)
 	}
