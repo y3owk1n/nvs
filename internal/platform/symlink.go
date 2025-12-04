@@ -29,6 +29,8 @@ func UpdateSymlink(target, link string, isDir bool) error {
 		if err != nil {
 			return err
 		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("failed to stat existing link %s: %w", link, err)
 	}
 
 	// Try normal symlink
