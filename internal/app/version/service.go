@@ -348,9 +348,24 @@ func normalizeVersion(versionStr string) string {
 	return versionStr
 }
 
+// determineVersionType determines the version type from the name.
+func determineVersionType(name string) version.Type {
+	switch {
+	case name == StableVersion:
+		return version.TypeStable
+	case strings.HasPrefix(strings.ToLower(name), "nightly"):
+		return version.TypeNightly
+	case version.IsCommitReference(name):
+		return version.TypeCommit
+	default:
+		return version.TypeTag
+	}
+}
+
 // IsVersionInstalled checks if a version is installed.
 func (s *Service) IsVersionInstalled(versionName string) bool {
-	v := version.New(versionName, version.TypeTag, versionName, "")
+	versionType := determineVersionType(versionName)
+	v := version.New(versionName, versionType, versionName, "")
 
 	return s.versionManager.IsInstalled(v)
 }
