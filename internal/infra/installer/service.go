@@ -86,7 +86,9 @@ func (s *Service) InstallRelease(
 			progress("Verifying", 0)
 		}
 
-		err := s.downloader.VerifyChecksum(ctx, tempFile, checksumURL)
+		assetName := filepath.Base(assetURL)
+
+		err := s.downloader.VerifyChecksum(ctx, tempFile, checksumURL, assetName)
 		if err != nil {
 			return fmt.Errorf("checksum verification failed: %w", err)
 		}

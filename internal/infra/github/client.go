@@ -331,14 +331,22 @@ func GetAssetURL(rel release.Release) (string, string, error) {
 }
 
 // GetChecksumURL returns the checksum URL for a given asset pattern.
-func GetChecksumURL(r release.Release, assetPattern string) (string, error) {
+func GetChecksumURL(rel release.Release, assetPattern string) (string, error) {
+	// First, try per-asset .sha256 file
 	checksumPattern := assetPattern + ".sha256"
 
-	for _, asset := range r.Assets() {
+	for _, asset := range rel.Assets() {
 		if strings.Contains(asset.Name(), checksumPattern) {
 			return asset.DownloadURL(), nil
 		}
 	}
 
-	return "", fmt.Errorf("%w for pattern: %s", ErrChecksumNotFound, checksumPattern)
+	// Fallback to shasum.txt for newer releases
+	for _, asset := range rel.Assets() {
+		if asset.Name() == "shasum.txt" {
+			return asset.DownloadURL(), nil
+		}
+	}
+
+	return "", fmt.Errorf("%w for pattern: %s", ErrChecksumNotFound, assetPattern)
 }

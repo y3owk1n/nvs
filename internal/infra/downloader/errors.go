@@ -18,4 +18,7 @@ var (
 
 	// ErrInvalidChecksumFormat is returned when checksum format is invalid.
 	ErrInvalidChecksumFormat = errors.New("invalid checksum format")
+
+	// ErrChecksumNotFound is returned when checksum for asset is not found.
+	ErrChecksumNotFound = errors.New("checksum not found")
 )

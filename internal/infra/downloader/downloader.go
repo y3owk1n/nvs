@@ -82,7 +82,12 @@ func (d *Downloader) Download(
 }
 
 // VerifyChecksum downloads the checksum file and verifies the file's SHA256 hash.
-func (d *Downloader) VerifyChecksum(ctx context.Context, file *os.File, checksumURL string) error {
+func (d *Downloader) VerifyChecksum(
+	ctx context.Context,
+	file *os.File,
+	checksumURL string,
+	assetName string,
+) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, checksumURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create checksum request: %w", err)
@@ -104,12 +109,32 @@ func (d *Downloader) VerifyChecksum(ctx context.Context, file *os.File, checksum
 		return fmt.Errorf("failed to read checksum data: %w", err)
 	}
 
-	expectedFields := strings.Fields(string(checksumData))
-	if len(expectedFields) == 0 {
-		return ErrChecksumFileEmpty
-	}
+	var expectedHash string
 
-	expectedHash := expectedFields[0]
+	if strings.HasSuffix(checksumURL, "shasum.txt") {
+		// Parse shasum.txt format: multiple lines of "hash filename"
+		lines := strings.SplitSeq(strings.TrimSpace(string(checksumData)), "\n")
+		for line := range lines {
+			fields := strings.Fields(line)
+			if len(fields) >= 2 && fields[1] == assetName {
+				expectedHash = fields[0]
+
+				break
+			}
+		}
+
+		if expectedHash == "" {
+			return fmt.Errorf("%w: %s not found in shasum.txt", ErrChecksumNotFound, assetName)
+		}
+	} else {
+		// Old format: single line "hash filename"
+		expectedFields := strings.Fields(string(checksumData))
+		if len(expectedFields) == 0 {
+			return ErrChecksumFileEmpty
+		}
+
+		expectedHash = expectedFields[0]
+	}
 
 	// SHA256 hash should be 64 hex characters
 	if len(expectedHash) != sha256HashLen {
