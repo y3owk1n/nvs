@@ -96,6 +96,23 @@ func detectFormat(file *os.File) (string, error) {
 	}
 }
 
+// writeFile writes data from reader to a file at target path with given mode.
+func writeFile(target string, mode os.FileMode, reader io.Reader) error {
+	file, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, mode)
+	if err != nil {
+		return fmt.Errorf("failed to open file %s: %w", target, err)
+	}
+
+	defer func() { _ = file.Close() }()
+
+	_, err = io.Copy(file, reader)
+	if err != nil {
+		return fmt.Errorf("failed to copy file content to %s: %w", target, err)
+	}
+
+	return nil
+}
+
 // extractTarGz extracts a tar.gz archive.
 func (e *Extractor) extractTarGz(src *os.File, dest string) error {
 	gzr, err := gzip.NewReader(src)
@@ -132,19 +149,10 @@ func (e *Extractor) extractTarGz(src *os.File, dest string) error {
 				return fmt.Errorf("failed to create directory for file %s: %w", target, err)
 			}
 
-			file, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
+			err := writeFile(target, os.FileMode(header.Mode), tarReader)
 			if err != nil {
-				return fmt.Errorf("failed to open file %s: %w", target, err)
+				return err
 			}
-
-			_, err = io.Copy(file, tarReader)
-			if err != nil {
-				_ = file.Close()
-
-				return fmt.Errorf("failed to copy file content to %s: %w", target, err)
-			}
-
-			_ = file.Close()
 		}
 	}
 
