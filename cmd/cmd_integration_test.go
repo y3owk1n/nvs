@@ -206,6 +206,8 @@ func TestRunReset(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
+	cmd.InitConfig()
+
 	err = cmd.RunReset(cobraCmd, []string{})
 	if err != nil {
 		t.Errorf("RunReset failed: %v", err)
