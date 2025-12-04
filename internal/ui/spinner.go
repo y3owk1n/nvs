@@ -51,7 +51,9 @@ func RunCommandWithSpinner(ctx context.Context, spinner *spinner.Spinner, cmd *e
 				suffixMutex.Unlock()
 			}
 		}
-		if err := scanner.Err(); err != nil {
+
+		err := scanner.Err()
+		if err != nil {
 			logrus.Debugf("scanner error reading pipe: %v", err)
 		}
 	}
