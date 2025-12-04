@@ -78,6 +78,7 @@ func RunCommandWithSpinner(ctx context.Context, spinner *spinner.Spinner, cmd *e
 		}
 		// Wait for goroutines to finish reading
 		waitGroup.Wait()
+
 		return fmt.Errorf("command canceled: %w", ctx.Err())
 	case err := <-cmdErrChan:
 		// Wait for spinner update routines to finish.
