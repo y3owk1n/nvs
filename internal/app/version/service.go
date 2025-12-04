@@ -383,15 +383,18 @@ func determineVersionType(name string) version.Type {
 
 // IsVersionInstalled checks if a version is installed.
 func (s *Service) IsVersionInstalled(versionName string) bool {
-	versionType := determineVersionType(versionName)
-	v := version.New(versionName, versionType, versionName, "")
+	normalized := normalizeVersion(versionName)
+	versionType := determineVersionType(normalized)
+	v := version.New(normalized, versionType, normalized, "")
 
 	return s.versionManager.IsInstalled(v)
 }
 
 // GetInstalledVersionIdentifier returns the identifier (commit hash) of an installed version.
 func (s *Service) GetInstalledVersionIdentifier(versionName string) (string, error) {
-	return s.versionManager.GetInstalledReleaseIdentifier(versionName)
+	normalized := normalizeVersion(versionName)
+
+	return s.versionManager.GetInstalledReleaseIdentifier(normalized)
 }
 
 // FindStable returns the latest stable release.
