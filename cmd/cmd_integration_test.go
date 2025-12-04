@@ -481,7 +481,11 @@ func TestRunUse_InstallAndSwitch(t *testing.T) {
 		}
 	case "linux":
 		assets = []release.Asset{
-			release.NewAsset("nvim-linux64.tar.gz", "https://example.com/nvim-linux64.tar.gz", 1000000),
+			release.NewAsset(
+				"nvim-linux64.tar.gz",
+				"https://example.com/nvim-linux64.tar.gz",
+				1000000,
+			),
 		}
 	case "windows":
 		assets = []release.Asset{
