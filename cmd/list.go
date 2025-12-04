@@ -59,9 +59,9 @@ func RunList(_ *cobra.Command, _ []string) error {
 	current, err := GetVersionService().Current()
 	if err != nil {
 		logrus.Warn("No current version set or unable to determine the current version")
+	} else {
+		logrus.Debugf("Current version: %s", current.Name())
 	}
-
-	logrus.Debugf("Current version: %s", current.Name())
 
 	// Set up a table for displaying versions and their status.
 	table := tablewriter.NewWriter(os.Stdout)
