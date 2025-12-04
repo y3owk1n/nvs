@@ -25,7 +25,7 @@ type Downloader struct {
 	httpClient *http.Client
 }
 
-const defaultTimeout = 30 * time.Second
+const defaultTimeout = 5 * time.Minute
 
 // New creates a new Downloader instance.
 func New() *Downloader {
