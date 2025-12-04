@@ -144,7 +144,7 @@ func (s *VersionStore) Switch(version domainversion.Version) error {
 	if err == nil {
 		err = os.Remove(targetBin)
 		if err != nil {
-			logrus.Warnf("Failed to remove existing global bin: %v", err)
+			return fmt.Errorf("failed to remove existing global bin: %w", err)
 		}
 	}
 
