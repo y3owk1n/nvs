@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -72,6 +73,8 @@ func Execute() error {
 	return nil
 }
 
+var signalOnce sync.Once
+
 // InitConfig is called automatically on command initialization.
 // It sets up logging levels, handles OS signals for graceful shutdown, and initializes services.
 func InitConfig() {
@@ -86,23 +89,23 @@ func InitConfig() {
 	}
 
 	// Set up a signal handler to cancel the global context on an interrupt signal.
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt)
+	signalOnce.Do(func() {
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, os.Interrupt)
 
-	go func() {
-		<-sigCh
+		go func() {
+			<-sigCh
 
-		var err error
+			_, err := fmt.Fprintln(os.Stdout)
+			if err != nil {
+				logrus.Warnf("Failed to write to stdout: %v", err)
+			}
 
-		_, err = fmt.Fprintln(os.Stdout)
-		if err != nil {
-			logrus.Warnf("Failed to write to stdout: %v", err)
-		}
-
-		logrus.Debug("Interrupt received, canceling operations...")
-		cancel()
-		os.Exit(1)
-	}()
+			logrus.Debug("Interrupt received, canceling operations...")
+			cancel()
+			os.Exit(1)
+		}()
+	})
 
 	// Determine the base configuration directory.
 	var baseConfigDir string
