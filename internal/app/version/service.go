@@ -62,7 +62,7 @@ func (s *Service) Install(
 	normalized := normalizeVersion(versionAlias)
 
 	// Check if it's a commit hash
-	if isCommitHash(normalized) {
+	if version.IsCommitHash(normalized) {
 		// This will be handled by a separate installer implementation
 		return ErrCommitHashNotImplemented
 	}
@@ -134,7 +134,7 @@ func (s *Service) Use(ctx context.Context, versionAlias string) error {
 	// Determine target version
 	var targetVersion version.Version
 
-	if isCommitHash(normalized) {
+	if version.IsCommitHash(normalized) {
 		// For commit hash, the version name is the hash itself
 		targetVersion = version.New(normalized, version.TypeCommit, normalized, "")
 	} else {
@@ -329,35 +329,16 @@ func (s *Service) Upgrade(
 }
 
 // normalizeVersion normalizes a version string.
-func normalizeVersion(version string) string {
-	if version == StableVersion || version == NightlyVersion || isCommitHash(version) {
-		return version
+func normalizeVersion(versionStr string) string {
+	if versionStr == StableVersion || versionStr == NightlyVersion || version.IsCommitHash(versionStr) {
+		return versionStr
 	}
 
-	if !strings.HasPrefix(version, "v") {
-		return "v" + version
+	if !strings.HasPrefix(versionStr, "v") {
+		return "v" + versionStr
 	}
 
-	return version
-}
-
-// isCommitHash checks if a string is a commit hash.
-func isCommitHash(str string) bool {
-	if str == "master" {
-		return true
-	}
-
-	if len(str) < 7 || len(str) > 40 {
-		return false
-	}
-
-	for _, r := range str {
-		if (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
-			return false
-		}
-	}
-
-	return true
+	return versionStr
 }
 
 // IsVersionInstalled checks if a version is installed.
@@ -384,5 +365,5 @@ func (s *Service) FindNightly() (release.Release, error) {
 
 // IsCommitHash checks if a string is a commit hash.
 func (s *Service) IsCommitHash(str string) bool {
-	return isCommitHash(str)
+	return version.IsCommitHash(str)
 }

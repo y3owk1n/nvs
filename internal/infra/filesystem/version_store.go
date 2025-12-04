@@ -283,28 +283,9 @@ func determineVersionType(name string) domainversion.Type {
 		return domainversion.TypeStable
 	case strings.HasPrefix(strings.ToLower(name), "nightly"):
 		return domainversion.TypeNightly
-	case isCommitHash(name):
+	case domainversion.IsCommitHash(name):
 		return domainversion.TypeCommit
 	default:
 		return domainversion.TypeTag
 	}
-}
-
-// isCommitHash checks if a string looks like a commit hash.
-func isCommitHash(str string) bool {
-	if str == "master" {
-		return true
-	}
-
-	if len(str) < 7 || len(str) > 40 {
-		return false
-	}
-
-	for _, r := range str {
-		if (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
-			return false
-		}
-	}
-
-	return true
 }

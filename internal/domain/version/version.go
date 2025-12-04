@@ -69,6 +69,26 @@ func (t Type) String() string {
 	}
 }
 
+// IsCommitHash checks if a string looks like a commit hash or branch reference.
+// Accepts "master" and hexadecimal strings of length 7-40.
+func IsCommitHash(str string) bool {
+	if str == "master" {
+		return true
+	}
+
+	if len(str) < 7 || len(str) > 40 {
+		return false
+	}
+
+	for _, r := range str {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
+			return false
+		}
+	}
+
+	return true
+}
+
 // Manager handles version operations.
 type Manager interface {
 	// List returns all installed versions.
