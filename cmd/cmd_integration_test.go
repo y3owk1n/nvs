@@ -381,3 +381,142 @@ func TestRunUse_InstallAndSwitch(t *testing.T) {
 		t.Errorf("Current is not stable, got %s", filepath.Base(target))
 	}
 }
+
+func TestFullWorkflow(t *testing.T) {
+	// Comprehensive integration test covering the main nvs workflows
+	// This tests install, switch, list, current, and uninstall operations
+
+	tempDir := t.TempDir()
+
+	// Set isolated environment
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.SetContext(context.Background())
+
+	// 1. Test initial state - no versions installed
+	err := cmd.RunList(cobraCmd, []string{})
+	if err != nil {
+		t.Errorf("RunList failed: %v", err)
+	}
+
+	// 2. Try to get current version (should fail or show none)
+	err = cmd.RunCurrent(cobraCmd, []string{})
+	// This may succeed or fail depending on implementation, just ensure it doesn't crash
+
+	// 3. Create a fake installed version for testing (use commit hash to avoid network)
+	version := "abc1234"
+	versionDir := filepath.Join(cmd.GetVersionsDir(), version)
+	err = os.MkdirAll(versionDir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create version.txt
+	versionFile := filepath.Join(versionDir, "version.txt")
+	err = os.WriteFile(versionFile, []byte(version), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create fake nvim binary
+	binName := "nvim"
+	if runtime.GOOS == "windows" {
+		binName = "nvim.exe"
+	}
+	binPath := filepath.Join(versionDir, binName)
+	err = os.WriteFile(binPath, []byte("#!/bin/bash\necho test nvim"), 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 4. Test listing versions
+	err = cmd.RunList(cobraCmd, []string{})
+	if err != nil {
+		t.Errorf("RunList with version failed: %v", err)
+	}
+
+	// 5. Test switching to the version
+	err = cmd.RunUse(cobraCmd, []string{version})
+	if err != nil {
+		t.Errorf("RunUse failed: %v", err)
+	}
+
+	// 6. Verify it's now current
+	currentLink := filepath.Join(cmd.GetVersionsDir(), "current")
+	if _, err := os.Lstat(currentLink); err != nil {
+		t.Errorf("Current symlink not created: %v", err)
+	}
+
+	// 7. Test current command
+	err = cmd.RunCurrent(cobraCmd, []string{})
+	if err != nil {
+		t.Errorf("RunCurrent failed: %v", err)
+	}
+
+	// 8. Test global bin symlink
+	globalBin := filepath.Join(cmd.GetGlobalBinDir(), "nvim")
+	if _, err := os.Lstat(globalBin); err != nil {
+		t.Errorf("Global bin symlink not created: %v", err)
+	}
+
+	// 9. Test config operations (if applicable)
+	// Note: Config operations may not work in isolated env, but test the functions don't crash
+	err = cmd.RunEnv(cobraCmd, []string{})
+	// May fail in test env, but shouldn't crash
+
+	// 10. Test path command
+	err = cmd.RunPath(cobraCmd, []string{})
+	if err != nil {
+		t.Errorf("RunPath failed: %v", err)
+	}
+
+	// 11. Test reset command (with mocked input)
+	oldStdin := os.Stdin
+	defer func() { os.Stdin = oldStdin }()
+
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdin = reader
+
+	go func() {
+		defer writer.Close()
+		writer.WriteString("y\n") // Confirm reset
+	}()
+
+	err = cmd.RunReset(cobraCmd, []string{})
+	if err != nil {
+		t.Errorf("RunReset failed: %v", err)
+	}
+
+	// 12. Verify reset cleaned up symlinks
+	if _, err := os.Lstat(currentLink); err == nil {
+		t.Errorf("Current symlink should have been removed by reset")
+	}
+
+	if _, err := os.Lstat(globalBin); err == nil {
+		t.Errorf("Global bin symlink should have been removed by reset")
+	}
+
+	// 13. Test uninstall (recreate version first)
+	err = os.MkdirAll(versionDir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = cmd.RunUninstall(cobraCmd, []string{version})
+	if err != nil {
+		t.Errorf("RunUninstall failed: %v", err)
+	}
+
+	// Verify version was removed
+	if _, err := os.Stat(versionDir); err == nil {
+		t.Errorf("Version directory should have been removed")
+	}
+}
