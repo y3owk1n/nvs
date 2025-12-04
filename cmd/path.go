@@ -307,7 +307,9 @@ func RunPath(_ *cobra.Command, _ []string) error {
 			return fmt.Errorf("failed to read %s: %w", rcFile, err)
 		}
 
-		if !strings.Contains(string(data), exportCmd) {
+		// Check if the global bin directory is already in PATH
+		globalBinDir := GetGlobalBinDir()
+		if !strings.Contains(string(data), globalBinDir) {
 			file, err := os.OpenFile(rcFile, os.O_APPEND|os.O_WRONLY, FilePerm)
 			if err != nil {
 				return fmt.Errorf("failed to open %s: %w", rcFile, err)
