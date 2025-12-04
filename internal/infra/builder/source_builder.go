@@ -97,8 +97,13 @@ func (b *SourceBuilder) buildFromCommitInternal(
 	defer spinner.Stop()
 
 	// Clone repository if needed
-	_, err = os.Stat(localPath)
+	gitDir := filepath.Join(localPath, ".git")
+
+	_, err = os.Stat(gitDir)
 	if os.IsNotExist(err) {
+		// Clean up partial clone if exists
+		_ = os.RemoveAll(localPath)
+
 		spinner.Suffix = " Cloning repository..."
 
 		logrus.Debug("Cloning repository from ", repoURL)
@@ -157,7 +162,7 @@ func (b *SourceBuilder) buildFromCommitInternal(
 		return ErrCommitHashTooShort
 	}
 
-	commitHash := commitHashFull[:7]
+	commitHash := commitHashFull[:commitLen]
 	logrus.Debugf("Current commit hash: %s", commitHash)
 
 	// Clean build directory
