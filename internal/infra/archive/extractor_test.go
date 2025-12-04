@@ -37,7 +37,6 @@ func TestExtractor_ExtractTarGz_PathTraversal(t *testing.T) {
 	}
 
 	_ = tarWriter.Close()
-	_ = gzWriter.Close()
 
 	err = gzWriter.Close()
 	if err != nil {
