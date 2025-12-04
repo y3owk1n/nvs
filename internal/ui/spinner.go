@@ -34,6 +34,8 @@ func RunCommandWithSpinner(ctx context.Context, spinner *spinner.Spinner, cmd *e
 		return fmt.Errorf("failed to get stderr pipe: %w", err)
 	}
 
+	var suffixMutex sync.Mutex
+
 	// updateSpinner reads from the given pipe and updates the spinner's suffix based on the output.
 	updateSpinner := func(pipeOutput io.Reader, waitGroup *sync.WaitGroup) {
 		defer waitGroup.Done()
@@ -42,7 +44,11 @@ func RunCommandWithSpinner(ctx context.Context, spinner *spinner.Spinner, cmd *e
 		for scanner.Scan() {
 			line := strings.TrimSpace(scanner.Text())
 			if line != "" {
+				suffixMutex.Lock()
+
 				spinner.Suffix = " " + line
+
+				suffixMutex.Unlock()
 			}
 		}
 	}
