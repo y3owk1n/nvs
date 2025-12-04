@@ -36,11 +36,6 @@ func New() *Extractor {
 func (e *Extractor) Extract(src *os.File, dest string) error {
 	logrus.Debugf("Starting extraction to: %s", dest)
 	// Detect archive format
-	_, err := src.Seek(0, io.SeekStart)
-	if err != nil {
-		return fmt.Errorf("failed to seek file: %w", err)
-	}
-
 	format, err := detectFormat(src)
 	if err != nil {
 		return fmt.Errorf("archive detection failed: %w", err)
