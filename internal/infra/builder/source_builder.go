@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -228,10 +229,57 @@ func runCommandWithSpinner(cmd Commander) error {
 		return fmt.Errorf("failed to get stderr pipe: %w", err)
 	}
 
-	// For now, just run the command
-	// In a full implementation, we'd read from pipes and update spinner
-	_ = stdoutPipe
-	_ = stderrPipe
+	// Cast pipes to io.Reader for reading
+	stdoutReader, ok := stdoutPipe.(io.Reader)
+	if !ok {
+		return fmt.Errorf("stdout pipe is not a reader")
+	}
 
-	return cmd.Run()
+	stderrReader, ok := stderrPipe.(io.Reader)
+	if !ok {
+		return fmt.Errorf("stderr pipe is not a reader")
+	}
+
+	// Run command and capture output concurrently
+	errChan := make(chan error, 1)
+
+	go func() {
+		errChan <- cmd.Run()
+	}()
+
+	// Read from both pipes concurrently
+	go func() {
+		buf := make([]byte, 1024)
+		for {
+			n, err := stdoutReader.Read(buf)
+			if n > 0 {
+				line := strings.TrimSpace(string(buf[:n]))
+				if line != "" {
+					logrus.Debugf("Build output: %s", line)
+				}
+			}
+			if err != nil {
+				break
+			}
+		}
+	}()
+
+	go func() {
+		buf := make([]byte, 1024)
+		for {
+			n, err := stderrReader.Read(buf)
+			if n > 0 {
+				line := strings.TrimSpace(string(buf[:n]))
+				if line != "" {
+					logrus.Debugf("Build error: %s", line)
+				}
+			}
+			if err != nil {
+				break
+			}
+		}
+	}()
+
+	// Wait for command to complete
+	return <-errChan
 }
