@@ -4,6 +4,7 @@ package builder
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -83,7 +84,9 @@ func (b *SourceBuilder) BuildFromCommit(ctx context.Context, commit string, dest
 		}
 	}
 
-	return fmt.Errorf("%w after %d attempts: %w", ErrBuildFailed, maxAttempts, err)
+	joined := errors.Join(ErrBuildFailed, err)
+
+	return fmt.Errorf("after %d attempts: %w", maxAttempts, joined)
 }
 
 // buildFromCommitInternal performs the actual build process.
