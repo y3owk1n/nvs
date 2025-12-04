@@ -174,7 +174,7 @@ func (b *SourceBuilder) buildFromCommitInternal(
 	if err == nil {
 		logrus.Debug("Removing existing build directory")
 
-		err := os.RemoveAll(buildPath)
+		err = os.RemoveAll(buildPath)
 		if err != nil {
 			return fmt.Errorf("failed to remove build directory: %w", err)
 		}
