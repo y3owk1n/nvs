@@ -10,14 +10,12 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/sirupsen/logrus"
 )
 
 const (
-	clientTimeoutSec = 30
-	progressDiv      = 100
+	progressDiv = 100
 )
 
 // Downloader handles file downloads with progress tracking.
@@ -28,7 +26,7 @@ type Downloader struct {
 // New creates a new Downloader instance.
 func New() *Downloader {
 	return &Downloader{
-		httpClient: &http.Client{Timeout: clientTimeoutSec * time.Second},
+		httpClient: &http.Client{},
 	}
 }
 
