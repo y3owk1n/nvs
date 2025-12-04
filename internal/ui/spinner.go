@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/briandowns/spinner"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -49,6 +50,9 @@ func RunCommandWithSpinner(ctx context.Context, spinner *spinner.Spinner, cmd *e
 
 				suffixMutex.Unlock()
 			}
+		}
+		if err := scanner.Err(); err != nil {
+			logrus.Debugf("scanner error reading pipe: %v", err)
 		}
 	}
 

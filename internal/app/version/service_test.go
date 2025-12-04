@@ -72,6 +72,7 @@ func (m *mockVersionManager) Switch(v version.Version) error {
 
 func (m *mockVersionManager) IsInstalled(v version.Version) bool {
 	_, exists := m.installed[v.Name()]
+
 	return exists
 }
 
@@ -120,7 +121,12 @@ func TestService_Use_Stable(t *testing.T) {
 	}
 	manager := &mockVersionManager{
 		installed: map[string]version.Version{
-			appversion.StableVersion: version.New(appversion.StableVersion, version.TypeStable, appversion.StableVersion, ""),
+			appversion.StableVersion: version.New(
+				appversion.StableVersion,
+				version.TypeStable,
+				appversion.StableVersion,
+				"",
+			),
 		},
 		current: version.New(
 			appversion.NightlyVersion,
@@ -159,7 +165,12 @@ func TestService_Use_Nightly(t *testing.T) {
 	}
 	manager := &mockVersionManager{
 		installed: map[string]version.Version{
-			appversion.NightlyVersion: version.New(appversion.NightlyVersion, version.TypeNightly, appversion.NightlyVersion, ""),
+			appversion.NightlyVersion: version.New(
+				appversion.NightlyVersion,
+				version.TypeNightly,
+				appversion.NightlyVersion,
+				"",
+			),
 		},
 		current: version.New(appversion.StableVersion, version.TypeStable, "v0.9.0", ""),
 	}
