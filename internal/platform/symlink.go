@@ -41,31 +41,22 @@ func UpdateSymlink(target, link string, isDir bool) error {
 	}
 
 	// Windows fallback
+	flag := "/H"
+	linkType := "hardlink"
 	if isDir {
-		// Directory junction
-		cmd := exec.CommandContext(context.Background(), "cmd", "/C", "mklink", "/J", link, target)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-
-		err := cmd.Run()
-		if err != nil {
-			return fmt.Errorf("failed to create junction for %s: %w", link, err)
-		}
-
-		logrus.Debugf("Created junction instead of symlink: %s -> %s", link, target)
-	} else {
-		// File hardlink
-		cmd := exec.CommandContext(context.Background(), "cmd", "/C", "mklink", "/H", link, target)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-
-		err := cmd.Run()
-		if err != nil {
-			return fmt.Errorf("failed to create hardlink for %s: %w", link, err)
-		}
-
-		logrus.Debugf("Created hardlink instead of symlink: %s -> %s", link, target)
+		flag = "/J"
+		linkType = "junction"
 	}
+
+	cmd := exec.CommandContext(context.Background(), "cmd", "/C", "mklink", flag, link, target)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to create %s for %s: %w", linkType, link, err)
+	}
+
+	logrus.Debugf("Created %s instead of symlink: %s -> %s", linkType, link, target)
 
 	return nil
 }
