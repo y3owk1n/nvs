@@ -136,7 +136,7 @@ func TestGetNvimConfigBaseDir_Fallback(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", "")
 
 	// For Windows, unset LOCALAPPDATA
-	if platform.WindowsOS == "windows" {
+	if runtime.GOOS == platform.WindowsOS {
 		t.Setenv("LOCALAPPDATA", "")
 	}
 
