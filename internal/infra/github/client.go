@@ -186,6 +186,11 @@ func (c *Client) FindNightly(ctx context.Context) (release.Release, error) {
 		return release.Release{}, err
 	}
 
+	// Sort releases by published date descending (newest first)
+	sort.Slice(releases, func(i, j int) bool {
+		return releases[i].PublishedAt().After(releases[j].PublishedAt())
+	})
+
 	for _, r := range releases {
 		if r.Prerelease() && strings.HasPrefix(strings.ToLower(r.TagName()), "nightly") {
 			return r, nil
