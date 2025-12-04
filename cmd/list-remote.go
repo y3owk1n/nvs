@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/fatih/color"
@@ -58,7 +59,7 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 	var groupNightly, groupStable, groupOthers []release.Release
 	for _, release := range releasesResult {
 		switch {
-		case release.Prerelease():
+		case release.Prerelease() && strings.HasPrefix(strings.ToLower(release.TagName()), "nightly"):
 			groupNightly = append(groupNightly, release)
 		case release.TagName() == stableConst:
 			groupStable = append(groupStable, release)
@@ -105,12 +106,13 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 	table.SetAutoWrapText(false)
 
 	// Iterate over the releases and build table rows with appropriate details and color-coding.
+	svc := GetVersionService()
 	for _, release := range combined {
 		var details string
 
 		// For nightly releases, display published date and commit hash.
 		if release.Prerelease() {
-			if release.TagName() == "nightly" {
+			if strings.HasPrefix(strings.ToLower(release.TagName()), "nightly") {
 				shortCommit := release.CommitHash()
 				if len(shortCommit) > ShortCommitLen {
 					shortCommit = shortCommit[:ShortCommitLen]
@@ -134,10 +136,10 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 		upgradeIndicator := ""
 
 		// Check if the release is installed locally.
-		if GetVersionService().IsVersionInstalled(key) {
+		if svc.IsVersionInstalled(key) {
 			// Check for upgrade availability
 			// Note: This logic is simplified; ideally use service to check for updates
-			installedIdentifier, err := GetVersionService().GetInstalledVersionIdentifier(key)
+			installedIdentifier, err := svc.GetInstalledVersionIdentifier(key)
 			if err != nil {
 				installedIdentifier = ""
 			}
