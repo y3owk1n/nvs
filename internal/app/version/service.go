@@ -126,6 +126,11 @@ func (r *releaseAdapter) GetChecksumURL() (string, error) {
 }
 
 func (r *releaseAdapter) GetIdentifier() string {
+	// For nightly releases, use commit hash as identifier; for stable, use tag name
+	if r.Prerelease() && strings.HasPrefix(strings.ToLower(r.TagName()), "nightly") {
+		return r.CommitHash()
+	}
+
 	return r.TagName()
 }
 
@@ -148,11 +153,11 @@ func (s *Service) Use(ctx context.Context, versionAlias string) (string, error) 
 
 		switch normalized {
 		case StableVersion:
-			rel, err = s.releaseRepo.FindStable(context.Background())
+			rel, err = s.releaseRepo.FindStable(ctx)
 		case NightlyVersion:
-			rel, err = s.releaseRepo.FindNightly(context.Background())
+			rel, err = s.releaseRepo.FindNightly(ctx)
 		default:
-			rel, err = s.releaseRepo.FindByTag(context.Background(), normalized)
+			rel, err = s.releaseRepo.FindByTag(ctx, normalized)
 		}
 
 		if err != nil {
@@ -276,9 +281,9 @@ func (s *Service) Upgrade(
 
 	switch normalized {
 	case StableVersion:
-		rel, err = s.releaseRepo.FindStable(context.Background())
+		rel, err = s.releaseRepo.FindStable(ctx)
 	case NightlyVersion:
-		rel, err = s.releaseRepo.FindNightly(context.Background())
+		rel, err = s.releaseRepo.FindNightly(ctx)
 	}
 
 	if err != nil {
