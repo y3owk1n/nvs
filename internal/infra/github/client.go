@@ -24,13 +24,15 @@ const (
 type Client struct {
 	httpClient *http.Client
 	cache      *Cache
+	minVersion string
 }
 
 // NewClient creates a new GitHub client with caching.
-func NewClient(cacheFilePath string, cacheTTL time.Duration) *Client {
+func NewClient(cacheFilePath string, cacheTTL time.Duration, minVersion string) *Client {
 	return &Client{
 		httpClient: &http.Client{Timeout: clientTimeoutSec * time.Second},
 		cache:      NewCache(cacheFilePath, cacheTTL),
+		minVersion: minVersion,
 	}
 }
 
@@ -55,7 +57,7 @@ type apiAsset struct {
 }
 
 // GetAll fetches all available releases from GitHub.
-func (c *Client) GetAll(force bool) ([]release.Release, error) {
+func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, error) {
 	// Try cache first unless force is true
 	if !force {
 		cached, err := c.cache.Get()
@@ -69,7 +71,7 @@ func (c *Client) GetAll(force bool) ([]release.Release, error) {
 	logrus.Debug("Fetching fresh releases from GitHub")
 
 	req, err := http.NewRequestWithContext(
-		context.Background(),
+		ctx,
 		http.MethodGet,
 		apiBaseURL+"/repos/neovim/neovim/releases",
 		nil,
@@ -111,8 +113,8 @@ func (c *Client) GetAll(force bool) ([]release.Release, error) {
 
 	releases := c.convertReleases(apiReleases)
 
-	// Filter releases >= 0.5.0
-	filtered, err := filterReleases(releases, "0.5.0")
+	// Filter releases >= minVersion
+	filtered, err := filterReleases(releases, c.minVersion)
 	if err != nil {
 		return nil, fmt.Errorf("failed to filter releases: %w", err)
 	}
@@ -128,7 +130,7 @@ func (c *Client) GetAll(force bool) ([]release.Release, error) {
 
 // FindStable returns the latest stable release.
 func (c *Client) FindStable() (release.Release, error) {
-	releases, err := c.GetAll(false)
+	releases, err := c.GetAll(context.Background(), false)
 	if err != nil {
 		return release.Release{}, err
 	}
@@ -144,7 +146,7 @@ func (c *Client) FindStable() (release.Release, error) {
 
 // FindNightly returns the latest nightly release.
 func (c *Client) FindNightly() (release.Release, error) {
-	releases, err := c.GetAll(false)
+	releases, err := c.GetAll(context.Background(), false)
 	if err != nil {
 		return release.Release{}, err
 	}
@@ -160,7 +162,7 @@ func (c *Client) FindNightly() (release.Release, error) {
 
 // FindByTag returns a specific release by tag.
 func (c *Client) FindByTag(tag string) (release.Release, error) {
-	releases, err := c.GetAll(false)
+	releases, err := c.GetAll(context.Background(), false)
 	if err != nil {
 		return release.Release{}, err
 	}
@@ -278,14 +280,14 @@ func GetAssetURL(rel release.Release) (string, string, error) {
 }
 
 // GetChecksumURL returns the checksum URL for a given asset pattern.
-func GetChecksumURL(r release.Release, assetPattern string) string {
+func GetChecksumURL(r release.Release, assetPattern string) (string, error) {
 	checksumPattern := assetPattern + ".sha256"
 
 	for _, asset := range r.Assets() {
 		if strings.Contains(asset.Name(), checksumPattern) {
-			return asset.DownloadURL()
+			return asset.DownloadURL(), nil
 		}
 	}
 
-	return ""
+	return "", fmt.Errorf("%w for pattern: %s", ErrChecksumNotFound, checksumPattern)
 }

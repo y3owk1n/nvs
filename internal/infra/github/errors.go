@@ -15,4 +15,7 @@ var (
 
 	// ErrUnsupportedOS is returned when the operating system is not supported.
 	ErrUnsupportedOS = errors.New("unsupported operating system")
+
+	// ErrChecksumNotFound is returned when a checksum asset is not found.
+	ErrChecksumNotFound = errors.New("checksum not found")
 )

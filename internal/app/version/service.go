@@ -122,7 +122,7 @@ func (r *releaseAdapter) GetChecksumURL() (string, error) {
 		return "", err
 	}
 
-	return github.GetChecksumURL(r.Release, pattern), nil
+	return github.GetChecksumURL(r.Release, pattern)
 }
 
 func (r *releaseAdapter) GetIdentifier() string {
@@ -250,7 +250,7 @@ func (s *Service) Uninstall(versionAlias string, force bool) error {
 
 // ListRemote returns available remote releases.
 func (s *Service) ListRemote(force bool) ([]release.Release, error) {
-	return s.releaseRepo.GetAll(force)
+	return s.releaseRepo.GetAll(context.Background(), force)
 }
 
 // Upgrade upgrades a version (stable or nightly).

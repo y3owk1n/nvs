@@ -118,7 +118,10 @@ func (m *mockReleaseRepoForIntegration) FindByTag(tag string) (release.Release, 
 	return release.Release{}, release.ErrReleaseNotFound
 }
 
-func (m *mockReleaseRepoForIntegration) GetAll(force bool) ([]release.Release, error) {
+func (m *mockReleaseRepoForIntegration) GetAll(
+	ctx context.Context,
+	force bool,
+) ([]release.Release, error) {
 	releases := make([]release.Release, 0, len(m.releases))
 	for _, rel := range m.releases {
 		releases = append(releases, rel)

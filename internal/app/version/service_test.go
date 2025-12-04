@@ -39,7 +39,7 @@ func (m *mockReleaseRepo) FindByTag(tag string) (release.Release, error) {
 	return rel, nil
 }
 
-func (m *mockReleaseRepo) GetAll(force bool) ([]release.Release, error) {
+func (m *mockReleaseRepo) GetAll(ctx context.Context, force bool) ([]release.Release, error) {
 	m.getAllForce = force
 
 	return []release.Release{m.stable, m.nightly}, nil

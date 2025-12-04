@@ -1,7 +1,10 @@
 // Package release provides the domain model for Neovim releases.
 package release
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // Release represents a Neovim release from GitHub.
 type Release struct {
@@ -96,7 +99,7 @@ func (a Asset) Size() int64 {
 type Repository interface {
 	// GetAll fetches all available releases.
 	// If force is true, bypasses any caching.
-	GetAll(force bool) ([]Release, error)
+	GetAll(ctx context.Context, force bool) ([]Release, error)
 
 	// FindStable returns the latest stable release.
 	FindStable() (Release, error)

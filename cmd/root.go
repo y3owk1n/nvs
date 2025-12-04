@@ -215,7 +215,7 @@ func InitConfig() {
 	logrus.Debugf("Global binary directory ensured: %s", globalBinDir)
 
 	// Initialize services
-	githubClient := github.NewClient(cacheFilePath, cacheTTL)
+	githubClient := github.NewClient(cacheFilePath, cacheTTL, "0.5.0")
 	versionManager := filesystem.New(&filesystem.Config{
 		VersionsDir:  versionsDir,
 		GlobalBinDir: globalBinDir,
