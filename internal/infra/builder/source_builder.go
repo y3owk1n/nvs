@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -16,9 +17,10 @@ import (
 )
 
 const (
-	maxAttempts  = 3
-	bufferSize   = 1024
+	bufferSize   = 4096
 	spinnerSpeed = 100
+	numReaders   = 2
+	maxAttempts  = 3
 	repoURL      = "https://github.com/neovim/neovim.git"
 	commitLen    = 7
 	dirPerm      = 0o755
@@ -91,10 +93,10 @@ func (b *SourceBuilder) buildFromCommitInternal(
 ) error {
 	var err error
 
-	spinner := spinner.New(spinner.CharSets[14], spinnerSpeed*time.Millisecond)
+	buildSpinner := spinner.New(spinner.CharSets[14], spinnerSpeed*time.Millisecond)
 
-	spinner.Start()
-	defer spinner.Stop()
+	buildSpinner.Start()
+	defer buildSpinner.Stop()
 
 	// Clone repository if needed
 	gitDir := filepath.Join(localPath, ".git")
@@ -104,7 +106,7 @@ func (b *SourceBuilder) buildFromCommitInternal(
 		// Clean up partial clone if exists
 		_ = os.RemoveAll(localPath)
 
-		spinner.Suffix = " Cloning repository..."
+		buildSpinner.Suffix = " Cloning repository..."
 
 		logrus.Debug("Cloning repository from ", repoURL)
 
@@ -120,7 +122,7 @@ func (b *SourceBuilder) buildFromCommitInternal(
 
 	// Checkout commit or master
 	if commit == "master" {
-		spinner.Suffix = " Checking out master branch..."
+		buildSpinner.Suffix = " Checking out master branch..."
 
 		logrus.Debug("Checking out master branch")
 
@@ -132,7 +134,7 @@ func (b *SourceBuilder) buildFromCommitInternal(
 			return fmt.Errorf("failed to checkout master: %w", err)
 		}
 	} else {
-		spinner.Suffix = " Checking out commit..."
+		buildSpinner.Suffix = " Checking out commit..."
 
 		logrus.Debugf("Checking out commit %s", commit)
 
@@ -179,7 +181,7 @@ func (b *SourceBuilder) buildFromCommitInternal(
 	}
 
 	// Build Neovim
-	spinner.Suffix = " Building Neovim..."
+	buildSpinner.Suffix = " Building Neovim..."
 
 	logrus.Debug("Building Neovim")
 
@@ -200,7 +202,7 @@ func (b *SourceBuilder) buildFromCommitInternal(
 	}
 
 	// Install using cmake
-	spinner.Suffix = " Installing Neovim..."
+	buildSpinner.Suffix = " Installing Neovim..."
 
 	logrus.Debugf("Installing to %s", targetDir)
 
@@ -228,7 +230,7 @@ func (b *SourceBuilder) buildFromCommitInternal(
 		return fmt.Errorf("failed to write version file: %w", err)
 	}
 
-	spinner.Suffix = " Build complete!"
+	buildSpinner.Suffix = " Build complete!"
 
 	logrus.Info("Build and installation successful")
 
@@ -266,7 +268,12 @@ func runCommandWithSpinner(cmd Commander) error {
 	}()
 
 	// Read from both pipes concurrently
+	var waitGroup sync.WaitGroup
+	waitGroup.Add(numReaders)
+
 	go func() {
+		defer waitGroup.Done()
+
 		buf := make([]byte, bufferSize)
 		for {
 			n, err := stdoutReader.Read(buf)
@@ -284,6 +291,8 @@ func runCommandWithSpinner(cmd Commander) error {
 	}()
 
 	go func() {
+		defer waitGroup.Done()
+
 		buf := make([]byte, bufferSize)
 		for {
 			n, err := stderrReader.Read(buf)
@@ -301,5 +310,9 @@ func runCommandWithSpinner(cmd Commander) error {
 	}()
 
 	// Wait for command to complete
-	return <-errChan
+	err = <-errChan
+
+	waitGroup.Wait()
+
+	return err
 }
