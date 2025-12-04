@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"bufio"
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -178,7 +177,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 			}
 
 			// Use the selected version as the new current version.
-			err = GetVersionService().Use(context.Background(), selectedVersion)
+			err = GetVersionService().Use(cmd.Context(), selectedVersion)
 			if err != nil {
 				return err
 			}
