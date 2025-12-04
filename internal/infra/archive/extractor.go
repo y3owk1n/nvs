@@ -100,7 +100,7 @@ func detectFormat(file *os.File) (string, error) {
 
 // writeFile writes data from reader to a file at target path with given mode.
 func writeFile(target string, mode os.FileMode, reader io.Reader) error {
-	file, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, mode)
+	file, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
 	if err != nil {
 		return fmt.Errorf("failed to open file %s: %w", target, err)
 	}
