@@ -4,6 +4,7 @@ package installer
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -102,6 +103,12 @@ func (s *Service) InstallRelease(
 	err = os.MkdirAll(installPath, dirPerm)
 	if err != nil {
 		return fmt.Errorf("failed to create install directory: %w", err)
+	}
+
+	// Reset file position for extraction
+	_, err = tempFile.Seek(0, io.SeekStart)
+	if err != nil {
+		return fmt.Errorf("failed to seek temp file: %w", err)
 	}
 
 	err = s.extractor.Extract(tempFile, installPath)
