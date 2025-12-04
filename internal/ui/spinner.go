@@ -1,4 +1,5 @@
 // Package ui provides user interface utilities.
+// Package ui provides user interface utilities.
 package ui
 
 import (
@@ -14,6 +15,7 @@ import (
 )
 
 const (
+	// GoroutineNum is the number of goroutines used for spinner updates.
 	GoroutineNum = 2
 )
 

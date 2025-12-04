@@ -24,22 +24,22 @@ func (e *execCommand) SetDir(dir string) {
 	e.cmd.Dir = dir
 }
 
-func (e *execCommand) SetStdout(stdout interface{}) {
+func (e *execCommand) SetStdout(stdout any) {
 	if w, ok := stdout.(io.Writer); ok {
 		e.cmd.Stdout = w
 	}
 }
 
-func (e *execCommand) SetStderr(stderr interface{}) {
+func (e *execCommand) SetStderr(stderr any) {
 	if w, ok := stderr.(io.Writer); ok {
 		e.cmd.Stderr = w
 	}
 }
 
-func (e *execCommand) StdoutPipe() (interface{}, error) {
+func (e *execCommand) StdoutPipe() (any, error) {
 	return e.cmd.StdoutPipe()
 }
 
-func (e *execCommand) StderrPipe() (interface{}, error) {
+func (e *execCommand) StderrPipe() (any, error) {
 	return e.cmd.StderrPipe()
 }

@@ -36,7 +36,12 @@ func New() *Downloader {
 type ProgressFunc func(percent int)
 
 // Download downloads a file from the given URL to the destination file.
-func (d *Downloader) Download(ctx context.Context, url string, dest *os.File, progress ProgressFunc) error {
+func (d *Downloader) Download(
+	ctx context.Context,
+	url string,
+	dest *os.File,
+	progress ProgressFunc,
+) error {
 	logrus.Debugf("Downloading from URL: %s", url)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -50,7 +55,8 @@ func (d *Downloader) Download(ctx context.Context, url string, dest *os.File, pr
 	if err != nil {
 		return fmt.Errorf("failed to download file: %w", err)
 	}
-	defer resp.Body.Close()
+
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("%w: status %d", ErrDownloadFailed, resp.StatusCode)
@@ -63,7 +69,8 @@ func (d *Downloader) Download(ctx context.Context, url string, dest *os.File, pr
 		callback: progress,
 	}
 
-	if _, err := io.Copy(dest, progressReader); err != nil {
+	_, err = io.Copy(dest, progressReader)
+	if err != nil {
 		return fmt.Errorf("failed to copy download content: %w", err)
 	}
 
@@ -81,7 +88,8 @@ func (d *Downloader) VerifyChecksum(ctx context.Context, file *os.File, checksum
 	if err != nil {
 		return fmt.Errorf("failed to download checksum: %w", err)
 	}
-	defer resp.Body.Close()
+
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("%w: status %d", ErrChecksumDownloadFailed, resp.StatusCode)
@@ -100,20 +108,24 @@ func (d *Downloader) VerifyChecksum(ctx context.Context, file *os.File, checksum
 	expectedHash := expectedFields[0]
 
 	// Compute actual hash
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
+	_, err = file.Seek(0, io.SeekStart)
+	if err != nil {
 		return fmt.Errorf("failed to seek file: %w", err)
 	}
 
 	hasher := sha256.New()
-	if _, err := io.Copy(hasher, file); err != nil {
-		return fmt.Errorf("failed to compute checksum: %w", err)
+
+	_, err = io.Copy(hasher, file)
+	if err != nil {
+		return fmt.Errorf("failed to hash file: %w", err)
 	}
 
 	actualHash := hex.EncodeToString(hasher.Sum(nil))
 
 	// Reset file pointer
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return fmt.Errorf("failed to reset file pointer: %w", err)
+	_, err = file.Seek(0, io.SeekStart)
+	if err != nil {
+		return fmt.Errorf("failed to seek file: %w", err)
 	}
 
 	if actualHash != expectedHash {
@@ -132,13 +144,13 @@ type progressReader struct {
 }
 
 func (pr *progressReader) Read(p []byte) (int, error) {
-	n, err := pr.reader.Read(p)
+	bytesRead, err := pr.reader.Read(p)
 
-	pr.read += int64(n)
+	pr.read += int64(bytesRead)
 	if pr.callback != nil && pr.total > 0 {
 		percent := int((pr.read * progressDiv) / pr.total)
 		pr.callback(percent)
 	}
 
-	return n, err
+	return bytesRead, err
 }

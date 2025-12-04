@@ -1,4 +1,5 @@
 // Package platform provides platform-specific utilities.
+// Package platform provides platform-specific utilities.
 package platform
 
 import (
@@ -12,6 +13,7 @@ import (
 )
 
 const (
+	// WindowsOS is the string representation of the Windows operating system.
 	WindowsOS = "windows"
 )
 

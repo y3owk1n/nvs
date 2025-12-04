@@ -47,6 +47,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 
 	// Check if the version to uninstall is currently active.
 	isCurrent := false
+
 	current, err := GetVersionService().Current()
 	if err == nil && current.Name() == versionArg { // Simplified check, ideally normalize first
 		isCurrent = true
@@ -65,7 +66,9 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 		}
 
 		reader := bufio.NewReader(os.Stdin)
+
 		var input string
+
 		input, err = reader.ReadString('\n')
 		if err != nil {
 			return fmt.Errorf("failed to read input: %w", err)
@@ -81,9 +84,12 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 			if printErr != nil {
 				logrus.Warnf("Failed to write to stdout: %v", printErr)
 			}
+
 			logrus.Debug("Uninstall canceled by user")
+
 			return nil
 		}
+
 		logrus.Debugf("User confirmed removal of current version %s", versionArg)
 	}
 
@@ -93,6 +99,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 		if strings.Contains(err.Error(), "not found") { // Should use errors.Is
 			return fmt.Errorf("version %s is not installed: %w", versionArg, ErrVersionNotInstalled)
 		}
+
 		return fmt.Errorf("failed to uninstall version %s: %w", versionArg, err)
 	}
 

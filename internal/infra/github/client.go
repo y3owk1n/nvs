@@ -35,6 +35,8 @@ func NewClient(cacheFilePath string, cacheTTL time.Duration) *Client {
 }
 
 // apiRelease represents a release from the GitHub API.
+//
+//nolint:tagliatelle
 type apiRelease struct {
 	TagName     string     `json:"tag_name"`
 	Prerelease  bool       `json:"prerelease"`
@@ -44,6 +46,8 @@ type apiRelease struct {
 }
 
 // apiAsset represents an asset from the GitHub API.
+//
+//nolint:tagliatelle
 type apiAsset struct {
 	Name               string `json:"name"`
 	BrowserDownloadURL string `json:"browser_download_url"`
@@ -54,8 +58,10 @@ type apiAsset struct {
 func (c *Client) GetAll(force bool) ([]release.Release, error) {
 	// Try cache first unless force is true
 	if !force {
-		if cached, err := c.cache.Get(); err == nil {
+		cached, err := c.cache.Get()
+		if err == nil {
 			logrus.Debug("Using cached releases")
+
 			return cached, nil
 		}
 	}
@@ -78,7 +84,8 @@ func (c *Client) GetAll(force bool) ([]release.Release, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch releases: %w", err)
 	}
-	defer resp.Body.Close()
+
+	defer func() { _ = resp.Body.Close() }()
 
 	logrus.Debugf("GitHub API status code: %d", resp.StatusCode)
 
@@ -91,7 +98,9 @@ func (c *Client) GetAll(force bool) ([]release.Release, error) {
 	}
 
 	var apiReleases []apiRelease
-	if err := json.NewDecoder(resp.Body).Decode(&apiReleases); err != nil {
+
+	err = json.NewDecoder(resp.Body).Decode(&apiReleases)
+	if err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
@@ -104,7 +113,8 @@ func (c *Client) GetAll(force bool) ([]release.Release, error) {
 	}
 
 	// Update cache
-	if err := c.cache.Set(filtered); err != nil {
+	err = c.cache.Set(filtered)
+	if err != nil {
 		logrus.Warnf("Failed to update cache: %v", err)
 	}
 
@@ -163,18 +173,18 @@ func (c *Client) FindByTag(tag string) (release.Release, error) {
 func (c *Client) convertReleases(apiReleases []apiRelease) []release.Release {
 	releases := make([]release.Release, 0, len(apiReleases))
 
-	for _, ar := range apiReleases {
-		publishedAt, _ := time.Parse(time.RFC3339, ar.PublishedAt)
+	for _, apiRelease := range apiReleases {
+		publishedAt, _ := time.Parse(time.RFC3339, apiRelease.PublishedAt)
 
-		assets := make([]release.Asset, 0, len(ar.Assets))
-		for _, aa := range ar.Assets {
+		assets := make([]release.Asset, 0, len(apiRelease.Assets))
+		for _, aa := range apiRelease.Assets {
 			assets = append(assets, release.NewAsset(aa.Name, aa.BrowserDownloadURL, aa.Size))
 		}
 
 		releases = append(releases, release.New(
-			ar.TagName,
-			ar.Prerelease,
-			ar.CommitHash,
+			apiRelease.TagName,
+			apiRelease.Prerelease,
+			apiRelease.CommitHash,
 			publishedAt,
 			assets,
 		))
@@ -192,22 +202,25 @@ func filterReleases(releases []release.Release, minVersion string) ([]release.Re
 
 	filtered := make([]release.Release, 0, len(releases))
 
-	for _, r := range releases {
+	for _, rel := range releases {
 		// Always include stable and nightly
-		if r.TagName() == "stable" || r.TagName() == "nightly" {
-			filtered = append(filtered, r)
+		if rel.TagName() == "stable" || rel.TagName() == "nightly" {
+			filtered = append(filtered, rel)
+
 			continue
 		}
 
-		versionStr := strings.TrimPrefix(r.TagName(), "v")
-		v, err := semver.NewVersion(versionStr)
+		versionStr := strings.TrimPrefix(rel.TagName(), "v")
+
+		version, err := semver.NewVersion(versionStr)
 		if err != nil {
-			logrus.Debugf("Skipping invalid version: %s", r.TagName())
+			logrus.Debugf("Skipping invalid version: %s", rel.TagName())
+
 			continue
 		}
 
-		if constraints.Check(v) {
-			filtered = append(filtered, r)
+		if constraints.Check(version) {
+			filtered = append(filtered, rel)
 		}
 	}
 
@@ -215,7 +228,7 @@ func filterReleases(releases []release.Release, minVersion string) ([]release.Re
 }
 
 // GetAssetURL returns the download URL for the current platform.
-func GetAssetURL(r release.Release) (string, string, error) {
+func GetAssetURL(rel release.Release) (string, string, error) {
 	var patterns []string
 
 	switch runtime.GOOS {
@@ -240,7 +253,7 @@ func GetAssetURL(r release.Release) (string, string, error) {
 		return "", "", fmt.Errorf("%w: %s", ErrUnsupportedOS, runtime.GOOS)
 	}
 
-	for _, asset := range r.Assets() {
+	for _, asset := range rel.Assets() {
 		for _, pattern := range patterns {
 			if strings.Contains(asset.Name(), pattern) {
 				return asset.DownloadURL(), pattern, nil
@@ -248,7 +261,12 @@ func GetAssetURL(r release.Release) (string, string, error) {
 		}
 	}
 
-	return "", "", fmt.Errorf("%w for %s/%s", release.ErrNoMatchingAsset, runtime.GOOS, runtime.GOARCH)
+	return "", "", fmt.Errorf(
+		"%w for %s/%s",
+		release.ErrNoMatchingAsset,
+		runtime.GOOS,
+		runtime.GOARCH,
+	)
 }
 
 // GetChecksumURL returns the checksum URL for a given asset pattern.

@@ -83,13 +83,15 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 				spinner.Prefix = phase + " "
 				spinner.Suffix = ""
 			}
+
 			spinner.Suffix = fmt.Sprintf(" %d%%", progress)
 		})
-
 		if err != nil {
 			spinner.Stop()
+
 			if err.Error() == "not installed" { // Should use errors.Is
 				logrus.Debugf("'%s' is not installed. Skipping upgrade.", alias)
+
 				_, printErr := fmt.Fprintf(os.Stdout,
 					"%s %s %s\n",
 					ui.WarningIcon(),
@@ -99,10 +101,13 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 				if printErr != nil {
 					logrus.Warnf("Failed to write to stdout: %v", printErr)
 				}
+
 				continue
 			}
+
 			if err.Error() == "already up-to-date" { // Should use errors.Is
 				logrus.Debugf("%s is already up-to-date", alias)
+
 				_, printErr := fmt.Fprintf(os.Stdout,
 					"%s %s %s\n",
 					ui.WarningIcon(),
@@ -112,10 +117,12 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 				if printErr != nil {
 					logrus.Warnf("Failed to write to stdout: %v", printErr)
 				}
+
 				continue
 			}
 
 			logrus.Errorf("Upgrade failed for %s: %v", alias, err)
+
 			return fmt.Errorf("upgrade failed for %s: %w", alias, err)
 		}
 

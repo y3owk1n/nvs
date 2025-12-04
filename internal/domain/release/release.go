@@ -20,7 +20,13 @@ type Asset struct {
 }
 
 // New creates a new Release instance.
-func New(tagName string, prerelease bool, commitHash string, publishedAt time.Time, assets []Asset) Release {
+func New(
+	tagName string,
+	prerelease bool,
+	commitHash string,
+	publishedAt time.Time,
+	assets []Asset,
+) Release {
 	return Release{
 		tagName:     tagName,
 		prerelease:  prerelease,

@@ -29,9 +29,7 @@ const stableConst = "stable"
 var currentCmd = &cobra.Command{
 	Use:   "current",
 	Short: "Show current active version with details",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return RunCurrent(cmd, args)
-	},
+	RunE:  RunCurrent,
 }
 
 // RunCurrent executes the current command.
@@ -45,8 +43,9 @@ func RunCurrent(_ *cobra.Command, _ []string) error {
 
 	logrus.Debugf("Current version detected: %s", current.Name())
 
-	// Handle "stable" active version
-	if current.Name() == stableConst {
+	// Handle active version
+	switch current.Name() {
+	case stableConst:
 		logrus.Debug("Fetching latest stable release")
 
 		stable, err := GetVersionService().FindStable()
@@ -74,8 +73,7 @@ func RunCurrent(_ *cobra.Command, _ []string) error {
 
 			logrus.Debugf("Latest stable version: %s", stable.TagName())
 		}
-
-	} else if current.Name() == "nightly" {
+	case "nightly":
 		logrus.Debug("Fetching latest nightly release")
 
 		nightly, err := GetVersionService().FindNightly()
@@ -120,8 +118,7 @@ func RunCurrent(_ *cobra.Command, _ []string) error {
 
 			logrus.Debugf("Latest nightly commit: %s, Published: %s", shortCommit, publishedStr)
 		}
-
-	} else {
+	default:
 		// Handle custom version or commit hash
 		isCommitHash := GetVersionService().IsCommitHash(current.Name())
 		logrus.Debugf("isCommitHash: %t", isCommitHash)

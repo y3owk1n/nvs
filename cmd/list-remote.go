@@ -84,6 +84,7 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 
 	// Determine the current installed version (if any).
 	current, err := GetVersionService().Current()
+
 	currentName := ""
 	if err == nil {
 		currentName = current.Name()
@@ -114,9 +115,10 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 		if release.Prerelease() {
 			if release.TagName() == "nightly" {
 				shortCommit := release.CommitHash()
-				if len(shortCommit) > 7 {
-					shortCommit = shortCommit[:7]
+				if len(shortCommit) > ShortCommitLen {
+					shortCommit = shortCommit[:ShortCommitLen]
 				}
+
 				details = fmt.Sprintf(
 					"Published: %s, Commit: %s",
 					ui.TimeFormat(release.PublishedAt().Format(time.RFC3339)),

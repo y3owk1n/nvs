@@ -1,10 +1,12 @@
-package platform
+package platform_test
 
 import (
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	platform "github.com/y3owk1n/nvs/internal/platform"
 )
 
 func TestFindNvimBinary(t *testing.T) {
@@ -12,25 +14,28 @@ func TestFindNvimBinary(t *testing.T) {
 
 	// Create a fake nvim structure
 	versionDir := filepath.Join(tempDir, "v0.10.0")
-	err := os.MkdirAll(versionDir, 0755)
+
+	err := os.MkdirAll(versionDir, 0o755)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var binName string
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == platform.WindowsOS {
 		binName = "nvim.exe"
 	} else {
 		binName = "nvim"
 	}
 
 	binPath := filepath.Join(versionDir, binName)
-	err = os.WriteFile(binPath, []byte("#!/bin/bash\necho nvim"), 0755)
+
+	err = os.WriteFile(binPath, []byte("#!/bin/bash\necho nvim"), 0o755)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	found := FindNvimBinary(tempDir)
+	found := platform.FindNvimBinary(tempDir)
+
 	expected := filepath.Join(versionDir, binName)
 	if found != expected {
 		t.Errorf("expected %s, got %s", expected, found)
@@ -41,25 +46,28 @@ func TestFindNvimBinary_Prefixed(t *testing.T) {
 	tempDir := t.TempDir()
 
 	versionDir := filepath.Join(tempDir, "v0.10.0")
-	err := os.MkdirAll(versionDir, 0755)
+
+	err := os.MkdirAll(versionDir, 0o755)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var binName string
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == platform.WindowsOS {
 		binName = "nvim-v0.10.0.exe"
 	} else {
 		binName = "nvim-v0.10.0"
 	}
 
 	binPath := filepath.Join(versionDir, binName)
-	err = os.WriteFile(binPath, []byte("#!/bin/bash\necho nvim"), 0755)
+
+	err = os.WriteFile(binPath, []byte("#!/bin/bash\necho nvim"), 0o755)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	found := FindNvimBinary(tempDir)
+	found := platform.FindNvimBinary(tempDir)
+
 	expected := filepath.Join(versionDir, binName)
 	if found != expected {
 		t.Errorf("expected %s, got %s", expected, found)
@@ -69,30 +77,31 @@ func TestFindNvimBinary_Prefixed(t *testing.T) {
 func TestFindNvimBinary_NotFound(t *testing.T) {
 	tempDir := t.TempDir()
 
-	found := FindNvimBinary(tempDir)
+	found := platform.FindNvimBinary(tempDir)
 	if found != "" {
 		t.Errorf("expected empty string, got %s", found)
 	}
 }
 
 func TestUpdateSymlink(t *testing.T) {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == platform.WindowsOS {
 		t.Skip("Skipping symlink test on Windows")
 	}
 
 	tempDir := t.TempDir()
 
 	target := filepath.Join(tempDir, "target")
-	err := os.MkdirAll(target, 0755)
+
+	err := os.MkdirAll(target, 0o755)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	link := filepath.Join(tempDir, "link")
 
-	err = UpdateSymlink(target, link, true)
+	err = platform.UpdateSymlink(target, link, true)
 	if err != nil {
-		t.Fatalf("UpdateSymlink failed: %v", err)
+		t.Fatalf("platform.UpdateSymlink failed: %v", err)
 	}
 
 	// Verify symlink
@@ -109,18 +118,10 @@ func TestUpdateSymlink(t *testing.T) {
 func TestGetNvimConfigBaseDir(t *testing.T) {
 	// Test with XDG_CONFIG_HOME set
 	tempDir := t.TempDir()
-	oldXDG := os.Getenv("XDG_CONFIG_HOME")
-	defer func() {
-		if oldXDG != "" {
-			os.Setenv("XDG_CONFIG_HOME", oldXDG)
-		} else {
-			os.Unsetenv("XDG_CONFIG_HOME")
-		}
-	}()
 
-	os.Setenv("XDG_CONFIG_HOME", tempDir)
+	t.Setenv("XDG_CONFIG_HOME", tempDir)
 
-	dir, err := GetNvimConfigBaseDir()
+	dir, err := platform.GetNvimConfigBaseDir()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,28 +133,14 @@ func TestGetNvimConfigBaseDir(t *testing.T) {
 
 func TestGetNvimConfigBaseDir_Fallback(t *testing.T) {
 	// Test without XDG_CONFIG_HOME
-	oldXDG := os.Getenv("XDG_CONFIG_HOME")
-	oldLocal := os.Getenv("LOCALAPPDATA")
-	defer func() {
-		if oldXDG != "" {
-			os.Setenv("XDG_CONFIG_HOME", oldXDG)
-		} else {
-			os.Unsetenv("XDG_CONFIG_HOME")
-		}
-		if oldLocal != "" {
-			os.Setenv("LOCALAPPDATA", oldLocal)
-		} else {
-			os.Unsetenv("LOCALAPPDATA")
-		}
-	}()
+	t.Setenv("XDG_CONFIG_HOME", "")
 
-	os.Unsetenv("XDG_CONFIG_HOME")
-
-	if runtime.GOOS == "windows" {
-		os.Unsetenv("LOCALAPPDATA")
+	// For Windows, unset LOCALAPPDATA
+	if platform.WindowsOS == "windows" {
+		t.Setenv("LOCALAPPDATA", "")
 	}
 
-	dir, err := GetNvimConfigBaseDir()
+	dir, err := platform.GetNvimConfigBaseDir()
 	if err != nil {
 		t.Fatal(err)
 	}

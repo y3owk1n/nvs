@@ -1,4 +1,5 @@
 // Package version provides the application service for version management.
+// Package version provides the application service for version management.
 package version
 
 import (
@@ -22,6 +23,12 @@ type Service struct {
 	installer      installer.Installer
 	config         *Config
 }
+
+// Constants for version names.
+const (
+	StableVersion  = "stable"
+	NightlyVersion = "nightly"
+)
 
 // Config holds configuration for the version service.
 type Config struct {
@@ -47,24 +54,30 @@ func New(
 
 // Install installs a Neovim version.
 // The versionAlias can be "stable", "nightly", a version tag, or a commit hash.
-func (s *Service) Install(ctx context.Context, versionAlias string, progress installer.ProgressFunc) error {
+func (s *Service) Install(
+	ctx context.Context,
+	versionAlias string,
+	progress installer.ProgressFunc,
+) error {
 	// Normalize version
 	normalized := normalizeVersion(versionAlias)
 
 	// Check if it's a commit hash
 	if isCommitHash(normalized) {
 		// This will be handled by a separate installer implementation
-		return fmt.Errorf("commit hash installation not yet implemented in service layer")
+		return ErrCommitHashNotImplemented
 	}
 
 	// Resolve release
-	var rel release.Release
-	var err error
+	var (
+		rel release.Release
+		err error
+	)
 
 	switch normalized {
-	case "stable":
+	case StableVersion:
 		rel, err = s.releaseRepo.FindStable()
-	case "nightly":
+	case NightlyVersion:
 		rel, err = s.releaseRepo.FindNightly()
 	default:
 		rel, err = s.releaseRepo.FindByTag(normalized)
@@ -90,13 +103,14 @@ func (s *Service) Install(ctx context.Context, versionAlias string, progress ins
 	return s.installer.InstallRelease(ctx, releaseInfo, s.config.VersionsDir, normalized, progress)
 }
 
-// releaseAdapter adapts release.Release to installer.ReleaseInfo
+// releaseAdapter adapts release.Release to installer.ReleaseInfo.
 type releaseAdapter struct {
 	release.Release
 }
 
 func (r *releaseAdapter) GetAssetURL() (string, error) {
 	url, _, err := github.GetAssetURL(r.Release)
+
 	return url, err
 }
 
@@ -106,6 +120,7 @@ func (r *releaseAdapter) GetChecksumURL() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return github.GetChecksumURL(r.Release, pattern), nil
 }
 
@@ -125,13 +140,15 @@ func (s *Service) Use(ctx context.Context, versionAlias string) error {
 		targetVersion = version.New(normalized, version.TypeCommit, normalized, "")
 	} else {
 		// Resolve from release
-		var rel release.Release
-		var err error
+		var (
+			rel release.Release
+			err error
+		)
 
 		switch normalized {
-		case "stable":
+		case StableVersion:
 			rel, err = s.releaseRepo.FindStable()
-		case "nightly":
+		case NightlyVersion:
 			rel, err = s.releaseRepo.FindNightly()
 		default:
 			rel, err = s.releaseRepo.FindByTag(normalized)
@@ -143,7 +160,7 @@ func (s *Service) Use(ctx context.Context, versionAlias string) error {
 
 		// Determine version type
 		vType := version.TypeTag
-		if normalized == "stable" {
+		if normalized == StableVersion {
 			vType = version.TypeStable
 		} else if rel.Prerelease() {
 			vType = version.TypeNightly
@@ -161,11 +178,13 @@ func (s *Service) Use(ctx context.Context, versionAlias string) error {
 	current, err := s.versionManager.Current(s.config.VersionsDir)
 	if err == nil && current.Name() == targetVersion.Name() {
 		logrus.Debugf("Already using version: %s", targetVersion.Name())
+
 		return nil
 	}
 
 	// Switch version
-	if err := s.versionManager.Switch(targetVersion, s.config.VersionsDir, s.config.GlobalBinDir); err != nil {
+	err = s.versionManager.Switch(targetVersion, s.config.VersionsDir, s.config.GlobalBinDir)
+	if err != nil {
 		return fmt.Errorf("failed to switch version: %w", err)
 	}
 
@@ -203,12 +222,14 @@ func (s *Service) Uninstall(versionAlias string, force bool) error {
 	}
 
 	var targetVersion version.Version
+
 	found := false
 
 	for _, v := range versions {
 		if v.Name() == normalized {
 			targetVersion = v
 			found = true
+
 			break
 		}
 	}
@@ -218,7 +239,8 @@ func (s *Service) Uninstall(versionAlias string, force bool) error {
 	}
 
 	// Uninstall
-	if err := s.versionManager.Uninstall(targetVersion, s.config.VersionsDir, force); err != nil {
+	err = s.versionManager.Uninstall(targetVersion, s.config.VersionsDir, force)
+	if err != nil {
 		return fmt.Errorf("failed to uninstall version: %w", err)
 	}
 
@@ -231,27 +253,36 @@ func (s *Service) ListRemote(force bool) ([]release.Release, error) {
 }
 
 // Upgrade upgrades a version (stable or nightly).
-func (s *Service) Upgrade(ctx context.Context, versionAlias string, progress installer.ProgressFunc) error {
+func (s *Service) Upgrade(
+	ctx context.Context,
+	versionAlias string,
+	progress installer.ProgressFunc,
+) error {
 	normalized := normalizeVersion(versionAlias)
 
 	// Only stable and nightly can be upgraded
-	if normalized != "stable" && normalized != "nightly" {
-		return fmt.Errorf("only stable and nightly versions can be upgraded")
+	if normalized != StableVersion && normalized != NightlyVersion {
+		return ErrOnlyStableNightlyUpgrade
 	}
 
 	// Check if installed
-	if !s.versionManager.IsInstalled(version.New(normalized, version.TypeTag, normalized, ""), s.config.VersionsDir) {
-		return fmt.Errorf("not installed")
+	if !s.versionManager.IsInstalled(
+		version.New(normalized, version.TypeTag, normalized, ""),
+		s.config.VersionsDir,
+	) {
+		return ErrNotInstalled
 	}
 
 	// Resolve remote release
-	var rel release.Release
-	var err error
+	var (
+		rel release.Release
+		err error
+	)
 
 	switch normalized {
-	case "stable":
+	case StableVersion:
 		rel, err = s.releaseRepo.FindStable()
-	case "nightly":
+	case NightlyVersion:
 		rel, err = s.releaseRepo.FindNightly()
 	}
 
@@ -260,22 +291,27 @@ func (s *Service) Upgrade(ctx context.Context, versionAlias string, progress ins
 	}
 
 	// Check if update is needed
-	currentIdentifier, err := s.versionManager.GetInstalledReleaseIdentifier(normalized, s.config.VersionsDir)
+	currentIdentifier, err := s.versionManager.GetInstalledReleaseIdentifier(
+		normalized,
+		s.config.VersionsDir,
+	)
 	if err == nil && currentIdentifier == rel.TagName() {
-		return fmt.Errorf("already up-to-date")
+		return ErrAlreadyUpToDate
 	}
 
 	// Backup existing version
 	versionPath := filepath.Join(s.config.VersionsDir, normalized)
 	backupPath := versionPath + ".backup"
 
-	if err := os.Rename(versionPath, backupPath); err != nil {
-		return fmt.Errorf("failed to backup existing version: %w", err)
+	err = os.Rename(versionPath, backupPath)
+	if err != nil {
+		return fmt.Errorf("failed to backup version: %w", err)
 	}
 
 	// Cleanup backup on success or restore on failure
 	defer func() {
-		if _, err := os.Stat(versionPath); err == nil {
+		_, statErr := os.Stat(versionPath)
+		if statErr == nil {
 			// Upgrade succeeded, remove backup
 			_ = os.RemoveAll(backupPath)
 		} else {
@@ -289,24 +325,25 @@ func (s *Service) Upgrade(ctx context.Context, versionAlias string, progress ins
 		Release: rel,
 	}
 
-	if err := s.installer.InstallRelease(ctx, releaseInfo, s.config.VersionsDir, normalized, progress); err != nil {
-		return fmt.Errorf("failed to install upgrade: %w", err)
+	err = s.installer.InstallRelease(ctx, releaseInfo, s.config.VersionsDir, normalized, progress)
+	if err != nil {
+		return fmt.Errorf("failed to install release: %w", err)
 	}
 
 	return nil
 }
 
 // normalizeVersion normalizes a version string.
-func normalizeVersion(v string) string {
-	if v == "stable" || v == "nightly" || isCommitHash(v) {
-		return v
+func normalizeVersion(version string) string {
+	if version == StableVersion || version == NightlyVersion || isCommitHash(version) {
+		return version
 	}
 
-	if !strings.HasPrefix(v, "v") {
-		return "v" + v
+	if !strings.HasPrefix(version, "v") {
+		return "v" + version
 	}
 
-	return v
+	return version
 }
 
 // isCommitHash checks if a string is a commit hash.
@@ -320,7 +357,7 @@ func isCommitHash(str string) bool {
 	}
 
 	for _, r := range str {
-		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')) {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
 			return false
 		}
 	}
@@ -331,6 +368,7 @@ func isCommitHash(str string) bool {
 // IsVersionInstalled checks if a version is installed.
 func (s *Service) IsVersionInstalled(versionName string) bool {
 	v := version.New(versionName, version.TypeTag, versionName, "")
+
 	return s.versionManager.IsInstalled(v, s.config.VersionsDir)
 }
 

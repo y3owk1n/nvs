@@ -23,9 +23,7 @@ var listCmd = &cobra.Command{
 	Use:     "list",
 	Aliases: []string{"ls"},
 	Short:   "List installed versions",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return RunList(cmd, args)
-	},
+	RunE:    RunList,
 }
 
 // RunList executes the list command.
@@ -80,17 +78,17 @@ func RunList(_ *cobra.Command, _ []string) error {
 	table.SetAutoWrapText(false)
 
 	// Append each version to the table.
-	for _, v := range versions {
+	for _, version := range versions {
 		var row []string
-		if current.Name() != "" && v.Name() == current.Name() {
+		if current.Name() != "" && version.Name() == current.Name() {
 			// Mark the current version with an arrow and use a highlighted green color.
 			row = []string{
-				color.New(color.Bold, color.FgHiGreen).Sprintf("→ %s", v.Name()),
+				color.New(color.Bold, color.FgHiGreen).Sprintf("→ %s", version.Name()),
 				color.New(color.Bold, color.FgHiGreen).Sprintf("Current"),
 			}
-			logrus.Debugf("Marked version %s as current", v.Name())
+			logrus.Debugf("Marked version %s as current", version.Name())
 		} else {
-			row = []string{v.Name(), "Installed"}
+			row = []string{version.Name(), "Installed"}
 		}
 
 		table.Append(row)

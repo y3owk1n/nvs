@@ -1,4 +1,3 @@
-// Package filesystem provides filesystem utilities.
 package filesystem
 
 import (
@@ -10,6 +9,7 @@ import (
 )
 
 const (
+	// DirPerm is the permission for directories.
 	DirPerm = 0o755
 )
 
@@ -34,6 +34,7 @@ func CopyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() {
 		cerr := out.Close()
 		if err == nil {

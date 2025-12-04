@@ -1,4 +1,4 @@
-package version
+package version_test
 
 import (
 	"context"
@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
+	appversion "github.com/y3owk1n/nvs/internal/app/version"
 	"github.com/y3owk1n/nvs/internal/domain/installer"
 	"github.com/y3owk1n/nvs/internal/domain/release"
 	"github.com/y3owk1n/nvs/internal/domain/version"
 )
 
-// mockReleaseRepo implements release.Repository for testing
+// mockReleaseRepo implements release.Repository for testing.
 type mockReleaseRepo struct {
 	stable      release.Release
 	nightly     release.Release
@@ -33,21 +34,23 @@ func (m *mockReleaseRepo) FindByTag(tag string) (release.Release, error) {
 
 func (m *mockReleaseRepo) GetAll(force bool) ([]release.Release, error) {
 	m.getAllForce = force
+
 	return []release.Release{m.stable, m.nightly}, nil
 }
 
-// mockVersionManager implements version.Manager for testing
+// mockVersionManager implements version.Manager for testing.
 type mockVersionManager struct {
 	installed map[string]bool
 	current   version.Version
 }
 
 func (m *mockVersionManager) List(versionsDir string) ([]version.Version, error) {
-	var versions []version.Version
+	versions := make([]version.Version, 0, len(m.installed))
 	for name := range m.installed {
 		v := version.New(name, version.TypeTag, name, "")
 		versions = append(versions, v)
 	}
+
 	return versions, nil
 }
 
@@ -57,6 +60,7 @@ func (m *mockVersionManager) Current(versionsDir string) (version.Version, error
 
 func (m *mockVersionManager) Switch(v version.Version, versionsDir, binDir string) error {
 	m.current = v
+
 	return nil
 }
 
@@ -66,37 +70,29 @@ func (m *mockVersionManager) IsInstalled(v version.Version, versionsDir string) 
 
 func (m *mockVersionManager) Uninstall(v version.Version, versionsDir string, force bool) error {
 	delete(m.installed, v.Name())
+
 	return nil
 }
 
-func (m *mockVersionManager) GetInstalledReleaseIdentifier(versionName, versionsDir string) (string, error) {
+func (m *mockVersionManager) GetInstalledReleaseIdentifier(
+	versionName, versionsDir string,
+) (string, error) {
 	return versionName, nil
 }
 
-// mockReleaseInfo implements installer.ReleaseInfo for testing
-type mockReleaseInfo struct {
-	identifier string
-}
-
-func (m *mockReleaseInfo) GetAssetURL() (string, error) {
-	return "mock-url", nil
-}
-
-func (m *mockReleaseInfo) GetChecksumURL() (string, error) {
-	return "mock-checksum", nil
-}
-
-func (m *mockReleaseInfo) GetIdentifier() string {
-	return m.identifier
-}
-
-// mockInstaller implements installer.Installer for testing
+// mockInstaller implements installer.Installer for testing.
 type mockInstaller struct {
 	installed map[string]bool
 }
 
-func (m *mockInstaller) InstallRelease(ctx context.Context, rel installer.ReleaseInfo, dest, installName string, progress installer.ProgressFunc) error {
+func (m *mockInstaller) InstallRelease(
+	ctx context.Context,
+	rel installer.ReleaseInfo,
+	dest, installName string,
+	progress installer.ProgressFunc,
+) error {
 	m.installed[installName] = true
+
 	return nil
 }
 
@@ -111,21 +107,26 @@ func TestService_Use_Stable(t *testing.T) {
 		stable: release.New("v0.10.0", false, "abc123", time.Time{}, nil),
 	}
 	manager := &mockVersionManager{
-		installed: map[string]bool{"stable": true},
-		current:   version.New("nightly", version.TypeNightly, "nightly", ""),
+		installed: map[string]bool{appversion.StableVersion: true},
+		current: version.New(
+			appversion.NightlyVersion,
+			version.TypeNightly,
+			appversion.NightlyVersion,
+			"",
+		),
 	}
 	install := &mockInstaller{
 		installed: make(map[string]bool),
 	}
 
-	service := New(repo, manager, install, &Config{})
+	service := appversion.New(repo, manager, install, &appversion.Config{})
 
-	err := service.Use(context.Background(), "stable")
+	err := service.Use(context.Background(), appversion.StableVersion)
 	if err != nil {
 		t.Fatalf("Use stable failed: %v", err)
 	}
 
-	if manager.current.Name() != "stable" {
+	if manager.current.Name() != appversion.StableVersion {
 		t.Errorf("Expected current version name 'stable', got '%s'", manager.current.Name())
 	}
 
@@ -143,19 +144,19 @@ func TestService_Use_Nightly(t *testing.T) {
 		nightly: release.New("nightly-2024-12-04", true, "def456", time.Time{}, nil),
 	}
 	manager := &mockVersionManager{
-		installed: map[string]bool{"nightly": true},
-		current:   version.New("stable", version.TypeStable, "v0.9.0", ""),
+		installed: map[string]bool{appversion.NightlyVersion: true},
+		current:   version.New(appversion.StableVersion, version.TypeStable, "v0.9.0", ""),
 	}
 	install := &mockInstaller{}
 
-	service := New(repo, manager, install, &Config{})
+	service := appversion.New(repo, manager, install, &appversion.Config{})
 
-	err := service.Use(context.Background(), "nightly")
+	err := service.Use(context.Background(), appversion.NightlyVersion)
 	if err != nil {
 		t.Fatalf("Use nightly failed: %v", err)
 	}
 
-	if manager.current.Name() != "nightly" {
+	if manager.current.Name() != appversion.NightlyVersion {
 		t.Errorf("Expected current version name 'nightly', got '%s'", manager.current.Name())
 	}
 
@@ -175,7 +176,7 @@ func TestService_Use_Tag(t *testing.T) {
 	}
 	install := &mockInstaller{}
 
-	service := New(repo, manager, install, &Config{})
+	service := appversion.New(repo, manager, install, &appversion.Config{})
 
 	err := service.Use(context.Background(), "v0.9.5")
 	if err != nil {
@@ -199,7 +200,7 @@ func TestService_ListRemote_ForceFalse(t *testing.T) {
 	manager := &mockVersionManager{}
 	install := &mockInstaller{}
 
-	service := New(repo, manager, install, &Config{})
+	service := appversion.New(repo, manager, install, &appversion.Config{})
 
 	_, err := service.ListRemote(false)
 	if err != nil {
@@ -219,7 +220,7 @@ func TestService_ListRemote_ForceTrue(t *testing.T) {
 	manager := &mockVersionManager{}
 	install := &mockInstaller{}
 
-	service := New(repo, manager, install, &Config{})
+	service := appversion.New(repo, manager, install, &appversion.Config{})
 
 	_, err := service.ListRemote(true)
 	if err != nil {
@@ -240,9 +241,9 @@ func TestService_Use_VersionNotFound(t *testing.T) {
 	}
 	install := &mockInstaller{}
 
-	service := New(repo, manager, install, &Config{})
+	service := appversion.New(repo, manager, install, &appversion.Config{})
 
-	err := service.Use(context.Background(), "nightly")
+	err := service.Use(context.Background(), appversion.NightlyVersion)
 	if err == nil {
 		t.Fatalf("Expected error for non-installed version, got nil")
 	}

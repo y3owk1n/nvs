@@ -2,6 +2,7 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -42,6 +43,7 @@ func (s *Service) List() ([]string, error) {
 		info, err := os.Lstat(entryPath)
 		if err != nil {
 			logrus.Warnf("Failed to lstat %s: %v", entryPath, err)
+
 			continue
 		}
 
@@ -52,12 +54,14 @@ func (s *Service) List() ([]string, error) {
 			resolvedPath, err := os.Readlink(entryPath)
 			if err != nil {
 				logrus.Warnf("Failed to resolve symlink %s: %v", entry.Name(), err)
+
 				continue
 			}
 
 			targetInfo, err := os.Stat(resolvedPath)
 			if err != nil {
 				logrus.Warnf("Failed to stat resolved path for %s: %v", entry.Name(), err)
+
 				continue
 			}
 
@@ -103,7 +107,8 @@ func (s *Service) Launch(configName string) error {
 	}
 
 	// Set environment variable
-	if err := os.Setenv("NVIM_APPNAME", configName); err != nil {
+	err = os.Setenv("NVIM_APPNAME", configName)
+	if err != nil {
 		return fmt.Errorf("failed to set NVIM_APPNAME: %w", err)
 	}
 
@@ -114,13 +119,15 @@ func (s *Service) Launch(configName string) error {
 	}
 
 	// Launch Neovim
-	cmd := exec.Command(nvimExec)
+	cmd := exec.CommandContext(context.Background(), nvimExec)
+
 	cmd.Env = append(os.Environ(), "NVIM_APPNAME="+configName)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
+	err = cmd.Run()
+	if err != nil {
 		return fmt.Errorf("failed to launch nvim: %w", err)
 	}
 

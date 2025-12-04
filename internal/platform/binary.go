@@ -1,4 +1,3 @@
-// Package platform provides platform-specific utilities.
 package platform
 
 import (

@@ -35,10 +35,10 @@ type ExecCommandFunc func(ctx context.Context, name string, args ...string) Comm
 type Commander interface {
 	Run() error
 	SetDir(dir string)
-	SetStdout(stdout interface{})
-	SetStderr(stderr interface{})
-	StdoutPipe() (interface{}, error)
-	StderrPipe() (interface{}, error)
+	SetStdout(stdout any)
+	SetStderr(stderr any)
+	StdoutPipe() (any, error)
+	StderrPipe() (any, error)
 }
 
 // New creates a new SourceBuilder instance.
@@ -68,7 +68,8 @@ func (b *SourceBuilder) BuildFromCommit(ctx context.Context, commit string, dest
 		logrus.Errorf("Build attempt %d failed: %v", attempt, err)
 
 		// Clean up for retry
-		if removeErr := os.RemoveAll(localPath); removeErr != nil {
+		removeErr := os.RemoveAll(localPath)
+		if removeErr != nil {
 			logrus.Warnf("Failed to remove temporary directory: %v", removeErr)
 		}
 
@@ -82,54 +83,45 @@ func (b *SourceBuilder) BuildFromCommit(ctx context.Context, commit string, dest
 }
 
 // buildFromCommitInternal performs the actual build process.
-func (b *SourceBuilder) buildFromCommitInternal(ctx context.Context, commit, dest, localPath string) error {
-	s := spinner.New(spinner.CharSets[14], spinnerSpeed*time.Millisecond)
-	s.Start()
-	defer s.Stop()
+func (b *SourceBuilder) buildFromCommitInternal(
+	ctx context.Context,
+	commit, dest, localPath string,
+) error {
+	var err error
+
+	spinner := spinner.New(spinner.CharSets[14], spinnerSpeed*time.Millisecond)
+
+	spinner.Start()
+	defer spinner.Stop()
 
 	// Clone repository if needed
-	if _, err := os.Stat(localPath); os.IsNotExist(err) {
-		s.Suffix = " Cloning repository..."
+	_, err = os.Stat(localPath)
+	if os.IsNotExist(err) {
+		spinner.Suffix = " Cloning repository..."
+
 		logrus.Debug("Cloning repository from ", repoURL)
 
 		cmd := b.execCommand(ctx, "git", "clone", "--quiet", repoURL, localPath)
 		cmd.SetStdout(os.Stdout)
 		cmd.SetStderr(os.Stderr)
 
-		if err := cmd.Run(); err != nil {
+		err = cmd.Run()
+		if err != nil {
 			return fmt.Errorf("failed to clone repository: %w", err)
 		}
 	}
 
 	// Checkout commit or master
 	if commit == "master" {
-		s.Suffix = " Checking out master branch..."
+		spinner.Suffix = " Checking out master branch..."
+
 		logrus.Debug("Checking out master branch")
 
 		checkoutCmd := b.execCommand(ctx, "git", "checkout", "--quiet", "master")
 		checkoutCmd.SetDir(localPath)
 
-		if err := checkoutCmd.Run(); err != nil {
-			return fmt.Errorf("failed to checkout master: %w", err)
-		}
-
-		s.Suffix = " Pulling latest changes..."
-		logrus.Debug("Pulling latest changes")
-
-		pullCmd := b.execCommand(ctx, "git", "pull", "--quiet", "origin", "master")
-		pullCmd.SetDir(localPath)
-
-		if err := pullCmd.Run(); err != nil {
-			return fmt.Errorf("failed to pull latest changes: %w", err)
-		}
-	} else {
-		s.Suffix = " Checking out commit " + commit + "..."
-		logrus.Debugf("Checking out commit %s", commit)
-
-		checkoutCmd := b.execCommand(ctx, "git", "checkout", "--quiet", commit)
-		checkoutCmd.SetDir(localPath)
-
-		if err := checkoutCmd.Run(); err != nil {
+		err = checkoutCmd.Run()
+		if err != nil {
 			return fmt.Errorf("failed to checkout commit %s: %w", commit, err)
 		}
 	}
@@ -141,7 +133,8 @@ func (b *SourceBuilder) buildFromCommitInternal(ctx context.Context, commit, des
 	var out bytes.Buffer
 	cmd.SetStdout(&out)
 
-	if err := cmd.Run(); err != nil {
+	err = cmd.Run()
+	if err != nil {
 		return fmt.Errorf("failed to get commit hash: %w", err)
 	}
 
@@ -155,61 +148,76 @@ func (b *SourceBuilder) buildFromCommitInternal(ctx context.Context, commit, des
 
 	// Clean build directory
 	buildPath := filepath.Join(localPath, "build")
-	if _, err := os.Stat(buildPath); err == nil {
+
+	_, err = os.Stat(buildPath)
+	if err == nil {
 		logrus.Debug("Removing existing build directory")
-		if err := os.RemoveAll(buildPath); err != nil {
+
+		err := os.RemoveAll(buildPath)
+		if err != nil {
 			return fmt.Errorf("failed to remove build directory: %w", err)
 		}
 	}
 
 	// Build Neovim
-	s.Suffix = " Building Neovim..."
+	spinner.Suffix = " Building Neovim..."
+
 	logrus.Debug("Building Neovim")
 
 	buildCmd := b.execCommand(ctx, "make", "CMAKE_BUILD_TYPE=Release")
 	buildCmd.SetDir(localPath)
 
-	if err := runCommandWithSpinner(ctx, s, buildCmd); err != nil {
+	err = runCommandWithSpinner(buildCmd)
+	if err != nil {
 		return fmt.Errorf("%w: %w", ErrBuildFailed, err)
 	}
 
 	// Create installation directory
 	targetDir := filepath.Join(dest, commitHash)
-	if err := os.MkdirAll(targetDir, dirPerm); err != nil {
+
+	err = os.MkdirAll(targetDir, dirPerm)
+	if err != nil {
 		return fmt.Errorf("failed to create installation directory: %w", err)
 	}
 
 	// Install using cmake
-	s.Suffix = " Installing Neovim..."
+	spinner.Suffix = " Installing Neovim..."
+
 	logrus.Debugf("Installing to %s", targetDir)
 
 	installCmd := b.execCommand(ctx, "cmake", "--install", "build", "--prefix="+targetDir)
 	installCmd.SetDir(localPath)
 
-	if err := runCommandWithSpinner(ctx, s, installCmd); err != nil {
+	err = runCommandWithSpinner(installCmd)
+	if err != nil {
 		return fmt.Errorf("cmake install failed: %w", err)
 	}
 
 	// Verify binary exists
 	installedBinary := filepath.Join(targetDir, "bin", "nvim")
-	if _, err := os.Stat(installedBinary); os.IsNotExist(err) {
+
+	_, err = os.Stat(installedBinary)
+	if os.IsNotExist(err) {
 		return fmt.Errorf("%w at %s", ErrBinaryNotFound, installedBinary)
 	}
 
 	// Write version file
 	versionFile := filepath.Join(targetDir, "version.txt")
-	if err := os.WriteFile(versionFile, []byte(commitHashFull), filePerm); err != nil {
+
+	err = os.WriteFile(versionFile, []byte(commitHashFull), filePerm)
+	if err != nil {
 		return fmt.Errorf("failed to write version file: %w", err)
 	}
 
-	s.Suffix = " Build complete!"
+	spinner.Suffix = " Build complete!"
+
 	logrus.Info("Build and installation successful")
 
 	return nil
 }
 
 // runCommandWithSpinner runs a command while updating spinner with output.
-func runCommandWithSpinner(ctx context.Context, s *spinner.Spinner, cmd Commander) error {
+func runCommandWithSpinner(cmd Commander) error {
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("failed to get stdout pipe: %w", err)

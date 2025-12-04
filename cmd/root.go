@@ -35,11 +35,11 @@ var (
 	// cancel cancels the context, e.g. on interrupt signals.
 	ctx, cancel = context.WithCancel(context.Background())
 
-	// Services (initialized in InitConfig)
+	// Services (initialized in InitConfig).
 	versionService *appversion.Service
 	configService  *config.Service
 
-	// Configuration paths (initialized in InitConfig)
+	// Configuration paths (initialized in InitConfig).
 	versionsDir   string
 	cacheFilePath string
 	globalBinDir  string
@@ -213,7 +213,7 @@ func InitConfig() {
 
 	// Initialize services
 	githubClient := github.NewClient(cacheFilePath, cacheTTL)
-	versionManager := filesystem.New()
+	versionManager := filesystem.New(&filesystem.Config{})
 
 	// Installer components
 	dl := downloader.New()

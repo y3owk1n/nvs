@@ -44,24 +44,26 @@ func (c *Cache) Get() ([]release.Release, error) {
 
 	// We need to unmarshal to API format first, then convert
 	var apiReleases []apiRelease
-	if err := json.Unmarshal(data, &apiReleases); err != nil {
+
+	err = json.Unmarshal(data, &apiReleases)
+	if err != nil {
 		return nil, err
 	}
 
 	// Convert to domain releases
 	releases := make([]release.Release, 0, len(apiReleases))
-	for _, ar := range apiReleases {
-		publishedAt, _ := time.Parse(time.RFC3339, ar.PublishedAt)
+	for _, apiRelease := range apiReleases {
+		publishedAt, _ := time.Parse(time.RFC3339, apiRelease.PublishedAt)
 
-		assets := make([]release.Asset, 0, len(ar.Assets))
-		for _, aa := range ar.Assets {
+		assets := make([]release.Asset, 0, len(apiRelease.Assets))
+		for _, aa := range apiRelease.Assets {
 			assets = append(assets, release.NewAsset(aa.Name, aa.BrowserDownloadURL, aa.Size))
 		}
 
 		releases = append(releases, release.New(
-			ar.TagName,
-			ar.Prerelease,
-			ar.CommitHash,
+			apiRelease.TagName,
+			apiRelease.Prerelease,
+			apiRelease.CommitHash,
 			publishedAt,
 			assets,
 		))
@@ -75,9 +77,9 @@ func (c *Cache) Set(releases []release.Release) error {
 	// Convert domain releases to API format for caching
 	apiReleases := make([]apiRelease, 0, len(releases))
 
-	for _, r := range releases {
-		apiAssets := make([]apiAsset, 0, len(r.Assets()))
-		for _, a := range r.Assets() {
+	for _, rel := range releases {
+		apiAssets := make([]apiAsset, 0, len(rel.Assets()))
+		for _, a := range rel.Assets() {
 			apiAssets = append(apiAssets, apiAsset{
 				Name:               a.Name(),
 				BrowserDownloadURL: a.DownloadURL(),
@@ -86,11 +88,11 @@ func (c *Cache) Set(releases []release.Release) error {
 		}
 
 		apiReleases = append(apiReleases, apiRelease{
-			TagName:     r.TagName(),
-			Prerelease:  r.Prerelease(),
+			TagName:     rel.TagName(),
+			Prerelease:  rel.Prerelease(),
 			Assets:      apiAssets,
-			PublishedAt: r.PublishedAt().Format(time.RFC3339),
-			CommitHash:  r.CommitHash(),
+			PublishedAt: rel.PublishedAt().Format(time.RFC3339),
+			CommitHash:  rel.CommitHash(),
 		})
 	}
 
@@ -99,7 +101,8 @@ func (c *Cache) Set(releases []release.Release) error {
 		return err
 	}
 
-	if err := os.WriteFile(c.filePath, data, cacheFilePerm); err != nil {
+	err = os.WriteFile(c.filePath, data, cacheFilePerm)
+	if err != nil {
 		return err
 	}
 

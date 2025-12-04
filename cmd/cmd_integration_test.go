@@ -42,7 +42,10 @@ func TestRunList(t *testing.T) {
 	// Create current symlink
 	current := testVersion
 
-	err := os.Symlink(filepath.Join(cmd.GetVersionsDir(), current), filepath.Join(cmd.GetVersionsDir(), "current"))
+	err := os.Symlink(
+		filepath.Join(cmd.GetVersionsDir(), current),
+		filepath.Join(cmd.GetVersionsDir(), "current"),
+	)
 	if err != nil {
 		t.Fatalf("failed to create current symlink: %v", err)
 	}
@@ -300,7 +303,7 @@ func TestRunUse(t *testing.T) {
 
 	// Create binary
 	binName := "nvim"
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == windowsOS {
 		binName = "nvim.exe"
 	}
 
@@ -335,7 +338,6 @@ func TestRunUse(t *testing.T) {
 func TestRunUse_InstallAndSwitch(t *testing.T) {
 	// Test that RunUse installs a missing version and switches to it
 	// This tests the regression where use would install but not switch
-
 	tempDir := t.TempDir()
 
 	// Set env vars
@@ -353,8 +355,11 @@ func TestRunUse_InstallAndSwitch(t *testing.T) {
 
 	// Check if stable is already installed
 	versionsDir := cmd.GetVersionsDir()
+
 	stableDir := filepath.Join(versionsDir, "stable")
-	if _, err := os.Stat(stableDir); err == nil {
+
+	_, err := os.Stat(stableDir)
+	if err == nil {
 		t.Skip("Stable is already installed, skipping install test")
 	}
 
@@ -362,18 +367,20 @@ func TestRunUse_InstallAndSwitch(t *testing.T) {
 	cobraCmd.SetContext(context.Background())
 
 	// This should install stable and switch to it
-	err := cmd.RunUse(cobraCmd, []string{version})
+	err = cmd.RunUse(cobraCmd, []string{version})
 	if err != nil {
 		t.Errorf("RunUse install and switch failed: %v", err)
 	}
 
 	// Verify stable is now installed
-	if _, err := os.Stat(stableDir); os.IsNotExist(err) {
+	_, err = os.Stat(stableDir)
+	if os.IsNotExist(err) {
 		t.Errorf("Stable was not installed")
 	}
 
 	// Verify it's current (check symlink)
 	currentLink := filepath.Join(versionsDir, "current")
+
 	target, err := os.Readlink(currentLink)
 	if err != nil {
 		t.Errorf("Current symlink not found: %v", err)
@@ -385,7 +392,6 @@ func TestRunUse_InstallAndSwitch(t *testing.T) {
 func TestFullWorkflow(t *testing.T) {
 	// Comprehensive integration test covering the main nvs workflows
 	// This tests install, switch, list, current, and uninstall operations
-
 	tempDir := t.TempDir()
 
 	// Set isolated environment
@@ -405,31 +411,35 @@ func TestFullWorkflow(t *testing.T) {
 	}
 
 	// 2. Try to get current version (should fail or show none)
-	err = cmd.RunCurrent(cobraCmd, []string{})
+	_ = cmd.RunCurrent(cobraCmd, []string{})
 	// This may succeed or fail depending on implementation, just ensure it doesn't crash
 
 	// 3. Create a fake installed version for testing (use commit hash to avoid network)
 	version := "abc1234"
 	versionDir := filepath.Join(cmd.GetVersionsDir(), version)
-	err = os.MkdirAll(versionDir, 0755)
+
+	err = os.MkdirAll(versionDir, 0o755)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Create version.txt
 	versionFile := filepath.Join(versionDir, "version.txt")
-	err = os.WriteFile(versionFile, []byte(version), 0644)
+
+	err = os.WriteFile(versionFile, []byte(version), 0o644)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Create fake nvim binary
 	binName := "nvim"
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == windowsOS {
 		binName = "nvim.exe"
 	}
+
 	binPath := filepath.Join(versionDir, binName)
-	err = os.WriteFile(binPath, []byte("#!/bin/bash\necho test nvim"), 0755)
+
+	err = os.WriteFile(binPath, []byte("#!/bin/bash\necho test nvim"), 0o755)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -448,7 +458,9 @@ func TestFullWorkflow(t *testing.T) {
 
 	// 6. Verify it's now current
 	currentLink := filepath.Join(cmd.GetVersionsDir(), "current")
-	if _, err := os.Lstat(currentLink); err != nil {
+
+	_, err = os.Lstat(currentLink)
+	if err != nil {
 		t.Errorf("Current symlink not created: %v", err)
 	}
 
@@ -460,13 +472,15 @@ func TestFullWorkflow(t *testing.T) {
 
 	// 8. Test global bin symlink
 	globalBin := filepath.Join(cmd.GetGlobalBinDir(), "nvim")
-	if _, err := os.Lstat(globalBin); err != nil {
+
+	_, err = os.Lstat(globalBin)
+	if err != nil {
 		t.Errorf("Global bin symlink not created: %v", err)
 	}
 
 	// 9. Test config operations (if applicable)
 	// Note: Config operations may not work in isolated env, but test the functions don't crash
-	err = cmd.RunEnv(cobraCmd, []string{})
+	_ = cmd.RunEnv(cobraCmd, []string{})
 	// May fail in test env, but shouldn't crash
 
 	// 10. Test path command
@@ -483,11 +497,13 @@ func TestFullWorkflow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	os.Stdin = reader
 
 	go func() {
-		defer writer.Close()
-		writer.WriteString("y\n") // Confirm reset
+		defer func() { _ = writer.Close() }()
+
+		_, _ = writer.WriteString("y\n") // Confirm reset
 	}()
 
 	err = cmd.RunReset(cobraCmd, []string{})
@@ -496,16 +512,18 @@ func TestFullWorkflow(t *testing.T) {
 	}
 
 	// 12. Verify reset cleaned up symlinks
-	if _, err := os.Lstat(currentLink); err == nil {
+	_, err = os.Lstat(currentLink)
+	if err == nil {
 		t.Errorf("Current symlink should have been removed by reset")
 	}
 
-	if _, err := os.Lstat(globalBin); err == nil {
+	_, err = os.Lstat(globalBin)
+	if err == nil {
 		t.Errorf("Global bin symlink should have been removed by reset")
 	}
 
 	// 13. Test uninstall (recreate version first)
-	err = os.MkdirAll(versionDir, 0755)
+	err = os.MkdirAll(versionDir, 0o755)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -516,7 +534,8 @@ func TestFullWorkflow(t *testing.T) {
 	}
 
 	// Verify version was removed
-	if _, err := os.Stat(versionDir); err == nil {
+	_, err = os.Stat(versionDir)
+	if err == nil {
 		t.Errorf("Version directory should have been removed")
 	}
 }

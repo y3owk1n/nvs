@@ -1,4 +1,5 @@
 // Package filesystem provides version storage operations on the filesystem.
+// Package filesystem provides filesystem utilities.
 package filesystem
 
 import (
@@ -13,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
-	"github.com/y3owk1n/nvs/internal/domain/version"
+	domainversion "github.com/y3owk1n/nvs/internal/domain/version"
 )
 
 const (
@@ -21,22 +22,31 @@ const (
 	windowsOS = "windows"
 )
 
-// VersionStore implements version.Manager for filesystem-based storage.
-type VersionStore struct{}
+// VersionStore implements domainversion.Manager for filesystem-based storage.
+type VersionStore struct {
+	config *Config
+}
 
-// New creates a new VersionStore instance.
-func New() *VersionStore {
-	return &VersionStore{}
+// Config holds configuration for the version store.
+type Config struct {
+	VersionsDir string
+}
+
+// New creates a new VersionStore.
+func New(config *Config) *VersionStore {
+	return &VersionStore{
+		config: config,
+	}
 }
 
 // List returns all installed versions.
-func (s *VersionStore) List(versionsDir string) ([]version.Version, error) {
+func (s *VersionStore) List(versionsDir string) ([]domainversion.Version, error) {
 	entries, err := os.ReadDir(versionsDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read versions directory: %w", err)
 	}
 
-	var versions []version.Version
+	var versions []domainversion.Version
 
 	for _, entry := range entries {
 		if entry.IsDir() && entry.Name() != "current" {
@@ -52,7 +62,7 @@ func (s *VersionStore) List(versionsDir string) ([]version.Version, error) {
 			// Determine version type
 			vType := determineVersionType(entry.Name())
 
-			versions = append(versions, version.New(
+			versions = append(versions, domainversion.New(
 				entry.Name(),
 				vType,
 				entry.Name(),
@@ -65,28 +75,30 @@ func (s *VersionStore) List(versionsDir string) ([]version.Version, error) {
 }
 
 // Current returns the currently active version.
-func (s *VersionStore) Current(versionsDir string) (version.Version, error) {
+func (s *VersionStore) Current(versionsDir string) (domainversion.Version, error) {
 	link := filepath.Join(versionsDir, "current")
 
 	info, err := os.Lstat(link)
 	if err != nil {
-		return version.Version{}, fmt.Errorf("failed to lstat current: %w", err)
+		return domainversion.Version{}, fmt.Errorf("failed to lstat current: %w", err)
 	}
 
 	var targetName string
 
 	// Handle symlink
-	if info.Mode()&os.ModeSymlink != 0 {
+	switch {
+	case info.Mode()&os.ModeSymlink != 0:
 		target, err := os.Readlink(link)
 		if err != nil {
-			return version.Version{}, fmt.Errorf("failed to read symlink: %w", err)
+			return domainversion.Version{}, fmt.Errorf("failed to read symlink: %w", err)
 		}
+
 		targetName = filepath.Base(target)
-	} else if info.IsDir() {
+	case info.IsDir():
 		// Windows junction
 		targetName = filepath.Base(link)
-	} else {
-		return version.Version{}, version.ErrNoCurrentVersion
+	default:
+		return domainversion.Version{}, domainversion.ErrNoCurrentVersion
 	}
 
 	// Read version info
@@ -100,16 +112,17 @@ func (s *VersionStore) Current(versionsDir string) (version.Version, error) {
 
 	vType := determineVersionType(targetName)
 
-	return version.New(targetName, vType, targetName, commitHash), nil
+	return domainversion.New(targetName, vType, targetName, commitHash), nil
 }
 
 // Switch activates a specific version.
-func (s *VersionStore) Switch(v version.Version, versionsDir, binDir string) error {
-	versionPath := filepath.Join(versionsDir, v.Name())
+func (s *VersionStore) Switch(version domainversion.Version, versionsDir, binDir string) error {
+	versionPath := filepath.Join(versionsDir, version.Name())
 	currentLink := filepath.Join(versionsDir, "current")
 
 	// Update current symlink
-	if err := updateSymlink(versionPath, currentLink, true); err != nil {
+	err := updateSymlink(versionPath, currentLink, true)
+	if err != nil {
 		return fmt.Errorf("failed to update current symlink: %w", err)
 	}
 
@@ -123,42 +136,52 @@ func (s *VersionStore) Switch(v version.Version, versionsDir, binDir string) err
 	targetBin := filepath.Join(binDir, "nvim")
 
 	// Remove existing link
-	if _, err := os.Lstat(targetBin); err == nil {
-		if err := os.Remove(targetBin); err != nil {
+	_, err = os.Lstat(targetBin)
+	if err == nil {
+		err = os.Remove(targetBin)
+		if err != nil {
 			logrus.Warnf("Failed to remove existing global bin: %v", err)
 		}
 	}
 
 	// Create new link
 	isDir := runtime.GOOS == windowsOS
-	if err := updateSymlink(nvimExec, targetBin, isDir); err != nil {
+
+	err = updateSymlink(nvimExec, targetBin, isDir)
+	if err != nil {
 		return fmt.Errorf("failed to create global nvim link: %w", err)
 	}
 
-	logrus.Debugf("Switched to version: %s", v.Name())
+	logrus.Debugf("Switched to version: %s", version.Name())
 
 	return nil
 }
 
 // IsInstalled checks if a version is installed.
-func (s *VersionStore) IsInstalled(v version.Version, versionsDir string) bool {
+func (s *VersionStore) IsInstalled(v domainversion.Version, versionsDir string) bool {
 	_, err := os.Stat(filepath.Join(versionsDir, v.Name()))
+
 	return !os.IsNotExist(err)
 }
 
 // Uninstall removes an installed version.
-func (s *VersionStore) Uninstall(v version.Version, versionsDir string, force bool) error {
+func (s *VersionStore) Uninstall(
+	version domainversion.Version,
+	versionsDir string,
+	force bool,
+) error {
 	// Check if version is current
 	if !force {
 		current, err := s.Current(versionsDir)
-		if err == nil && current.Name() == v.Name() {
-			return version.ErrVersionInUse
+		if err == nil && current.Name() == version.Name() {
+			return domainversion.ErrVersionInUse
 		}
 	}
 
-	versionPath := filepath.Join(versionsDir, v.Name())
+	versionPath := filepath.Join(versionsDir, version.Name())
 
-	if err := os.RemoveAll(versionPath); err != nil {
+	err := os.RemoveAll(versionPath)
+	if err != nil {
 		return fmt.Errorf("failed to remove version directory: %w", err)
 	}
 
@@ -166,26 +189,33 @@ func (s *VersionStore) Uninstall(v version.Version, versionsDir string, force bo
 }
 
 // GetInstalledReleaseIdentifier returns the release identifier (e.g. commit hash) for an installed version.
-func (s *VersionStore) GetInstalledReleaseIdentifier(versionName, versionsDir string) (string, error) {
+func (s *VersionStore) GetInstalledReleaseIdentifier(
+	versionName, versionsDir string,
+) (string, error) {
 	versionFile := filepath.Join(versionsDir, versionName, "version.txt")
+
 	data, err := os.ReadFile(versionFile)
 	if err != nil {
 		return "", fmt.Errorf("failed to read version file: %w", err)
 	}
+
 	return strings.TrimSpace(string(data)), nil
 }
 
 // updateSymlink creates or updates a symlink.
 func updateSymlink(target, link string, isDir bool) error {
 	// Remove old link if exists
-	if _, err := os.Lstat(link); err == nil {
-		if err := os.Remove(link); err != nil {
-			return err
+	_, statErr := os.Lstat(link)
+	if statErr == nil {
+		statErr = os.Remove(link)
+		if statErr != nil {
+			return statErr
 		}
 	}
 
 	// Try normal symlink
-	if err := os.Symlink(target, link); err == nil {
+	err := os.Symlink(target, link)
+	if err == nil {
 		return nil
 	} else if runtime.GOOS != windowsOS {
 		return err
@@ -202,7 +232,8 @@ func updateSymlink(target, link string, isDir bool) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
+	err = cmd.Run()
+	if err != nil {
 		return fmt.Errorf("failed to create Windows link: %w", err)
 	}
 
@@ -213,24 +244,26 @@ func updateSymlink(target, link string, isDir bool) error {
 func findNvimBinary(dir string) string {
 	var binaryPath string
 
-	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+	err := filepath.WalkDir(dir, func(path string, dirEntry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if !d.IsDir() {
-			name := d.Name()
+		if !dirEntry.IsDir() {
+			name := dirEntry.Name()
 			if runtime.GOOS == windowsOS {
 				if strings.EqualFold(name, "nvim.exe") ||
 					(strings.HasPrefix(strings.ToLower(name), "nvim-") && filepath.Ext(name) == ".exe") {
 					binaryPath = filepath.Dir(filepath.Dir(path))
+
 					return io.EOF
 				}
 			} else {
 				if name == "nvim" || strings.HasPrefix(name, "nvim-") {
-					info, err := d.Info()
+					info, err := dirEntry.Info()
 					if err == nil && info.Mode()&0o111 != 0 {
 						binaryPath = path
+
 						return io.EOF
 					}
 				}
@@ -248,16 +281,34 @@ func findNvimBinary(dir string) string {
 }
 
 // determineVersionType determines the version type from the name.
-func determineVersionType(name string) version.Type {
+func determineVersionType(name string) domainversion.Type {
 	switch {
 	case name == "stable":
-		return version.TypeStable
-	case name == "nightly" || strings.HasPrefix(name, "nightly-"):
-		return version.TypeNightly
-	case len(name) == 7 || len(name) == 40:
-		// Likely a commit hash
-		return version.TypeCommit
+		return domainversion.TypeStable
+	case strings.HasPrefix(strings.ToLower(name), "nightly"):
+		return domainversion.TypeNightly
+	case isCommitHash(name):
+		return domainversion.TypeCommit
 	default:
-		return version.TypeTag
+		return domainversion.TypeTag
 	}
+}
+
+// isCommitHash checks if a string looks like a commit hash.
+func isCommitHash(str string) bool {
+	if str == "master" {
+		return true
+	}
+
+	if len(str) != 7 && len(str) != 40 {
+		return false
+	}
+
+	for _, r := range str {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
+			return false
+		}
+	}
+
+	return true
 }

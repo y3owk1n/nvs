@@ -64,24 +64,29 @@ func TestNew(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			v := version.New(tt.versionName, tt.versionType, tt.identifier, tt.commitHash)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			ver := version.New(
+				testCase.versionName,
+				testCase.versionType,
+				testCase.identifier,
+				testCase.commitHash,
+			)
 
-			if got := v.Name(); got != tt.wantName {
-				t.Errorf("Name() = %v, want %v", got, tt.wantName)
+			if got := ver.Name(); got != testCase.wantName {
+				t.Errorf("Name() = %v, want %v", got, testCase.wantName)
 			}
 
-			if got := v.Type(); got != tt.wantType {
-				t.Errorf("Type() = %v, want %v", got, tt.wantType)
+			if got := ver.Type(); got != testCase.wantType {
+				t.Errorf("Type() = %v, want %v", got, testCase.wantType)
 			}
 
-			if got := v.Identifier(); got != tt.wantID {
-				t.Errorf("Identifier() = %v, want %v", got, tt.wantID)
+			if got := ver.Identifier(); got != testCase.wantID {
+				t.Errorf("Identifier() = %v, want %v", got, testCase.wantID)
 			}
 
-			if got := v.CommitHash(); got != tt.wantCommit {
-				t.Errorf("CommitHash() = %v, want %v", got, tt.wantCommit)
+			if got := ver.CommitHash(); got != testCase.wantCommit {
+				t.Errorf("CommitHash() = %v, want %v", got, testCase.wantCommit)
 			}
 		})
 	}

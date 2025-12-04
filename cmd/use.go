@@ -54,6 +54,7 @@ func RunUse(cmd *cobra.Command, args []string) error {
 			// Now try to use it
 			return RunUse(cmd, args)
 		}
+
 		return err
 	}
 
@@ -61,7 +62,7 @@ func RunUse(cmd *cobra.Command, args []string) error {
 		os.Stdout,
 		"%s %s\n",
 		ui.SuccessIcon(),
-		ui.WhiteText(fmt.Sprintf("Switched to %s", alias)),
+		ui.WhiteText("Switched to "+alias),
 	)
 	if err != nil {
 		logrus.Warnf("Failed to write to stdout: %v", err)
