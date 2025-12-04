@@ -47,14 +47,13 @@ func (m *mockReleaseRepo) GetAll(force bool) ([]release.Release, error) {
 
 // mockVersionManager implements version.Manager for testing.
 type mockVersionManager struct {
-	installed map[string]bool
+	installed map[string]version.Version
 	current   version.Version
 }
 
 func (m *mockVersionManager) List() ([]version.Version, error) {
 	versions := make([]version.Version, 0, len(m.installed))
-	for name := range m.installed {
-		v := version.New(name, version.TypeTag, name, "")
+	for _, v := range m.installed {
 		versions = append(versions, v)
 	}
 
@@ -72,7 +71,8 @@ func (m *mockVersionManager) Switch(v version.Version) error {
 }
 
 func (m *mockVersionManager) IsInstalled(v version.Version) bool {
-	return m.installed[v.Name()]
+	_, exists := m.installed[v.Name()]
+	return exists
 }
 
 func (m *mockVersionManager) Uninstall(v version.Version, force bool) error {
@@ -87,7 +87,7 @@ func (m *mockVersionManager) GetInstalledReleaseIdentifier(versionName string) (
 
 // mockInstaller implements installer.Installer for testing.
 type mockInstaller struct {
-	installed             map[string]bool
+	installed             map[string]version.Version
 	buildFromCommitCalled bool
 	lastCommit            string
 }
@@ -98,7 +98,9 @@ func (m *mockInstaller) InstallRelease(
 	dest, installName string,
 	progress installer.ProgressFunc,
 ) error {
-	m.installed[installName] = true
+	// Create a version with the installed name (using TypeTag as default)
+	v := version.New(installName, version.TypeTag, installName, "")
+	m.installed[installName] = v
 
 	return nil
 }
@@ -117,7 +119,9 @@ func TestService_Use_Stable(t *testing.T) {
 		stable: release.New("v0.10.0", false, "abc123", time.Time{}, nil),
 	}
 	manager := &mockVersionManager{
-		installed: map[string]bool{appversion.StableVersion: true},
+		installed: map[string]version.Version{
+			appversion.StableVersion: version.New(appversion.StableVersion, version.TypeStable, appversion.StableVersion, ""),
+		},
 		current: version.New(
 			appversion.NightlyVersion,
 			version.TypeNightly,
@@ -126,7 +130,7 @@ func TestService_Use_Stable(t *testing.T) {
 		),
 	}
 	install := &mockInstaller{
-		installed: make(map[string]bool),
+		installed: make(map[string]version.Version),
 	}
 
 	service := appversion.New(repo, manager, install, &appversion.Config{})
@@ -154,10 +158,12 @@ func TestService_Use_Nightly(t *testing.T) {
 		nightly: release.New("nightly-2024-12-04", true, "def456", time.Time{}, nil),
 	}
 	manager := &mockVersionManager{
-		installed: map[string]bool{appversion.NightlyVersion: true},
-		current:   version.New(appversion.StableVersion, version.TypeStable, "v0.9.0", ""),
+		installed: map[string]version.Version{
+			appversion.NightlyVersion: version.New(appversion.NightlyVersion, version.TypeNightly, appversion.NightlyVersion, ""),
+		},
+		current: version.New(appversion.StableVersion, version.TypeStable, "v0.9.0", ""),
 	}
-	install := &mockInstaller{installed: make(map[string]bool)}
+	install := &mockInstaller{installed: make(map[string]version.Version)}
 
 	service := appversion.New(repo, manager, install, &appversion.Config{})
 
@@ -182,9 +188,11 @@ func TestService_Use_Tag(t *testing.T) {
 		},
 	}
 	manager := &mockVersionManager{
-		installed: map[string]bool{"v0.9.5": true},
+		installed: map[string]version.Version{
+			"v0.9.5": version.New("v0.9.5", version.TypeTag, "v0.9.5", ""),
+		},
 	}
-	install := &mockInstaller{installed: make(map[string]bool)}
+	install := &mockInstaller{installed: make(map[string]version.Version)}
 
 	service := appversion.New(repo, manager, install, &appversion.Config{})
 
@@ -208,7 +216,7 @@ func TestService_ListRemote_ForceFalse(t *testing.T) {
 		nightly: release.New("nightly-2024-12-04", true, "def456", time.Time{}, nil),
 	}
 	manager := &mockVersionManager{}
-	install := &mockInstaller{installed: make(map[string]bool)}
+	install := &mockInstaller{installed: make(map[string]version.Version)}
 
 	service := appversion.New(repo, manager, install, &appversion.Config{})
 
@@ -228,7 +236,7 @@ func TestService_ListRemote_ForceTrue(t *testing.T) {
 		nightly: release.New("nightly-2024-12-04", true, "def456", time.Time{}, nil),
 	}
 	manager := &mockVersionManager{}
-	install := &mockInstaller{installed: make(map[string]bool)}
+	install := &mockInstaller{installed: make(map[string]version.Version)}
 
 	service := appversion.New(repo, manager, install, &appversion.Config{})
 
@@ -247,9 +255,9 @@ func TestService_Use_VersionNotFound(t *testing.T) {
 		stable: release.New("v0.10.0", false, "abc123", time.Time{}, nil),
 	}
 	manager := &mockVersionManager{
-		installed: map[string]bool{}, // nightly not installed
+		installed: make(map[string]version.Version), // nightly not installed
 	}
-	install := &mockInstaller{installed: make(map[string]bool)}
+	install := &mockInstaller{installed: make(map[string]version.Version)}
 
 	service := appversion.New(repo, manager, install, &appversion.Config{})
 
@@ -267,9 +275,9 @@ func TestService_Install_CommitHash(t *testing.T) {
 	// Test installing from a commit hash
 	repo := &mockReleaseRepo{}
 	manager := &mockVersionManager{
-		installed: make(map[string]bool),
+		installed: make(map[string]version.Version),
 	}
-	install := &mockInstaller{installed: make(map[string]bool)}
+	install := &mockInstaller{installed: make(map[string]version.Version)}
 
 	service := appversion.New(repo, manager, install, &appversion.Config{})
 
