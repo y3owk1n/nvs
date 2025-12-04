@@ -1,5 +1,4 @@
 // Package ui provides user interface utilities.
-// Package ui provides user interface utilities.
 package ui
 
 import (
