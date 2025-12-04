@@ -127,8 +127,8 @@ func (s *VersionStore) Switch(version domainversion.Version) error {
 		return fmt.Errorf("failed to update current symlink: %w", err)
 	}
 
-	// Find nvim binary
-	nvimExec := findNvimBinary(versionPath)
+	// Find nvim link target
+	nvimExec := findNvimLinkTarget(versionPath)
 	if nvimExec == "" {
 		return fmt.Errorf("%w in %s", ErrBinaryNotFound, versionPath)
 	}
@@ -235,8 +235,9 @@ func updateSymlink(target, link string, isDir bool) error {
 	return nil
 }
 
-// findNvimBinary searches for the nvim binary in a directory.
-func findNvimBinary(dir string) string {
+// findNvimLinkTarget searches for the nvim binary and returns the appropriate link target.
+// On Unix, returns the binary path. On Windows, returns the version directory for junction creation.
+func findNvimLinkTarget(dir string) string {
 	var binaryPath string
 
 	err := filepath.WalkDir(dir, func(path string, dirEntry os.DirEntry, err error) error {
@@ -295,7 +296,7 @@ func isCommitHash(str string) bool {
 		return true
 	}
 
-	if len(str) != 7 && len(str) != 40 {
+	if len(str) < 7 || len(str) > 40 {
 		return false
 	}
 

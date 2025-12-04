@@ -347,7 +347,7 @@ func isCommitHash(str string) bool {
 		return true
 	}
 
-	if len(str) != 7 && len(str) != 40 {
+	if len(str) < 7 || len(str) > 40 {
 		return false
 	}
 
