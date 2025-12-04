@@ -10,6 +10,7 @@ import (
 	"github.com/briandowns/spinner"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	appversion "github.com/y3owk1n/nvs/internal/app/version"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -88,7 +89,7 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			progressSpinner.Stop()
 
-			if err.Error() == "not installed" { // Should use errors.Is
+			if errors.Is(err, appversion.ErrNotInstalled) {
 				logrus.Debugf("'%s' is not installed. Skipping upgrade.", alias)
 
 				_, printErr := fmt.Fprintf(os.Stdout,
@@ -104,7 +105,7 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 				continue
 			}
 
-			if err.Error() == "already up-to-date" { // Should use errors.Is
+			if errors.Is(err, appversion.ErrAlreadyUpToDate) {
 				logrus.Debugf("%s is already up-to-date", alias)
 
 				_, printErr := fmt.Fprintf(os.Stdout,
