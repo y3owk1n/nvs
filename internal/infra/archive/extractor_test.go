@@ -133,10 +133,8 @@ func TestExtractor_ExtractZip_PathTraversal(t *testing.T) {
 	err = extractor.Extract(file, destDir)
 	if err == nil {
 		t.Error("Expected extraction to fail due to path traversal")
-	}
-
-	// Check that the error mentions the illegal path
-	if !strings.Contains(err.Error(), maliciousPath) {
+	} else if !strings.Contains(err.Error(), maliciousPath) {
+		// Check that the error mentions the illegal path
 		t.Errorf("Expected error to mention illegal path %s, got: %v", maliciousPath, err)
 	}
 
