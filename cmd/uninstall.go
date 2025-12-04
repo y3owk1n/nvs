@@ -51,14 +51,18 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 	current, err := GetVersionService().Current()
 	if err == nil {
 		// Normalize both versions for comparison
-		normalize := func(v string) string {
-			if !strings.HasPrefix(v, "v") {
-				return "v" + v
-			}
+		normalizedCurrent := current.Name()
+		normalizedArg := versionArg
 
-			return v
+		if !strings.HasPrefix(normalizedCurrent, "v") {
+			normalizedCurrent = "v" + normalizedCurrent
 		}
-		if normalize(current.Name()) == normalize(versionArg) {
+
+		if !strings.HasPrefix(normalizedArg, "v") {
+			normalizedArg = "v" + normalizedArg
+		}
+
+		if normalizedCurrent == normalizedArg {
 			isCurrent = true
 		}
 	}
@@ -147,7 +151,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 				logrus.Warnf("Failed to write to stdout: %v", printErr)
 			}
 		} else {
-			var availableVersions []string
+			availableVersions := make([]string, 0, len(versions))
 			for _, v := range versions {
 				availableVersions = append(availableVersions, v.Name())
 			}
