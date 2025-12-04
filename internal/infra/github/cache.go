@@ -55,7 +55,13 @@ func (c *Cache) Get() ([]release.Release, error) {
 	for _, apiRelease := range apiReleases {
 		publishedAt, err := time.Parse(time.RFC3339, apiRelease.PublishedAt)
 		if err != nil {
-			logrus.Warnf("Failed to parse PublishedAt for %s: %v", apiRelease.TagName, err)
+			logrus.Warnf(
+				"Skipping release %s due to invalid PublishedAt: %v",
+				apiRelease.TagName,
+				err,
+			)
+
+			continue
 		}
 
 		assets := make([]release.Asset, 0, len(apiRelease.Assets))
@@ -106,6 +112,7 @@ func (c *Cache) Set(releases []release.Release) error {
 
 	// Write to temp file first for atomic operation
 	tempFile := c.filePath + ".tmp"
+
 	err = os.WriteFile(tempFile, data, cacheFilePerm)
 	if err != nil {
 		return err
@@ -115,7 +122,8 @@ func (c *Cache) Set(releases []release.Release) error {
 	err = os.Rename(tempFile, c.filePath)
 	if err != nil {
 		// Clean up temp file on failure
-		os.Remove(tempFile)
+		_ = os.Remove(tempFile)
+
 		return err
 	}
 
