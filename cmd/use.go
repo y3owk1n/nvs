@@ -51,11 +51,14 @@ func RunUse(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
-			// Now try to use it
-			return RunUse(cmd, args)
+			// Now try to use it (single retry, no recursion)
+			err = GetVersionService().Use(ctx, alias)
+			if err != nil {
+				return err
+			}
+		} else {
+			return err
 		}
-
-		return err
 	}
 
 	_, err = fmt.Fprintf(
