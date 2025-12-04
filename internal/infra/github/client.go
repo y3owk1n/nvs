@@ -4,9 +4,11 @@ package github
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -65,6 +67,10 @@ func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, err
 			logrus.Debug("Using cached releases")
 
 			return cached, nil
+		}
+
+		if !errors.Is(err, ErrCacheStale) {
+			logrus.Warnf("Cache read failed: %v", err)
 		}
 	}
 
@@ -134,6 +140,11 @@ func (c *Client) FindStable(ctx context.Context) (release.Release, error) {
 	if err != nil {
 		return release.Release{}, err
 	}
+
+	// Sort releases by published date descending (newest first)
+	sort.Slice(releases, func(i, j int) bool {
+		return releases[i].PublishedAt().After(releases[j].PublishedAt())
+	})
 
 	for _, r := range releases {
 		if !r.Prerelease() {
