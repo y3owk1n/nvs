@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/h2non/filetype"
 	"github.com/sirupsen/logrus"
@@ -136,6 +137,13 @@ func (e *Extractor) extractTarGz(src *os.File, dest string) error {
 
 		target := filepath.Join(dest, header.Name)
 
+		// Prevent path traversal attacks (Zip Slip vulnerability)
+		cleanDest := filepath.Clean(dest)
+		cleanTarget := filepath.Clean(target)
+		if !strings.HasPrefix(cleanTarget, cleanDest+string(os.PathSeparator)) && cleanTarget != cleanDest {
+			return fmt.Errorf("illegal file path in archive: %s", header.Name)
+		}
+
 		switch header.Typeflag {
 		case tar.TypeDir:
 			err := os.MkdirAll(target, dirPerm)
@@ -173,6 +181,13 @@ func (e *Extractor) extractZip(src *os.File, dest string) error {
 
 	for _, fileEntry := range r.File {
 		path := filepath.Join(dest, fileEntry.Name)
+
+		// Prevent path traversal attacks (Zip Slip vulnerability)
+		cleanDest := filepath.Clean(dest)
+		cleanPath := filepath.Clean(path)
+		if !strings.HasPrefix(cleanPath, cleanDest+string(os.PathSeparator)) && cleanPath != cleanDest {
+			return fmt.Errorf("illegal file path in archive: %s", fileEntry.Name)
+		}
 
 		if fileEntry.FileInfo().IsDir() {
 			err := os.MkdirAll(path, fileEntry.Mode())
