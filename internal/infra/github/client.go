@@ -85,7 +85,11 @@ func (c *Client) GetAll(force bool) ([]release.Release, error) {
 		return nil, fmt.Errorf("failed to fetch releases: %w", err)
 	}
 
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			logrus.Debugf("Failed to close response body: %v", closeErr)
+		}
+	}()
 
 	logrus.Debugf("GitHub API status code: %d", resp.StatusCode)
 
@@ -174,7 +178,10 @@ func (c *Client) convertReleases(apiReleases []apiRelease) []release.Release {
 	releases := make([]release.Release, 0, len(apiReleases))
 
 	for _, apiRelease := range apiReleases {
-		publishedAt, _ := time.Parse(time.RFC3339, apiRelease.PublishedAt)
+		publishedAt, err := time.Parse(time.RFC3339, apiRelease.PublishedAt)
+		if err != nil {
+			logrus.Debugf("Failed to parse published_at for %s: %v", apiRelease.TagName, err)
+		}
 
 		assets := make([]release.Asset, 0, len(apiRelease.Assets))
 		for _, aa := range apiRelease.Assets {
