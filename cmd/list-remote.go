@@ -125,8 +125,13 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 				)
 			}
 		} else if release.TagName() == "stable" {
-			// For stable releases, reference the determined stableTag.
-			details = "stable version: " + stableConst
+			// For stable releases, show the actual version tag.
+			stableRelease, stableErr := svc.FindStable(cmd.Context())
+			if stableErr == nil {
+				details = "stable version: " + stableRelease.TagName()
+			} else {
+				details = "stable version: " + stableConst
+			}
 		}
 
 		key := release.TagName()
@@ -138,19 +143,28 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 		// Check if the release is installed locally.
 		if svc.IsVersionInstalled(key) {
 			// Check for upgrade availability
-			// Note: This logic is simplified; ideally use service to check for updates
 			installedIdentifier, err := svc.GetInstalledVersionIdentifier(key)
 			if err != nil {
 				installedIdentifier = ""
 			}
 
-			remoteIdentifier := release.CommitHash()
-			if remoteIdentifier == "" {
+			// Use the same logic as the Upgrade function:
+			// For nightly, compare commit hash. For stable, fetch the actual stable release's tag.
+			var remoteIdentifier string
+			if release.Prerelease() && strings.HasPrefix(strings.ToLower(release.TagName()), "nightly") {
+				remoteIdentifier = release.CommitHash()
+			} else if release.TagName() == stableConst {
+				// For the "stable" tag, fetch the actual stable release to get the real version tag
+				stableRelease, stableErr := svc.FindStable(cmd.Context())
+				if stableErr == nil {
+					remoteIdentifier = stableRelease.TagName()
+				}
+			} else {
 				remoteIdentifier = release.TagName()
 			}
 
 			// If the installed version is different from the remote, indicate an upgrade is available.
-			if installedIdentifier != "" && installedIdentifier != remoteIdentifier {
+			if installedIdentifier != "" && remoteIdentifier != "" && installedIdentifier != remoteIdentifier {
 				upgradeIndicator = " (" + ui.Upgrade + ")"
 			}
 
