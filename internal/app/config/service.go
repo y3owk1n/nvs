@@ -88,7 +88,7 @@ func (s *Service) List() ([]string, error) {
 }
 
 // Launch launches Neovim with the specified configuration.
-func (s *Service) Launch(configName string) error {
+func (s *Service) Launch(ctx context.Context, configName string) error {
 	baseConfigDir, err := platform.GetNvimConfigBaseDir()
 	if err != nil {
 		return fmt.Errorf("failed to determine config base dir: %w", err)
@@ -106,12 +106,6 @@ func (s *Service) Launch(configName string) error {
 		return fmt.Errorf("failed to stat config directory: %w", err)
 	}
 
-	// Set environment variable
-	err = os.Setenv("NVIM_APPNAME", configName)
-	if err != nil {
-		return fmt.Errorf("failed to set NVIM_APPNAME: %w", err)
-	}
-
 	// Find nvim executable
 	nvimExec, err := exec.LookPath("nvim")
 	if err != nil {
@@ -119,7 +113,7 @@ func (s *Service) Launch(configName string) error {
 	}
 
 	// Launch Neovim
-	cmd := exec.CommandContext(context.Background(), nvimExec)
+	cmd := exec.CommandContext(ctx, nvimExec)
 
 	cmd.Env = append(os.Environ(), "NVIM_APPNAME="+configName)
 	cmd.Stdin = os.Stdin
