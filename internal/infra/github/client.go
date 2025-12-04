@@ -144,13 +144,10 @@ func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, err
 	releases := c.convertReleases(allAPIReleases)
 
 	// Filter releases >= minVersion
-	filtered, err := filterReleases(releases, c.minVersion)
-	if err != nil {
-		return nil, fmt.Errorf("failed to filter releases: %w", err)
-	}
+	filtered := filterReleases(releases, c.minVersion)
 
 	// Update cache
-	err = c.cache.Set(filtered)
+	err := c.cache.Set(filtered)
 	if err != nil {
 		logrus.Warnf("Failed to update cache: %v", err)
 	}
@@ -244,10 +241,16 @@ func (c *Client) convertReleases(apiReleases []apiRelease) []release.Release {
 }
 
 // filterReleases filters releases by minimum version.
-func filterReleases(releases []release.Release, minVersion string) ([]release.Release, error) {
+func filterReleases(releases []release.Release, minVersion string) []release.Release {
+	if minVersion == "" {
+		return releases
+	}
+
 	constraints, err := semver.NewConstraint(">=" + minVersion)
 	if err != nil {
-		return nil, fmt.Errorf("invalid version constraint: %w", err)
+		logrus.Warnf("Invalid minVersion %s, returning all releases: %v", minVersion, err)
+
+		return releases
 	}
 
 	filtered := make([]release.Release, 0, len(releases))
@@ -274,7 +277,7 @@ func filterReleases(releases []release.Release, minVersion string) ([]release.Re
 		}
 	}
 
-	return filtered, nil
+	return filtered
 }
 
 // GetAssetURL returns the download URL for the current platform.
