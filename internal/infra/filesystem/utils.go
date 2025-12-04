@@ -15,9 +15,7 @@ const (
 
 // CopyFile copies the content of the file from src to dst,
 // sets the destination file's permissions to 0755, and returns an error if any step fails.
-func CopyFile(src, dst string) error {
-	var err error
-
+func CopyFile(src, dst string) (err error) {
 	inputFile, err := os.Open(src)
 	if err != nil {
 		return err
@@ -52,7 +50,7 @@ func CopyFile(src, dst string) error {
 		return err
 	}
 
-	return nil
+	return err
 }
 
 // ClearDirectory removes all contents within the specified directory.
