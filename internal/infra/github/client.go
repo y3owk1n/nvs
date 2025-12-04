@@ -71,7 +71,7 @@ func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, err
 		}
 
 		if !errors.Is(err, ErrCacheStale) {
-			logrus.Warnf("Cache read failed: %v", err)
+			logrus.Debugf("Cache read failed: %v", err)
 		}
 	}
 
