@@ -49,6 +49,7 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 	const (
 		SpinnerSpeed  = 100
 		InitialSuffix = " 0%"
+		InitialPrefix = "Checking for updates..."
 	)
 
 	logrus.Debug("Starting upgrade command")
@@ -76,6 +77,7 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 
 		// Create and start a spinner to show progress.
 		progressSpinner := spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond)
+		progressSpinner.Prefix = InitialPrefix
 		progressSpinner.Suffix = InitialSuffix
 		progressSpinner.Start()
 
