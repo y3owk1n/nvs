@@ -301,7 +301,22 @@ func (b *SourceBuilder) cleanupTempDirectories() {
 		if strings.HasPrefix(entry.Name(), "neovim-src-") && entry.IsDir() {
 			dirPath := filepath.Join(tempDir, entry.Name())
 
-			err := os.RemoveAll(dirPath)
+			// Check if the directory was modified recently (within last 5 minutes)
+			// to avoid interfering with concurrent builds
+			info, err := entry.Info()
+			if err != nil {
+				logrus.Warnf("Failed to get info for temp directory %s: %v", dirPath, err)
+
+				continue
+			}
+
+			if time.Since(info.ModTime()) < 5*time.Minute {
+				logrus.Debugf("Skipping cleanup of recent temp directory: %s", dirPath)
+
+				continue
+			}
+
+			err = os.RemoveAll(dirPath)
 			if err != nil {
 				logrus.Warnf("Failed to remove leftover temp directory %s: %v", dirPath, err)
 			} else {
