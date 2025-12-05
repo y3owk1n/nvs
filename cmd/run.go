@@ -72,7 +72,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 	if len(args) > 1 {
 		// Skip the "--" separator if present
 		startIdx := 1
-		if len(args) > 1 && args[1] == "--" {
+		if args[1] == "--" {
 			startIdx = 2
 		}
 
@@ -115,8 +115,12 @@ func getNvimBinaryPath(versionAlias string) (string, error) {
 
 	// Check if version directory exists
 	_, statErr := os.Stat(versionDir)
-	if os.IsNotExist(statErr) {
-		return "", fmt.Errorf("%w: %s", ErrVersionDirNotFound, normalized)
+	if statErr != nil {
+		if os.IsNotExist(statErr) {
+			return "", fmt.Errorf("%w: %s", ErrVersionDirNotFound, normalized)
+		}
+
+		return "", fmt.Errorf("failed to access version directory %s: %w", normalized, statErr)
 	}
 
 	// Find the nvim binary
@@ -167,9 +171,9 @@ func findNvimBinary(dir string) string {
 	// Fallback: walk the directory to find nvim binary
 	var found string
 
-	_ = filepath.WalkDir(dir, func(path string, dirEntry os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
+	walkErr := filepath.WalkDir(dir, func(path string, dirEntry os.DirEntry, err error) error {
+		if err != nil {
+			return err
 		}
 
 		if dirEntry.IsDir() {
@@ -194,6 +198,9 @@ func findNvimBinary(dir string) string {
 
 		return nil
 	})
+	if walkErr != nil {
+		logrus.Debugf("Error walking directory %s: %v", dir, walkErr)
+	}
 
 	return found
 }
