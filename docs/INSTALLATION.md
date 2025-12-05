@@ -92,7 +92,77 @@ If you're using Nix with flakes enabled, you can integrate **nvs** into your Nix
 > [!note]
 > When installing via Nix, shell completions are automatically configured for supported shells.
 
-#### Using Overlay (Recommended)
+#### Add Flake Input
+
+Add the **nvs** flake input to your Nix configuration:
+
+```nix
+{
+  inputs = {
+    nvs.url = "github:y3owk1n/nvs";
+  };
+}
+```
+
+#### Home-manager Module
+
+Use the home-manager module for user-specific installation:
+
+```nix
+{
+  outputs = { self, nixpkgs, home-manager, nvs, ... }: {
+    homeConfigurations.your-username = home-manager.lib.homeManagerConfiguration {
+      pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+
+      modules = [
+        # Apply the nvs overlay
+        {
+          nixpkgs.overlays = [ nvs.overlays.default ];
+        }
+
+        # Import the nvs module
+        nvs.homeManagerModules.default
+
+        # Configure nvs
+        {
+          # Enable nvs
+          programs.nvs.enable = true;
+
+          # Optional: Use specific package version
+          # programs.nvs.package = pkgs.nvs; # This will use the latest version
+          # programs.nvs.package = pkgs.nvs-source; # This will build from source
+
+          # Optional: Customize nvs settings
+          # programs.nvs = {
+          #   enable = true;
+          #   enableAutoSwitch = true;  # Enable automatic version switching
+          #   enableShellIntegration = true;  # Enable shell integration
+          #   configDir = "${config.xdg.configHome}/nvs";
+          #   cacheDir = "${config.xdg.cacheHome}/nvs";
+          #   binDir = "${config.home.homeDirectory}/.local/bin";
+          #   shellIntegration = {
+          #     bash = true;
+          #     zsh = true;
+          #     fish = true;
+          #   };
+          # };
+        }
+      ];
+    };
+  };
+}
+```
+
+The Home Manager module automatically:
+
+- Installs nvs
+- Sets up environment variables (`NVS_CONFIG_DIR`, `NVS_CACHE_DIR`, `NVS_BIN_DIR`)
+- Adds the binary directory to your PATH
+- Enables shell integration for automatic environment setup
+- Enables automatic version switching when entering directories with `.nvs-version` files
+- Creates necessary directories
+
+#### Using Overlay Only
 
 Add the **nvs** overlay to your Nix configuration and use it as a regular package:
 
@@ -116,26 +186,6 @@ Add the **nvs** overlay to your Nix configuration and use it as a regular packag
         }
       ];
     };
-  };
-}
-```
-
-#### Using Home Manager
-
-Add **nvs** to your `home.nix`:
-
-```nix
-{
-  inputs = {
-    nvs.url = "github:y3owk1n/nvs";
-  };
-
-  outputs = { nvs, ... }: {
-    home.packages = [
-      nvs.packages.${pkgs.system}.default  # Latest prebuilt
-      # or
-      nvs.packages.${pkgs.system}.source   # Build from source
-    ];
   };
 }
 ```
