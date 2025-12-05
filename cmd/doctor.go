@@ -88,8 +88,15 @@ func checkPath() error {
 	}
 
 	path := os.Getenv("PATH")
+	binClean := filepath.Clean(binDir)
+
 	for p := range strings.SplitSeq(path, string(os.PathListSeparator)) {
-		if filepath.Clean(p) == filepath.Clean(binDir) {
+		pClean := filepath.Clean(p)
+		if runtime.GOOS == windows {
+			if strings.EqualFold(pClean, binClean) {
+				return nil
+			}
+		} else if pClean == binClean {
 			return nil
 		}
 	}
@@ -114,12 +121,22 @@ func checkDependencies() error {
 }
 
 func checkPermissions() error {
+	versionsDir := GetVersionsDir()
+	if versionsDir == "" {
+		// Env resolution check already reports this; avoid probing CWD here.
+		return ErrCouldNotResolveVersionsDir
+	}
+
 	dirs := []string{
-		GetVersionsDir(),
-		filepath.Dir(GetVersionsDir()), // Config dir
+		versionsDir,
+		filepath.Dir(versionsDir), // Config dir
 	}
 
 	for _, dir := range dirs {
+		if dir == "" {
+			continue
+		}
+
 		err := os.MkdirAll(dir, filesystem.DirPerm)
 		if err != nil {
 			return fmt.Errorf("cannot create/write to %s: %w", dir, err)
