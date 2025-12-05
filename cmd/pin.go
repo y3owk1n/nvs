@@ -92,10 +92,14 @@ func runPin(cmd *cobra.Command, args []string) error {
 // It searches from startDir up to the root, returning the first version found.
 // If global is true, also checks the user's home directory.
 func ReadVersionFile(startDir string, checkGlobal bool) (string, string, error) {
-	var homeVisited bool
-	var homeDir string
+	var (
+		homeVisited bool
+		homeDir     string
+	)
+
 	if checkGlobal {
-		if h, err := os.UserHomeDir(); err == nil {
+		h, err := os.UserHomeDir()
+		if err == nil {
 			homeDir = h
 		}
 	}

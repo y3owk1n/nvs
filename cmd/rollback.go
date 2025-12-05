@@ -119,9 +119,14 @@ func runRollback(cmd *cobra.Command, args []string) error {
 	)
 
 	var statErr error
+
 	_, statErr = os.Stat(nightlyDir)
 	if os.IsNotExist(statErr) {
-		return fmt.Errorf("%w: %s", ErrNightlyVersionNotExists, shortHash(entry.CommitHash, shortHashLength))
+		return fmt.Errorf(
+			"%w: %s",
+			ErrNightlyVersionNotExists,
+			shortHash(entry.CommitHash, shortHashLength),
+		)
 	}
 
 	// Create symlink to this version as "nightly"
@@ -180,7 +185,8 @@ func runRollback(cmd *cobra.Command, args []string) error {
 
 	// Add the version we're rolling back FROM to history (for roll-forward capability)
 	if currentCommit != "" && currentCommit != entry.CommitHash {
-		if histErr := AddNightlyToHistory(currentCommit, "nightly"); histErr != nil {
+		histErr := AddNightlyToHistory(currentCommit, "nightly")
+		if histErr != nil {
 			logrus.Warnf("Failed to add previous nightly to history: %v", histErr)
 		}
 	}
@@ -283,6 +289,7 @@ func AddNightlyToHistory(commitHash, tagName string) error {
 			)
 
 			logrus.Infof("Removing old nightly backup: %s", oldDir)
+
 			err := os.RemoveAll(oldDir)
 			if err != nil {
 				logrus.Warnf("Failed to remove old nightly %s: %v", oldDir, err)

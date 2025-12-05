@@ -35,9 +35,12 @@ func copyDir(src, dst string) error {
 			if err != nil {
 				return err
 			}
-			if err := os.Symlink(link, dstPath); err != nil {
+
+			err = os.Symlink(link, dstPath)
+			if err != nil {
 				return err
 			}
+
 			continue
 		}
 
