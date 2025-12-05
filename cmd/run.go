@@ -35,9 +35,8 @@ Examples:
   nvs run stable
   nvs run nightly -- --clean
   nvs run v0.10.3 -- -c "checkhealth"`,
-	Args:               cobra.MinimumNArgs(1),
-	DisableFlagParsing: false,
-	RunE:               runRun,
+	Args: cobra.MinimumNArgs(1),
+	RunE: runRun,
 }
 
 // runRun executes the run command.
@@ -59,7 +58,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get the nvim binary path for this version
-	nvimPath, err := getNvimBinaryPath(ctx, versionAlias)
+	nvimPath, err := getNvimBinaryPath(versionAlias)
 	if err != nil {
 		return fmt.Errorf("failed to find nvim binary: %w", err)
 	}
@@ -97,7 +96,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 }
 
 // getNvimBinaryPath returns the path to the nvim binary for a specific version.
-func getNvimBinaryPath(_ context.Context, versionAlias string) (string, error) {
+func getNvimBinaryPath(versionAlias string) (string, error) {
 	// Normalize version name
 	normalized := normalizeVersionForPath(versionAlias)
 
