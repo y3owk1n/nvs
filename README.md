@@ -164,8 +164,8 @@ nvs config nvim-test         # Direct switch
 | Windows  | amd64                 | ✅ Fully supported |
 | Windows  | arm64                 | ✅ Fully supported |
 
-**Base requirements:** `git`, `curl`, `tar`  
-**Build requirements:** `make`, `cmake`, `gettext`, `ninja` (nvs checks for these automatically)
+**Base dependencies:** `git`, `curl`, `tar`  
+**Build dependencies:** `make`, `cmake`, `gettext`, `ninja` (nvs checks for these automatically)
 
 ---
 
