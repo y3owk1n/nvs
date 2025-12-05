@@ -83,6 +83,9 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 	)
 
 	// Fetch comparison from GitHub API
+	// Note: GitHub API has rate limits (60 requests/hour for unauthenticated)
+	logrus.Debug("Fetching changelog from GitHub API (subject to rate limits)")
+
 	url := fmt.Sprintf("%s/%s...%s", githubCompareURL, oldCommit, newCommit)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
