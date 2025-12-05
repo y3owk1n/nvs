@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/fatih/color"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -15,12 +16,12 @@ func TestIconConstants(t *testing.T) {
 		icon string
 		want string
 	}{
-		{"Checkmark", ui.Checkmark, "✓"},
-		{"Cross", ui.Cross, "✖"},
-		{"Info", ui.Info, "ℹ"},
-		{"Warn", ui.Warn, "⚠"},
-		{"Upgrade", ui.Upgrade, "↑"},
-		{"Prompt", ui.Prompt, "?"},
+		{"Checkmark", constants.Checkmark, "✓"},
+		{"Cross", constants.Cross, "✖"},
+		{"Info", constants.Info, "ℹ"},
+		{"Warn", constants.Warn, "⚠"},
+		{"Upgrade", constants.Upgrade, "↑"},
+		{"Prompt", constants.Prompt, "?"},
 	}
 
 	for _, tt := range tests {
@@ -38,10 +39,10 @@ func TestColoredIcon(t *testing.T) {
 		icon  string
 		color color.Attribute
 	}{
-		{"green checkmark", ui.Checkmark, color.FgGreen},
-		{"red cross", ui.Cross, color.FgRed},
-		{"yellow warning", ui.Warn, color.FgYellow},
-		{"blue info", ui.Info, color.FgBlue},
+		{"green checkmark", constants.Checkmark, color.FgGreen},
+		{"red cross", constants.Cross, color.FgRed},
+		{"yellow warning", constants.Warn, color.FgYellow},
+		{"blue info", constants.Info, color.FgBlue},
 	}
 
 	for _, testCase := range tests {

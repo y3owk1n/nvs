@@ -7,13 +7,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
-
-// ShortCommitLen is the number of characters to shorten commit hashes to.
-const ShortCommitLen = 7
-
-const stableConst = "stable"
 
 // currentCmd represents the "current" command.
 // It displays details of the current active version.
@@ -45,7 +41,7 @@ func RunCurrent(_ *cobra.Command, _ []string) error {
 
 	// Handle active version
 	switch current.Name() {
-	case stableConst:
+	case constants.Stable:
 		logrus.Debug("Fetching latest stable release")
 
 		stable, err := GetVersionService().FindStable(context.Background())
@@ -61,7 +57,7 @@ func RunCurrent(_ *cobra.Command, _ []string) error {
 				logrus.Warnf("Failed to write to stdout: %v", err)
 			}
 		} else {
-			_, err = fmt.Fprintf(os.Stdout, "%s %s\n", ui.InfoIcon(), ui.CyanText(stableConst))
+			_, err = fmt.Fprintf(os.Stdout, "%s %s\n", ui.InfoIcon(), ui.CyanText(constants.Stable))
 			if err != nil {
 				logrus.Warnf("Failed to write to stdout: %v", err)
 			}
@@ -90,8 +86,8 @@ func RunCurrent(_ *cobra.Command, _ []string) error {
 			}
 		} else {
 			shortCommit := nightly.CommitHash()
-			if len(shortCommit) > ShortCommitLen {
-				shortCommit = shortCommit[:ShortCommitLen]
+			if len(shortCommit) > constants.ShortCommitLen {
+				shortCommit = shortCommit[:constants.ShortCommitLen]
 			}
 
 			publishedStr := nightly.PublishedAt().Format("2006-01-02")

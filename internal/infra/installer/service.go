@@ -9,17 +9,11 @@ import (
 	"path/filepath"
 
 	"github.com/sirupsen/logrus"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/installer"
 	"github.com/y3owk1n/nvs/internal/infra/archive"
 	"github.com/y3owk1n/nvs/internal/infra/builder"
 	"github.com/y3owk1n/nvs/internal/infra/downloader"
-)
-
-const (
-	filePerm = 0o644
-	dirPerm  = 0o755
-	// ProgressComplete is the value for completed progress.
-	ProgressComplete = 100
 )
 
 // Service implements installer.Installer.
@@ -102,7 +96,7 @@ func (s *Service) InstallRelease(
 	// Create destination directory
 	installPath := filepath.Join(dest, installName)
 
-	err = os.MkdirAll(installPath, dirPerm)
+	err = os.MkdirAll(installPath, constants.DirPerm)
 	if err != nil {
 		return fmt.Errorf("failed to create install directory: %w", err)
 	}
@@ -121,13 +115,13 @@ func (s *Service) InstallRelease(
 	// 6. Write version file
 	versionFile := filepath.Join(installPath, "version.txt")
 
-	err = os.WriteFile(versionFile, []byte(rel.GetIdentifier()), filePerm)
+	err = os.WriteFile(versionFile, []byte(rel.GetIdentifier()), constants.FilePerm)
 	if err != nil {
 		logrus.Warnf("Failed to write version file: %v", err)
 	}
 
 	if progress != nil {
-		progress("Complete", ProgressComplete)
+		progress("Complete", constants.ProgressComplete)
 	}
 
 	return nil

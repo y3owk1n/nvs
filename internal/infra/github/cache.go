@@ -6,10 +6,9 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/release"
 )
-
-const cacheFilePerm = 0o644
 
 // Cache handles caching of GitHub releases.
 type Cache struct {
@@ -113,7 +112,7 @@ func (c *Cache) Set(releases []release.Release) error {
 	// Write to temp file first for atomic operation
 	tempFile := c.filePath + ".tmp"
 
-	err = os.WriteFile(tempFile, data, cacheFilePerm)
+	err = os.WriteFile(tempFile, data, constants.FilePerm)
 	if err != nil {
 		return err
 	}

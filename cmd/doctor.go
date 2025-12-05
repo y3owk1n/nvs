@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/nvs/internal/infra/filesystem"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -93,7 +93,7 @@ func checkPath() error {
 
 	for p := range strings.SplitSeq(path, string(os.PathListSeparator)) {
 		pClean := filepath.Clean(p)
-		if runtime.GOOS == windows {
+		if runtime.GOOS == constants.WindowsOS {
 			if strings.EqualFold(pClean, binClean) {
 				return nil
 			}
@@ -173,7 +173,7 @@ func checkPermissions() error {
 			continue
 		}
 
-		err := os.MkdirAll(dir, filesystem.DirPerm)
+		err := os.MkdirAll(dir, constants.DirPerm)
 		if err != nil {
 			return fmt.Errorf("cannot create/write to %s: %w", dir, err)
 		}
@@ -181,7 +181,7 @@ func checkPermissions() error {
 		// Try writing a temp file
 		testFile := filepath.Join(dir, ".perm-test")
 
-		err = os.WriteFile(testFile, []byte("test"), FilePerm)
+		err = os.WriteFile(testFile, []byte("test"), constants.FilePerm)
 		if err != nil {
 			return fmt.Errorf("cannot write to %s: %w", dir, err)
 		}

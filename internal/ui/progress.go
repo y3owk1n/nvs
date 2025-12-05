@@ -3,17 +3,8 @@ package ui
 import (
 	"fmt"
 	"strings"
-)
 
-const (
-	// ProgressBarWidth is the default width of the progress bar.
-	ProgressBarWidth = 20
-	// ProgressFilled is the character for filled portion of the bar.
-	ProgressFilled = "█"
-	// ProgressEmpty is the character for empty portion of the bar.
-	ProgressEmpty = "░"
-	// ProgressMax is the maximum percentage value.
-	ProgressMax = 100
+	"github.com/y3owk1n/nvs/internal/constants"
 )
 
 // FormatProgressBar creates a visual progress bar string.
@@ -24,14 +15,20 @@ func FormatProgressBar(percent int) string {
 		return ""
 	}
 
-	if percent > ProgressMax {
-		percent = ProgressMax
+	if percent > constants.ProgressMax {
+		percent = constants.ProgressMax
 	}
 
-	filled := (percent * ProgressBarWidth) / ProgressMax
-	empty := ProgressBarWidth - filled
+	filled := (percent * constants.ProgressBarWidth) / constants.ProgressMax
+	empty := constants.ProgressBarWidth - filled
 
-	bar := strings.Repeat(ProgressFilled, filled) + strings.Repeat(ProgressEmpty, empty)
+	bar := strings.Repeat(
+		constants.ProgressFilled,
+		filled,
+	) + strings.Repeat(
+		constants.ProgressEmpty,
+		empty,
+	)
 
 	return fmt.Sprintf("[%s] %3d%%", bar, percent)
 }

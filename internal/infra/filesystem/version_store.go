@@ -12,12 +12,8 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
+	"github.com/y3owk1n/nvs/internal/constants"
 	domainversion "github.com/y3owk1n/nvs/internal/domain/version"
-)
-
-const (
-	dirPerm   = 0o755
-	windowsOS = "windows"
 )
 
 // VersionStore implements domainversion.Manager for filesystem-based storage.
@@ -160,7 +156,7 @@ func (s *VersionStore) Switch(version domainversion.Version) error {
 	}
 
 	// Create new link
-	isDir := runtime.GOOS == windowsOS
+	isDir := runtime.GOOS == constants.WindowsOS
 
 	err = updateSymlink(nvimExec, targetBin, isDir)
 	if err != nil {
@@ -226,7 +222,7 @@ func updateSymlink(target, link string, isDir bool) error {
 	err := os.Symlink(target, link)
 	if err == nil {
 		return nil
-	} else if runtime.GOOS != windowsOS {
+	} else if runtime.GOOS != constants.WindowsOS {
 		return err
 	}
 
@@ -263,7 +259,7 @@ func findNvimLinkTarget(dir string) string {
 
 		if !dirEntry.IsDir() {
 			name := dirEntry.Name()
-			if runtime.GOOS == windowsOS {
+			if runtime.GOOS == constants.WindowsOS {
 				if strings.EqualFold(name, "nvim.exe") ||
 					(strings.HasPrefix(strings.ToLower(name), "nvim-") && filepath.Ext(name) == ".exe") {
 					binaryPath = filepath.Dir(filepath.Dir(path))

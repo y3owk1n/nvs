@@ -7,6 +7,7 @@ import (
 	"time"
 
 	appversion "github.com/y3owk1n/nvs/internal/app/version"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/installer"
 	"github.com/y3owk1n/nvs/internal/domain/release"
 	"github.com/y3owk1n/nvs/internal/domain/version"
@@ -138,17 +139,17 @@ func TestService_Use_Stable(t *testing.T) {
 	}
 	manager := &mockVersionManager{
 		installed: map[string]version.Version{
-			appversion.StableVersion: version.New(
-				appversion.StableVersion,
+			constants.Stable: version.New(
+				constants.Stable,
 				version.TypeStable,
 				"v0.10.0",
 				"abc123",
 			),
 		},
 		current: version.New(
-			appversion.NightlyVersion,
+			constants.Nightly,
 			version.TypeNightly,
-			appversion.NightlyVersion,
+			constants.Nightly,
 			"",
 		),
 	}
@@ -166,12 +167,12 @@ func TestService_Use_Stable(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", newErr)
 	}
 
-	resolvedVersion, err := service.Use(context.Background(), appversion.StableVersion)
+	resolvedVersion, err := service.Use(context.Background(), constants.Stable)
 	if err != nil {
 		t.Fatalf("Use stable failed: %v", err)
 	}
 
-	if manager.current.Name() != appversion.StableVersion {
+	if manager.current.Name() != constants.Stable {
 		t.Errorf("Expected current version name 'stable', got '%s'", manager.current.Name())
 	}
 
@@ -215,7 +216,7 @@ func TestService_Use_Nightly_NotAvailable(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", newErr)
 	}
 
-	_, err := service.Use(context.Background(), appversion.NightlyVersion)
+	_, err := service.Use(context.Background(), constants.Nightly)
 	if err == nil {
 		t.Error("Expected error when nightly release is not available")
 	}
@@ -313,7 +314,7 @@ func TestService_Use_VersionNotFound(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	_, err = service.Use(context.Background(), appversion.NightlyVersion)
+	_, err = service.Use(context.Background(), constants.Nightly)
 	if err == nil {
 		t.Fatalf("Expected error for non-installed version, got nil")
 	}

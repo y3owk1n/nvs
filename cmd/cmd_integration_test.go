@@ -13,15 +13,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/cmd"
 	appversion "github.com/y3owk1n/nvs/internal/app/version"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/installer"
 	"github.com/y3owk1n/nvs/internal/domain/release"
 	"github.com/y3owk1n/nvs/internal/domain/version"
-)
-
-const (
-	testVersion    = "v1.0.0"
-	testCommitHash = "abc1234"
-	windowsOS      = "windows"
 )
 
 // mockVersionManagerForIntegration implements version.Manager for integration testing.
@@ -88,7 +83,7 @@ func (m *mockInstallerForIntegration) BuildFromCommit(
 	commit, dest string,
 	progress installer.ProgressFunc,
 ) (string, error) {
-	return testCommitHash, nil
+	return constants.TestCommitHash, nil
 }
 
 // mockReleaseRepoForIntegration implements release.Repository for integration testing.
@@ -136,7 +131,7 @@ func (m *mockReleaseRepoForIntegration) GetAll(
 }
 
 func TestRunList(t *testing.T) {
-	if runtime.GOOS == windowsOS {
+	if runtime.GOOS == constants.WindowsOS {
 		t.Skip("Skipping symlink test on Windows")
 	}
 
@@ -157,7 +152,7 @@ func TestRunList(t *testing.T) {
 	}
 
 	// Create current symlink
-	current := testVersion
+	current := constants.TestVersion
 
 	err := os.Symlink(
 		filepath.Join(cmd.GetVersionsDir(), current),
@@ -197,7 +192,7 @@ func TestRunList_NoVersions(t *testing.T) {
 }
 
 func TestRunCurrent(t *testing.T) {
-	if runtime.GOOS == windowsOS {
+	if runtime.GOOS == constants.WindowsOS {
 		t.Skip("Skipping symlink test on Windows")
 	}
 
@@ -211,7 +206,7 @@ func TestRunCurrent(t *testing.T) {
 	cmd.InitConfig()
 
 	// Create current symlink to a version
-	version := testVersion
+	version := constants.TestVersion
 	target := filepath.Join(cmd.GetVersionsDir(), version)
 
 	err := os.Mkdir(target, 0o755)
@@ -410,7 +405,7 @@ func TestRunUse(t *testing.T) {
 	cmd.InitConfig()
 
 	// Create version (use a fake commit hash to avoid release lookup)
-	version := testCommitHash
+	version := constants.TestCommitHash
 	target := filepath.Join(cmd.GetVersionsDir(), version)
 
 	err := os.MkdirAll(target, 0o755)
@@ -420,7 +415,7 @@ func TestRunUse(t *testing.T) {
 
 	// Create binary
 	binName := "nvim"
-	if runtime.GOOS == windowsOS {
+	if runtime.GOOS == constants.WindowsOS {
 		binName = "nvim.exe"
 	}
 
@@ -579,7 +574,7 @@ func TestFullWorkflow(t *testing.T) {
 	// This may succeed or fail depending on implementation, just ensure it doesn't crash
 
 	// 3. Create a fake installed version for testing (use commit hash to avoid network)
-	targetVersion := testCommitHash
+	targetVersion := constants.TestCommitHash
 	versionDir := filepath.Join(cmd.GetVersionsDir(), targetVersion)
 
 	err = os.MkdirAll(versionDir, 0o755)
@@ -597,7 +592,7 @@ func TestFullWorkflow(t *testing.T) {
 
 	// Create fake nvim binary
 	binName := "nvim"
-	if runtime.GOOS == windowsOS {
+	if runtime.GOOS == constants.WindowsOS {
 		binName = "nvim.exe"
 	}
 
@@ -1224,7 +1219,7 @@ func TestRunHook(t *testing.T) {
 
 // TestRunPin tests the pin command.
 func TestRunPin(t *testing.T) {
-	if runtime.GOOS == windowsOS {
+	if runtime.GOOS == constants.WindowsOS {
 		t.Skip("Skipping symlink test on Windows")
 	}
 
@@ -1236,7 +1231,7 @@ func TestRunPin(t *testing.T) {
 
 	cmd.InitConfig()
 
-	versionName := testVersion
+	versionName := constants.TestVersion
 	versionDir := filepath.Join(cmd.GetVersionsDir(), versionName)
 
 	err := os.MkdirAll(versionDir, 0o755)
@@ -1354,7 +1349,7 @@ func TestRunUninstall_NotInstalled(t *testing.T) {
 }
 
 func TestRunUninstall_CurrentAborted(t *testing.T) {
-	if runtime.GOOS == windowsOS {
+	if runtime.GOOS == constants.WindowsOS {
 		t.Skip("Skipping symlink test on Windows")
 	}
 
@@ -1433,7 +1428,7 @@ func TestRunCurrent_NoCurrent(t *testing.T) {
 }
 
 func TestRunCurrent_WithStable(t *testing.T) {
-	if runtime.GOOS == windowsOS {
+	if runtime.GOOS == constants.WindowsOS {
 		t.Skip("Skipping symlink test on Windows")
 	}
 
@@ -1471,7 +1466,7 @@ func TestRunCurrent_WithStable(t *testing.T) {
 }
 
 func TestRunCurrent_WithNightly(t *testing.T) {
-	if runtime.GOOS == windowsOS {
+	if runtime.GOOS == constants.WindowsOS {
 		t.Skip("Skipping symlink test on Windows")
 	}
 
@@ -1509,7 +1504,7 @@ func TestRunCurrent_WithNightly(t *testing.T) {
 }
 
 func TestRunCurrent_WithCommitHash(t *testing.T) {
-	if runtime.GOOS == windowsOS {
+	if runtime.GOOS == constants.WindowsOS {
 		t.Skip("Skipping symlink test on Windows")
 	}
 
@@ -1522,7 +1517,7 @@ func TestRunCurrent_WithCommitHash(t *testing.T) {
 	cmd.InitConfig()
 
 	// Create commit hash version directory
-	commitHash := testCommitHash
+	commitHash := constants.TestCommitHash
 	versionDir := filepath.Join(cmd.GetVersionsDir(), commitHash)
 
 	err := os.MkdirAll(versionDir, 0o755)
@@ -1563,7 +1558,7 @@ func createPlatformAssets() []release.Asset {
 				1000000,
 			),
 		}
-	case windowsOS:
+	case constants.WindowsOS:
 		assets = []release.Asset{
 			release.NewAsset("nvim-win64.zip", "https://example.com/nvim-win64.zip", 1000000),
 		}

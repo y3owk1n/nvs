@@ -12,14 +12,9 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/platform"
 	"github.com/y3owk1n/nvs/internal/ui"
-)
-
-const (
-	nightlyHistoryFile   = "nightly-history.json"
-	defaultRollbackLimit = 5
-	fileMode             = 0o644
 )
 
 // NightlyHistoryEntry represents a single nightly version in history.
@@ -60,14 +55,14 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 	for _, entry := range history.Entries {
 		backupDir := filepath.Join(
 			GetVersionsDir(),
-			"nightly-"+shortHash(entry.CommitHash, shortHashLength),
+			"nightly-"+shortHash(entry.CommitHash, constants.ShortHashLength),
 		)
 
 		_, err := os.Stat(backupDir)
 		if err == nil {
 			validEntries = append(validEntries, entry)
 		} else {
-			logrus.Debugf("Removing orphaned history entry: %s", shortHash(entry.CommitHash, shortHashLength))
+			logrus.Debugf("Removing orphaned history entry: %s", shortHash(entry.CommitHash, constants.ShortHashLength))
 		}
 	}
 
@@ -115,7 +110,7 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 	// Safety check against TOCTOU races (directory may have been deleted since filtering)
 	nightlyDir := filepath.Join(
 		GetVersionsDir(),
-		"nightly-"+shortHash(entry.CommitHash, shortHashLength),
+		"nightly-"+shortHash(entry.CommitHash, constants.ShortHashLength),
 	)
 
 	_, err = os.Stat(nightlyDir)
@@ -123,7 +118,7 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(
 			"%w: %s",
 			ErrNightlyVersionNotExists,
-			shortHash(entry.CommitHash, shortHashLength),
+			shortHash(entry.CommitHash, constants.ShortHashLength),
 		)
 	}
 
@@ -148,7 +143,7 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 		} else if info.IsDir() {
 			// It's a real directory - back it up if we have a commit hash
 			if currentCommit != "" {
-				backupDir := filepath.Join(GetVersionsDir(), "nightly-"+shortHash(currentCommit, shortHashLength))
+				backupDir := filepath.Join(GetVersionsDir(), "nightly-"+shortHash(currentCommit, constants.ShortHashLength))
 
 				var backupErr error
 
@@ -196,7 +191,7 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 		os.Stdout,
 		"%s Rolled back to nightly %s (from %s)\n",
 		ui.SuccessIcon(),
-		shortHash(entry.CommitHash, shortHashLength),
+		shortHash(entry.CommitHash, constants.ShortHashLength),
 		entry.InstalledAt.Format("2006-01-02 15:04"),
 	)
 	if printErr != nil {
@@ -219,17 +214,17 @@ func listNightlyHistory(history *NightlyHistory) error {
 		status := ""
 		if shortHash(
 			currentCommit,
-			shortHashLength,
+			constants.ShortHashLength,
 		) == shortHash(
 			entry.CommitHash,
-			shortHashLength,
+			constants.ShortHashLength,
 		) {
 			status = "← current"
 		}
 
 		table.Append([]string{
 			strconv.Itoa(index),
-			shortHash(entry.CommitHash, shortHashLength),
+			shortHash(entry.CommitHash, constants.ShortHashLength),
 			entry.InstalledAt.Format("2006-01-02 15:04"),
 			status,
 		})
@@ -258,15 +253,21 @@ func AddNightlyToHistory(commitHash, tagName string) error {
 		// Create new history if it doesn't exist
 		history = &NightlyHistory{
 			Entries: []NightlyHistoryEntry{},
-			Limit:   defaultRollbackLimit,
+			Limit:   constants.DefaultRollbackLimit,
 		}
 	}
 
 	// Remove any existing entry with the same commit hash (to avoid duplicates)
 	dedupedEntries := make([]NightlyHistoryEntry, 0, len(history.Entries))
-	for _, e := range history.Entries {
-		if shortHash(e.CommitHash, shortHashLength) != shortHash(commitHash, shortHashLength) {
-			dedupedEntries = append(dedupedEntries, e)
+	for _, entry := range history.Entries {
+		if shortHash(
+			entry.CommitHash,
+			constants.ShortHashLength,
+		) != shortHash(
+			commitHash,
+			constants.ShortHashLength,
+		) {
+			dedupedEntries = append(dedupedEntries, entry)
 		}
 	}
 
@@ -286,7 +287,7 @@ func AddNightlyToHistory(commitHash, tagName string) error {
 		for i := history.Limit; i < len(history.Entries); i++ {
 			oldDir := filepath.Join(
 				GetVersionsDir(),
-				"nightly-"+shortHash(history.Entries[i].CommitHash, shortHashLength),
+				"nightly-"+shortHash(history.Entries[i].CommitHash, constants.ShortHashLength),
 			)
 
 			logrus.Debugf("Removing old nightly backup: %s", oldDir)
@@ -309,14 +310,14 @@ func GetNightlyHistory() (*NightlyHistory, error) {
 }
 
 func loadNightlyHistory() (*NightlyHistory, error) {
-	historyPath := filepath.Join(filepath.Dir(GetVersionsDir()), nightlyHistoryFile)
+	historyPath := filepath.Join(filepath.Dir(GetVersionsDir()), constants.NightlyHistoryFile)
 
 	data, err := os.ReadFile(historyPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return &NightlyHistory{
 				Entries: []NightlyHistoryEntry{},
-				Limit:   defaultRollbackLimit,
+				Limit:   constants.DefaultRollbackLimit,
 			}, nil
 		}
 
@@ -339,7 +340,7 @@ func loadNightlyHistory() (*NightlyHistory, error) {
 }
 
 func saveNightlyHistory(history *NightlyHistory) error {
-	historyPath := filepath.Join(filepath.Dir(GetVersionsDir()), nightlyHistoryFile)
+	historyPath := filepath.Join(filepath.Dir(GetVersionsDir()), constants.NightlyHistoryFile)
 
 	data, err := json.MarshalIndent(history, "", "  ")
 	if err != nil {
@@ -349,7 +350,7 @@ func saveNightlyHistory(history *NightlyHistory) error {
 	// Write to temp file first for atomicity
 	tempPath := historyPath + ".tmp"
 
-	err = os.WriteFile(tempPath, data, fileMode)
+	err = os.WriteFile(tempPath, data, constants.FilePerm)
 	if err != nil {
 		return err
 	}

@@ -15,25 +15,8 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/installer"
-)
-
-const (
-	bufferSize     = 4096
-	spinnerSpeed   = 100
-	numReaders     = 2
-	maxAttempts    = 3
-	repoURL        = "https://github.com/neovim/neovim.git"
-	commitLen      = 7
-	dirPerm        = 0o755
-	filePerm       = 0o644
-	progressStart  = 0
-	progressLow    = 10
-	progressMid    = 20
-	progressHigh   = 80
-	progressDone   = 100
-	tickerInterval = 10
-	outputChanSize = 10
 )
 
 // SourceBuilder builds Neovim from source code.
@@ -81,7 +64,7 @@ func (b *SourceBuilder) BuildFromCommit(
 	// Clean up any leftover temp directories from previous runs
 	b.cleanupTempDirectories()
 
-	for attempt := 1; attempt <= maxAttempts; attempt++ {
+	for attempt := 1; attempt <= constants.MaxAttempts; attempt++ {
 		localPath := filepath.Join(os.TempDir(), fmt.Sprintf("neovim-src-%d", attempt))
 		logrus.Debugf("Temporary Neovim source directory: %s", localPath)
 
@@ -103,7 +86,7 @@ func (b *SourceBuilder) BuildFromCommit(
 			logrus.Warnf("Failed to remove temporary directory: %v", removeErr)
 		}
 
-		if attempt < maxAttempts {
+		if attempt < constants.MaxAttempts {
 			logrus.Info("Retrying build with clean directory...")
 			time.Sleep(1 * time.Second)
 		}
@@ -111,7 +94,7 @@ func (b *SourceBuilder) BuildFromCommit(
 
 	joined := errors.Join(ErrBuildFailed, err)
 
-	return "", fmt.Errorf("after %d attempts: %w", maxAttempts, joined)
+	return "", fmt.Errorf("after %d attempts: %w", constants.MaxAttempts, joined)
 }
 
 // buildFromCommitInternal performs the actual build process.
@@ -137,9 +120,9 @@ func (b *SourceBuilder) buildFromCommitInternal(
 			progress("Cloning repository (large repo, may take a while)", -1)
 		}
 
-		logrus.Debug("Cloning repository from ", repoURL)
+		logrus.Debug("Cloning repository from ", constants.RepoURL)
 
-		cmd := b.execCommand(ctx, "git", "clone", "--quiet", repoURL, localPath)
+		cmd := b.execCommand(ctx, "git", "clone", "--quiet", constants.RepoURL, localPath)
 		cmd.SetStdout(os.Stdout)
 		cmd.SetStderr(os.Stderr)
 
@@ -193,11 +176,11 @@ func (b *SourceBuilder) buildFromCommitInternal(
 	}
 
 	commitHashFull := strings.TrimSpace(out.String())
-	if len(commitHashFull) < commitLen {
+	if len(commitHashFull) < constants.CommitLen {
 		return "", ErrCommitHashTooShort
 	}
 
-	commitHash := commitHashFull[:commitLen]
+	commitHash := commitHashFull[:constants.CommitLen]
 	logrus.Debugf("Current commit hash: %s", commitHash)
 
 	// Clean build directory
@@ -227,7 +210,7 @@ func (b *SourceBuilder) buildFromCommitInternal(
 	// Create installation directory
 	targetDir := filepath.Join(dest, commitHash)
 
-	err = os.MkdirAll(targetDir, dirPerm)
+	err = os.MkdirAll(targetDir, constants.DirPerm)
 	if err != nil {
 		return "", fmt.Errorf("failed to create installation directory: %w", err)
 	}
@@ -254,13 +237,13 @@ func (b *SourceBuilder) buildFromCommitInternal(
 	// Write version file
 	versionFile := filepath.Join(targetDir, "version.txt")
 
-	err = os.WriteFile(versionFile, []byte(commitHashFull), filePerm)
+	err = os.WriteFile(versionFile, []byte(commitHashFull), constants.FilePerm)
 	if err != nil {
 		return "", fmt.Errorf("failed to write version file: %w", err)
 	}
 
 	if progress != nil {
-		progress("Build complete", progressDone)
+		progress("Build complete", constants.ProgressDone)
 	}
 
 	logrus.Info("Build and installation successful")
@@ -341,7 +324,7 @@ func runCommandWithProgress(cmd Commander, progress installer.ProgressFunc, phas
 
 	startTime := time.Now()
 
-	ticker := time.NewTicker(tickerInterval * time.Second)
+	ticker := time.NewTicker(constants.TickerInterval * time.Second)
 	defer ticker.Stop()
 
 	// Start progress
@@ -351,7 +334,7 @@ func runCommandWithProgress(cmd Commander, progress installer.ProgressFunc, phas
 	done := make(chan error, 1)
 
 	// Channel for important output lines
-	outputChan := make(chan string, outputChanSize)
+	outputChan := make(chan string, constants.OutputChanSize)
 
 	var lastMessage string
 
@@ -459,12 +442,12 @@ func runCommandWithSpinnerAndOutput(cmd Commander, outputCallback func(string)) 
 
 	// Read from both pipes concurrently
 	var waitGroup sync.WaitGroup
-	waitGroup.Add(numReaders)
+	waitGroup.Add(constants.NumReaders)
 
 	go func() {
 		defer waitGroup.Done()
 
-		buf := make([]byte, bufferSize)
+		buf := make([]byte, constants.BufferSize)
 		for {
 			n, err := stdoutReader.Read(buf)
 			if n > 0 {
@@ -487,7 +470,7 @@ func runCommandWithSpinnerAndOutput(cmd Commander, outputCallback func(string)) 
 	go func() {
 		defer waitGroup.Done()
 
-		buf := make([]byte, bufferSize)
+		buf := make([]byte, constants.BufferSize)
 		for {
 			n, err := stderrReader.Read(buf)
 			if n > 0 {

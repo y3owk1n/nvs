@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/installer"
 	"github.com/y3owk1n/nvs/internal/domain/release"
 	"github.com/y3owk1n/nvs/internal/domain/version"
@@ -22,12 +23,6 @@ type Service struct {
 	installer      installer.Installer
 	config         *Config
 }
-
-// Constants for version names.
-const (
-	StableVersion  = "stable"
-	NightlyVersion = "nightly"
-)
 
 // Config holds configuration for the version service.
 type Config struct {
@@ -93,9 +88,9 @@ func (s *Service) Install(
 	)
 
 	switch normalized {
-	case StableVersion:
+	case constants.Stable:
 		rel, err = s.releaseRepo.FindStable(ctx)
-	case NightlyVersion:
+	case constants.Nightly:
 		rel, err = s.releaseRepo.FindNightly(ctx)
 	default:
 		rel, err = s.releaseRepo.FindByTag(ctx, normalized)
@@ -177,9 +172,9 @@ func (s *Service) Use(ctx context.Context, versionAlias string) (string, error) 
 		)
 
 		switch normalized {
-		case StableVersion:
+		case constants.Stable:
 			rel, err = s.releaseRepo.FindStable(ctx)
-		case NightlyVersion:
+		case constants.Nightly:
 			rel, err = s.releaseRepo.FindNightly(ctx)
 		default:
 			rel, err = s.releaseRepo.FindByTag(ctx, normalized)
@@ -287,7 +282,7 @@ func (s *Service) Upgrade(
 	normalized := normalizeVersion(versionAlias)
 
 	// Only stable and nightly can be upgraded
-	if normalized != StableVersion && normalized != NightlyVersion {
+	if normalized != constants.Stable && normalized != constants.Nightly {
 		return ErrOnlyStableNightlyUpgrade
 	}
 
@@ -305,9 +300,9 @@ func (s *Service) Upgrade(
 	)
 
 	switch normalized {
-	case StableVersion:
+	case constants.Stable:
 		rel, err = s.releaseRepo.FindStable(ctx)
-	case NightlyVersion:
+	case constants.Nightly:
 		rel, err = s.releaseRepo.FindNightly(ctx)
 	}
 
@@ -322,7 +317,7 @@ func (s *Service) Upgrade(
 	}
 
 	expectedIdentifier := rel.TagName()
-	if normalized == NightlyVersion {
+	if normalized == constants.Nightly {
 		expectedIdentifier = rel.CommitHash()
 	}
 
@@ -387,7 +382,7 @@ func normalizeVersion(versionStr string) string {
 // determineVersionType determines the version type from the name.
 func determineVersionType(name string) version.Type {
 	switch {
-	case name == StableVersion:
+	case name == constants.Stable:
 		return version.TypeStable
 	case strings.HasPrefix(strings.ToLower(name), "nightly"):
 		return version.TypeNightly

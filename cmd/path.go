@@ -10,18 +10,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/nvs/internal/infra/filesystem"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/ui"
-)
-
-// FilePerm is the file permission for created files.
-const FilePerm = 0o644
-
-// Shell names.
-const (
-	ShellBash = "bash"
-	ShellZsh  = "zsh"
-	ShellFish = "fish"
 )
 
 // pathCmd represents the "path" command.
@@ -201,13 +191,13 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	}
 
 	switch shellName {
-	case ShellBash, ShellZsh:
+	case constants.ShellBash, constants.ShellZsh:
 		rcFile = filepath.Join(home, fmt.Sprintf(".%src", shellName))
 		exportCmd = fmt.Sprintf("export PATH=\"$PATH:%s\"", GetGlobalBinDir())
-	case ShellFish:
+	case constants.ShellFish:
 		rcFile = filepath.Join(home, ".config", "fish", "config.fish")
 		// Ensure parent directory exists for fish config
-		err := os.MkdirAll(filepath.Dir(rcFile), filesystem.DirPerm)
+		err := os.MkdirAll(filepath.Dir(rcFile), constants.DirPerm)
 		if err != nil {
 			return fmt.Errorf("failed to create fish config directory: %w", err)
 		}
@@ -299,7 +289,11 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	case os.IsNotExist(statErr):
 		logrus.Debug("Creating new rcFile")
 
-		err := os.WriteFile(rcFile, []byte(exportCmdComment+"\n"+exportCmd+"\n"), FilePerm)
+		err := os.WriteFile(
+			rcFile,
+			[]byte(exportCmdComment+"\n"+exportCmd+"\n"),
+			constants.FilePerm,
+		)
 		if err != nil {
 			return fmt.Errorf("failed to create %s: %w", rcFile, err)
 		}
@@ -317,7 +311,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 		// Check if the global bin directory is already in PATH
 		globalBinDir := GetGlobalBinDir()
 		if !strings.Contains(string(data), globalBinDir) {
-			file, err := os.OpenFile(rcFile, os.O_APPEND|os.O_WRONLY, FilePerm)
+			file, err := os.OpenFile(rcFile, os.O_APPEND|os.O_WRONLY, constants.FilePerm)
 			if err != nil {
 				return fmt.Errorf("failed to open %s: %w", rcFile, err)
 			}

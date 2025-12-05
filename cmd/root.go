@@ -9,24 +9,18 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/app/config"
 	appversion "github.com/y3owk1n/nvs/internal/app/version"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/infra/archive"
 	"github.com/y3owk1n/nvs/internal/infra/builder"
 	"github.com/y3owk1n/nvs/internal/infra/downloader"
 	"github.com/y3owk1n/nvs/internal/infra/filesystem"
 	"github.com/y3owk1n/nvs/internal/infra/github"
 	"github.com/y3owk1n/nvs/internal/infra/installer"
-)
-
-const (
-	windows  = "windows"
-	dirPerm  = 0o755
-	cacheTTL = 5 * time.Minute
 )
 
 var (
@@ -135,7 +129,7 @@ func InitConfig() {
 	}
 
 	// Ensure the configuration directory exists.
-	err = os.MkdirAll(baseConfigDir, dirPerm)
+	err = os.MkdirAll(baseConfigDir, constants.DirPerm)
 	if err != nil {
 		logrus.Fatalf("Failed to create config directory: %v", err)
 	}
@@ -145,7 +139,7 @@ func InitConfig() {
 	// Set the directory for installed versions.
 	versionsDir = filepath.Join(baseConfigDir, "versions")
 
-	err = os.MkdirAll(versionsDir, dirPerm)
+	err = os.MkdirAll(versionsDir, constants.DirPerm)
 	if err != nil {
 		logrus.Fatalf("Failed to create versions directory: %v", err)
 	}
@@ -173,7 +167,7 @@ func InitConfig() {
 		}
 	}
 	// Ensure the cache directory exists.
-	err = os.MkdirAll(baseCacheDir, dirPerm)
+	err = os.MkdirAll(baseCacheDir, constants.DirPerm)
 	if err != nil {
 		logrus.Fatalf("Failed to create cache directory: %v", err)
 	}
@@ -188,7 +182,7 @@ func InitConfig() {
 		baseBinDir = custom
 		logrus.Debugf("Using custom binary directory from NVS_BIN_DIR: %s", baseBinDir)
 	} else {
-		if runtime.GOOS == windows {
+		if runtime.GOOS == constants.WindowsOS {
 			home, homeErr := os.UserHomeDir()
 			if homeErr != nil {
 				logrus.Fatalf("Failed to get user home directory: %v", homeErr)
@@ -207,7 +201,7 @@ func InitConfig() {
 		}
 	}
 	// Ensure the binary directory exists.
-	err = os.MkdirAll(baseBinDir, dirPerm)
+	err = os.MkdirAll(baseBinDir, constants.DirPerm)
 	if err != nil {
 		logrus.Fatalf("Failed to create binary directory: %v", err)
 	}
@@ -227,7 +221,7 @@ func InitConfig() {
 	}
 
 	// Initialize services
-	githubClient := github.NewClient(cacheFilePath, cacheTTL, "0.5.0", githubMirror)
+	githubClient := github.NewClient(cacheFilePath, constants.CacheTTL, "0.5.0", githubMirror)
 	versionManager := filesystem.New(&filesystem.Config{
 		VersionsDir:  versionsDir,
 		GlobalBinDir: globalBinDir,

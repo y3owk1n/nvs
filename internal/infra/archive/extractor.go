@@ -15,13 +15,7 @@ import (
 
 	"github.com/h2non/filetype"
 	"github.com/sirupsen/logrus"
-)
-
-const (
-	bufSize      = 262
-	dirPerm      = 0o755
-	zipFormat    = "zip"
-	fileModeMask = 0o777
+	"github.com/y3owk1n/nvs/internal/constants"
 )
 
 // Extractor handles archive extraction operations.
@@ -47,7 +41,7 @@ func (e *Extractor) Extract(src *os.File, dest string) error {
 	switch format {
 	case "tar.gz":
 		return e.extractTarGz(src, dest)
-	case zipFormat:
+	case constants.ZipFormat:
 		return e.extractZip(src, dest)
 	default:
 		return fmt.Errorf("%w: %s", ErrUnsupportedFormat, format)
@@ -56,7 +50,7 @@ func (e *Extractor) Extract(src *os.File, dest string) error {
 
 // detectFormat detects the archive format from file header.
 func detectFormat(file *os.File) (string, error) {
-	buf := make([]byte, bufSize)
+	buf := make([]byte, constants.BufSize)
 
 	bytesRead, err := file.Read(buf)
 	if err != nil && !errors.Is(err, io.EOF) {
@@ -85,7 +79,7 @@ func detectFormat(file *os.File) (string, error) {
 
 	// Map to supported formats
 	switch kind.Extension {
-	case zipFormat:
+	case constants.ZipFormat:
 		return "zip", nil
 	case "gz":
 		// Assumption: all .gz files are tar.gz (valid for Neovim releases)
@@ -153,7 +147,7 @@ func (e *Extractor) extractTarGz(src *os.File, dest string) error {
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			mode := os.FileMode(header.Mode)&fileModeMask | os.ModeDir
+			mode := os.FileMode(header.Mode)&constants.FileModeMask | os.ModeDir
 
 			err := os.MkdirAll(target, mode)
 			if err != nil {
@@ -161,12 +155,12 @@ func (e *Extractor) extractTarGz(src *os.File, dest string) error {
 			}
 
 		case tar.TypeReg:
-			err = os.MkdirAll(filepath.Dir(target), dirPerm)
+			err = os.MkdirAll(filepath.Dir(target), constants.DirPerm)
 			if err != nil {
 				return fmt.Errorf("failed to create directory for file %s: %w", target, err)
 			}
 
-			mode := os.FileMode(header.Mode) & fileModeMask
+			mode := os.FileMode(header.Mode) & constants.FileModeMask
 
 			err := writeFile(target, mode, tarReader)
 			if err != nil {
@@ -224,7 +218,7 @@ func (e *Extractor) extractZip(src *os.File, dest string) error {
 			continue
 		}
 
-		err = os.MkdirAll(filepath.Dir(path), dirPerm)
+		err = os.MkdirAll(filepath.Dir(path), constants.DirPerm)
 		if err != nil {
 			return fmt.Errorf("failed to create directory for file %s: %w", path, err)
 		}

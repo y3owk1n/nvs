@@ -35,3 +35,6 @@ coverage.html
 current
 **/current
 *.tmp
+
+# Binary
+nvs

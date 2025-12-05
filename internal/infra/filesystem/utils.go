@@ -8,11 +8,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	// DirPerm is the permission for directories.
-	DirPerm = 0o755
-)
-
 // CopyFile copies the content of the file from src to dst,
 // sets the destination file's permissions to the specified mode, and returns an error if any step fails.
 func CopyFile(src, dst string, mode os.FileMode) (err error) {

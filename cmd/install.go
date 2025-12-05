@@ -9,11 +9,9 @@ import (
 	"github.com/briandowns/spinner"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
-
-// TimeoutMinutes is the timeout in minutes for installation.
-const TimeoutMinutes = 30
 
 // installCmd represents the "install" command.
 // It installs a specified version of Neovim. The command accepts a single argument which may be:
@@ -47,7 +45,7 @@ func RunInstall(cmd *cobra.Command, args []string) error {
 	logrus.Debug("Starting installation command")
 
 	// Create a context with a timeout to prevent hanging installations.
-	ctx, cancel := context.WithTimeout(cmd.Context(), TimeoutMinutes*time.Minute)
+	ctx, cancel := context.WithTimeout(cmd.Context(), constants.TimeoutMinutes*time.Minute)
 	defer cancel()
 
 	alias := args[0]

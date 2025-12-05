@@ -14,15 +14,8 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/sirupsen/logrus"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/release"
-)
-
-const (
-	defaultAPIBaseURL = "https://api.github.com"
-	// DefaultGitHubBaseURL is the default GitHub base URL for downloads.
-	DefaultGitHubBaseURL = "https://github.com"
-	clientTimeoutSec     = 15
-	arm64Arch            = "arm64"
 )
 
 // Client implements the release.Repository interface for GitHub.
@@ -37,7 +30,7 @@ type Client struct {
 // mirrorURL is optional - pass empty string to use default GitHub URLs.
 func NewClient(cacheFilePath string, cacheTTL time.Duration, minVersion, mirrorURL string) *Client {
 	return &Client{
-		httpClient: &http.Client{Timeout: clientTimeoutSec * time.Second},
+		httpClient: &http.Client{Timeout: constants.ClientTimeoutSec * time.Second},
 		cache:      NewCache(cacheFilePath, cacheTTL),
 		minVersion: minVersion,
 		mirrorURL:  mirrorURL,
@@ -52,7 +45,7 @@ func ApplyMirrorToURL(url, mirrorURL string) string {
 	}
 
 	// Replace https://github.com with the mirror URL
-	return strings.Replace(url, DefaultGitHubBaseURL, mirrorURL, 1)
+	return strings.Replace(url, constants.DefaultGitHubBaseURL, mirrorURL, 1)
 }
 
 // ApplyMirror replaces the default GitHub URL with the mirror URL if configured.
@@ -115,7 +108,7 @@ func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, err
 			http.MethodGet,
 			fmt.Sprintf(
 				"%s/repos/neovim/neovim/releases?page=%d&per_page=%d",
-				defaultAPIBaseURL,
+				constants.DefaultAPIBaseURL,
 				page,
 				perPage,
 			),
@@ -317,13 +310,13 @@ func GetAssetURL(rel release.Release) (string, string, error) {
 		switch runtime.GOARCH {
 		case "amd64":
 			patterns = []string{"linux-x86_64.tar.gz", "linux-64.tar.gz", "linux64.tar.gz"}
-		case arm64Arch:
+		case constants.Arm64Arch:
 			patterns = []string{"linux-arm64.tar.gz"}
 		default:
 			return "", "", fmt.Errorf("%w: %s", ErrUnsupportedArch, runtime.GOARCH)
 		}
 	case "darwin":
-		if runtime.GOARCH == arm64Arch {
+		if runtime.GOARCH == constants.Arm64Arch {
 			patterns = []string{"macos-arm64.tar.gz", "macos.tar.gz"}
 		} else {
 			patterns = []string{"macos-x86_64.tar.gz", "macos.tar.gz"}
@@ -332,7 +325,7 @@ func GetAssetURL(rel release.Release) (string, string, error) {
 		switch runtime.GOARCH {
 		case "amd64":
 			patterns = []string{"win64.zip"}
-		case arm64Arch:
+		case constants.Arm64Arch:
 			patterns = []string{"win-arm64.zip", "win64.zip"}
 		default:
 			return "", "", fmt.Errorf("%w: %s", ErrUnsupportedArch, runtime.GOARCH)

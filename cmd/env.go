@@ -14,10 +14,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-)
-
-const (
-	unavailableDir = "Unavailable"
+	"github.com/y3owk1n/nvs/internal/constants"
 )
 
 // envCmd represents the "env" command.
@@ -68,8 +65,8 @@ func RunEnv(cmd *cobra.Command, _ []string) error {
 		var err error
 
 		// fail if we can't determine the required directories
-		if configDir == "" || configDir == unavailableDir ||
-			cacheDir == "" || cacheDir == unavailableDir ||
+		if configDir == "" || configDir == constants.UnavailableDir ||
+			cacheDir == "" || cacheDir == constants.UnavailableDir ||
 			binDir == "" {
 			logrus.Error("One or more required directories could not be determined")
 
@@ -171,7 +168,7 @@ func RunEnv(cmd *cobra.Command, _ []string) error {
 
 // DetectShell detects the current shell.
 func DetectShell() string {
-	if runtime.GOOS == windows {
+	if runtime.GOOS == constants.WindowsOS {
 		return detectShellWindows()
 	}
 
