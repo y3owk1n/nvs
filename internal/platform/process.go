@@ -5,9 +5,12 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
+
+const processCheckTimeout = 5 * time.Second
 
 // IsNeovimRunning checks if any Neovim process is currently running.
 // Returns true if nvim is running, along with the count of running instances.
@@ -21,8 +24,11 @@ func IsNeovimRunning() (bool, int) {
 
 // isNeovimRunningUnix checks for running nvim processes on Unix systems.
 func isNeovimRunningUnix() (bool, int) {
+	ctx, cancel := context.WithTimeout(context.Background(), processCheckTimeout)
+	defer cancel()
+
 	// Use pgrep to find nvim processes
-	cmd := exec.CommandContext(context.Background(), "pgrep", "-x", "nvim")
+	cmd := exec.CommandContext(ctx, "pgrep", "-x", "nvim")
 
 	output, err := cmd.Output()
 	if err != nil {
@@ -49,9 +55,12 @@ func isNeovimRunningUnix() (bool, int) {
 
 // isNeovimRunningWindows checks for running nvim processes on Windows.
 func isNeovimRunningWindows() (bool, int) {
+	ctx, cancel := context.WithTimeout(context.Background(), processCheckTimeout)
+	defer cancel()
+
 	// Use tasklist to find nvim.exe processes
 	cmd := exec.CommandContext(
-		context.Background(),
+		ctx,
 		"tasklist",
 		"/FI", "IMAGENAME eq nvim.exe",
 		"/FO", "CSV",
