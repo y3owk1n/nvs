@@ -32,7 +32,6 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	spin.Suffix = " Checking system..."
 
 	spin.Start()
-	defer spin.Stop()
 
 	checks := []struct {
 		name  string
@@ -65,6 +64,8 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 
 	_, _ = os.Stdout.Write([]byte("\n"))
 
+	spin.Stop()
+
 	if len(issues) > 0 {
 		_, _ = fmt.Fprintf(os.Stdout, "%s\n", ui.RedText("Issues found:"))
 
@@ -74,6 +75,8 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 
 		return fmt.Errorf("%w: %d issue(s)", ErrIssuesFound, len(issues))
 	}
+
+	spin.Stop()
 
 	_, _ = fmt.Fprintf(os.Stdout,
 		"%s\n", ui.GreenText("No issues found! You are ready to go."))
