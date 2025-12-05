@@ -65,10 +65,6 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 }
 
 func checkOSArch() error {
-	if runtime.GOOS == "" || runtime.GOARCH == "" {
-		return fmt.Errorf("%w: %s/%s", ErrUnknownOSArch, runtime.GOOS, runtime.GOARCH)
-	}
-
 	return nil
 }
 
