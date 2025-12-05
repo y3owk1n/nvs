@@ -29,6 +29,18 @@ func copyDir(src, dst string) error {
 		srcPath := filepath.Join(src, entry.Name())
 		dstPath := filepath.Join(dst, entry.Name())
 
+		// Handle symlinks
+		if entry.Type()&os.ModeSymlink != 0 {
+			link, err := os.Readlink(srcPath)
+			if err != nil {
+				return err
+			}
+			if err := os.Symlink(link, dstPath); err != nil {
+				return err
+			}
+			continue
+		}
+
 		if entry.IsDir() {
 			err := copyDir(srcPath, dstPath)
 			if err != nil {
@@ -77,6 +89,9 @@ func copyFile(src, dst string) error {
 	}()
 
 	_, err = io.Copy(dstFile, srcFile)
+	if err != nil {
+		return err
+	}
 
-	return err
+	return dstFile.Sync()
 }
