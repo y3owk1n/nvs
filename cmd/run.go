@@ -68,7 +68,15 @@ func runRun(cmd *cobra.Command, args []string) error {
 	// Get arguments to pass to nvim (everything after the version)
 	var nvimArgs []string
 	if len(args) > 1 {
-		nvimArgs = args[1:]
+		// Skip the "--" separator if present
+		startIdx := 1
+		if len(args) > 1 && args[1] == "--" {
+			startIdx = 2
+		}
+
+		if startIdx < len(args) {
+			nvimArgs = args[startIdx:]
+		}
 	}
 
 	// Execute nvim
