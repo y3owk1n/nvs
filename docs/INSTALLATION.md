@@ -35,6 +35,10 @@ For Windows users, use the PowerShell installation script:
 ```powershell
 # Download and run the installer
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/y3owk1n/nvs/main/install.ps1" -OutFile "install.ps1"
+
+# If you get an execution policy error, run:
+# Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+
 .\install.ps1
 ```
 
@@ -59,6 +63,10 @@ curl -fsSL https://raw.githubusercontent.com/y3owk1n/nvs/main/uninstall.sh | bas
 ```powershell
 # Download and run the uninstaller
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/y3owk1n/nvs/main/uninstall.ps1" -OutFile "uninstall.ps1"
+
+# If you get an execution policy error, run:
+# Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+
 .\uninstall.ps1
 ```
 
