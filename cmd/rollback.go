@@ -1,0 +1,348 @@
+package cmd
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"time"
+
+	"github.com/olekukonko/tablewriter"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/internal/ui"
+)
+
+const (
+	nightlyHistoryFile   = "nightly-history.json"
+	defaultRollbackLimit = 5
+	fileMode             = 0o644
+)
+
+// NightlyHistoryEntry represents a single nightly version in history.
+//
+//nolint:tagliatelle
+type NightlyHistoryEntry struct {
+	CommitHash  string    `json:"commit_hash"`
+	InstalledAt time.Time `json:"installed_at"`
+	TagName     string    `json:"tag_name"`
+}
+
+// NightlyHistory holds the history of nightly versions.
+type NightlyHistory struct {
+	Entries []NightlyHistoryEntry `json:"entries"`
+	Limit   int                   `json:"limit"`
+}
+
+// rollbackCmd represents the "rollback" command.
+var rollbackCmd = &cobra.Command{
+	Use:   "rollback [index]",
+	Short: "Rollback to a previous nightly version",
+	Long: `Rollback to a previous nightly version.
+Without arguments, lists available nightly versions to rollback to.
+With an index, rolls back to that specific version.`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: runRollback,
+}
+
+func runRollback(cmd *cobra.Command, args []string) error {
+	history, err := loadNightlyHistory()
+	if err != nil {
+		return fmt.Errorf("failed to load nightly history: %w", err)
+	}
+
+	// Filter out entries that no longer exist on disk
+	validEntries := make([]NightlyHistoryEntry, 0, len(history.Entries))
+	for _, entry := range history.Entries {
+		backupDir := filepath.Join(
+			GetVersionsDir(),
+			"nightly-"+shortHash(entry.CommitHash, shortHashLength),
+		)
+
+		var statErr error
+
+		_, statErr = os.Stat(backupDir)
+		if statErr == nil {
+			validEntries = append(validEntries, entry)
+		} else {
+			logrus.Debugf("Removing orphaned history entry: %s", shortHash(entry.CommitHash, shortHashLength))
+		}
+	}
+
+	// Update history if entries were removed
+	if len(validEntries) != len(history.Entries) {
+		history.Entries = validEntries
+
+		saveErr := saveNightlyHistory(history)
+		if saveErr != nil {
+			logrus.Warnf("Failed to save cleaned history: %v", saveErr)
+		}
+	}
+
+	if len(history.Entries) == 0 {
+		_, printErr := fmt.Fprintf(os.Stdout, "%s No nightly history available.\n", ui.InfoIcon())
+		if printErr != nil {
+			logrus.Warnf("Failed to write to stdout: %v", printErr)
+		}
+
+		_, _ = fmt.Fprintf(
+			os.Stdout,
+			"%s Run 'nvs upgrade nightly' to start tracking versions.\n",
+			ui.InfoIcon(),
+		)
+
+		return nil
+	}
+
+	// If no index provided, list available versions
+	if len(args) == 0 {
+		return listNightlyHistory(history)
+	}
+
+	// Parse index and rollback
+	var index int
+
+	_, err = fmt.Sscanf(args[0], "%d", &index)
+	if err != nil || index < 0 || index >= len(history.Entries) {
+		return fmt.Errorf("%w: %s (use 0-%d)", ErrInvalidIndex, args[0], len(history.Entries)-1)
+	}
+
+	entry := history.Entries[index]
+	logrus.Debugf("Rolling back to nightly commit %s", entry.CommitHash)
+
+	// The rollback is essentially switching to a stored nightly version
+	// We need to check if this version directory still exists
+	nightlyDir := filepath.Join(
+		GetVersionsDir(),
+		"nightly-"+shortHash(entry.CommitHash, shortHashLength),
+	)
+
+	var statErr error
+
+	_, statErr = os.Stat(nightlyDir)
+	if os.IsNotExist(statErr) {
+		return fmt.Errorf(
+			"%w: %s",
+			ErrNightlyVersionNotExists,
+			shortHash(entry.CommitHash, shortHashLength),
+		)
+	}
+
+	// Create symlink to this version as "nightly"
+	currentNightly := filepath.Join(GetVersionsDir(), "nightly")
+
+	// Get current nightly's commit hash before removing (to potentially back it up)
+	currentCommit, _ := GetVersionService().GetInstalledVersionIdentifier("nightly")
+
+	// Remove current nightly symlink/directory if it exists
+	info, statErr := os.Lstat(currentNightly)
+	if statErr == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			// It's a symlink, just remove it
+			err := os.Remove(currentNightly)
+			if err != nil {
+				logrus.Warnf("Failed to remove symlink: %v", err)
+			}
+		} else if info.IsDir() {
+			// It's a real directory - back it up if we have a commit hash
+			if currentCommit != "" {
+				backupDir := filepath.Join(GetVersionsDir(), "nightly-"+shortHash(currentCommit, shortHashLength))
+
+				var backupErr error
+
+				_, backupErr = os.Stat(backupDir)
+				if os.IsNotExist(backupErr) {
+					// Rename current to backup
+					renameErr := os.Rename(currentNightly, backupDir)
+					if renameErr != nil {
+						return fmt.Errorf("failed to backup current nightly: %w", renameErr)
+					}
+
+					logrus.Debugf("Backed up current nightly to %s", backupDir)
+				} else {
+					// Backup already exists, safe to remove current
+					rmErr := os.RemoveAll(currentNightly)
+					if rmErr != nil {
+						return fmt.Errorf("failed to remove current nightly: %w", rmErr)
+					}
+				}
+			} else {
+				// No commit hash, just remove
+				rmErr := os.RemoveAll(currentNightly)
+				if rmErr != nil {
+					return fmt.Errorf("failed to remove current nightly: %w", rmErr)
+				}
+			}
+		}
+	}
+
+	// Create symlink from nightly -> nightly-{hash}
+	err = os.Symlink(nightlyDir, currentNightly)
+	if err != nil {
+		return fmt.Errorf("failed to create nightly symlink: %w", err)
+	}
+
+	// Add the version we're rolling back FROM to history (for roll-forward capability)
+	if currentCommit != "" && currentCommit != entry.CommitHash {
+		_ = AddNightlyToHistory(currentCommit, "nightly")
+	}
+
+	_, printErr := fmt.Fprintf(
+		os.Stdout,
+		"%s Rolled back to nightly %s (from %s)\n",
+		ui.SuccessIcon(),
+		shortHash(entry.CommitHash, shortHashLength),
+		entry.InstalledAt.Format("2006-01-02 15:04"),
+	)
+	if printErr != nil {
+		logrus.Warnf("Failed to write to stdout: %v", printErr)
+	}
+
+	return nil
+}
+
+func listNightlyHistory(history *NightlyHistory) error {
+	// Get current nightly commit to show indicator
+	currentCommit, _ := GetVersionService().GetInstalledVersionIdentifier("nightly")
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"Index", "Commit", "Installed At", "Status"})
+	table.SetBorder(false)
+	table.SetRowLine(false)
+
+	for index, entry := range history.Entries {
+		status := ""
+		if shortHash(
+			currentCommit,
+			shortHashLength,
+		) == shortHash(
+			entry.CommitHash,
+			shortHashLength,
+		) {
+			status = "← current"
+		}
+
+		table.Append([]string{
+			strconv.Itoa(index),
+			shortHash(entry.CommitHash, shortHashLength),
+			entry.InstalledAt.Format("2006-01-02 15:04"),
+			status,
+		})
+	}
+
+	table.Render()
+
+	var printErr error
+
+	_, printErr = fmt.Fprintln(
+		os.Stdout,
+		"\nUse 'nvs rollback <index>' to rollback to a specific version.",
+	)
+	if printErr != nil {
+		logrus.Warnf("Failed to write to stdout: %v", printErr)
+	}
+
+	return nil
+}
+
+// AddNightlyToHistory adds a nightly version to the history.
+func AddNightlyToHistory(commitHash, tagName string) error {
+	history, err := loadNightlyHistory()
+	if err != nil {
+		// Create new history if it doesn't exist
+		history = &NightlyHistory{
+			Entries: []NightlyHistoryEntry{},
+			Limit:   defaultRollbackLimit,
+		}
+	}
+
+	// Remove any existing entry with the same commit hash (to avoid duplicates)
+	dedupedEntries := make([]NightlyHistoryEntry, 0, len(history.Entries))
+	for _, e := range history.Entries {
+		if shortHash(e.CommitHash, shortHashLength) != shortHash(commitHash, shortHashLength) {
+			dedupedEntries = append(dedupedEntries, e)
+		}
+	}
+
+	history.Entries = dedupedEntries
+
+	// Add new entry at the beginning
+	entry := NightlyHistoryEntry{
+		CommitHash:  commitHash,
+		InstalledAt: time.Now(),
+		TagName:     tagName,
+	}
+	history.Entries = append([]NightlyHistoryEntry{entry}, history.Entries...)
+
+	// Trim to limit
+	if len(history.Entries) > history.Limit {
+		// Clean up old nightly directories
+		for i := history.Limit; i < len(history.Entries); i++ {
+			oldDir := filepath.Join(
+				GetVersionsDir(),
+				"nightly-"+shortHash(history.Entries[i].CommitHash, shortHashLength),
+			)
+
+			err := os.RemoveAll(oldDir)
+			if err != nil {
+				logrus.Warnf("Failed to remove old nightly %s: %v", oldDir, err)
+			}
+		}
+
+		history.Entries = history.Entries[:history.Limit]
+	}
+
+	return saveNightlyHistory(history)
+}
+
+// GetNightlyHistory returns the nightly history.
+func GetNightlyHistory() (*NightlyHistory, error) {
+	return loadNightlyHistory()
+}
+
+func loadNightlyHistory() (*NightlyHistory, error) {
+	historyPath := filepath.Join(filepath.Dir(GetVersionsDir()), nightlyHistoryFile)
+
+	data, err := os.ReadFile(historyPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return &NightlyHistory{
+				Entries: []NightlyHistoryEntry{},
+				Limit:   defaultRollbackLimit,
+			}, nil
+		}
+
+		return nil, err
+	}
+
+	var history NightlyHistory
+
+	err = json.Unmarshal(data, &history)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sort by installed_at descending (most recent first)
+	sort.Slice(history.Entries, func(i, j int) bool {
+		return history.Entries[i].InstalledAt.After(history.Entries[j].InstalledAt)
+	})
+
+	return &history, nil
+}
+
+func saveNightlyHistory(history *NightlyHistory) error {
+	historyPath := filepath.Join(filepath.Dir(GetVersionsDir()), nightlyHistoryFile)
+
+	data, err := json.MarshalIndent(history, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(historyPath, data, fileMode)
+}
+
+func init() {
+	rootCmd.AddCommand(rollbackCmd)
+}
