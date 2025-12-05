@@ -7,17 +7,10 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/infra/filesystem"
 	"github.com/y3owk1n/nvs/internal/ui"
-)
-
-const (
-	// SpinnerInterval is the interval for the spinner.
-	SpinnerInterval = 100 * time.Millisecond
 )
 
 var doctorCmd = &cobra.Command{
@@ -28,11 +21,6 @@ var doctorCmd = &cobra.Command{
 }
 
 func runDoctor(cmd *cobra.Command, args []string) error {
-	spin := spinner.New(spinner.CharSets[14], SpinnerInterval)
-	spin.Suffix = " Checking system..."
-
-	spin.Start()
-
 	checks := []struct {
 		name  string
 		check func() error
@@ -47,8 +35,6 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 
 	var issues []string
 
-	_, _ = os.Stdout.Write([]byte("\n"))
-
 	for _, check := range checks {
 		_, _ = fmt.Fprintf(os.Stdout, "Checking %s... ", check.name)
 
@@ -62,10 +48,6 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	_, _ = os.Stdout.Write([]byte("\n"))
-
-	spin.Stop()
-
 	if len(issues) > 0 {
 		_, _ = fmt.Fprintf(os.Stdout, "%s\n", ui.RedText("Issues found:"))
 
@@ -75,8 +57,6 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 
 		return fmt.Errorf("%w: %d issue(s)", ErrIssuesFound, len(issues))
 	}
-
-	spin.Stop()
 
 	_, _ = fmt.Fprintf(os.Stdout,
 		"%s\n", ui.GreenText("No issues found! You are ready to go."))
