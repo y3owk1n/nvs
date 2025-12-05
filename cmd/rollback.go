@@ -12,6 +12,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/internal/platform"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -61,10 +62,8 @@ func runRollback(cmd *cobra.Command, args []string) error {
 			"nightly-"+shortHash(entry.CommitHash, shortHashLength),
 		)
 
-		var statErr error
-
-		_, statErr = os.Stat(backupDir)
-		if statErr == nil {
+		_, err := os.Stat(backupDir)
+		if err == nil {
 			validEntries = append(validEntries, entry)
 		} else {
 			logrus.Debugf("Removing orphaned history entry: %s", shortHash(entry.CommitHash, shortHashLength))
@@ -118,10 +117,8 @@ func runRollback(cmd *cobra.Command, args []string) error {
 		"nightly-"+shortHash(entry.CommitHash, shortHashLength),
 	)
 
-	var statErr error
-
-	_, statErr = os.Stat(nightlyDir)
-	if os.IsNotExist(statErr) {
+	_, err = os.Stat(nightlyDir)
+	if os.IsNotExist(err) {
 		return fmt.Errorf(
 			"%w: %s",
 			ErrNightlyVersionNotExists,
@@ -133,7 +130,10 @@ func runRollback(cmd *cobra.Command, args []string) error {
 	currentNightly := filepath.Join(GetVersionsDir(), "nightly")
 
 	// Get current nightly's commit hash before removing (to potentially back it up)
-	currentCommit, _ := GetVersionService().GetInstalledVersionIdentifier("nightly")
+	currentCommit, err := GetVersionService().GetInstalledVersionIdentifier("nightly")
+	if err != nil {
+		logrus.Debugf("Could not get current nightly identifier: %v", err)
+	}
 
 	// Remove current nightly symlink/directory if it exists
 	info, statErr := os.Lstat(currentNightly)
@@ -178,7 +178,7 @@ func runRollback(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create symlink from nightly -> nightly-{hash}
-	err = os.Symlink(nightlyDir, currentNightly)
+	err = platform.UpdateSymlink(nightlyDir, currentNightly, true)
 	if err != nil {
 		return fmt.Errorf("failed to create nightly symlink: %w", err)
 	}
@@ -288,7 +288,7 @@ func AddNightlyToHistory(commitHash, tagName string) error {
 				"nightly-"+shortHash(history.Entries[i].CommitHash, shortHashLength),
 			)
 
-			logrus.Infof("Removing old nightly backup: %s", oldDir)
+			logrus.Debugf("Removing old nightly backup: %s", oldDir)
 
 			err := os.RemoveAll(oldDir)
 			if err != nil {
@@ -345,7 +345,16 @@ func saveNightlyHistory(history *NightlyHistory) error {
 		return err
 	}
 
-	return os.WriteFile(historyPath, data, fileMode)
+	// Write to temp file first for atomicity
+	tempPath := historyPath + ".tmp"
+
+	err = os.WriteFile(tempPath, data, fileMode)
+	if err != nil {
+		return err
+	}
+
+	// Atomic rename
+	return os.Rename(tempPath, historyPath)
 }
 
 func init() {
