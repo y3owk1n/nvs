@@ -88,7 +88,7 @@ func (m *mockInstallerForIntegration) BuildFromCommit(
 	commit, dest string,
 	progress installer.ProgressFunc,
 ) (string, error) {
-	return "abc1234", nil
+	return testCommitHash, nil
 }
 
 // mockReleaseRepoForIntegration implements release.Repository for integration testing.
