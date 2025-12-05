@@ -12,12 +12,12 @@ function Write-Success {
     Write-Host "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [SUCCESS] $Message" -ForegroundColor Green
 }
 
-function Write-Error {
+function Write-ErrorMessage {
     param([string]$Message)
     Write-Host "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [ERROR] $Message" -ForegroundColor Red
 }
 
-function Write-Warning {
+function Write-WarningMessage {
     param([string]$Message)
     Write-Host "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [WARNING] $Message" -ForegroundColor Yellow
 }
@@ -56,7 +56,7 @@ try {
         Remove-Item $installDir -Force
         Write-Info "Removed empty install directory: $installDir"
     } else {
-        Write-Warning "Install directory not empty, keeping: $installDir"
+        Write-WarningMessage "Install directory not empty, keeping: $installDir"
     }
 
     # Remove from PATH
@@ -75,6 +75,6 @@ try {
     Write-Success "Uninstallation complete."
 
 } catch {
-    Write-Error "Uninstallation failed: $($_.Exception.Message)"
+    Write-ErrorMessage "Uninstallation failed: $($_.Exception.Message)"
     exit 1
 }

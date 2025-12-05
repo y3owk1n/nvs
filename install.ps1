@@ -12,12 +12,12 @@ function Write-Success {
     Write-Host "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [SUCCESS] $Message" -ForegroundColor Green
 }
 
-function Write-Error {
+function Write-ErrorMessage {
     param([string]$Message)
     Write-Host "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [ERROR] $Message" -ForegroundColor Red
 }
 
-function Write-Warning {
+function Write-WarningMessage {
     param([string]$Message)
     Write-Host "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [WARNING] $Message" -ForegroundColor Yellow
 }
@@ -49,7 +49,7 @@ try {
         $assetUrl = "https://github.com/$repo/releases/latest/download/nvs-windows-arm64.exe"
         $checksumUrl = "https://github.com/$repo/releases/latest/download/nvs-windows-arm64.exe.sha256"
     } else {
-        Write-Error "Unsupported architecture: $arch"
+        Write-ErrorMessage "Unsupported architecture: $arch"
         exit 1
     }
 
@@ -69,7 +69,7 @@ try {
     try {
         Invoke-WebRequest -Uri $checksumUrl -OutFile $tempChecksum -UseBasicParsing -ErrorAction Stop
     } catch {
-        Write-Error "Failed to download checksum file: $($_.Exception.Message)"
+        Write-ErrorMessage "Failed to download checksum file: $($_.Exception.Message)"
         exit 1
     }
 
@@ -78,12 +78,12 @@ try {
     if ($checksumContent -and $checksumContent.Trim()) {
         $expectedChecksum = $checksumContent.Trim().Split()[0].Trim()
         if ([string]::IsNullOrEmpty($expectedChecksum)) {
-            Write-Error "Invalid checksum file format"
+            Write-ErrorMessage "Invalid checksum file format"
             Remove-Item $tempChecksum -Force
             exit 1
         }
     } else {
-        Write-Error "Checksum file is empty or invalid"
+        Write-ErrorMessage "Checksum file is empty or invalid"
         Remove-Item $tempChecksum -Force
         exit 1
     }
@@ -95,14 +95,14 @@ try {
     try {
         Invoke-WebRequest -Uri $assetUrl -OutFile $tempBinary -UseBasicParsing -ErrorAction Stop
     } catch {
-        Write-Error "Failed to download binary: $($_.Exception.Message)"
+        Write-ErrorMessage "Failed to download binary: $($_.Exception.Message)"
         Remove-Item $tempChecksum -Force -ErrorAction SilentlyContinue
         exit 1
     }
 
     # Verify binary was downloaded
     if (!(Test-Path $tempBinary) -or (Get-Item $tempBinary).Length -eq 0) {
-        Write-Error "Downloaded binary file is empty or missing"
+        Write-ErrorMessage "Downloaded binary file is empty or missing"
         Remove-Item $tempBinary -Force -ErrorAction SilentlyContinue
         Remove-Item $tempChecksum -Force -ErrorAction SilentlyContinue
         exit 1
@@ -114,7 +114,7 @@ try {
 
     # Verify checksum
     if ($expectedChecksum -ne $computedChecksum) {
-        Write-Error "Checksum verification failed! The downloaded file may be corrupted."
+        Write-ErrorMessage "Checksum verification failed! The downloaded file may be corrupted."
         Remove-Item $tempBinary -Force
         Remove-Item $tempChecksum -Force
         exit 1
@@ -147,7 +147,7 @@ try {
     Write-Host "You can now run: nvs help" -ForegroundColor Cyan
 
 } catch {
-    Write-Error "Installation failed: $($_.Exception.Message)"
+    Write-ErrorMessage "Installation failed: $($_.Exception.Message)"
     # Clean up temp files
     if (Test-Path $tempBinary -ErrorAction SilentlyContinue) {
         Remove-Item $tempBinary -Force -ErrorAction SilentlyContinue
