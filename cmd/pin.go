@@ -92,9 +92,21 @@ func runPin(cmd *cobra.Command, args []string) error {
 // It searches from startDir up to the root, returning the first version found.
 // If global is true, also checks the user's home directory.
 func ReadVersionFile(startDir string, checkGlobal bool) (string, string, error) {
+	var homeVisited bool
+	var homeDir string
+	if checkGlobal {
+		if h, err := os.UserHomeDir(); err == nil {
+			homeDir = h
+		}
+	}
+
 	// Search up the directory tree
 	dir := startDir
 	for {
+		if dir == homeDir {
+			homeVisited = true
+		}
+
 		versionFile := filepath.Join(dir, VersionFileName)
 
 		data, err := os.ReadFile(versionFile)
@@ -117,20 +129,17 @@ func ReadVersionFile(startDir string, checkGlobal bool) (string, string, error) 
 		dir = parent
 	}
 
-	// Check global version file in home directory
-	if checkGlobal {
-		home, err := os.UserHomeDir()
+	// Check global version file in home directory if not already visited
+	if checkGlobal && !homeVisited && homeDir != "" {
+		globalFile := filepath.Join(homeDir, VersionFileName)
+
+		data, err := os.ReadFile(globalFile)
 		if err == nil {
-			globalFile := filepath.Join(home, VersionFileName)
+			version := strings.TrimSpace(string(data))
+			if version != "" {
+				logrus.Debugf("Found global version %s in %s", version, globalFile)
 
-			data, err := os.ReadFile(globalFile)
-			if err == nil {
-				version := strings.TrimSpace(string(data))
-				if version != "" {
-					logrus.Debugf("Found global version %s in %s", version, globalFile)
-
-					return version, globalFile, nil
-				}
+				return version, globalFile, nil
 			}
 		}
 	}
