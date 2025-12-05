@@ -201,6 +201,43 @@ nvs rollback 2     # Rollback to specific index
 > [!note]
 > Up to 5 previous nightly versions are kept by default.
 
+### Shell Integration
+
+#### `nvs hook`
+
+Generate shell hook code for automatic version switching when changing directories.
+
+```bash
+# Bash (in ~/.bashrc)
+eval "$(nvs hook bash)"
+
+# Zsh (in ~/.zshrc)
+eval "$(nvs hook zsh)"
+
+# Fish (in ~/.config/fish/config.fish)
+nvs hook fish | source
+```
+
+> [!note]
+> This enables automatic switching when entering a directory with a `.nvs-version` file.
+
+### System Health
+
+#### `nvs doctor`
+
+Check your system for potential problems with nvs installation and environment.
+
+```bash
+nvs doctor
+```
+
+Checks performed:
+- OS/Architecture compatibility
+- Shell detection
+- Environment variables (`NVS_HOME`, `PATH`)
+- Required dependencies (`git`, `curl`/`tar`)
+- Directory permissions
+
 ## Configuration Management
 
 ### `nvs config`

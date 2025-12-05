@@ -58,6 +58,8 @@ LuaJIT 2.1.1741571767
 - **Version Switching:** Switch between installed versions instantly
 - **Config Switching:** Toggle between Neovim configurations
 - **Version Pinning:** Pin versions per-project with `.nvs-version` files
+- **Shell Integration:** Auto-switch versions when changing directories
+- **System Health:** Diagnose issues with `nvs doctor`
 - **Nightly Rollback:** Keep and rollback to previous nightly versions
 - **GitHub Mirror:** Support for GitHub mirrors in restricted regions
 - **Cross-Platform:** Works on macOS, Linux, and Windows

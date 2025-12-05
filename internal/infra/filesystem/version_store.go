@@ -48,9 +48,20 @@ func (s *VersionStore) List() ([]domainversion.Version, error) {
 	var versions []domainversion.Version
 
 	for _, entry := range entries {
-		if entry.IsDir() && entry.Name() != "current" {
+		name := entry.Name()
+		if name == "current" {
+			continue
+		}
+
+		// Skip nightly backups (managed by rollback system)
+		if strings.HasPrefix(name, "nightly-") {
+			continue
+		}
+
+		// Include directories and the "nightly" symlink
+		if entry.IsDir() || (entry.Type()&os.ModeSymlink != 0 && name == "nightly") {
 			// Read version.txt to get full info
-			versionFile := filepath.Join(s.config.VersionsDir, entry.Name(), "version.txt")
+			versionFile := filepath.Join(s.config.VersionsDir, name, "version.txt")
 			data, err := os.ReadFile(versionFile)
 
 			var commitHash string
@@ -59,12 +70,12 @@ func (s *VersionStore) List() ([]domainversion.Version, error) {
 			}
 
 			// Determine version type
-			vType := determineVersionType(entry.Name())
+			vType := determineVersionType(name)
 
 			versions = append(versions, domainversion.New(
-				entry.Name(),
+				name,
 				vType,
-				entry.Name(),
+				name,
 				commitHash,
 			))
 		}
