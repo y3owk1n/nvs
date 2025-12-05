@@ -47,15 +47,13 @@ test-unit:
 test-integration:
     go test -tags=integration ./... -v
 
-vet:
-    go vet ./...
+test-race: test-race-unit test-race-integration
 
-fmt:
-    golangci-lint fmt
-    golangci-lint run --fix
+test-race-unit:
+    go test -race ./... -v
 
-lint:
-    golangci-lint run
+test-race-integration:
+    go test -tags=integration -race ./... -v
 
 test-coverage:
     go test -coverprofile=coverage.txt ./...
@@ -70,3 +68,15 @@ test-coverage-html:
 test-coverage-all-html:
     just test-coverage-all
     go tool cover -html=coverage-all.txt -o coverage-all.html
+
+test-all: test test-race
+
+vet:
+    go vet ./...
+
+fmt:
+    golangci-lint fmt
+    golangci-lint run --fix
+
+lint:
+    golangci-lint run
