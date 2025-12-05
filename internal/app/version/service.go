@@ -34,6 +34,7 @@ type Config struct {
 	VersionsDir   string
 	CacheFilePath string
 	GlobalBinDir  string
+	MirrorURL     string // Optional GitHub mirror URL for downloads
 }
 
 // New creates a new version Service.
@@ -98,7 +99,8 @@ func (s *Service) Install(
 
 	// Installation logic
 	releaseInfo := &releaseAdapter{
-		Release: rel,
+		Release:   rel,
+		mirrorURL: s.config.MirrorURL,
 	}
 
 	return s.installer.InstallRelease(ctx, releaseInfo, s.config.VersionsDir, normalized, progress)
@@ -107,12 +109,17 @@ func (s *Service) Install(
 // releaseAdapter adapts release.Release to installer.ReleaseInfo.
 type releaseAdapter struct {
 	release.Release
+
+	mirrorURL string
 }
 
 func (r *releaseAdapter) GetAssetURL() (string, error) {
 	url, _, err := github.GetAssetURL(r.Release)
+	if err != nil {
+		return "", err
+	}
 
-	return url, err
+	return r.applyMirror(url), nil
 }
 
 func (r *releaseAdapter) GetChecksumURL() (string, error) {
@@ -122,7 +129,12 @@ func (r *releaseAdapter) GetChecksumURL() (string, error) {
 		return "", err
 	}
 
-	return github.GetChecksumURL(r.Release, pattern)
+	url, err := github.GetChecksumURL(r.Release, pattern)
+	if err != nil {
+		return "", err
+	}
+
+	return r.applyMirror(url), nil
 }
 
 func (r *releaseAdapter) GetIdentifier() string {
@@ -132,6 +144,17 @@ func (r *releaseAdapter) GetIdentifier() string {
 	}
 
 	return r.TagName()
+}
+
+// applyMirror replaces the default GitHub URL with the mirror URL if configured.
+func (r *releaseAdapter) applyMirror(url string) string {
+	if r.mirrorURL == "" {
+		return url
+	}
+
+	const defaultGitHubURL = "https://github.com"
+
+	return strings.Replace(url, defaultGitHubURL, r.mirrorURL, 1)
 }
 
 // Use switches to a specific version.
@@ -340,7 +363,8 @@ func (s *Service) Upgrade(
 
 	// Install new version
 	releaseInfo := &releaseAdapter{
-		Release: rel,
+		Release:   rel,
+		mirrorURL: s.config.MirrorURL,
 	}
 
 	err = s.installer.InstallRelease(ctx, releaseInfo, s.config.VersionsDir, normalized, progress)

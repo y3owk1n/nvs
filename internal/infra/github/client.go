@@ -18,9 +18,10 @@ import (
 )
 
 const (
-	apiBaseURL       = "https://api.github.com"
-	clientTimeoutSec = 15
-	arm64Arch        = "arm64"
+	defaultAPIBaseURL    = "https://api.github.com"
+	defaultGitHubBaseURL = "https://github.com"
+	clientTimeoutSec     = 15
+	arm64Arch            = "arm64"
 )
 
 // Client implements the release.Repository interface for GitHub.
@@ -28,15 +29,34 @@ type Client struct {
 	httpClient *http.Client
 	cache      *Cache
 	minVersion string
+	mirrorURL  string // Optional mirror URL for GitHub (e.g., https://mirror.ghproxy.com)
 }
 
 // NewClient creates a new GitHub client with caching.
-func NewClient(cacheFilePath string, cacheTTL time.Duration, minVersion string) *Client {
+// mirrorURL is optional - pass empty string to use default GitHub URLs.
+func NewClient(cacheFilePath string, cacheTTL time.Duration, minVersion, mirrorURL string) *Client {
 	return &Client{
 		httpClient: &http.Client{Timeout: clientTimeoutSec * time.Second},
 		cache:      NewCache(cacheFilePath, cacheTTL),
 		minVersion: minVersion,
+		mirrorURL:  mirrorURL,
 	}
+}
+
+// ApplyMirror replaces the default GitHub URL with the mirror URL if configured.
+// This is used for download URLs (not API calls).
+func (c *Client) ApplyMirror(url string) string {
+	if c.mirrorURL == "" {
+		return url
+	}
+
+	// Replace https://github.com with the mirror URL
+	return strings.Replace(url, defaultGitHubBaseURL, c.mirrorURL, 1)
+}
+
+// MirrorURL returns the configured mirror URL.
+func (c *Client) MirrorURL() string {
+	return c.mirrorURL
 }
 
 // apiRelease represents a release from the GitHub API.
@@ -88,7 +108,7 @@ func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, err
 			http.MethodGet,
 			fmt.Sprintf(
 				"%s/repos/neovim/neovim/releases?page=%d&per_page=%d",
-				apiBaseURL,
+				defaultAPIBaseURL,
 				page,
 				perPage,
 			),

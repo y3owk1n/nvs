@@ -91,6 +91,22 @@ nvs use 2db1ae3
 > [!warning]
 > On Windows, you may need administrator privileges for symlink creation.
 
+> [!note]
+> **nvs** will warn you if Neovim is currently running. Use `--force` or `-f` to skip this check.
+
+#### `nvs run`
+
+Run a specific Neovim version without modifying the global symlink. Useful for testing features in different versions.
+
+```bash
+nvs run stable                    # Run stable version
+nvs run nightly -- --clean        # Run nightly with args
+nvs run v0.10.3 -- -c "checkhealth"
+```
+
+> [!note]
+> The version must already be installed. Arguments after `--` are passed directly to Neovim.
+
 ### Listing Versions
 
 #### `nvs list-remote`

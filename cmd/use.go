@@ -1,15 +1,18 @@
 package cmd
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/domain/version"
+	"github.com/y3owk1n/nvs/internal/platform"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -39,6 +42,48 @@ func RunUse(cmd *cobra.Command, args []string) error {
 
 	alias := args[0]
 	logrus.Debugf("Requested version: %s", alias)
+
+	// Check for running Neovim instances unless --force is set
+	force, _ := cmd.Flags().GetBool("force")
+	if !force {
+		running, count := platform.IsNeovimRunning()
+		if running {
+			logrus.Debugf("Detected %d running Neovim instance(s)", count)
+
+			_, printErr := fmt.Fprintf(
+				os.Stdout,
+				"%s Neovim is currently running (%d instance(s)). Switching versions may cause issues.\n",
+				ui.WarningIcon(),
+				count,
+			)
+			if printErr != nil {
+				logrus.Warnf("Failed to write to stdout: %v", printErr)
+			}
+
+			// Prompt for confirmation
+			_, printErr = fmt.Fprint(os.Stdout, "Do you want to continue? [y/N]: ")
+			if printErr != nil {
+				logrus.Warnf("Failed to write to stdout: %v", printErr)
+			}
+
+			reader := bufio.NewReader(os.Stdin)
+
+			response, readErr := reader.ReadString('\n')
+			if readErr != nil {
+				return fmt.Errorf("failed to read response: %w", readErr)
+			}
+
+			response = strings.TrimSpace(strings.ToLower(response))
+			if response != "y" && response != "yes" {
+				_, printErr = fmt.Fprintf(os.Stdout, "%s Operation canceled.\n", ui.InfoIcon())
+				if printErr != nil {
+					logrus.Warnf("Failed to write to stdout: %v", printErr)
+				}
+
+				return nil
+			}
+		}
+	}
 
 	// Use version service to switch
 	resolvedVersion, err := GetVersionService().Use(ctx, alias)
@@ -77,4 +122,5 @@ func RunUse(cmd *cobra.Command, args []string) error {
 // init registers the useCmd with the root command.
 func init() {
 	rootCmd.AddCommand(useCmd)
+	useCmd.Flags().BoolP("force", "f", false, "Skip running instance check")
 }

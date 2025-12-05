@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -19,14 +18,6 @@ import (
 
 const (
 	unavailableDir = "Unavailable"
-)
-
-var (
-	// ErrUnsupportedShell is returned when the shell type is not supported.
-	ErrUnsupportedShell = errors.New("unsupported shell type")
-
-	// ErrRequiredDirsNotDetermined is returned when required directories cannot be determined.
-	ErrRequiredDirsNotDetermined = errors.New("required directories could not be determined")
 )
 
 // envCmd represents the "env" command.

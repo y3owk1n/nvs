@@ -214,8 +214,14 @@ func InitConfig() {
 	globalBinDir = baseBinDir
 	logrus.Debugf("Global binary directory ensured: %s", globalBinDir)
 
+	// Read GitHub mirror URL from environment
+	githubMirror := os.Getenv("NVS_GITHUB_MIRROR")
+	if githubMirror != "" {
+		logrus.Debugf("Using GitHub mirror: %s", githubMirror)
+	}
+
 	// Initialize services
-	githubClient := github.NewClient(cacheFilePath, cacheTTL, "0.5.0")
+	githubClient := github.NewClient(cacheFilePath, cacheTTL, "0.5.0", githubMirror)
 	versionManager := filesystem.New(&filesystem.Config{
 		VersionsDir:  versionsDir,
 		GlobalBinDir: globalBinDir,
@@ -236,6 +242,7 @@ func InitConfig() {
 			VersionsDir:   versionsDir,
 			CacheFilePath: cacheFilePath,
 			GlobalBinDir:  globalBinDir,
+			MirrorURL:     githubMirror,
 		},
 	)
 	if err != nil {

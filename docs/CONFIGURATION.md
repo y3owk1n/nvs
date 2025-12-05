@@ -68,11 +68,12 @@ nvs env --source | source
 
 Override defaults with these variables:
 
-| Variable         | Description       | Default (Unix)  | Default (Windows)        |
-| ---------------- | ----------------- | --------------- | ------------------------ |
-| `NVS_CONFIG_DIR` | nvs configuration | `~/.config/nvs` | `AppData\Roaming\nvs`    |
-| `NVS_CACHE_DIR`  | Cache files       | `~/.cache/nvs`  | `AppData\Local\nvs`      |
-| `NVS_BIN_DIR`    | Binary symlinks   | `~/.local/bin`  | `AppData\Local\Programs` |
+| Variable            | Description          | Default (Unix)  | Default (Windows)        |
+| ------------------- | -------------------- | --------------- | ------------------------ |
+| `NVS_CONFIG_DIR`    | nvs configuration    | `~/.config/nvs` | `AppData\Roaming\nvs`    |
+| `NVS_CACHE_DIR`     | Cache files          | `~/.cache/nvs`  | `AppData\Local\nvs`      |
+| `NVS_BIN_DIR`       | Binary symlinks      | `~/.local/bin`  | `AppData\Local\Programs` |
+| `NVS_GITHUB_MIRROR` | GitHub mirror URL    | (none)          | (none)                   |
 
 ### Setting Custom Directories
 
@@ -114,6 +115,19 @@ Or use System Properties → Advanced → Environment Variables.
 
 > [!note]
 > When overriding `NVS_BIN_DIR`, update your PATH accordingly.
+
+## GitHub Mirror
+
+If you have limited access to GitHub (e.g., in certain regions), you can use a GitHub mirror for downloading Neovim releases:
+
+```bash
+export NVS_GITHUB_MIRROR="https://mirror.ghproxy.com"
+```
+
+This replaces `https://github.com` in download URLs while still using the official GitHub API for release information.
+
+> [!note]
+> The mirror only affects download URLs, not API calls. Common mirrors include `https://mirror.ghproxy.com` and `https://ghproxy.net`.
 
 ## PATH Configuration
 
