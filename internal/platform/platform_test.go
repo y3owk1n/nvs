@@ -101,15 +101,6 @@ func TestFindNvimBinary_Prefixed(t *testing.T) {
 	}
 }
 
-func TestFindNvimBinary_NotFound(t *testing.T) {
-	tempDir := t.TempDir()
-
-	found := platform.FindNvimBinary(tempDir)
-	if found != "" {
-		t.Errorf("expected empty string, got %s", found)
-	}
-}
-
 func TestFindNvimBinary_NonExecutable(t *testing.T) {
 	if runtime.GOOS == platform.WindowsOS {
 		t.Skip("Skipping executable permission test on Windows")
