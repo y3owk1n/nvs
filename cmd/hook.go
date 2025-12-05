@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -49,6 +50,7 @@ func runHook(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	shell = strings.ToLower(shell)
 	logrus.Debugf("Generating hook for shell: %s", shell)
 
 	var hookScript string
@@ -59,7 +61,14 @@ func runHook(cmd *cobra.Command, args []string) error {
 	case ShellFish:
 		hookScript = fishHook
 	default:
-		return fmt.Errorf("%w: %s (supported: %s, %s, %s)", ErrUnsupportedShellHook, shell, ShellBash, ShellZsh, ShellFish)
+		return fmt.Errorf(
+			"%w: %s (supported: %s, %s, %s)",
+			ErrUnsupportedShellHook,
+			shell,
+			ShellBash,
+			ShellZsh,
+			ShellFish,
+		)
 	}
 
 	_, err := fmt.Fprint(os.Stdout, hookScript)
