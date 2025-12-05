@@ -59,7 +59,7 @@ jobs:
 
       - name: Run just test
         if: matrix.check == 'test' && runner.os != 'Windows'
-        run: devbox run -- just test
+        run: devbox run -- just test-all
 
       - name: Run just build
         if: matrix.check == 'build' && runner.os != 'Windows'
@@ -78,7 +78,7 @@ jobs:
 
       - name: Run just test
         if: matrix.check == 'test' && runner.os == 'Windows'
-        run: just test
+        run: just test-all
         shell: pwsh
 
       - name: Run just build

@@ -650,20 +650,15 @@ func TestFullWorkflow(t *testing.T) {
 	oldStdinPath := os.Stdin
 	defer func() { os.Stdin = oldStdinPath }()
 
-	var reader, writer *os.File
-
-	reader, writer, err = os.Pipe()
+	reader, writer, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	// Write to pipe BEFORE setting stdin and calling the command
+	_, _ = writer.WriteString("y\n") // Confirm path setup
+	_ = writer.Close()
 	os.Stdin = reader
-
-	go func() {
-		defer func() { _ = writer.Close() }()
-
-		_, _ = writer.WriteString("y\n") // Confirm path setup
-	}()
 
 	err = cmd.RunPath(cobraCmd, []string{})
 	if err != nil {
@@ -676,13 +671,10 @@ func TestFullWorkflow(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Write to pipe BEFORE setting stdin and calling the command
+	_, _ = writer.WriteString("y\n") // Confirm reset
+	_ = writer.Close()
 	os.Stdin = reader
-
-	go func() {
-		defer func() { _ = writer.Close() }()
-
-		_, _ = writer.WriteString("y\n") // Confirm reset
-	}()
 
 	err = cmd.RunReset(cobraCmd, []string{})
 	if err != nil {
@@ -1399,13 +1391,10 @@ func TestRunUninstall_CurrentAborted(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Write to pipe BEFORE setting stdin and calling the command
+	_, _ = writer.WriteString("n\n") // Abort
+	_ = writer.Close()
 	os.Stdin = reader
-
-	go func() {
-		defer func() { _ = writer.Close() }()
-
-		_, _ = writer.WriteString("n\n") // Abort
-	}()
 
 	cobraCmd := &cobra.Command{}
 	cobraCmd.SetContext(context.Background())
