@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -217,6 +218,11 @@ func InitConfig() {
 	// Read GitHub mirror URL from environment
 	githubMirror := os.Getenv("NVS_GITHUB_MIRROR")
 	if githubMirror != "" {
+		u, err := url.Parse(githubMirror)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+			logrus.Fatalf("Invalid GitHub mirror URL: must start with http:// or https://")
+		}
+
 		logrus.Debugf("Using GitHub mirror: %s", githubMirror)
 	}
 
