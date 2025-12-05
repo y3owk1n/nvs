@@ -54,12 +54,12 @@ func RunUse(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to get current directory: %w", err)
 		}
 
-		version, versionFile, err := ReadVersionFile(cwd, true)
+		pinnedVersion, versionFile, err := ReadVersionFile(cwd, true)
 		if err != nil {
 			return fmt.Errorf("no version specified and %w", err)
 		}
 
-		alias = version
+		alias = pinnedVersion
 		logrus.Debugf("Using version %s from %s", alias, versionFile)
 
 		_, printErr := fmt.Fprintf(os.Stdout, "%s Using version from %s\n", ui.InfoIcon(), versionFile)
