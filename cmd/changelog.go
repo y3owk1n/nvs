@@ -68,7 +68,7 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 	}
 
 	if len(newCommit) > commitHashLength {
-		newCommit = newCommit[:40]
+		newCommit = newCommit[:commitHashLength]
 	}
 
 	// If they're the same, no changelog to show
