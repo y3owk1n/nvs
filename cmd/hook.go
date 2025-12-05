@@ -58,7 +58,7 @@ _nvs_hook() {
 
   if [[ -n "$nvs_version_file" ]]; then
     local version
-    version="$(cat "$nvs_version_file" | tr -d '[:space:]')"
+    version="$(tr -d '[:space:]' < "$nvs_version_file")"
 
     # Only switch if version changed
     if [[ "$version" != "$_NVS_CURRENT_VERSION" ]]; then
@@ -103,7 +103,7 @@ function _nvs_hook --on-variable PWD
   set -l nvs_version_file (_nvs_find_version_file)
 
   if test -n "$nvs_version_file"
-    set -l version (string trim (cat "$nvs_version_file"))
+    set -l version (string trim < "$nvs_version_file")
 
     # Only switch if version changed
     if test "$version" != "$_NVS_CURRENT_VERSION"
