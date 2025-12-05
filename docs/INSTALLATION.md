@@ -1,25 +1,74 @@
 # Installation Guide
 
-This guide covers all available methods to install **nvs** on your system.
+This guide covers all methods to install **nvs** on your system.
+
+---
+
+## TL;DR
+
+**macOS / Linux:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/y3owk1n/nvs/main/install.sh | bash
+eval "$(nvs env --source)"
+nvs install stable && nvs use stable
+```
+
+**Windows (PowerShell):**
+
+```powershell
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/y3owk1n/nvs/main/install.ps1" -OutFile "install.ps1"; .\install.ps1
+nvs install stable; nvs use stable
+```
+
+---
+
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Installation Methods](#installation-methods)
+  - [Install Script (Recommended)](#method-1-install-script-recommended)
+  - [Homebrew](#method-2-homebrew-macoslinux)
+  - [Pre-built Binaries](#method-3-pre-built-binaries)
+  - [Nix Flakes](#method-4-nix-flakes)
+  - [Build from Source](#method-5-build-from-source)
+- [Post-Installation Setup](#post-installation-setup)
+- [Upgrading nvs](#upgrading-nvs)
+- [Uninstalling](#uninstalling)
+- [Troubleshooting](#troubleshooting)
+
+---
 
 ## Prerequisites
 
-- **Operating System:** macOS (Intel & Apple Silicon), Linux, or Windows (PowerShell required)
-- **Permissions:** Ability to create symlinks (may require administrator privileges on Windows)
+### System Requirements
 
-> [!warning]
-> To ensure a smooth experience, remove any existing Neovim installations from your system and let **nvs** manage them instead.
+| Platform | Architecture          | Status             |
+| -------- | --------------------- | ------------------ |
+| macOS    | Intel (amd64)         | ✅ Fully supported |
+| macOS    | Apple Silicon (arm64) | ✅ Fully supported |
+| Linux    | amd64                 | ✅ Fully supported |
+| Linux    | arm64                 | ✅ Fully supported |
+| Windows  | amd64                 | ✅ Fully supported |
+| Windows  | arm64                 | ✅ Fully supported |
+
+### Permissions
+
+- **Unix:** Write access to `~/.local/bin` (or custom `NVS_BIN_DIR`)
+- **Windows:** Ability to create symlinks (may require administrator privileges)
+
+> [!WARNING]
+> For the best experience, remove any existing Neovim installations from your system and let **nvs** manage them instead.
+
+---
 
 ## Installation Methods
 
 ### Method 1: Install Script (Recommended)
 
-The easiest way to install **nvs** is using our installation script, which automatically detects your operating system and architecture.
+The install script automatically detects your OS and architecture.
 
-> [!warning]
-> Always review remote scripts before execution. Inspect the script contents at [install.sh](https://github.com/y3owk1n/nvs/blob/main/install.sh) to ensure safety.
-
-#### Unix-like Systems (Linux, macOS, WSL)
+#### macOS / Linux / WSL
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/y3owk1n/nvs/main/install.sh | bash
@@ -27,125 +76,81 @@ curl -fsSL https://raw.githubusercontent.com/y3owk1n/nvs/main/install.sh | bash
 
 #### Windows
 
-> [!warning]
-> Windows support is not fully tested as the author does not use Windows. Please report any issues and feel free to contribute improvements.
-
-For Windows users, use the PowerShell installation script:
+> [!WARNING]
+> Windows support is experimental. Please report issues and contribute improvements.
 
 ```powershell
 # Download and run the installer
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/y3owk1n/nvs/main/install.ps1" -OutFile "install.ps1"
-
-# If you get an execution policy error, run:
-# Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
-
 .\install.ps1
 ```
 
-> [!note]
-> You can upgrade **nvs** by running the same installation script again.
-
-#### Uninstalling
-
-If you need to uninstall **nvs**, use the provided uninstall script:
-
-**Unix-like Systems (Linux, macOS, WSL):**
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/y3owk1n/nvs/main/uninstall.sh | bash
-```
-
-**Windows:**
-
-> [!warning]
-> Windows support is not fully tested as the author does not use Windows. Please report any issues and feel free to contribute improvements.
+If you encounter an execution policy error:
 
 ```powershell
-# Download and run the uninstaller
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/y3owk1n/nvs/main/uninstall.ps1" -OutFile "uninstall.ps1"
-
-# If you get an execution policy error, run:
-# Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
-
-.\uninstall.ps1
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 ```
 
-### Method 2: Homebrew (macOS/Linux)
+> [!TIP]
+> Always review remote scripts before execution. View the [install.sh](https://github.com/y3owk1n/nvs/blob/main/install.sh) or [install.ps1](https://github.com/y3owk1n/nvs/blob/main/install.ps1) source.
 
-Install **nvs** via Homebrew:
+---
+
+### Method 2: Homebrew (macOS/Linux)
 
 ```bash
 brew tap y3owk1n/tap
 brew install y3owk1n/tap/nvs
 ```
 
+---
+
 ### Method 3: Pre-built Binaries
 
-1. Download the [latest release binary](https://github.com/y3owk1n/nvs/releases) for your system
-2. Make the binary available in your system's PATH
-3. Ensure it's executable: `chmod +x nvs`
+1. Download the appropriate binary from [GitHub Releases](https://github.com/y3owk1n/nvs/releases)
+2. Extract and move to a directory in your `PATH`
+3. Make executable (Unix): `chmod +x nvs`
+
+**Available binaries:**
+
+- `nvs-darwin-amd64` – macOS Intel
+- `nvs-darwin-arm64` – macOS Apple Silicon
+- `nvs-linux-amd64` – Linux x86_64
+- `nvs-linux-arm64` – Linux ARM64
+- `nvs-windows-amd64.exe` – Windows x86_64
+- `nvs-windows-arm64.exe` – Windows ARM64
+
+---
 
 ### Method 4: Nix (Flakes)
 
-If you're using Nix with flakes enabled, you can integrate **nvs** into your Nix configuration. The Nix packages include shell completions for bash, zsh, and fish.
+**nvs** provides first-class Nix support with automatic shell completions.
 
-> [!note]
-> When installing via Nix, shell completions are automatically configured for supported shells.
-
-#### Add Flake Input
-
-Add the **nvs** flake input to your Nix configuration:
+#### Quick Start with Home Manager
 
 ```nix
 {
   inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nvs.url = "github:y3owk1n/nvs";
   };
-}
-```
 
-#### Home-manager Module
-
-Use the home-manager module for user-specific installation:
-
-```nix
-{
-  outputs = { self, nixpkgs, home-manager, nvs, ... }: {
+  outputs = { nixpkgs, home-manager, nvs, ... }: {
     homeConfigurations.your-username = home-manager.lib.homeManagerConfiguration {
       pkgs = nixpkgs.legacyPackages.aarch64-darwin;
-
       modules = [
-        # Apply the nvs overlay
-        {
-          nixpkgs.overlays = [ nvs.overlays.default ];
-        }
-
-        # Import the nvs module
+        { nixpkgs.overlays = [ nvs.overlays.default ]; }
         nvs.homeManagerModules.default
-
-        # Configure nvs
         {
-          # Enable nvs
-          programs.nvs.enable = true;
-
-          # Optional: Use specific package version
-          # programs.nvs.package = pkgs.nvs; # This will use the latest version
-          # programs.nvs.package = pkgs.nvs-source; # This will build from source
-
-          # Optional: Customize nvs settings
-          # programs.nvs = {
-          #   enable = true;
-          #   enableAutoSwitch = true;  # Enable automatic version switching
-          #   enableShellIntegration = true;  # Enable shell integration
-          #   configDir = "${config.xdg.configHome}/nvs";
-          #   cacheDir = "${config.xdg.cacheHome}/nvs";
-          #   binDir = "${config.home.homeDirectory}/.local/bin";
-          #   shellIntegration = {
-          #     bash = true;
-          #     zsh = true;
-          #     fish = true;
-          #   };
-          # };
+          programs.nvs = {
+            enable = true;
+            # Optional settings:
+            # enableAutoSwitch = true;
+            # enableShellIntegration = true;
+            # configDir = "${config.xdg.configHome}/nvs";
+            # cacheDir = "${config.xdg.cacheHome}/nvs";
+            # binDir = "${config.home.homeDirectory}/.local/bin";
+          };
         }
       ];
     };
@@ -155,84 +160,43 @@ Use the home-manager module for user-specific installation:
 
 The Home Manager module automatically:
 
-- Installs nvs
+- Installs nvs and adds `binDir` to your `PATH`
 - Sets up environment variables (`NVS_CONFIG_DIR`, `NVS_CACHE_DIR`, `NVS_BIN_DIR`)
-- Adds the binary directory to your PATH
-- Enables shell integration for automatic environment setup
-- Enables automatic version switching when entering directories with `.nvs-version` files
+- Enables shell integration and auto-switching
 - Creates necessary directories
 
-#### Using Overlay Only
-
-Add the **nvs** overlay to your Nix configuration and use it as a regular package:
+#### NixOS / nix-darwin (System-wide)
 
 ```nix
 {
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nvs.url = "github:y3owk1n/nvs";
-  };
+  inputs.nvs.url = "github:y3owk1n/nvs";
 
-  outputs = { self, nixpkgs, nvs, ... }: {
-    nixosConfigurations."your-host" = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      modules = [
-        {
-          nixpkgs.overlays = [ nvs.overlays.default ];
-          environment.systemPackages = [
-            pkgs.nvs        # Latest prebuilt
-            # or
-            pkgs.nvs-source # Build from source
-          ];
-        }
-      ];
+  outputs = { nixpkgs, nvs, ... }: {
+    nixosConfigurations.your-host = nixpkgs.lib.nixosSystem {
+      modules = [{
+        nixpkgs.overlays = [ nvs.overlays.default ];
+        environment.systemPackages = [
+          pkgs.nvs        # Pre-built binary
+          # pkgs.nvs-source # Or build from source
+        ];
+      }];
     };
   };
 }
 ```
 
-#### Using nix-darwin (macOS)
-
-Add **nvs** to your `darwin-configuration.nix`:
-
-```nix
-{
-  inputs = {
-    nvs.url = "github:y3owk1n/nvs";
-  };
-
-  outputs = { nvs, ... }: {
-    darwinConfigurations."your-host" = nix-darwin.lib.darwinSystem {
-      modules = [
-        {
-          nixpkgs.overlays = [ nvs.overlays.default ];
-          environment.systemPackages = [
-            pkgs.nvs        # Latest prebuilt
-            # or
-            pkgs.nvs-source # Build from source
-          ];
-        }
-      ];
-    };
-  };
-}
-```
-
-#### Direct Installation (not recommended for Nix environments)
-
-For temporary use or testing:
+#### Direct Run (Testing)
 
 ```bash
-# Run latest version
 nix run github:y3owk1n/nvs
-
-# Run source version
-nix run github:y3owk1n/nvs#source
+nix run github:y3owk1n/nvs#source  # Build from source
 ```
+
+---
 
 ### Method 5: Build from Source
 
-If you prefer to build from source, ensure you have [Go](https://golang.org/dl/) (v1.25 or later) installed.
+Requires [Go](https://golang.org/dl/) v1.21 or later.
 
 ```bash
 git clone https://github.com/y3owk1n/nvs.git
@@ -240,83 +204,207 @@ cd nvs
 go build -o nvs ./main.go
 ```
 
-For cross-platform builds:
+Move the binary to a directory in your `PATH`:
+
+```bash
+mv nvs ~/.local/bin/
+```
+
+**Cross-compilation examples:**
 
 ```bash
 # macOS ARM64
-env GOOS=darwin GOARCH=arm64 go build -o nvs-darwin-arm64 ./main.go
+GOOS=darwin GOARCH=arm64 go build -o nvs-darwin-arm64 ./main.go
 
 # macOS Intel
-env GOOS=darwin GOARCH=amd64 go build -o nvs-darwin-amd64 ./main.go
+GOOS=darwin GOARCH=amd64 go build -o nvs-darwin-amd64 ./main.go
 
-# Linux ARM64
-env GOOS=linux GOARCH=arm64 go build -o nvs-linux-arm64 ./main.go
-
-# Linux AMD64
-env GOOS=linux GOARCH=amd64 go build -o nvs-linux-amd64 ./main.go
+# Linux
+GOOS=linux GOARCH=amd64 go build -o nvs-linux-amd64 ./main.go
 
 # Windows
-env GOOS=windows GOARCH=amd64 go build -o nvs-windows-amd64.exe ./main.go
+GOOS=windows GOARCH=amd64 go build -o nvs-windows-amd64.exe ./main.go
 ```
 
-Move the built binary to a directory in your PATH.
+---
 
 ## Post-Installation Setup
 
-After installing **nvs**, you need to configure your environment. See the [Configuration Guide](CONFIGURATION.md) for detailed instructions.
+After installing **nvs**, configure your shell environment.
 
-## Verification
+### Shell Configuration
 
-After installation and setup, verify **nvs** is working:
+Add the following to your shell configuration file:
+
+**Bash** (`~/.bashrc` or `~/.bash_profile`):
 
 ```bash
-nvs --version
-nvs --help
+eval "$(nvs env --source)"
 ```
+
+**Zsh** (`~/.zshrc`):
+
+```zsh
+eval "$(nvs env --source)"
+```
+
+**Fish** (`~/.config/fish/config.fish`):
+
+```fish
+nvs env --source | source
+```
+
+**PowerShell** (`$PROFILE`):
+
+```powershell
+nvs env --source | Invoke-Expression
+```
+
+### Verify Installation
+
+```bash
+# Check nvs is working
+nvs --version
+nvs doctor
+
+# Install your first version
+nvs install stable
+nvs use stable
+nvim --version
+```
+
+### Enable Auto-Switching (Optional)
+
+Automatically switch Neovim versions based on `.nvs-version` files:
+
+**Bash/Zsh:**
+
+```bash
+eval "$(nvs hook bash)"  # or zsh
+```
+
+**Fish:**
+
+```fish
+nvs hook fish | source
+```
+
+---
+
+## Upgrading nvs
+
+**Install script:** Re-run the same installation command.
+
+**Homebrew:**
+
+```bash
+brew upgrade y3owk1n/tap/nvs
+```
+
+**Nix:** Update your flake inputs and rebuild.
+
+**Manual:** Download the new binary and replace the old one.
+
+---
+
+## Uninstalling
+
+### Using Uninstall Scripts
+
+**macOS / Linux:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/y3owk1n/nvs/main/uninstall.sh | bash
+```
+
+**Windows:**
+
+```powershell
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/y3owk1n/nvs/main/uninstall.ps1" -OutFile "uninstall.ps1"
+.\uninstall.ps1
+```
+
+### Manual Uninstall
+
+1. Remove the nvs binary from your `PATH`
+2. Delete configuration: `rm -rf ~/.config/nvs`
+3. Delete cache: `rm -rf ~/.cache/nvs`
+4. Delete installed versions: `rm -rf ~/.local/bin/nvim` (or your `NVS_BIN_DIR`)
+5. Remove shell configuration lines added during setup
+
+---
 
 ## Troubleshooting
 
-### Windows Issues
+### Common Issues
 
-**nvs** supports Windows through native PowerShell scripts. If you encounter issues:
+#### "Command not found: nvs"
 
-- Ensure you're running PowerShell with appropriate permissions (no admin required for user installation)
-- Check that your antivirus isn't blocking the binary download
-- Verify PATH environment variables are set correctly (restart terminal after installation)
-- The installer automatically adds **nvs** to your user PATH
+Ensure the binary location is in your `PATH`:
 
-### Permission Issues
+```bash
+echo $PATH | tr ':' '\n' | grep -E "(local/bin|nvs)"
+```
 
-If you encounter permission errors:
+Restart your terminal or source your shell config after installation.
 
-- On Unix systems: Ensure you have write permissions to `~/.local/bin` (or your custom `NVS_BIN_DIR`)
-- On Windows: Run your terminal as administrator
+#### Permission Denied
 
-### Build Dependencies
+**Unix:** Ensure write access to the binary directory:
 
-When building Neovim from commits, ensure these tools are installed:
+```bash
+mkdir -p ~/.local/bin
+chmod 755 ~/.local/bin
+```
 
-- `git`
-- `make`
-- `cmake`
+**Windows:** Run terminal as administrator for symlink creation.
 
-On macOS, also install:
+#### Shell Not Detected
+
+Specify your shell explicitly:
+
+```bash
+nvs env --source --shell bash
+nvs env --source --shell zsh
+nvs env --source --shell fish
+```
+
+#### Build Dependencies Missing
+
+When building Neovim from source (commits), install:
+
+**All platforms:** `git`, `make`, `cmake`
+
+**macOS:**
 
 ```bash
 brew install ninja cmake gettext curl
 ```
 
+**Ubuntu/Debian:**
+
+```bash
+sudo apt install ninja-build cmake gettext curl unzip
+```
+
+#### Windows-Specific Issues
+
+- Ensure PowerShell has appropriate permissions
+- Check antivirus isn't blocking binary downloads
+- Restart terminal after installation for `PATH` changes
+- The installer automatically adds nvs to user `PATH`
+
+### Getting Help
+
+1. Run `nvs doctor` to diagnose issues
+2. Use `nvs --verbose <command>` for detailed logs
+3. Check [GitHub Issues](https://github.com/y3owk1n/nvs/issues)
+4. Open a new issue with system info and verbose output
+
+---
+
 ## Next Steps
 
-Once installed, proceed to:
-
-- [Configure your environment](CONFIGURATION.md)
-- [Learn basic usage](USAGE.md)
-
-For development setup, see the [Development Guide](DEVELOPMENT.md).
-
-## Related Documentation
-
-- [Usage Guide](USAGE.md) - Command reference
-- [Configuration Guide](CONFIGURATION.md) - Environment setup
-- [Contributing Guide](CONTRIBUTING.md) - For contributors
+- [Configure your environment →](CONFIGURATION.md)
+- [Learn the commands →](USAGE.md)
+- [Set up for development →](DEVELOPMENT.md)

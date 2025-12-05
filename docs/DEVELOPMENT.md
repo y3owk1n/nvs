@@ -1,253 +1,390 @@
 # Development Guide
 
-This document provides information for developers working on **nvs** (Neovim Version Switcher), a CLI tool for managing Neovim installations.
+Technical reference for developing and maintaining **nvs**.
 
-## Project Overview
+---
 
-NVS is a command-line tool written in Go that allows users to install, switch between, and manage different versions of Neovim. It supports stable releases, nightly builds, and specific commits.
+## Table of Contents
+
+- [Architecture Overview](#architecture-overview)
+- [Project Structure](#project-structure)
+- [Development Setup](#development-setup)
+- [Testing](#testing)
+- [Building](#building)
+- [CI/CD](#cicd)
+- [Debugging](#debugging)
+- [Release Process](#release-process)
+
+---
+
+## Architecture Overview
+
+**nvs** follows a clean architecture with clear separation of concerns:
+
+```
+┌─────────────────────────────────────────────────┐
+│                    cmd/                         │  CLI Layer
+│         (Cobra commands, user interaction)      │
+├─────────────────────────────────────────────────┤
+│                internal/app/                    │  Application Layer
+│         (Business logic, orchestration)         │
+├─────────────────────────────────────────────────┤
+│               internal/domain/                  │  Domain Layer
+│        (Core types, interfaces, errors)         │
+├─────────────────────────────────────────────────┤
+│               internal/infra/                   │  Infrastructure Layer
+│  (GitHub API, filesystem, archive, downloader)  │
+└─────────────────────────────────────────────────┘
+```
+
+**Key Design Principles:**
+
+- Dependency injection for testability
+- Interfaces for external dependencies
+- Clear separation between business logic and I/O
+
+---
+
+## Project Structure
+
+```
+.
+├── cmd/                        # CLI commands (Cobra)
+│   ├── root.go                 # Root command, service initialization
+│   ├── install.go              # nvs install
+│   ├── use.go                  # nvs use
+│   ├── list.go                 # nvs list
+│   └── ...
+├── internal/
+│   ├── app/                    # Application services
+│   │   ├── config/             # Configuration management
+│   │   └── version/            # Version management logic
+│   ├── domain/                 # Domain models & interfaces
+│   │   ├── types.go            # Core types
+│   │   ├── errors.go           # Domain errors
+│   │   └── interfaces.go       # Repository interfaces
+│   ├── infra/                  # Infrastructure implementations
+│   │   ├── github/             # GitHub API client
+│   │   ├── filesystem/         # File operations
+│   │   ├── archive/            # Archive extraction
+│   │   ├── downloader/         # HTTP downloads
+│   │   ├── builder/            # Build from source
+│   │   └── installer/          # Installation orchestration
+│   ├── platform/               # Platform-specific code
+│   └── ui/                     # User interface helpers
+├── docs/                       # Documentation
+├── .github/workflows/          # CI/CD pipelines
+├── Justfile                    # Development tasks
+├── go.mod                      # Go module
+└── main.go                     # Entry point
+```
+
+---
 
 ## Development Setup
 
 ### Prerequisites
 
-- Go 1.25 or later
-- Git
-- (Optional) Devbox for reproducible development environment
+- **Go 1.21+** – [Download](https://golang.org/dl/)
+- **Git** – For version control
+- **Just** – Task runner ([installation](https://github.com/casey/just))
+- **golangci-lint** – Linter ([installation](https://golangci-lint.run/usage/install/))
 
-### Getting Started
+### Using Devbox (Recommended)
 
-1. Clone the repository:
-
-   ```bash
-   git clone https://github.com/y3owk1n/nvs.git
-   cd nvs
-   ```
-
-2. If using Devbox:
-
-   ```bash
-   devbox shell
-   ```
-
-3. Install dependencies:
-
-   ```bash
-   go mod download
-   ```
-
-## Project Structure
-
-```text
-.
-├── cmd/                    # Command implementations
-│   ├── *_test.go          # Unit tests for commands
-│   └── *_integration_test.go  # Integration tests for commands
-├── pkg/                    # Core packages
-│   ├── archive/           # Archive extraction utilities
-│   ├── builder/           # Neovim building from source
-│   ├── helpers/           # Utility functions and helpers
-│   ├── installer/         # Installation logic
-│   └── releases/          # Release management and API
-├── docs/                  # Documentation
-├── .github/workflows/     # CI/CD pipelines
-├── Justfile               # Development tasks
-├── go.mod                 # Go module definition
-└── main.go                # Application entry point
-```
-
-## Testing Strategy
-
-NVS follows a clear separation between unit tests and integration tests:
-
-### Unit Tests
-
-- **Files**: `*_test.go` (e.g., `helpers_test.go`, `releases_test.go`)
-- **Purpose**: Test individual functions and logic in isolation
-- **Characteristics**:
-  - Fast execution
-  - No external dependencies
-  - Mock external interactions
-  - Focus on business logic
-
-### Integration Tests
-
-- **Files**: `*_integration_test.go` (e.g., `cmd_integration_test.go`, `builder_integration_test.go`)
-- **Purpose**: Test interactions with external systems and end-to-end functionality
-- **Characteristics**:
-  - Slower execution
-  - May interact with file system, network, or external processes
-  - Use build tag `integration`
-  - Test complete workflows
-
-### Running Tests
-
-Use the provided Justfile recipes:
-
-```bash
-# Run all tests (unit + integration)
-just test
-
-# Run only unit tests
-just test-unit
-
-# Run only integration tests
-just test-integration
-
-# Run tests with coverage
-just test-coverage
-
-# View coverage in browser
-just test-coverage-html
-```
-
-### Test Organization
-
-- Unit tests are colocated with the code they test (e.g., `helpers.go` and `helpers_test.go`)
-- Integration tests are in separate files with `_integration_test.go` suffix
-- Integration tests use the `//go:build integration` build constraint
-
-## Code Quality
-
-### Linting and Formatting
-
-```bash
-# Run linter
-just lint
-
-# Format code and fix issues
-just fmt
-```
-
-The project uses [golangci-lint](https://golangci-lint.run/) with configuration in `.golangci.yml`.
-
-### Code Style
-
-- Follow standard Go conventions
-- Use `gofmt` for formatting
-- Run `go vet` for static analysis
-- Ensure all tests pass before committing
-
-## Building
-
-### Local Builds
-
-```bash
-# Build for current platform
-just build
-
-# Build release binaries for all platforms
-just release-ci VERSION_OVERRIDE=v1.0.0
-```
-
-### Cross-Platform Builds
-
-The Justfile supports building for multiple platforms:
-
-- macOS (amd64, arm64)
-- Linux (amd64, arm64)
-- Windows (amd64)
-
-## CI/CD
-
-The project uses GitHub Actions for continuous integration:
-
-- **CI Workflow** (`.github/workflows/ci.yml`):
-  - Runs on pull requests and pushes to main
-  - Tests on multiple Go versions and platforms
-  - Runs linting and tests
-  - Uploads test coverage
-
-- **Release Workflow** (`.github/workflows/release-please.yml`):
-  - Automated releases using release-please
-  - Builds and publishes binaries on tag creation
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass: `just test`
-6. Run linting: `just lint`
-7. Format code: `just fmt`
-8. Commit your changes
-9. Push to your fork
-10. Create a pull request
-
-### Commit Messages
-
-Follow conventional commit format:
-
-- `feat:` for new features
-- `fix:` for bug fixes
-- `docs:` for documentation
-- `test:` for test changes
-- `refactor:` for code refactoring
-
-### Pull Request Guidelines
-
-- Provide a clear description of changes
-- Reference any related issues
-- Ensure CI passes
-- Request review from maintainers
-
-## Development Tools
-
-### Justfile
-
-The `Justfile` contains common development tasks. Run `just --list` to see all available recipes.
-
-### Devbox
-
-For a reproducible development environment, use [Devbox](https://www.jetpack.io/devbox):
+[Devbox](https://www.jetpack.io/devbox) provides a reproducible environment:
 
 ```bash
 devbox shell
 ```
 
-This provides the exact versions of tools needed for development.
+### Manual Setup
 
-### Go Modules
+```bash
+# Clone repository
+git clone https://github.com/y3owk1n/nvs.git
+cd nvs
 
-Dependencies are managed with Go modules. Update dependencies with:
+# Install dependencies
+go mod download
+
+# Verify setup
+just build
+just test
+```
+
+---
+
+## Testing
+
+### Test Organization
+
+| Pattern                 | Type        | Description                             |
+| ----------------------- | ----------- | --------------------------------------- |
+| `*_test.go`             | Unit        | Fast, isolated, mock dependencies       |
+| `*_integration_test.go` | Integration | Real I/O, uses `//go:build integration` |
+
+### Running Tests
+
+```bash
+# All tests
+just test
+
+# Unit tests only (fast)
+just test-unit
+
+# Integration tests only
+just test-integration
+
+# With coverage
+just test-coverage
+just test-coverage-html  # Opens in browser
+```
+
+### Writing Tests
+
+**Unit test example:**
+
+```go
+func TestParseVersion(t *testing.T) {
+    tests := []struct {
+        name    string
+        input   string
+        want    Version
+        wantErr bool
+    }{
+        {"stable", "stable", Version{Type: Stable}, false},
+        {"nightly", "nightly", Version{Type: Nightly}, false},
+        {"tag", "v0.10.3", Version{Type: Tag, Value: "v0.10.3"}, false},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            got, err := ParseVersion(tt.input)
+            if (err != nil) != tt.wantErr {
+                t.Errorf("error = %v, wantErr %v", err, tt.wantErr)
+            }
+            if got != tt.want {
+                t.Errorf("got %v, want %v", got, tt.want)
+            }
+        })
+    }
+}
+```
+
+**Integration test example:**
+
+```go
+//go:build integration
+
+package cmd_test
+
+func TestInstallStable(t *testing.T) {
+    // Uses real filesystem and network
+    // Run with: just test-integration
+}
+```
+
+---
+
+## Building
+
+### Local Build
+
+```bash
+# Current platform
+just build
+
+# Output: ./build/nvs
+```
+
+### Cross-Platform Builds
+
+```bash
+# All platforms (used in release)
+just release-ci VERSION_OVERRIDE=v1.0.0
+
+# Manual cross-compile
+GOOS=darwin GOARCH=arm64 go build -o nvs-darwin-arm64 ./main.go
+GOOS=linux GOARCH=amd64 go build -o nvs-linux-amd64 ./main.go
+GOOS=windows GOARCH=amd64 go build -o nvs-windows-amd64.exe ./main.go
+```
+
+### Build Flags
+
+```bash
+# Optimized binary (smaller, stripped)
+go build -ldflags="-s -w" -o nvs ./main.go
+
+# With version info
+go build -ldflags="-X 'cmd.Version=v1.2.3'" -o nvs ./main.go
+```
+
+---
+
+## CI/CD
+
+### Workflows
+
+| Workflow             | Trigger  | Purpose                        |
+| -------------------- | -------- | ------------------------------ |
+| `ci.yml`             | Push, PR | Lint, test, build verification |
+| `release-please.yml` | Tag      | Automated releases             |
+
+### CI Checks
+
+On every PR:
+
+1. **Lint** – golangci-lint
+2. **Test** – Unit + integration tests
+3. **Build** – Verify compilation
+4. **Coverage** – Upload to coverage service
+
+### Local CI Simulation
+
+```bash
+# Run all CI checks locally
+just fmt
+just lint
+just test
+just build
+```
+
+---
+
+## Debugging
+
+### Verbose Mode
+
+```bash
+nvs --verbose install stable
+nvs -v use nightly
+```
+
+### Development Run
+
+```bash
+# Run without building
+go run main.go install stable
+go run main.go --verbose use nightly
+```
+
+### Delve Debugger
+
+```bash
+# Install delve
+go install github.com/go-delve/delve/cmd/dlv@latest
+
+# Debug
+dlv debug ./main.go -- install stable
+```
+
+### Common Debug Scenarios
+
+**Check service initialization:**
+
+```bash
+NVS_CONFIG_DIR=/tmp/nvs-debug nvs --verbose doctor
+```
+
+**Inspect cache:**
+
+```bash
+cat ~/.cache/nvs/releases.json | jq
+```
+
+**Test symlink creation:**
+
+```bash
+ls -la ~/.local/bin/nvim
+```
+
+---
+
+## Release Process
+
+### Automated (Preferred)
+
+Releases are managed by [release-please](https://github.com/google-github-actions/release-please-action):
+
+1. Merge PRs with conventional commits
+2. Release-please creates a release PR
+3. Merge the release PR to create a GitHub release
+4. CI builds and publishes binaries
+
+### Manual Release
+
+```bash
+# Tag the release
+git tag v1.2.3
+git push origin v1.2.3
+
+# CI will build and publish
+```
+
+### Version Bumping
+
+Based on conventional commits:
+
+- `fix:` → Patch (1.0.0 → 1.0.1)
+- `feat:` → Minor (1.0.0 → 1.1.0)
+- `feat!:` or `BREAKING CHANGE:` → Major (1.0.0 → 2.0.0)
+
+---
+
+## Dependencies
+
+### Key Dependencies
+
+| Package                                      | Purpose            |
+| -------------------------------------------- | ------------------ |
+| [cobra](https://cobra.dev/)                  | CLI framework      |
+| [logrus](https://github.com/sirupsen/logrus) | Structured logging |
+
+### Updating Dependencies
 
 ```bash
 go get -u ./...
 go mod tidy
 ```
 
-## Debugging
-
-- Use `go run main.go` for quick testing
-- Enable verbose logging with `-v` flag
-- Use `go test -v` for detailed test output
-- Check logs with `tail -f /tmp/nvs.log` (or equivalent)
+---
 
 ## Performance
 
-- Unit tests should be fast (< 1s total)
-- Integration tests may take longer but should complete within reasonable time
-- Profile with `go test -bench=.`
-- Use `go build -ldflags="-s -w"` for optimized binaries
+### Guidelines
+
+- Unit tests should complete in < 1s total
+- Keep binary size reasonable (< 15MB)
+- Minimize network calls (use caching)
+
+### Profiling
+
+```bash
+# CPU profile
+go test -cpuprofile=cpu.prof -bench=.
+go tool pprof cpu.prof
+
+# Memory profile
+go test -memprofile=mem.prof -bench=.
+go tool pprof mem.prof
+```
+
+---
 
 ## Security
 
-- Never commit secrets or keys
-- Use environment variables for configuration
-- Validate all inputs
+- Never commit secrets or API keys
+- Validate all user inputs
+- Use HTTPS for all network calls
 - Keep dependencies updated
-- Run security scans regularly
+- Run `go mod tidy` regularly
 
-## Additional Resources
+---
+
+## Resources
 
 - [Go Documentation](https://golang.org/doc/)
 - [Cobra CLI Framework](https://cobra.dev/)
-- [Viper Configuration](https://github.com/spf13/viper)
-- [Neovim Releases API](https://github.com/neovim/neovim/releases)
-
-## Related Documentation
-
-- [Installation Guide](INSTALLATION.md) - How to install nvs
-- [Usage Guide](USAGE.md) - Command reference and examples
-- [Configuration Guide](CONFIGURATION.md) - Environment setup
-- [Contributing Guide](CONTRIBUTING.md) - How to contribute
+- [Effective Go](https://golang.org/doc/effective_go)
+- [Neovim Releases API](https://api.github.com/repos/neovim/neovim/releases)
