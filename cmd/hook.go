@@ -119,7 +119,7 @@ _nvs_hook
 `
 )
 
-func runHook(cmd *cobra.Command, args []string) error {
+func runHook(_ *cobra.Command, args []string) error {
 	var shell string
 
 	if len(args) > 0 {
