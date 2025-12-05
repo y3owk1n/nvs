@@ -21,7 +21,7 @@ Technical reference for developing and maintaining **nvs**.
 
 **nvs** follows a clean architecture with clear separation of concerns:
 
-```
+```text
 ┌─────────────────────────────────────────────────┐
 │                    cmd/                         │  CLI Layer
 │         (Cobra commands, user interaction)      │
@@ -47,7 +47,7 @@ Technical reference for developing and maintaining **nvs**.
 
 ## Project Structure
 
-```
+```text
 .
 ├── cmd/                        # CLI commands (Cobra)
 │   ├── root.go                 # Root command, service initialization
