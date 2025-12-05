@@ -9,13 +9,23 @@ import (
 )
 
 // copyDir recursively copies a directory from src to dst.
+// Note: Relative symlinks may point to incorrect locations if the target is outside the src tree.
+// For atomicity, uses a temporary directory and renames on success to avoid partial copies.
 func copyDir(src, dst string) error {
 	srcInfo, err := os.Stat(src)
 	if err != nil {
 		return err
 	}
 
-	err = os.MkdirAll(dst, srcInfo.Mode())
+	// Create temp directory next to dst for atomic copy
+	dstDir := filepath.Dir(dst)
+	tempDst, err := os.MkdirTemp(dstDir, "copy-temp-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tempDst) // Clean up temp on failure
+
+	err = os.MkdirAll(tempDst, srcInfo.Mode())
 	if err != nil {
 		return err
 	}
@@ -27,9 +37,10 @@ func copyDir(src, dst string) error {
 
 	for _, entry := range entries {
 		srcPath := filepath.Join(src, entry.Name())
-		dstPath := filepath.Join(dst, entry.Name())
+		dstPath := filepath.Join(tempDst, entry.Name())
 
 		// Handle symlinks
+		// Note: Relative symlinks may break if target is outside src tree
 		if entry.Type()&os.ModeSymlink != 0 {
 			link, err := os.Readlink(srcPath)
 			if err != nil {
@@ -57,7 +68,8 @@ func copyDir(src, dst string) error {
 		}
 	}
 
-	return nil
+	// Atomic rename on success
+	return os.Rename(tempDst, dst)
 }
 
 // copyFile copies a single file from src to dst.
