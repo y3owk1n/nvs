@@ -107,7 +107,7 @@ func ReadVersionFile(startDir string, checkGlobal bool) (string, string, error) 
 	// Search up the directory tree
 	dir := startDir
 	for {
-		if dir == homeDir {
+		if homeDir != "" && dir == homeDir {
 			homeVisited = true
 		}
 
