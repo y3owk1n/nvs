@@ -32,6 +32,8 @@ For fish (~/.config/fish/config.fish):
 }
 
 // Shell hook scripts for different shells.
+//
+//nolint:dupword
 const (
 	bashZshHook = `
 _nvs_find_version_file() {
