@@ -42,7 +42,7 @@
           source = makeNvsPackage pkgs "main" false (self.rev or self.dirtyRev or "unknown");
         }
       );
-    };
 
-  homeManagerModules.default = import ./home-module.nix;
+      homeManagerModules.default = import ./home-module.nix;
+    };
 }
