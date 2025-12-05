@@ -84,37 +84,28 @@ in
       run mkdir -p "${cfg.configDir}" "${cfg.cacheDir}" "${cfg.binDir}"
     '';
 
-    programs.bash.initExtra = lib.mkIf (cfg.enableShellIntegration && cfg.shellIntegration.bash) (
-      lib.mkMerge [
-        (lib.mkIf cfg.enableShellIntegration ''
-          eval "$(${cfg.package}/bin/nvs env --source --shell bash)"
-        '')
-        (lib.mkIf cfg.enableAutoSwitch ''
+    programs.bash.initExtra =
+      lib.mkIf (cfg.enableShellIntegration && cfg.shellIntegration.bash) ''
+        eval "$(${cfg.package}/bin/nvs env --source --shell bash)"
+        ${lib.optionalString cfg.enableAutoSwitch ''
           eval "$(${cfg.package}/bin/nvs hook bash)"
-        '')
-      ]
-    );
+        ''}
+      '';
 
-    programs.zsh.initExtra = lib.mkIf (cfg.enableShellIntegration && cfg.shellIntegration.zsh) (
-      lib.mkMerge [
-        (lib.mkIf cfg.enableShellIntegration ''
-          eval "$(${cfg.package}/bin/nvs env --source --shell zsh)"
-        '')
-        (lib.mkIf cfg.enableAutoSwitch ''
+    programs.zsh.initExtra =
+      lib.mkIf (cfg.enableShellIntegration && cfg.shellIntegration.zsh) ''
+        eval "$(${cfg.package}/bin/nvs env --source --shell zsh)"
+        ${lib.optionalString cfg.enableAutoSwitch ''
           eval "$(${cfg.package}/bin/nvs hook zsh)"
-        '')
-      ]
-    );
+        ''}
+      '';
 
-    programs.fish.shellInit = lib.mkIf (cfg.enableShellIntegration && cfg.shellIntegration.fish) (
-      lib.mkMerge [
-        (lib.mkIf cfg.enableShellIntegration ''
-          ${cfg.package}/bin/nvs env --source --shell fish | source
-        '')
-        (lib.mkIf cfg.enableAutoSwitch ''
+    programs.fish.shellInit =
+      lib.mkIf (cfg.enableShellIntegration && cfg.shellIntegration.fish) ''
+        ${cfg.package}/bin/nvs env --source --shell fish | source
+        ${lib.optionalString cfg.enableAutoSwitch ''
           ${cfg.package}/bin/nvs hook fish | source
-        '')
-      ]
-    );
+        ''}
+      '';
   };
 }
