@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -214,8 +215,19 @@ func InitConfig() {
 	globalBinDir = baseBinDir
 	logrus.Debugf("Global binary directory ensured: %s", globalBinDir)
 
+	// Read GitHub mirror URL from environment
+	githubMirror := os.Getenv("NVS_GITHUB_MIRROR")
+	if githubMirror != "" {
+		u, err := url.Parse(githubMirror)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+			logrus.Fatalf("Invalid GitHub mirror URL: must start with http:// or https://")
+		}
+
+		logrus.Debugf("Using GitHub mirror: %s", githubMirror)
+	}
+
 	// Initialize services
-	githubClient := github.NewClient(cacheFilePath, cacheTTL, "0.5.0")
+	githubClient := github.NewClient(cacheFilePath, cacheTTL, "0.5.0", githubMirror)
 	versionManager := filesystem.New(&filesystem.Config{
 		VersionsDir:  versionsDir,
 		GlobalBinDir: globalBinDir,
@@ -236,6 +248,7 @@ func InitConfig() {
 			VersionsDir:   versionsDir,
 			CacheFilePath: cacheFilePath,
 			GlobalBinDir:  globalBinDir,
+			MirrorURL:     githubMirror,
 		},
 	)
 	if err != nil {

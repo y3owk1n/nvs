@@ -1,6 +1,8 @@
 // Package version provides the core domain model for Neovim version management.
 package version
 
+import "strings"
+
 // Version represents a Neovim version.
 type Version struct {
 	name        string // e.g., "v0.9.0", "stable", "nightly", "1a2b3c4"
@@ -108,4 +110,17 @@ type Manager interface {
 
 	// GetInstalledReleaseIdentifier returns the release identifier (e.g. commit hash) for an installed version.
 	GetInstalledReleaseIdentifier(versionName string) (string, error)
+}
+
+// NormalizeVersionForPath normalizes a version string for use as a directory name.
+func NormalizeVersionForPath(versionStr string) string {
+	if versionStr == "stable" || versionStr == "nightly" || IsCommitReference(versionStr) {
+		return versionStr
+	}
+
+	if !strings.HasPrefix(versionStr, "v") {
+		return "v" + versionStr
+	}
+
+	return versionStr
 }
