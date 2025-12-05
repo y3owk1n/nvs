@@ -345,8 +345,8 @@ func runCommandWithProgress(cmd Commander, progress installer.ProgressFunc, phas
 			isImportant := strings.HasPrefix(line, "-- ") &&
 				!strings.HasPrefix(line, "-- Looking for") &&
 				!strings.HasPrefix(line, "-- Performing Test")
-			isError := strings.Contains(line, "error") || strings.Contains(line, "Error") ||
-				strings.Contains(line, "failed") || strings.Contains(line, "Failed")
+			lowerLine := strings.ToLower(line)
+			isError := strings.Contains(lowerLine, "error") || strings.Contains(lowerLine, "failed")
 
 			if isImportant || isError {
 				select {
