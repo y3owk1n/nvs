@@ -45,10 +45,11 @@ var rollbackCmd = &cobra.Command{
 Without arguments, lists available nightly versions to rollback to.
 With an index, rolls back to that specific version.`,
 	Args: cobra.MaximumNArgs(1),
-	RunE: runRollback,
+	RunE: RunRollback,
 }
 
-func runRollback(cmd *cobra.Command, args []string) error {
+// RunRollback executes the rollback command.
+func RunRollback(cmd *cobra.Command, args []string) error {
 	history, err := loadNightlyHistory()
 	if err != nil {
 		return fmt.Errorf("failed to load nightly history: %w", err)

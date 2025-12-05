@@ -28,7 +28,7 @@ For zsh (~/.zshrc):
 For fish (~/.config/fish/config.fish):
   nvs hook fish | source`,
 	Args: cobra.MaximumNArgs(1),
-	RunE: runHook,
+	RunE: RunHook,
 }
 
 // Shell hook scripts for different shells.
@@ -119,7 +119,8 @@ _nvs_hook
 `
 )
 
-func runHook(_ *cobra.Command, args []string) error {
+// RunHook executes the hook command.
+func RunHook(_ *cobra.Command, args []string) error {
 	var shell string
 
 	if len(args) > 0 {

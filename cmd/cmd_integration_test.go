@@ -1078,6 +1078,247 @@ func TestRunEnv_SourceSh(t *testing.T) {
 	}
 }
 
+// TestReadVersionFile tests reading version file from directory hierarchy.
+func TestReadVersionFile(t *testing.T) {
+	tempDir := t.TempDir()
+
+	nestedDir := filepath.Join(tempDir, "project", "src")
+
+	err := os.MkdirAll(nestedDir, 0o755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	versionFile := filepath.Join(tempDir, "project", ".nvs-version")
+
+	err = os.WriteFile(versionFile, []byte("v1.0.0\n"), 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	version, foundFile, err := cmd.ReadVersionFile(nestedDir, false)
+	if err != nil {
+		t.Errorf("ReadVersionFile failed: %v", err)
+	}
+
+	if version != "v1.0.0" {
+		t.Errorf("Version = %q, want %q", version, "v1.0.0")
+	}
+
+	if foundFile != versionFile {
+		t.Errorf("Found file = %q, want %q", foundFile, versionFile)
+	}
+}
+
+// TestReadVersionFile_NotFound tests when no version file exists.
+func TestReadVersionFile_NotFound(t *testing.T) {
+	tempDir := t.TempDir()
+
+	_, _, err := cmd.ReadVersionFile(tempDir, false)
+	if err == nil {
+		t.Error("ReadVersionFile expected error when no file found")
+	}
+}
+
+// TestGetNightlyHistory tests getting nightly history.
+func TestGetNightlyHistory(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
+
+	history, err := cmd.GetNightlyHistory()
+	if err != nil {
+		t.Logf("GetNightlyHistory (first call): %v", err)
+	} else if history == nil {
+		t.Error("GetNightlyHistory returned nil history")
+	}
+}
+
+// TestAddNightlyToHistory tests adding nightly to history.
+func TestAddNightlyToHistory(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
+
+	commitHash := "abc1234567890"
+	tagName := "nightly"
+
+	err := cmd.AddNightlyToHistory(commitHash, tagName)
+	if err != nil {
+		t.Errorf("AddNightlyToHistory failed: %v", err)
+	}
+
+	history, err := cmd.GetNightlyHistory()
+	if err != nil {
+		t.Fatalf("GetNightlyHistory failed: %v", err)
+	}
+
+	if len(history.Entries) == 0 {
+		t.Error("History should have at least one entry")
+	}
+
+	found := false
+	for _, entry := range history.Entries {
+		if entry.CommitHash == commitHash {
+			found = true
+
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("Commit hash %s not found in history", commitHash)
+	}
+}
+
+// TestRunDoctor tests the doctor command.
+func TestRunDoctor(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.SetContext(context.Background())
+
+	// Doctor may fail if some checks don't pass, but shouldn't panic
+	err := cmd.RunDoctor(cobraCmd, []string{})
+	t.Logf("RunDoctor result: %v", err)
+}
+
+// TestRunHook tests the hook command for different shells.
+func TestRunHook(t *testing.T) {
+	tests := []struct {
+		name    string
+		shell   string
+		wantErr bool
+	}{
+		{"bash hook", "bash", false},
+		{"zsh hook", "zsh", false},
+		{"fish hook", "fish", false},
+		{"unsupported shell", "unsupported", true},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cobraCmd := &cobra.Command{}
+			cobraCmd.SetContext(context.Background())
+
+			err := cmd.RunHook(cobraCmd, []string{testCase.shell})
+			if testCase.wantErr {
+				if err == nil {
+					t.Errorf("RunHook(%s) expected error, got nil", testCase.shell)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("RunHook(%s) unexpected error: %v", testCase.shell, err)
+				}
+			}
+		})
+	}
+}
+
+// TestRunPin tests the pin command.
+func TestRunPin(t *testing.T) {
+	if runtime.GOOS == windowsOS {
+		t.Skip("Skipping symlink test on Windows")
+	}
+
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
+
+	versionName := testVersion
+	versionDir := filepath.Join(cmd.GetVersionsDir(), versionName)
+
+	err := os.MkdirAll(versionDir, 0o755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	currentLink := filepath.Join(cmd.GetVersionsDir(), "current")
+
+	err = os.Symlink(versionDir, currentLink)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Chdir(tempDir)
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.Flags().Bool("global", false, "")
+	cobraCmd.SetContext(context.Background())
+
+	err = cmd.RunPin(cobraCmd, []string{versionName})
+	if err != nil {
+		t.Errorf("RunPin with explicit version failed: %v", err)
+	}
+
+	// Verify .nvs-version file was created
+	versionFile := filepath.Join(tempDir, ".nvs-version")
+
+	data, err := os.ReadFile(versionFile)
+	if err != nil {
+		t.Errorf("Failed to read version file: %v", err)
+	}
+
+	if string(data) != versionName+"\n" {
+		t.Errorf("Version file content = %q, want %q", string(data), versionName+"\n")
+	}
+}
+
+// TestRunRollback_NoHistory tests rollback when no history exists.
+func TestRunRollback_NoHistory(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.SetContext(context.Background())
+
+	err := cmd.RunRollback(cobraCmd, []string{})
+	// May error or just show empty list
+	t.Logf("RunRollback with no history result: %v", err)
+}
+
+// TestRunRun_VersionNotInstalled tests run command with non-existent version.
+func TestRunRun_VersionNotInstalled(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.SetContext(context.Background())
+
+	err := cmd.RunRun(cobraCmd, []string{"nonexistent-version"})
+	if err == nil {
+		t.Error("RunRun expected error for non-existent version")
+	}
+}
+
 func TestRunEnv_SourceUnsupportedShell(t *testing.T) {
 	tempDir := t.TempDir()
 

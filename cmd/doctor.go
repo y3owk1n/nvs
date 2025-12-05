@@ -17,10 +17,11 @@ var doctorCmd = &cobra.Command{
 	Use:   "doctor",
 	Short: "Check your system for potential problems",
 	Long:  "Check your system for potential problems with nvs installation and environment.",
-	RunE:  runDoctor,
+	RunE:  RunDoctor,
 }
 
-func runDoctor(cmd *cobra.Command, args []string) error {
+// RunDoctor executes the doctor command.
+func RunDoctor(cmd *cobra.Command, args []string) error {
 	checks := []struct {
 		name  string
 		check func() error

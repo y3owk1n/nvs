@@ -29,11 +29,11 @@ If no version is specified, uses the currently active version.
 This file can be used to ensure consistent Neovim versions across a team.
 Use 'nvs use' in a directory with .nvs-version to automatically use that version.`,
 	Args: cobra.MaximumNArgs(1),
-	RunE: runPin,
+	RunE: RunPin,
 }
 
-// runPin executes the pin command.
-func runPin(cmd *cobra.Command, args []string) error {
+// RunPin executes the pin command.
+func RunPin(cmd *cobra.Command, args []string) error {
 	var versionToPin string
 
 	if len(args) > 0 {

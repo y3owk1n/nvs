@@ -38,11 +38,11 @@ Examples:
   nvs run nightly -- --clean
   nvs run v0.10.3 -- -c "checkhealth"`,
 	Args: cobra.MinimumNArgs(1),
-	RunE: runRun,
+	RunE: RunRun,
 }
 
-// runRun executes the run command.
-func runRun(cmd *cobra.Command, args []string) error {
+// RunRun executes the run command.
+func RunRun(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(cmd.Context(), TimeoutMinutes*time.Minute)
 	defer cancel()
 
