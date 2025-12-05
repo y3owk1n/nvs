@@ -1,6 +1,7 @@
 package ui_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/fatih/color"
@@ -43,14 +44,21 @@ func TestColoredIcon(t *testing.T) {
 		{"blue info", ui.Info, color.FgBlue},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := ui.ColoredIcon(tt.icon, tt.color)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			result := ui.ColoredIcon(testCase.icon, testCase.color)
 			// Result should not be empty
 			if len(result) == 0 {
 				t.Error("ColoredIcon() returned empty string")
 			}
 			// Result should contain the original icon (possibly with ANSI codes)
+			if !strings.Contains(result, testCase.icon) {
+				t.Errorf(
+					"ColoredIcon() result %q does not contain original icon %q",
+					result,
+					testCase.icon,
+				)
+			}
 			// Note: In CI, colors may be disabled, but the base icon should be present
 		})
 	}
