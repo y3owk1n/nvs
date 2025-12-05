@@ -77,16 +77,20 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		logrus.Debugf("Processing alias: %s", alias)
 
 		// For nightly, get current commit hash before upgrade (for changelog and rollback)
-		var oldCommitHash string
+		var (
+			oldCommitHash string
+			backupDir     string
+			backupCreated bool
+		)
+
 		if alias == nightly {
 			oldCommitHash, _ = GetVersionService().GetInstalledVersionIdentifier(nightly)
 			logrus.Debugf("Current nightly commit: %s", oldCommitHash)
 
 			// Backup current nightly for rollback support
-			// Note: Backup is created before upgrade and left on failure for disaster recovery
 			if oldCommitHash != "" {
 				nightlyDir := filepath.Join(GetVersionsDir(), "nightly")
-				backupDir := filepath.Join(
+				backupDir = filepath.Join(
 					GetVersionsDir(),
 					"nightly-"+shortHash(oldCommitHash, shortHashLength),
 				)
@@ -106,6 +110,8 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 							logrus.Warnf("Failed to backup nightly for rollback: %v", copyErr)
 						} else {
 							logrus.Debugf("Backed up nightly to %s", backupDir)
+
+							backupCreated = true
 						}
 					}
 				}
@@ -158,6 +164,14 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 				}
 
 				continue
+			}
+
+			// Clean up backup on failure
+			if backupCreated {
+				removeErr := os.RemoveAll(backupDir)
+				if removeErr != nil {
+					logrus.Warnf("Failed to clean up backup on upgrade failure: %v", removeErr)
+				}
 			}
 
 			logrus.Errorf("Upgrade failed for %s: %v", alias, err)
