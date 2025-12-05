@@ -68,7 +68,7 @@ func TestGetAssetURL(t *testing.T) {
 					1000,
 				),
 			},
-			wantErr: !(runtime.GOOS == "linux" && runtime.GOARCH == "amd64"),
+			wantErr: runtime.GOOS != "linux" || runtime.GOARCH != "amd64",
 		},
 		{
 			name: "macos asset found",
@@ -107,6 +107,7 @@ func TestGetAssetURL(t *testing.T) {
 				if err != nil {
 					t.Errorf("GetAssetURL() expected no error, got %v", err)
 				}
+
 				if url == "" {
 					t.Errorf("GetAssetURL() expected URL, got empty")
 				}
