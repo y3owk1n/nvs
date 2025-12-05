@@ -111,9 +111,11 @@ func TestGetAssetURL(t *testing.T) {
 				if err != nil {
 					t.Errorf("GetAssetURL() expected no error, got %v", err)
 				}
+
 				if url == "" {
 					t.Errorf("GetAssetURL() expected URL, got empty")
 				}
+
 				if testCase.wantURL != "" && url != testCase.wantURL {
 					t.Errorf("GetAssetURL() = %q, want %q", url, testCase.wantURL)
 				}
@@ -123,7 +125,7 @@ func TestGetAssetURL(t *testing.T) {
 	}
 }
 
-// writeCacheFile is a helper to create a cache file with test data
+// writeCacheFile is a helper to create a cache file with test data.
 func writeCacheFile(t *testing.T, cacheData []map[string]any) string {
 	t.Helper()
 
@@ -135,7 +137,8 @@ func writeCacheFile(t *testing.T, cacheData []map[string]any) string {
 		t.Fatalf("Failed to marshal cache data: %v", err)
 	}
 
-	if err := os.WriteFile(cacheFile, data, 0o644); err != nil {
+	err = os.WriteFile(cacheFile, data, 0o644)
+	if err != nil {
 		t.Fatalf("Failed to write cache file: %v", err)
 	}
 
