@@ -17,4 +17,13 @@ var (
 
 	// ErrNvimExitNonZero is returned when nvim exits with a non-zero exit code.
 	ErrNvimExitNonZero = errors.New("nvim exited with non-zero status")
+
+	// ErrVersionFileNotFound is returned when no .nvs-version file is found.
+	ErrVersionFileNotFound = errors.New("no .nvs-version file found")
+
+	// ErrInvalidIndex is returned when an invalid index is provided.
+	ErrInvalidIndex = errors.New("invalid index")
+
+	// ErrNightlyVersionNotExists is returned when a nightly version no longer exists on disk.
+	ErrNightlyVersionNotExists = errors.New("nightly version no longer exists on disk")
 )

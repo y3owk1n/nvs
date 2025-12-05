@@ -27,11 +27,15 @@ import (
 //	nvs use v0.6.0
 //	nvs use nightly
 //	nvs use 1a2b3c4 (a commit hash)
+//	nvs use        (reads from .nvs-version file)
 var useCmd = &cobra.Command{
-	Use:   "use <version|stable|nightly|commit-hash>",
+	Use:   "use [version|stable|nightly|commit-hash]",
 	Short: "Switch to a specific version or commit hash",
-	Args:  cobra.ExactArgs(1),
-	RunE:  RunUse,
+	Long: `Switch to a specific Neovim version.
+If no version is specified, reads from .nvs-version file in the current
+directory or parent directories.`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: RunUse,
 }
 
 // RunUse executes the use command.
@@ -40,7 +44,30 @@ func RunUse(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(cmd.Context(), TimeoutMinutes*time.Minute)
 	defer cancel()
 
-	alias := args[0]
+	var alias string
+	if len(args) > 0 {
+		alias = args[0]
+	} else {
+		// Try to read from .nvs-version file
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get current directory: %w", err)
+		}
+
+		pinnedVersion, versionFile, err := ReadVersionFile(cwd, true)
+		if err != nil {
+			return fmt.Errorf("no version specified and %w", err)
+		}
+
+		alias = pinnedVersion
+		logrus.Debugf("Using version %s from %s", alias, versionFile)
+
+		_, printErr := fmt.Fprintf(os.Stdout, "%s Using version from %s\n", ui.InfoIcon(), versionFile)
+		if printErr != nil {
+			logrus.Warnf("Failed to write to stdout: %v", printErr)
+		}
+	}
+
 	logrus.Debugf("Requested version: %s", alias)
 
 	// Check for running Neovim instances unless --force is set
@@ -92,7 +119,7 @@ func RunUse(cmd *cobra.Command, args []string) error {
 		if errors.Is(err, version.ErrVersionNotFound) {
 			logrus.Infof("Version %s not found. Installing...", alias)
 			// Install the version
-			err = RunInstall(cmd, args)
+			err = RunInstall(cmd, []string{alias})
 			if err != nil {
 				return err
 			}

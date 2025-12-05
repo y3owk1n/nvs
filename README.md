@@ -57,6 +57,9 @@ LuaJIT 2.1.1741571767
 - **Easy Installation:** Download and install Neovim versions directly from GitHub
 - **Version Switching:** Switch between installed versions instantly
 - **Config Switching:** Toggle between Neovim configurations
+- **Version Pinning:** Pin versions per-project with `.nvs-version` files
+- **Nightly Rollback:** Keep and rollback to previous nightly versions
+- **GitHub Mirror:** Support for GitHub mirrors in restricted regions
 - **Cross-Platform:** Works on macOS, Linux, and Windows
 - **Verbose Logging:** Detailed logs with `--verbose` flag
 

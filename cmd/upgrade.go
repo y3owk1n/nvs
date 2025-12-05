@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -75,6 +76,48 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 	for _, alias := range aliases {
 		logrus.Debugf("Processing alias: %s", alias)
 
+		// For nightly, get current commit hash before upgrade (for changelog and rollback)
+		var (
+			oldCommitHash string
+			backupDir     string
+			backupCreated bool
+		)
+
+		if alias == nightly {
+			oldCommitHash, _ = GetVersionService().GetInstalledVersionIdentifier(nightly)
+			logrus.Debugf("Current nightly commit: %s", oldCommitHash)
+
+			// Backup current nightly for rollback support
+			if oldCommitHash != "" {
+				nightlyDir := filepath.Join(GetVersionsDir(), "nightly")
+				backupDir = filepath.Join(
+					GetVersionsDir(),
+					"nightly-"+shortHash(oldCommitHash, shortHashLength),
+				)
+
+				// Only backup if the backup doesn't already exist
+				var statErr error
+
+				_, statErr = os.Stat(backupDir)
+				if os.IsNotExist(statErr) {
+					var statErr2 error
+
+					_, statErr2 = os.Stat(nightlyDir)
+					if statErr2 == nil {
+						// Copy directory (rename would break the current install)
+						copyErr := copyDir(nightlyDir, backupDir)
+						if copyErr != nil {
+							logrus.Warnf("Failed to backup nightly for rollback: %v", copyErr)
+						} else {
+							logrus.Debugf("Backed up nightly to %s", backupDir)
+
+							backupCreated = true
+						}
+					}
+				}
+			}
+		}
+
 		// Create and start a spinner to show progress.
 		progressSpinner := spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond)
 		progressSpinner.Prefix = InitialPrefix
@@ -123,12 +166,29 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 				continue
 			}
 
+			// Clean up backup on failure
+			if backupCreated {
+				removeErr := os.RemoveAll(backupDir)
+				if removeErr != nil {
+					logrus.Warnf("Failed to clean up backup on upgrade failure: %v", removeErr)
+				}
+			}
+
 			logrus.Errorf("Upgrade failed for %s: %v", alias, err)
 
 			return fmt.Errorf("upgrade failed for %s: %w", alias, err)
 		}
 
 		progressSpinner.Stop()
+
+		// For nightly upgrades, add OLD version to history for rollback support
+		if alias == nightly && oldCommitHash != "" {
+			// Add the old commit (the one we backed up) to history
+			histErr := AddNightlyToHistory(oldCommitHash, "nightly")
+			if histErr != nil {
+				logrus.Warnf("Failed to add nightly to history: %v", histErr)
+			}
+		}
 
 		// Inform the user that the upgrade succeeded.
 		_, printErr := fmt.Fprintf(os.Stdout,
@@ -139,6 +199,14 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		)
 		if printErr != nil {
 			logrus.Warnf("Failed to write to stdout: %v", printErr)
+		}
+
+		// For nightly, show changelog
+		if alias == nightly && oldCommitHash != "" {
+			nightlyRelease, findErr := GetVersionService().FindNightly(ctx)
+			if findErr == nil && nightlyRelease.CommitHash() != oldCommitHash {
+				_ = ShowChangelog(ctx, oldCommitHash, nightlyRelease.CommitHash())
+			}
 		}
 
 		logrus.Debugf("%s upgraded successfully", alias)

@@ -166,6 +166,41 @@ nvs up stable
 nvs up nightly
 ```
 
+> [!note]
+> When upgrading nightly, a changelog of commits since your last version is displayed.
+
+### Version Pinning
+
+#### `nvs pin`
+
+Pin a Neovim version to the current directory by creating a `.nvs-version` file.
+
+```bash
+nvs pin stable     # Pin stable version
+nvs pin nightly    # Pin nightly version
+nvs pin v0.10.3    # Pin specific version
+nvs pin            # Pin current version
+nvs pin -g stable  # Pin globally (in home directory)
+```
+
+> [!note]
+> When `nvs use` is run without arguments, it reads from `.nvs-version` in the current or parent directories.
+
+### Nightly Rollback
+
+#### `nvs rollback`
+
+Rollback to a previous nightly version. Previous nightly versions are automatically saved during upgrades.
+
+```bash
+nvs rollback       # List available versions
+nvs rollback 0     # Rollback to most recent previous
+nvs rollback 2     # Rollback to specific index
+```
+
+> [!note]
+> Up to 5 previous nightly versions are kept by default.
+
 ## Configuration Management
 
 ### `nvs config`
