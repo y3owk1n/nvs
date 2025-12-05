@@ -30,7 +30,9 @@ var doctorCmd = &cobra.Command{
 func runDoctor(cmd *cobra.Command, args []string) error {
 	spin := spinner.New(spinner.CharSets[14], SpinnerInterval)
 	spin.Suffix = " Checking system..."
+
 	spin.Start()
+	defer spin.Stop()
 
 	checks := []struct {
 		name  string
@@ -45,8 +47,6 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	}
 
 	var issues []string
-
-	spin.Stop()
 
 	_, _ = os.Stdout.Write([]byte("\n"))
 
@@ -109,13 +109,18 @@ func checkEnvVars() error {
 
 func checkPath() error {
 	binDir := GetGlobalBinDir()
-
-	path := os.Getenv("PATH")
-	if !strings.Contains(path, binDir) {
-		return fmt.Errorf("%w: %s", ErrBinDirNotInPath, binDir)
+	if binDir == "" {
+		return fmt.Errorf("%w: empty global bin dir", ErrBinDirNotInPath)
 	}
 
-	return nil
+	path := os.Getenv("PATH")
+	for p := range strings.SplitSeq(path, string(os.PathListSeparator)) {
+		if filepath.Clean(p) == filepath.Clean(binDir) {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("%w: %s", ErrBinDirNotInPath, binDir)
 }
 
 func checkDependencies() error {
