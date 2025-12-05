@@ -107,6 +107,9 @@ func TestBuildFromCommit_CloneFailure(t *testing.T) {
 	if err == nil {
 		t.Error("BuildFromCommit() expected error for clone failure, got nil")
 	}
+	if !errors.Is(err, cloneErr) {
+		t.Errorf("BuildFromCommit() error = %v, want to contain %v", err, cloneErr)
+	}
 }
 
 // TestBuildFromCommit_CheckoutFailure tests build failure when git checkout fails.
@@ -128,6 +131,9 @@ func TestBuildFromCommit_CheckoutFailure(t *testing.T) {
 	err := b.BuildFromCommit(ctx, "abc1234", t.TempDir())
 	if err == nil {
 		t.Error("BuildFromCommit() expected error for checkout failure, got nil")
+	}
+	if !errors.Is(err, checkoutErr) {
+		t.Errorf("BuildFromCommit() error = %v, want to contain %v", err, checkoutErr)
 	}
 }
 
