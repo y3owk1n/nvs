@@ -25,7 +25,6 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		name  string
 		check func() error
 	}{
-		{"OS/Arch", checkOSArch},
 		{"Shell", checkShell},
 		{"Environment variables", checkEnvVars},
 		{"PATH", checkPath},
@@ -61,10 +60,6 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	_, _ = fmt.Fprintf(os.Stdout,
 		"%s\n", ui.GreenText("No issues found! You are ready to go."))
 
-	return nil
-}
-
-func checkOSArch() error {
 	return nil
 }
 
