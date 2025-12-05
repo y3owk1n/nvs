@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -98,6 +99,8 @@ func TestGetAssetURL(t *testing.T) {
 			if testCase.wantErr {
 				if err == nil {
 					t.Errorf("GetAssetURL() expected error, got nil")
+				} else if testCase.errContain != "" && !strings.Contains(err.Error(), testCase.errContain) {
+					t.Errorf("GetAssetURL() error = %q, want to contain %q", err.Error(), testCase.errContain)
 				}
 			}
 			// Note: We can't fully test platform-specific behavior in unit tests
