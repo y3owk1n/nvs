@@ -44,11 +44,7 @@ var upgradeCmd = &cobra.Command{
 
 // RunUpgrade executes the upgrade command.
 func RunUpgrade(cmd *cobra.Command, args []string) error {
-	const (
-		SpinnerSpeed  = 100
-		InitialSuffix = " 0%"
-		InitialPrefix = "Checking for updates..."
-	)
+	const SpinnerSpeed = 100
 
 	logrus.Debug("Starting upgrade command")
 
@@ -117,16 +113,12 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 
 		// Create and start a spinner to show progress.
 		progressSpinner := spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond)
-		progressSpinner.Prefix = InitialPrefix
-		progressSpinner.Suffix = InitialSuffix
+		progressSpinner.Prefix = ui.InfoIcon() + " "
+		progressSpinner.Suffix = " Checking for updates..."
 		progressSpinner.Start()
 
 		err := GetVersionService().Upgrade(ctx, alias, func(phase string, progress int) {
-			if phase != "" {
-				progressSpinner.Prefix = phase + " "
-			}
-
-			progressSpinner.Suffix = fmt.Sprintf(" %d%%", progress)
+			progressSpinner.Suffix = " " + ui.FormatPhaseProgress(phase, progress)
 		})
 		if err != nil {
 			progressSpinner.Stop()
