@@ -137,7 +137,7 @@ func runHook(cmd *cobra.Command, args []string) error {
 	var hookScript string
 
 	switch shell {
-	case ShellBash, ShellZsh, "sh":
+	case ShellBash, ShellZsh:
 		hookScript = bashZshHook
 	case ShellFish:
 		hookScript = fishHook
