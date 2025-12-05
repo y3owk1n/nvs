@@ -113,7 +113,7 @@ func checkDependencies() error {
 	}
 
 	// Build dependencies needed only for building from source
-	buildDeps := []string{"make", "cmake", "gettext", "ninja"}
+	buildDeps := []string{"make", "cmake", "gettext", "ninja", "curl"}
 
 	var (
 		missingBase  []string
