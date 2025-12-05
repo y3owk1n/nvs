@@ -103,12 +103,12 @@ function _nvs_hook --on-variable PWD
   set -l nvs_version_file (_nvs_find_version_file)
 
   if test -n "$nvs_version_file"
-    set -l version (string trim < "$nvs_version_file")
+    set -l nvs_version (string trim < "$nvs_version_file")
 
     # Only switch if version changed
-    if test "$version" != "$_NVS_CURRENT_VERSION"
-      if nvs use "$version" --force >/dev/null 2>&1
-        set -g _NVS_CURRENT_VERSION "$version"
+    if test "$nvs_version" != "$_NVS_CURRENT_VERSION"
+      if nvs use "$nvs_version" --force >/dev/null 2>&1
+        set -g _NVS_CURRENT_VERSION "$nvs_version"
       end
     end
   end
