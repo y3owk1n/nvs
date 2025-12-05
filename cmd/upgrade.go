@@ -91,14 +91,8 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 				)
 
 				// Only backup if the backup doesn't already exist
-				var statErr error
-
-				_, statErr = os.Stat(backupDir)
-				if os.IsNotExist(statErr) {
-					var statErrInner error
-
-					_, statErrInner = os.Stat(nightlyDir)
-					if statErrInner == nil {
+				if _, err := os.Stat(backupDir); os.IsNotExist(err) {
+					if _, err := os.Stat(nightlyDir); err == nil {
 						// Copy directory (rename would break the current install)
 						copyErr := copyDir(nightlyDir, backupDir)
 						if copyErr != nil {
