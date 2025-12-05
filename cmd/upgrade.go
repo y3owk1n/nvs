@@ -83,6 +83,7 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 			logrus.Debugf("Current nightly commit: %s", oldCommitHash)
 
 			// Backup current nightly for rollback support
+			// Note: Backup is created before upgrade and left on failure for disaster recovery
 			if oldCommitHash != "" {
 				nightlyDir := filepath.Join(GetVersionsDir(), "nightly")
 				backupDir := filepath.Join(
