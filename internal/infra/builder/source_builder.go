@@ -73,7 +73,7 @@ func (b *SourceBuilder) BuildFromCommit(
 	progress installer.ProgressFunc,
 ) (string, error) {
 	// Check for required build tools
-	err := b.checkRequiredTools()
+	err := b.checkRequiredTools(ctx)
 	if err != nil {
 		return "", fmt.Errorf("build requirements not met: %w", err)
 	}
@@ -269,7 +269,7 @@ func (b *SourceBuilder) buildFromCommitInternal(
 }
 
 // checkRequiredTools verifies that all required build tools are available.
-func (b *SourceBuilder) checkRequiredTools() error {
+func (b *SourceBuilder) checkRequiredTools(ctx context.Context) error {
 	requiredTools := []string{"git", "make", "cmake", "gettext", "ninja", "curl"}
 
 	checkCmd := "which"
@@ -278,7 +278,7 @@ func (b *SourceBuilder) checkRequiredTools() error {
 	}
 
 	for _, tool := range requiredTools {
-		cmd := b.execCommand(context.Background(), checkCmd, tool)
+		cmd := b.execCommand(ctx, checkCmd, tool)
 
 		err := cmd.Run()
 		if err != nil {
