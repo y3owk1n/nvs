@@ -373,16 +373,7 @@ func (s *Service) Upgrade(
 
 // normalizeVersion normalizes a version string.
 func normalizeVersion(versionStr string) string {
-	if versionStr == StableVersion || versionStr == NightlyVersion ||
-		version.IsCommitReference(versionStr) {
-		return versionStr
-	}
-
-	if !strings.HasPrefix(versionStr, "v") {
-		return "v" + versionStr
-	}
-
-	return versionStr
+	return version.NormalizeVersionForPath(versionStr)
 }
 
 // determineVersionType determines the version type from the name.

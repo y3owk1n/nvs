@@ -130,15 +130,7 @@ func getNvimBinaryPath(versionAlias string) (string, error) {
 
 // normalizeVersionForPath normalizes a version string for use as a directory name.
 func normalizeVersionForPath(versionStr string) string {
-	if versionStr == "stable" || versionStr == "nightly" || version.IsCommitReference(versionStr) {
-		return versionStr
-	}
-
-	if !strings.HasPrefix(versionStr, "v") {
-		return "v" + versionStr
-	}
-
-	return versionStr
+	return version.NormalizeVersionForPath(versionStr)
 }
 
 // findNvimBinary searches for the nvim binary in a version directory.
