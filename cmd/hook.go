@@ -84,13 +84,13 @@ fi
 
 	fishHook = `
 function _nvs_find_version_file
-  set -l dir $PWD
+  set -l dir "$PWD"
   while test "$dir" != "/"
     if test -f "$dir/.nvs-version"
       echo "$dir/.nvs-version"
       return
     end
-    set dir (dirname "$dir")
+    set dir (dirname -- "$dir")
   end
 
   # Check home directory
