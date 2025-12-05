@@ -307,7 +307,7 @@ Automatically add the global binary directory to your PATH.
 nvs path
 ```
 
-## Shell Integration
+## Shell Completions
 
 ### Completions
 
