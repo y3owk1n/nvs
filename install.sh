@@ -1,6 +1,7 @@
-# For Windows users: Please use install.ps1 instead
 #!/usr/bin/env bash
 set -euo pipefail
+
+# For Windows users: Please use install.ps1 instead
 
 # Global variable for temporary file.
 TMP_FILE=""

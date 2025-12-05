@@ -1,6 +1,7 @@
-# For Windows users: Please use uninstall.ps1 instead
 #!/usr/bin/env bash
 set -euo pipefail
+
+# For Windows users: Please use uninstall.ps1 instead
 
 # ANSI color codes.
 RED='\033[1;31m'
