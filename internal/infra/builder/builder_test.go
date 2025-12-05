@@ -130,11 +130,6 @@ func TestBuildFromCommit_CloneFailure(t *testing.T) {
 	if err == nil {
 		t.Error("BuildFromCommit() expected error for clone failure, got nil")
 	}
-
-	// Just check that we got an error (the specific error wrapping changed with the interface update)
-	if err == nil {
-		t.Error("BuildFromCommit() expected error, got nil")
-	}
 }
 
 // TestBuildFromCommit_ProgressReporting tests that progress is reported correctly.
@@ -225,11 +220,6 @@ func TestBuildFromCommit_CheckoutFailure(t *testing.T) {
 	_, err := b.BuildFromCommit(ctx, "abc1234", t.TempDir(), nil)
 	if err == nil {
 		t.Error("BuildFromCommit() expected error for checkout failure, got nil")
-	}
-
-	// Just check that we got an error (the specific error wrapping changed with the interface update)
-	if err == nil {
-		t.Error("BuildFromCommit() expected error, got nil")
 	}
 }
 
