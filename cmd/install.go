@@ -42,10 +42,7 @@ var installCmd = &cobra.Command{
 
 // RunInstall executes the install command.
 func RunInstall(cmd *cobra.Command, args []string) error {
-	const (
-		SpinnerSpeed  = 100
-		InitialSuffix = " 0%"
-	)
+	const SpinnerSpeed = 100
 
 	logrus.Debug("Starting installation command")
 
@@ -58,17 +55,13 @@ func RunInstall(cmd *cobra.Command, args []string) error {
 
 	// Create and start a spinner for progress
 	progressSpinner := spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond)
-	progressSpinner.Prefix = fmt.Sprintf(
-		"%s %s ",
-		ui.InfoIcon(),
-		ui.WhiteText(fmt.Sprintf("Installing Neovim %s...", alias)),
-	)
-	progressSpinner.Suffix = InitialSuffix
+	progressSpinner.Prefix = ui.InfoIcon() + " "
+	progressSpinner.Suffix = fmt.Sprintf(" Installing %s...", alias)
 	progressSpinner.Start()
 
 	// Use version service to install
 	err := GetVersionService().Install(ctx, alias, func(phase string, progress int) {
-		progressSpinner.Suffix = fmt.Sprintf(" %s %d%%", phase, progress)
+		progressSpinner.Suffix = " " + ui.FormatPhaseProgress(phase, progress)
 	})
 	if err != nil {
 		progressSpinner.Stop()
