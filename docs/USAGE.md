@@ -53,7 +53,7 @@ Complete command reference for **nvs** – the Neovim Version Switcher.
 | `nightly`  | `nvs install nightly` | Latest nightly build                  |
 | `vX.Y.Z`   | `nvs install v0.10.3` | Specific version tag                  |
 | `X.Y.Z`    | `nvs install 0.10.3`  | Version without `v` prefix            |
-| `master`   | `nvs install master`  | Build from latest master commit       |
+| `master`   | `nvs install master`  | Build from latest master commit (resolves to specific commit hash) |
 | `<commit>` | `nvs install 2db1ae3` | Build from specific commit (7+ chars) |
 
 ---
@@ -72,7 +72,7 @@ nvs install v0.10.3
 nvs install 0.10.3        # v prefix optional
 
 # Build from source
-nvs install master        # Latest master commit
+nvs install master        # Latest master commit (resolves to specific hash)
 nvs install 2db1ae3       # Short commit hash
 nvs install 2db1ae37f14d71d1391110fe18709329263c77c9  # Full hash
 
@@ -81,8 +81,10 @@ nvs i stable
 ```
 
 > [!NOTE]
-> Building from source requires: `git`, `make`, `cmake`
-> On macOS, also run: `brew install ninja cmake gettext curl`
+> **Base dependencies** (required): `git`, `curl`, `tar`  
+> **Build dependencies** (for source builds): `make`, `cmake`, `gettext`, `ninja`  
+> nvs automatically checks for these dependencies. Run `nvs doctor` for detailed status.  
+> Build operations show real-time progress with elapsed time and status updates.
 
 **Flags:**
 

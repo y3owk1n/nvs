@@ -18,9 +18,10 @@ const (
 
 // FormatProgressBar creates a visual progress bar string.
 // Example output: "[████████████░░░░░░░░] 60%".
+// Returns empty string for indeterminate progress (percent < 0).
 func FormatProgressBar(percent int) string {
 	if percent < 0 {
-		percent = 0
+		return ""
 	}
 
 	if percent > ProgressMax {
@@ -37,6 +38,12 @@ func FormatProgressBar(percent int) string {
 
 // FormatPhaseProgress formats progress with a phase name and visual bar.
 // Example output: "Downloading [████████░░░░░░░░░░░░] 40%".
+// For indeterminate progress, shows just the phase: "Downloading".
 func FormatPhaseProgress(phase string, percent int) string {
-	return fmt.Sprintf("%s %s", phase, FormatProgressBar(percent))
+	bar := FormatProgressBar(percent)
+	if bar == "" {
+		return phase
+	}
+
+	return fmt.Sprintf("%s %s", phase, bar)
 }

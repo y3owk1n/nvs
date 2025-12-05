@@ -17,7 +17,13 @@ type Installer interface {
 
 	// BuildFromCommit builds Neovim from source at a specific commit.
 	// The built version is installed to the destination directory.
-	BuildFromCommit(ctx context.Context, commit string, dest string) error
+	// Returns the resolved commit hash that was installed.
+	BuildFromCommit(
+		ctx context.Context,
+		commit string,
+		dest string,
+		progress ProgressFunc,
+	) (string, error)
 }
 
 // ProgressFunc is a callback function for reporting installation progress.

@@ -7,6 +7,9 @@ var (
 	// ErrBuildFailed is returned when building from source fails.
 	ErrBuildFailed = errors.New("build failed")
 
+	// ErrBuildRequirementsNotMet is returned when required build tools are missing.
+	ErrBuildRequirementsNotMet = errors.New("build requirements not met")
+
 	// ErrCommitHashTooShort is returned when the commit hash is too short.
 	ErrCommitHashTooShort = errors.New("commit hash too short")
 

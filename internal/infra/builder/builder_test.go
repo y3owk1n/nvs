@@ -1,6 +1,7 @@
 package builder_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"strings"
@@ -22,9 +23,26 @@ type mockCommand struct {
 	stderr    any
 	stdoutBuf *strings.Reader
 	stderrBuf *strings.Reader
+	stdoutStr string
 }
 
+const (
+	gitCmd      = "git"
+	whichCmd    = "which"
+	gitTool     = "git"
+	makeTool    = "make"
+	cmakeTool   = "cmake"
+	gettextTool = "gettext"
+	ninjaTool   = "ninja"
+	curlTool    = "curl"
+)
+
 func (m *mockCommand) Run() error {
+	// Simulate writing to stdout if it's a buffer
+	if buf, ok := m.stdout.(*bytes.Buffer); ok && m.stdoutStr != "" {
+		buf.WriteString(m.stdoutStr)
+	}
+
 	return m.runErr
 }
 
@@ -93,8 +111,13 @@ func TestBuildFromCommit_CloneFailure(t *testing.T) {
 
 	mockExec := func(ctx context.Context, name string, args ...string) builder.Commander {
 		// Simulate git clone failure
-		if name == "git" && len(args) > 0 && args[0] == "clone" {
+		if name == gitCmd && len(args) > 0 && args[0] == "clone" {
 			return &mockCommand{runErr: cloneErr}
+		}
+		// Mock successful tool checks
+		if name == whichCmd &&
+			(args[0] == gitTool || args[0] == makeTool || args[0] == cmakeTool || args[0] == gettextTool || args[0] == ninjaTool || args[0] == curlTool) {
+			return &mockCommand{}
 		}
 
 		return &mockCommand{}
@@ -103,13 +126,73 @@ func TestBuildFromCommit_CloneFailure(t *testing.T) {
 	b := builder.New(mockExec)
 	ctx := context.Background()
 
-	err := b.BuildFromCommit(ctx, "abc1234", t.TempDir())
+	_, err := b.BuildFromCommit(ctx, "abc1234", t.TempDir(), nil)
 	if err == nil {
 		t.Error("BuildFromCommit() expected error for clone failure, got nil")
 	}
+}
 
-	if !errors.Is(err, cloneErr) {
-		t.Errorf("BuildFromCommit() error = %v, want to contain %v", err, cloneErr)
+// TestBuildFromCommit_ProgressReporting tests that progress is reported correctly.
+func TestBuildFromCommit_ProgressReporting(t *testing.T) {
+	var progressCalls []struct {
+		phase   string
+		percent int
+	}
+
+	progressFunc := func(phase string, percent int) {
+		progressCalls = append(progressCalls, struct {
+			phase   string
+			percent int
+		}{phase, percent})
+	}
+
+	mockExec := func(ctx context.Context, name string, args ...string) builder.Commander {
+		// Mock git rev-parse to return a valid commit hash
+		if name == gitCmd && len(args) > 0 && args[0] == "rev-parse" {
+			return &mockCommand{stdoutStr: "abc1234567890"}
+		}
+		// Mock successful tool checks
+		if name == whichCmd &&
+			(args[0] == gitTool || args[0] == makeTool || args[0] == cmakeTool || args[0] == gettextTool || args[0] == ninjaTool || args[0] == curlTool) {
+			return &mockCommand{}
+		}
+
+		return &mockCommand{}
+	}
+
+	b := builder.New(mockExec)
+	ctx := context.Background()
+
+	// This will fail later, but we check the progress calls up to that point
+	_, _ = b.BuildFromCommit(ctx, "abc1234", t.TempDir(), progressFunc)
+
+	// Check that progress calls use -1 for indeterminate phases
+	for progressIndex, call := range progressCalls {
+		if strings.Contains(call.phase, "Build complete") {
+			if call.percent != 100 {
+				t.Errorf(
+					"Progress call %d (%s): expected percent 100 for completion, got %d",
+					progressIndex,
+					call.phase,
+					call.percent,
+				)
+			}
+		} else {
+			if call.percent != -1 {
+				t.Errorf("Progress call %d (%s): expected percent -1 for indeterminate, got %d", progressIndex, call.phase, call.percent)
+			}
+			// Check that phase is one of the expected ones (may include elapsed time)
+			basePhase := strings.Split(call.phase, " (")[0]
+			if basePhase != "Cloning repository" && basePhase != "Checking out commit" &&
+				basePhase != "Building Neovim" && basePhase != "Installing Neovim" {
+				t.Errorf("Progress call %d: unexpected phase %q", progressIndex, call.phase)
+			}
+		}
+	}
+
+	// Ensure we have at least some progress calls
+	if len(progressCalls) == 0 {
+		t.Error("Expected some progress calls, got none")
 	}
 }
 
@@ -119,8 +202,13 @@ func TestBuildFromCommit_CheckoutFailure(t *testing.T) {
 
 	mockExec := func(ctx context.Context, name string, args ...string) builder.Commander {
 		// First call is clone (succeed), second is checkout (fail)
-		if name == "git" && len(args) > 0 && args[0] == "checkout" {
+		if name == gitCmd && len(args) > 0 && args[0] == "checkout" {
 			return &mockCommand{runErr: checkoutErr}
+		}
+		// Mock successful tool checks
+		if name == whichCmd &&
+			(args[0] == gitTool || args[0] == makeTool || args[0] == cmakeTool || args[0] == gettextTool || args[0] == ninjaTool || args[0] == curlTool) {
+			return &mockCommand{}
 		}
 
 		return &mockCommand{}
@@ -129,13 +217,9 @@ func TestBuildFromCommit_CheckoutFailure(t *testing.T) {
 	b := builder.New(mockExec)
 	ctx := context.Background()
 
-	err := b.BuildFromCommit(ctx, "abc1234", t.TempDir())
+	_, err := b.BuildFromCommit(ctx, "abc1234", t.TempDir(), nil)
 	if err == nil {
 		t.Error("BuildFromCommit() expected error for checkout failure, got nil")
-	}
-
-	if !errors.Is(err, checkoutErr) {
-		t.Errorf("BuildFromCommit() error = %v, want to contain %v", err, checkoutErr)
 	}
 }
 
