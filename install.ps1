@@ -76,7 +76,7 @@ try {
     # Extract expected checksum (first field, handles both "checksum" and "checksum filename" formats)
     $checksumContent = Get-Content $tempChecksum -ErrorAction SilentlyContinue
     if ($checksumContent -and $checksumContent.Trim()) {
-        $expectedChecksum = $checksumContent.Trim().Split()[0].Trim()
+        $expectedChecksum = $checksumContent.Trim().Split()[0].Trim().ToLower()
         if ([string]::IsNullOrEmpty($expectedChecksum)) {
             Write-ErrorMessage "Invalid checksum file format"
             Remove-Item $tempChecksum -Force
