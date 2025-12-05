@@ -16,6 +16,8 @@ import (
 	"github.com/y3owk1n/nvs/internal/domain/version"
 )
 
+const windowsOS = "windows"
+
 // runCmd represents the "run" command.
 // It runs a specific Neovim version without switching the global version.
 // Arguments after "--" are passed directly to Neovim.
@@ -144,7 +146,7 @@ func findNvimBinary(dir string) string {
 	// Common locations to check
 	var candidates []string
 
-	if runtime.GOOS == windows {
+	if runtime.GOOS == windowsOS {
 		candidates = []string{
 			filepath.Join(dir, "bin", "nvim.exe"),
 			filepath.Join(dir, "nvim-win64", "bin", "nvim.exe"),
@@ -183,7 +185,7 @@ func findNvimBinary(dir string) string {
 		}
 
 		name := dirEntry.Name()
-		if runtime.GOOS == windows {
+		if runtime.GOOS == windowsOS {
 			if strings.EqualFold(name, "nvim.exe") {
 				found = path
 
