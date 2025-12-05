@@ -165,8 +165,8 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 		}
 
 		// Truncate long messages
-		if len(message) > messageTruncateLimit {
-			message = message[:messageTruncateLimit-3] + "..."
+		if runeCount := len([]rune(message)); runeCount > messageTruncateLimit {
+			message = string([]rune(message)[:messageTruncateLimit-3]) + "..."
 		}
 
 		_, printErr = fmt.Fprintf(os.Stdout, "  %s %s\n",
