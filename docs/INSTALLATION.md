@@ -169,10 +169,11 @@ Add the **nvs** overlay to your Nix configuration and use it as a regular packag
 ```nix
 {
   inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nvs.url = "github:y3owk1n/nvs";
   };
 
-  outputs = { nvs, ... }: {
+  outputs = { self, nixpkgs, nvs, ... }: {
     nixosConfigurations."your-host" = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
