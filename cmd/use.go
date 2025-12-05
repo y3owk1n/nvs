@@ -119,7 +119,7 @@ func RunUse(cmd *cobra.Command, args []string) error {
 		if errors.Is(err, version.ErrVersionNotFound) {
 			logrus.Infof("Version %s not found. Installing...", alias)
 			// Install the version
-			err = RunInstall(cmd, args)
+			err = RunInstall(cmd, []string{alias})
 			if err != nil {
 				return err
 			}
