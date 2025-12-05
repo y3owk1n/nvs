@@ -8,24 +8,32 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/sirupsen/logrus"
+	"github.com/y3owk1n/nvs/internal/domain/installer"
 )
 
 const (
-	bufferSize   = 4096
-	spinnerSpeed = 100
-	numReaders   = 2
-	maxAttempts  = 3
-	repoURL      = "https://github.com/neovim/neovim.git"
-	commitLen    = 7
-	dirPerm      = 0o755
-	filePerm     = 0o644
+	bufferSize     = 4096
+	spinnerSpeed   = 100
+	numReaders     = 2
+	maxAttempts    = 3
+	repoURL        = "https://github.com/neovim/neovim.git"
+	commitLen      = 7
+	dirPerm        = 0o755
+	filePerm       = 0o644
+	progressStart  = 0
+	progressLow    = 10
+	progressMid    = 20
+	progressHigh   = 80
+	progressDone   = 100
+	tickerInterval = 10
+	outputChanSize = 10
 )
 
 // SourceBuilder builds Neovim from source code.
@@ -58,21 +66,38 @@ func New(execFunc ExecCommandFunc) *SourceBuilder {
 }
 
 // BuildFromCommit builds Neovim from a specific commit or "master".
-func (b *SourceBuilder) BuildFromCommit(ctx context.Context, commit string, dest string) error {
-	localPath := filepath.Join(os.TempDir(), "neovim-src")
-	logrus.Debugf("Temporary Neovim source directory: %s", localPath)
+func (b *SourceBuilder) BuildFromCommit(
+	ctx context.Context,
+	commit string,
+	dest string,
+	progress installer.ProgressFunc,
+) (string, error) {
+	// Check for required build tools
+	err := b.checkRequiredTools()
+	if err != nil {
+		return "", fmt.Errorf("build requirements not met: %w", err)
+	}
 
-	var err error
+	// Clean up any leftover temp directories from previous runs
+	b.cleanupTempDirectories()
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		err = b.buildFromCommitInternal(ctx, commit, dest, localPath)
+		localPath := filepath.Join(os.TempDir(), fmt.Sprintf("neovim-src-%d", attempt))
+		logrus.Debugf("Temporary Neovim source directory: %s", localPath)
+
+		resolvedHash, err := b.buildFromCommitInternal(ctx, commit, dest, localPath, progress)
 		if err == nil {
-			return nil
+			return resolvedHash, nil
 		}
 
 		logrus.Errorf("Build attempt %d failed: %v", attempt, err)
 
-		// Clean up for retry
+		// Don't retry if build requirements are not met
+		if errors.Is(err, ErrBuildRequirementsNotMet) {
+			break
+		}
+
+		// Clean up for retry (though not strictly necessary with unique paths)
 		removeErr := os.RemoveAll(localPath)
 		if removeErr != nil {
 			logrus.Warnf("Failed to remove temporary directory: %v", removeErr)
@@ -86,30 +111,37 @@ func (b *SourceBuilder) BuildFromCommit(ctx context.Context, commit string, dest
 
 	joined := errors.Join(ErrBuildFailed, err)
 
-	return fmt.Errorf("after %d attempts: %w", maxAttempts, joined)
+	return "", fmt.Errorf("after %d attempts: %w", maxAttempts, joined)
 }
 
 // buildFromCommitInternal performs the actual build process.
 func (b *SourceBuilder) buildFromCommitInternal(
 	ctx context.Context,
 	commit, dest, localPath string,
-) error {
+	progress installer.ProgressFunc,
+) (string, error) {
 	var err error
-
-	buildSpinner := spinner.New(spinner.CharSets[14], spinnerSpeed*time.Millisecond)
-
-	buildSpinner.Start()
-	defer buildSpinner.Stop()
 
 	// Clone repository if needed
 	gitDir := filepath.Join(localPath, ".git")
 
 	_, err = os.Stat(gitDir)
 	if os.IsNotExist(err) {
-		// Clean up partial clone if exists
-		_ = os.RemoveAll(localPath)
+		// Ensure clean directory for clone
+		removeErr := os.RemoveAll(localPath)
+		if removeErr != nil {
+			logrus.Warnf("Failed to remove temp directory: %v", removeErr)
+		}
 
-		buildSpinner.Suffix = " Cloning repository..."
+		if progress != nil {
+			progress("Cloning repository (large repo, may take a while)", -1)
+		}
+
+		// Ensure the target directory doesn't exist (git clone expects to create it)
+		err := os.RemoveAll(localPath)
+		if err != nil {
+			logrus.Warnf("Failed to clean target directory: %v", err)
+		}
 
 		logrus.Debug("Cloning repository from ", repoURL)
 
@@ -119,13 +151,15 @@ func (b *SourceBuilder) buildFromCommitInternal(
 
 		err = cmd.Run()
 		if err != nil {
-			return fmt.Errorf("failed to clone repository: %w", err)
+			return "", fmt.Errorf("failed to clone repository: %w", err)
 		}
 	}
 
 	// Checkout commit or master
 	if commit == "master" {
-		buildSpinner.Suffix = " Checking out master branch..."
+		if progress != nil {
+			progress("Checking out master branch", -1)
+		}
 
 		logrus.Debug("Checking out master branch")
 
@@ -134,10 +168,12 @@ func (b *SourceBuilder) buildFromCommitInternal(
 
 		err = checkoutCmd.Run()
 		if err != nil {
-			return fmt.Errorf("failed to checkout master: %w", err)
+			return "", fmt.Errorf("failed to checkout master: %w", err)
 		}
 	} else {
-		buildSpinner.Suffix = " Checking out commit..."
+		if progress != nil {
+			progress("Checking out commit", -1)
+		}
 
 		logrus.Debugf("Checking out commit %s", commit)
 
@@ -146,7 +182,7 @@ func (b *SourceBuilder) buildFromCommitInternal(
 
 		err = checkoutCmd.Run()
 		if err != nil {
-			return fmt.Errorf("failed to checkout commit %s: %w", commit, err)
+			return "", fmt.Errorf("failed to checkout commit %s: %w", commit, err)
 		}
 	}
 
@@ -159,12 +195,12 @@ func (b *SourceBuilder) buildFromCommitInternal(
 
 	err = cmd.Run()
 	if err != nil {
-		return fmt.Errorf("failed to get commit hash: %w", err)
+		return "", fmt.Errorf("failed to get commit hash: %w", err)
 	}
 
 	commitHashFull := strings.TrimSpace(out.String())
 	if len(commitHashFull) < commitLen {
-		return ErrCommitHashTooShort
+		return "", ErrCommitHashTooShort
 	}
 
 	commitHash := commitHashFull[:commitLen]
@@ -179,21 +215,19 @@ func (b *SourceBuilder) buildFromCommitInternal(
 
 		err = os.RemoveAll(buildPath)
 		if err != nil {
-			return fmt.Errorf("failed to remove build directory: %w", err)
+			return "", fmt.Errorf("failed to remove build directory: %w", err)
 		}
 	}
 
 	// Build Neovim
-	buildSpinner.Suffix = " Building Neovim..."
-
 	logrus.Debug("Building Neovim")
 
 	buildCmd := b.execCommand(ctx, "make", "CMAKE_BUILD_TYPE=Release")
 	buildCmd.SetDir(localPath)
 
-	err = runCommandWithSpinner(buildCmd)
+	err = runCommandWithProgress(buildCmd, progress, "Building Neovim")
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrBuildFailed, err)
+		return "", fmt.Errorf("%w: %w", ErrBuildFailed, err)
 	}
 
 	// Create installation directory
@@ -201,20 +235,18 @@ func (b *SourceBuilder) buildFromCommitInternal(
 
 	err = os.MkdirAll(targetDir, dirPerm)
 	if err != nil {
-		return fmt.Errorf("failed to create installation directory: %w", err)
+		return "", fmt.Errorf("failed to create installation directory: %w", err)
 	}
 
 	// Install using cmake
-	buildSpinner.Suffix = " Installing Neovim..."
-
 	logrus.Debugf("Installing to %s", targetDir)
 
 	installCmd := b.execCommand(ctx, "cmake", "--install", "build", "--prefix="+targetDir)
 	installCmd.SetDir(localPath)
 
-	err = runCommandWithSpinner(installCmd)
+	err = runCommandWithProgress(installCmd, progress, "Installing Neovim")
 	if err != nil {
-		return fmt.Errorf("cmake install failed: %w", err)
+		return "", fmt.Errorf("cmake install failed: %w", err)
 	}
 
 	// Verify binary exists
@@ -222,7 +254,7 @@ func (b *SourceBuilder) buildFromCommitInternal(
 
 	_, err = os.Stat(installedBinary)
 	if os.IsNotExist(err) {
-		return fmt.Errorf("%w at %s", ErrBinaryNotFound, installedBinary)
+		return "", fmt.Errorf("%w at %s", ErrBinaryNotFound, installedBinary)
 	}
 
 	// Write version file
@@ -230,18 +262,157 @@ func (b *SourceBuilder) buildFromCommitInternal(
 
 	err = os.WriteFile(versionFile, []byte(commitHashFull), filePerm)
 	if err != nil {
-		return fmt.Errorf("failed to write version file: %w", err)
+		return "", fmt.Errorf("failed to write version file: %w", err)
 	}
 
-	buildSpinner.Suffix = " Build complete!"
+	if progress != nil {
+		progress("Build complete", progressDone)
+	}
 
 	logrus.Info("Build and installation successful")
+
+	return commitHash, nil
+}
+
+// checkRequiredTools verifies that all required build tools are available.
+func (b *SourceBuilder) checkRequiredTools() error {
+	requiredTools := []string{"git", "make", "cmake", "gettext", "ninja", "curl"}
+
+	for _, tool := range requiredTools {
+		_, err := exec.LookPath(tool)
+		if err != nil {
+			return fmt.Errorf(
+				"%w: %s is not installed or not in PATH",
+				ErrBuildRequirementsNotMet,
+				tool,
+			)
+		}
+	}
 
 	return nil
 }
 
+// cleanupTempDirectories removes any leftover neovim-src-* directories from previous runs.
+func (b *SourceBuilder) cleanupTempDirectories() {
+	tempDir := os.TempDir()
+
+	entries, err := os.ReadDir(tempDir)
+	if err != nil {
+		logrus.Warnf("Failed to read temp directory for cleanup: %v", err)
+
+		return
+	}
+
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), "neovim-src-") && entry.IsDir() {
+			dirPath := filepath.Join(tempDir, entry.Name())
+
+			err := os.RemoveAll(dirPath)
+			if err != nil {
+				logrus.Warnf("Failed to remove leftover temp directory %s: %v", dirPath, err)
+			} else {
+				logrus.Debugf("Cleaned up leftover temp directory: %s", dirPath)
+			}
+		}
+	}
+}
+
+// runCommandWithProgress runs a command while updating progress with elapsed time.
+func runCommandWithProgress(cmd Commander, progress installer.ProgressFunc, phase string) error {
+	if progress == nil {
+		return runCommandWithSpinner(cmd)
+	}
+
+	startTime := time.Now()
+
+	ticker := time.NewTicker(tickerInterval * time.Second)
+	defer ticker.Stop()
+
+	// Start progress
+	progress(phase, -1)
+
+	// Channel to signal completion
+	done := make(chan error, 1)
+
+	// Channel for important output lines
+	outputChan := make(chan string, outputChanSize)
+
+	var lastMessage string
+
+	go func() {
+		done <- runCommandWithSpinnerAndOutput(cmd, func(line string) {
+			// Show important cmake messages and error messages
+			isImportant := strings.HasPrefix(line, "-- ") &&
+				!strings.HasPrefix(line, "-- Looking for") &&
+				!strings.HasPrefix(line, "-- Performing Test")
+			isError := strings.Contains(line, "error") || strings.Contains(line, "Error") ||
+				strings.Contains(line, "failed") || strings.Contains(line, "Failed")
+
+			if isImportant || isError {
+				select {
+				case outputChan <- line:
+				default:
+					// Channel full, skip
+				}
+			}
+		})
+	}()
+
+	for {
+		select {
+		case err := <-done:
+			// Update final progress
+			elapsed := time.Since(startTime)
+			if lastMessage != "" {
+				progress(
+					fmt.Sprintf(
+						"%s: %s (completed in %v)",
+						phase,
+						lastMessage,
+						elapsed.Round(time.Second),
+					),
+					-1,
+				)
+			} else {
+				progress(fmt.Sprintf("%s (completed in %v)", phase, elapsed.Round(time.Second)), -1)
+			}
+
+			return err
+		case output := <-outputChan:
+			// Update progress with latest message
+			lastMessage = strings.TrimPrefix(output, "-- ")
+			elapsed := time.Since(startTime)
+			progress(
+				fmt.Sprintf("%s: %s (elapsed: %v)", phase, lastMessage, elapsed.Round(time.Second)),
+				-1,
+			)
+		case <-ticker.C:
+			// Update progress with elapsed time
+			elapsed := time.Since(startTime)
+			if lastMessage != "" {
+				progress(
+					fmt.Sprintf(
+						"%s: %s (elapsed: %v)",
+						phase,
+						lastMessage,
+						elapsed.Round(time.Second),
+					),
+					-1,
+				)
+			} else {
+				progress(fmt.Sprintf("%s (elapsed: %v)", phase, elapsed.Round(time.Second)), -1)
+			}
+		}
+	}
+}
+
 // runCommandWithSpinner runs a command while updating spinner with output.
 func runCommandWithSpinner(cmd Commander) error {
+	return runCommandWithSpinnerAndOutput(cmd, nil)
+}
+
+// runCommandWithSpinnerAndOutput runs a command while updating spinner with output.
+func runCommandWithSpinnerAndOutput(cmd Commander, outputCallback func(string)) error {
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("failed to get stdout pipe: %w", err)
@@ -284,6 +455,10 @@ func runCommandWithSpinner(cmd Commander) error {
 				line := strings.TrimSpace(string(buf[:n]))
 				if line != "" {
 					logrus.Debugf("Build output: %s", line)
+
+					if outputCallback != nil {
+						outputCallback(line)
+					}
 				}
 			}
 

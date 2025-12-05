@@ -134,6 +134,11 @@ func (s *Service) InstallRelease(
 }
 
 // BuildFromCommit builds Neovim from source.
-func (s *Service) BuildFromCommit(ctx context.Context, commit string, dest string) error {
-	return s.builder.BuildFromCommit(ctx, commit, dest)
+func (s *Service) BuildFromCommit(
+	ctx context.Context,
+	commit string,
+	dest string,
+	progress installer.ProgressFunc,
+) (string, error) {
+	return s.builder.BuildFromCommit(ctx, commit, dest, progress)
 }

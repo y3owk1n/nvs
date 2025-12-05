@@ -28,9 +28,9 @@ func TestFormatProgressBar(t *testing.T) {
 			want:    "[████████████████████] 100%",
 		},
 		{
-			name:    "negative clamped to 0",
+			name:    "negative for indeterminate",
 			percent: -10,
-			want:    "[░░░░░░░░░░░░░░░░░░░░]   0%",
+			want:    "",
 		},
 		{
 			name:    "over 100 clamped to 100",
@@ -88,6 +88,12 @@ func TestFormatPhaseProgress(t *testing.T) {
 			phase:   "Verifying",
 			percent: 50,
 			want:    "Verifying [██████████░░░░░░░░░░]  50%",
+		},
+		{
+			name:    "cloning indeterminate",
+			phase:   "Cloning repository",
+			percent: -1,
+			want:    "Cloning repository",
 		},
 	}
 

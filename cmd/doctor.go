@@ -106,16 +106,51 @@ func checkPath() error {
 }
 
 func checkDependencies() error {
-	deps := []string{"git", "curl", "tar"}
+	// Base dependencies needed for general nvs operation
+	baseDeps := []string{"git", "curl", "tar"}
 	if runtime.GOOS == "windows" {
-		deps = []string{"git", "tar"} // curl might be alias in PS
+		baseDeps = []string{"git", "tar"} // curl might be alias in PS
 	}
 
-	for _, dep := range deps {
+	// Build dependencies needed only for building from source
+	buildDeps := []string{"make", "cmake", "gettext", "ninja"}
+
+	var (
+		missingBase  []string
+		missingBuild []string
+	)
+
+	// Check base dependencies
+
+	for _, dep := range baseDeps {
 		_, err := exec.LookPath(dep)
 		if err != nil {
-			return fmt.Errorf("%w: %s", ErrMissingDependency, dep)
+			missingBase = append(missingBase, dep)
 		}
+	}
+
+	// Check build dependencies
+	for _, dep := range buildDeps {
+		_, err := exec.LookPath(dep)
+		if err != nil {
+			missingBuild = append(missingBuild, dep)
+		}
+	}
+
+	// Report missing base dependencies as errors
+	if len(missingBase) > 0 {
+		return fmt.Errorf(
+			"%w: Missing base dependencies: %s",
+			ErrMissingDependency,
+			strings.Join(missingBase, ", "),
+		)
+	}
+
+	// Report missing build dependencies as warnings (don't fail the check)
+	if len(missingBuild) > 0 {
+		message := "Missing build dependencies (needed for building from source): " +
+			strings.Join(missingBuild, ", ")
+		_, _ = fmt.Fprintf(os.Stdout, "%s %s\n", ui.WarningIcon(), ui.YellowText(message))
 	}
 
 	return nil

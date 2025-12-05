@@ -3,7 +3,6 @@ package version_test
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -119,12 +118,16 @@ func (m *mockInstaller) InstallRelease(
 	return nil
 }
 
-func (m *mockInstaller) BuildFromCommit(ctx context.Context, commit, dest string) error {
+func (m *mockInstaller) BuildFromCommit(
+	ctx context.Context,
+	commit, dest string,
+	progress installer.ProgressFunc,
+) (string, error) {
 	m.buildFromCommitCalled = true
 	m.lastCommit = commit
 	m.lastDest = dest
 
-	return nil
+	return "abc1234", nil
 }
 
 // mockReleaseRepo uses release.Release directly
@@ -351,7 +354,7 @@ func TestService_Install_CommitHash(t *testing.T) {
 		t.Errorf("Expected commit %s, got %s", commitHash, install.lastCommit)
 	}
 
-	expectedDest := filepath.Join(config.VersionsDir, commitHash)
+	expectedDest := config.VersionsDir
 	if install.lastDest != expectedDest {
 		t.Errorf("Expected dest %s, got %s", expectedDest, install.lastDest)
 	}

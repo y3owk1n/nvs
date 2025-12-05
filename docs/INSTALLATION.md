@@ -371,9 +371,14 @@ nvs env --source --shell fish
 
 #### Build Dependencies Missing
 
-When building Neovim from source (commits), install:
+When building Neovim from source (commits), nvs automatically checks for the following required tools:
 
-**All platforms:** `git`, `make`, `cmake`
+**Base dependencies** (required for all nvs operations): `git`, `curl`, `tar`  
+**Build dependencies** (required only for building from source): `make`, `cmake`, `gettext`, `ninja`
+
+- Missing base dependencies will prevent nvs from working and show error messages
+- Missing build dependencies will show warnings but allow nvs to work with pre-built releases
+- Run `nvs doctor` to check your system's dependency status
 
 **macOS:**
 
@@ -386,6 +391,10 @@ brew install ninja cmake gettext curl
 ```bash
 sudo apt install ninja-build cmake gettext curl unzip
 ```
+
+**Devbox (recommended for development):**
+
+The devbox environment automatically provides all required dependencies. Run `devbox install` to set up the development environment.
 
 #### Windows-Specific Issues
 
