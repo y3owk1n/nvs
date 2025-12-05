@@ -1,144 +1,193 @@
 # Usage Guide
 
-This guide provides comprehensive instructions for using **nvs** to manage Neovim installations.
+Complete command reference for **nvs** – the Neovim Version Switcher.
 
-## Command Overview
+---
 
-**nvs** uses a clean subcommand interface. Run `nvs --help` for full details.
+## Quick Reference
+
+| Command                   | Description                   |
+| ------------------------- | ----------------------------- |
+| `nvs install <version>`   | Install a version             |
+| `nvs use <version>`       | Switch to a version           |
+| `nvs list`                | List installed versions       |
+| `nvs list-remote`         | List available versions       |
+| `nvs current`             | Show active version           |
+| `nvs upgrade [version]`   | Upgrade installed versions    |
+| `nvs uninstall <version>` | Remove a version              |
+| `nvs pin [version]`       | Pin version to directory      |
+| `nvs rollback [index]`    | Rollback nightly version      |
+| `nvs run <version>`       | Run version without switching |
+| `nvs config [name]`       | Switch Neovim config          |
+| `nvs doctor`              | System health check           |
+| `nvs hook <shell>`        | Generate auto-switch hook     |
+| `nvs env`                 | Print environment config      |
+
+**Shorthands:** `i` (install), `ls` (list), `ls-remote` (list-remote), `rm`/`un` (uninstall), `up` (upgrade), `c`/`conf` (config)
+
+---
+
+## Table of Contents
+
+- [Version Specifiers](#version-specifiers)
+- [Installing Versions](#installing-versions)
+- [Switching Versions](#switching-versions)
+- [Listing Versions](#listing-versions)
+- [Upgrading Versions](#upgrading-versions)
+- [Version Pinning](#version-pinning)
+- [Nightly Management](#nightly-management)
+- [Configuration Switching](#configuration-switching)
+- [Shell Integration](#shell-integration)
+- [Utility Commands](#utility-commands)
+- [Common Workflows](#common-workflows)
+
+---
+
+## Version Specifiers
+
+**nvs** supports multiple version formats:
+
+| Format     | Example               | Description                           |
+| ---------- | --------------------- | ------------------------------------- |
+| `stable`   | `nvs install stable`  | Latest stable release                 |
+| `nightly`  | `nvs install nightly` | Latest nightly build                  |
+| `vX.Y.Z`   | `nvs install v0.10.3` | Specific version tag                  |
+| `X.Y.Z`    | `nvs install 0.10.3`  | Version without `v` prefix            |
+| `master`   | `nvs install master`  | Build from latest master commit       |
+| `<commit>` | `nvs install 2db1ae3` | Build from specific commit (7+ chars) |
+
+---
+
+## Installing Versions
+
+### `nvs install <version>`
+
+Download and install a Neovim version.
 
 ```bash
-A CLI tool to install, switch, list, uninstall, and reset Neovim versions.
-
-Usage:
-  nvs [command]
-
-Available Commands:
-  completion  Generate the autocompletion script for the specified shell
-  config      Switch Neovim configuration
-  current     Show current active version with details
-  env         Print NVS env configurations
-  help        Help about any command
-  install     Install a Neovim version or commit
-  list        List installed versions
-  list-remote List available remote versions with installation status (cached for 5 minutes or force)
-  path        Automatically add the global binary directory to your PATH
-  reset       Reset all data (remove symlinks, downloaded versions, cache, etc.)
-  uninstall   Uninstall a specific version
-  upgrade     Upgrade installed stable and/or nightly versions
-  use         Switch to a specific version or commit hash
-
-Flags:
-  -h, --help      help for nvs
-  -v, --verbose   Enable verbose logging
-       --version   version for nvs
-
-Use "nvs [command] --help" for more information about a command.
-```
-
-## Core Commands
-
-### Installing Neovim Versions
-
-#### `nvs install`
-
-Install a specific Neovim version or build from commits.
-
-> [!warning]
-> To build from commit, ensure your system has `git`, `make`, and `cmake` installed.
-
-> [!warning]
-> On macOS, also run: `brew install ninja cmake gettext curl`
-
-```bash
-# Install latest stable release
+# Install releases
 nvs install stable
-
-# Install latest nightly release
 nvs install nightly
-
-# Install specific version
 nvs install v0.10.3
-nvs install 0.10.3  # v prefix optional
+nvs install 0.10.3        # v prefix optional
 
-# Build and install from latest master commit
-nvs install master
-
-# Build and install specific commit (7 or 40 characters)
-nvs install 2db1ae3
-nvs install 2db1ae37f14d71d1391110fe18709329263c77c9
+# Build from source
+nvs install master        # Latest master commit
+nvs install 2db1ae3       # Short commit hash
+nvs install 2db1ae37f14d71d1391110fe18709329263c77c9  # Full hash
 
 # Shorthand
 nvs i stable
 ```
 
-### Switching Versions
+> [!NOTE]
+> Building from source requires: `git`, `make`, `cmake`
+> On macOS, also run: `brew install ninja cmake gettext curl`
 
-#### `nvs use`
+**Flags:**
 
-Switch to a particular version. Updates the global symlink so `nvim` command uses the selected version.
+- `--verbose`, `-v` – Enable detailed logging
 
-> [!note]
-> **nvs** will attempt to install the version if it's not already installed.
+---
+
+## Switching Versions
+
+### `nvs use <version>`
+
+Switch to an installed version. Creates/updates the global `nvim` symlink.
 
 ```bash
 nvs use stable
 nvs use nightly
 nvs use v0.10.3
-nvs use 0.10.3
 nvs use 2db1ae3
+
+# Without arguments, reads from .nvs-version file
+nvs use
 ```
 
-> [!warning]
-> On Windows, you may need administrator privileges for symlink creation.
+> [!TIP]
+> If the version isn't installed, **nvs** will attempt to install it automatically.
 
-> [!note]
-> **nvs** will warn you if Neovim is currently running. Use `--force` or `-f` to skip this check.
+**Flags:**
 
-#### `nvs run`
+- `--force`, `-f` – Skip the running Neovim check
 
-Run a specific Neovim version without modifying the global symlink. Useful for testing features in different versions.
+> [!WARNING]
+> **nvs** warns if Neovim is running to prevent issues. Use `--force` to switch anyway.
+
+---
+
+### `nvs run <version> [-- args...]`
+
+Run a specific version without changing the global symlink. Useful for testing.
 
 ```bash
-nvs run stable                    # Run stable version
-nvs run nightly -- --clean        # Run nightly with args
+nvs run stable
+nvs run nightly -- --clean
 nvs run v0.10.3 -- -c "checkhealth"
+nvs run nightly -- file.txt
 ```
 
-> [!note]
-> The version must already be installed. Arguments after `--` are passed directly to Neovim.
+> [!NOTE]
+> The version must already be installed. Arguments after `--` are passed to Neovim.
 
-### Listing Versions
+---
 
-#### `nvs list-remote`
+## Listing Versions
 
-List available remote releases with installation status. Results are cached for 5 minutes to avoid GitHub rate limits.
+### `nvs list`
 
-> [!note]
-> Only shows nightly, stable, and versions above v0.5.0.
-
-```bash
-nvs list-remote          # Use cached results
-nvs list-remote force    # Force refresh cache
-
-# Shorthand
-nvs ls-remote
-nvs ls-remote force
-```
-
-#### `nvs list`
-
-List all locally installed Neovim versions.
+Show all installed versions on your system.
 
 ```bash
 nvs list
-
-# Shorthand
-nvs ls
+nvs ls      # Shorthand
 ```
 
-### Checking Current Version
+**Output example:**
 
-#### `nvs current`
+```text
+   VERSION    STATUS
+------------------------
+  → nightly  Current
+  stable     Installed
+```
+
+---
+
+### `nvs list-remote`
+
+Show available versions from GitHub. Results are cached for 5 minutes.
+
+```bash
+nvs list-remote
+nvs ls-remote           # Shorthand
+nvs list-remote force   # Bypass cache
+```
+
+**Output example:**
+
+```text
+    TAG       STATUS                     DETAILS
+------------------------------------------------------------------
+  nightly  Current (↑)    Published: 2025-12-05, Commit: 903335a
+  stable   Installed      stable version: v0.11.5
+  v0.11.5  Not Installed
+  v0.10.4  Not Installed
+  ...
+```
+
+**Status meanings:**
+
+- `Current` – Currently active version
+- `Installed` – Version is installed locally
+- `Current (↑)` or `Installed (↑)` – Upgrade available
+- `Not Installed` – Available to install
+
+---
+
+### `nvs current`
 
 Display the currently active Neovim version with details.
 
@@ -146,275 +195,308 @@ Display the currently active Neovim version with details.
 nvs current
 ```
 
-### Upgrading Versions
+**Output example:**
 
-#### `nvs upgrade`
-
-Upgrade installed stable and/or nightly versions. Checks if already up-to-date before upgrading.
-
-> [!note]
-> Compares stored identifiers (release tag for stable, commit hash/date for nightly).
-
-```bash
-nvs upgrade         # Upgrade both stable and nightly if installed
-nvs upgrade stable  # Upgrade only stable
-nvs upgrade nightly # Upgrade only nightly
-
-# Shorthand
-nvs up
-nvs up stable
-nvs up nightly
+```text
+ℹ nightly
+  Published: 2025-12-05
+  Commit: 903335a
 ```
 
-> [!note]
-> When upgrading nightly, a changelog of commits since your last version is displayed.
+---
 
-### Version Pinning
+## Upgrading Versions
 
-#### `nvs pin`
+### `nvs upgrade [stable|nightly]`
 
-Pin a Neovim version to the current directory by creating a `.nvs-version` file.
-
-```bash
-nvs pin stable     # Pin stable version
-nvs pin nightly    # Pin nightly version
-nvs pin v0.10.3    # Pin specific version
-nvs pin            # Pin current version
-nvs pin -g stable  # Pin globally (in home directory)
-```
-
-> [!note]
-> When `nvs use` is run without arguments, it reads from `.nvs-version` in the current or parent directories.
-
-### Nightly Rollback
-
-#### `nvs rollback`
-
-Rollback to a previous nightly version. Previous nightly versions are automatically saved during upgrades.
+Upgrade installed stable and/or nightly versions to the latest release.
 
 ```bash
-nvs rollback       # List available versions
-nvs rollback 0     # Rollback to most recent previous
-nvs rollback 2     # Rollback to specific index
+nvs upgrade             # Upgrade both
+nvs upgrade stable      # Upgrade stable only
+nvs upgrade nightly     # Upgrade nightly only
+nvs up                  # Shorthand
 ```
 
-> [!note]
-> Up to 5 previous nightly versions are kept by default.
+> [!NOTE]
+> Compares stored identifiers (release tag for stable, commit hash for nightly) to determine if an upgrade is needed.
 
-### Shell Integration
+When upgrading nightly, a changelog of commits since your last version is displayed.
 
-#### `nvs hook`
+---
 
-Generate shell hook code for automatic version switching when changing directories.
+## Version Pinning
+
+### `nvs pin [version]`
+
+Create a `.nvs-version` file to pin a version to the current directory.
 
 ```bash
-# Bash (in ~/.bashrc)
-eval "$(nvs hook bash)"
-
-# Zsh (in ~/.zshrc)
-eval "$(nvs hook zsh)"
-
-# Fish (in ~/.config/fish/config.fish)
-nvs hook fish | source
+nvs pin stable          # Pin stable
+nvs pin nightly         # Pin nightly
+nvs pin v0.10.3         # Pin specific version
+nvs pin                 # Pin current version
+nvs pin -g stable       # Pin globally (~/.nvs-version)
 ```
 
-> [!note]
-> This enables automatic switching when entering a directory with a `.nvs-version` file.
+**Flags:**
 
-### System Health
+- `--global`, `-g` – Create pin file in home directory
 
-#### `nvs doctor`
+**How it works:**
 
-Check your system for potential problems with nvs installation and environment.
+1. Creates `.nvs-version` file with the version identifier
+2. When `nvs use` is run without arguments, it reads from this file
+3. With auto-switching enabled, version changes automatically on `cd`
+
+---
+
+## Nightly Management
+
+### `nvs rollback [index]`
+
+Rollback to a previously installed nightly version.
 
 ```bash
-nvs doctor
+nvs rollback            # List available versions
+nvs rollback 0          # Rollback to most recent previous
+nvs rollback 2          # Rollback to specific index
 ```
 
-Checks performed:
-- OS/Architecture compatibility
-- Shell detection
-- Environment variables (`NVS_HOME`, `PATH`)
-- Required dependencies (`git`, `curl`/`tar`)
-- Directory permissions
+**How it works:**
 
-## Configuration Management
+- Previous nightly versions are automatically saved during upgrades
+- Up to 5 previous versions are kept by default
+- Rollback replaces the current nightly with the selected version
 
-### `nvs config`
+---
+
+## Configuration Switching
+
+### `nvs config [name]`
 
 Switch between multiple Neovim configurations. Scans `~/.config` for directories containing "nvim".
 
-> [!note]
-> Examples: `nvim`, `nvim-test`, `nvim-vanilla`
-
 ```bash
-nvs config          # Interactive selection
-nvs config nvim-test # Direct switch
-
-# Shorthand
-nvs c
-nvs conf
+nvs config              # Interactive selection
+nvs config nvim-test    # Direct switch
+nvs c                   # Shorthand
+nvs conf                # Shorthand
 ```
 
-## Maintenance Commands
+**Example configurations:**
 
-### `nvs uninstall`
+- `~/.config/nvim` – Main configuration
+- `~/.config/nvim-test` – Testing configuration
+- `~/.config/nvim-minimal` – Minimal setup
 
-Remove an installed version. Prompts for confirmation if uninstalling the current version.
+> [!NOTE]
+> This modifies the `NVIM_APPNAME` environment variable or symlinks configuration directories.
 
-```bash
-nvs uninstall stable
-nvs uninstall nightly
-nvs uninstall v0.10.3
-nvs uninstall 0.10.3
-nvs uninstall 2db1ae3
+---
 
-# Shorthand
-nvs rm stable
-nvs remove nightly
-nvs un 0.10.3
-```
+## Shell Integration
 
-### `nvs reset`
+### `nvs hook <shell>`
 
-Reset to factory state. Removes all data, symlinks, and binaries.
+Generate shell hook code for automatic version switching. When enabled, **nvs** automatically switches versions when entering a directory with a `.nvs-version` file.
 
-> [!warning]
-> This deletes all configuration, cache, and binary data. Use with caution.
+**Bash** (`~/.bashrc`):
 
 ```bash
-nvs reset
+eval "$(nvs hook bash)"
 ```
 
-## Utility Commands
+**Zsh** (`~/.zshrc`):
+
+```zsh
+eval "$(nvs hook zsh)"
+```
+
+**Fish** (`~/.config/fish/config.fish`):
+
+```fish
+nvs hook fish | source
+```
+
+---
 
 ### `nvs env`
 
-Print environment configuration variables.
+Print environment configuration. Useful for debugging or manual setup.
 
 ```bash
-nvs env
+nvs env                     # Show current config
+nvs env --source            # Output for shell eval
+nvs env --source --shell zsh  # Specify shell explicitly
 ```
 
-### `nvs path`
+---
 
-Automatically add the global binary directory to your PATH.
+### `nvs completion <shell>`
 
-> [!note]
-> May not work with Nix Home Manager. See [Configuration Guide](CONFIGURATION.md#nix-home-manager) for alternatives.
+Generate shell completion scripts.
 
 ```bash
-nvs path
+nvs completion bash
+nvs completion zsh
+nvs completion fish
+nvs completion powershell
 ```
 
-## Shell Completions
+**Setup:**
 
-### Completions
-
-**nvs** supports shell completions for bash, zsh, fish, and PowerShell.
-
-```bash
-# Generate completion script
-nvs completion [bash|zsh|fish|powershell]
-```
-
-#### Bash
-
-Add to `~/.bashrc` or `~/.bash_profile`:
+**Bash** (`~/.bashrc`):
 
 ```bash
 source <(nvs completion bash)
 ```
 
-#### Zsh
+**Zsh** (`~/.zshrc`):
 
-Ensure completion is enabled in `~/.zshrc`:
-
-```bash
+```zsh
 autoload -U compinit && compinit
-```
-
-Then add:
-
-```bash
 source <(nvs completion zsh)
 ```
 
-#### Fish
+**Fish:**
 
-For temporary use:
-
-```bash
-nvs completion fish | source
-```
-
-For permanent:
-
-```bash
+```fish
 nvs completion fish > ~/.config/fish/completions/nvs.fish
 ```
 
-## Examples
+---
 
-### Basic Workflow
+## Utility Commands
+
+### `nvs doctor`
+
+Check system health and diagnose potential issues.
 
 ```bash
-# Install stable
-nvs install stable
-
-# Switch to it
-nvs use stable
-
-# Check version
-nvs current
-
-# Install nightly for testing
-nvs install nightly
-
-# Switch between versions
-nvs use stable
-nvs use nightly
+nvs doctor
 ```
 
-### Managing Multiple Configs
+**Checks performed:**
+
+- OS/Architecture compatibility
+- Shell detection
+- Environment variables (`NVS_CONFIG_DIR`, `NVS_CACHE_DIR`, `NVS_BIN_DIR`, `PATH`)
+- Required dependencies (`git`, `curl`, `tar`)
+- Directory permissions
+
+---
+
+### `nvs path`
+
+Automatically add the binary directory to your shell's `PATH`.
 
 ```bash
-# Assuming you have ~/.config/nvim and ~/.config/nvim-test
-nvs config          # Select interactively
-nvs config nvim-test # Switch directly
+nvs path
 ```
 
-### Upgrading
+> [!NOTE]
+> May not work with Nix Home Manager. See [Configuration Guide](CONFIGURATION.md#nix-home-manager) for alternatives.
+
+---
+
+### `nvs reset`
+
+Reset to factory state. Removes all configuration, cache, installed versions, and symlinks.
 
 ```bash
-# Upgrade all
+nvs reset
+```
+
+> [!CAUTION]
+> This is destructive and cannot be undone. You will need to reinstall all Neovim versions.
+
+---
+
+## Common Workflows
+
+### Daily Development
+
+```bash
+# Start with stable
+nvs use stable
+nvim .
+
+# Test feature in nightly
+nvs run nightly -- --clean
+
+# Switch back
+nvs use stable
+```
+
+### Project-Specific Versions
+
+```bash
+# In project directory
+cd my-project
+nvs pin v0.9.5
+
+# Auto-loads on cd (with hook enabled)
+cd ../other-project
+cd my-project  # Now using v0.9.5
+```
+
+### Keeping Up to Date
+
+```bash
+# Check what's available
+nvs list-remote
+
+# Upgrade everything
 nvs upgrade
 
-# Upgrade specific
-nvs upgrade nightly
+# If nightly breaks, rollback
+nvs rollback 0
 ```
 
-## Troubleshooting
-
-### Verbose Logging
-
-Add `--verbose` or `-v` to any command for detailed logs:
+### Testing Neovim Changes
 
 ```bash
-nvs install stable --verbose
-nvs use nightly -v
+# Build from specific commit
+nvs install abc1234
+nvs use abc1234
+
+# Test
+nvim -c "lua print(vim.version())"
+
+# Return to stable
+nvs use stable
 ```
 
-### Common Issues
+### Multiple Configurations
 
-- **Permission denied:** Ensure write access to binary directory
-- **Version not found:** Check `nvs list-remote` for available versions
-- **Symlink errors:** On Windows, try running as administrator
-- **PATH issues:** Verify `nvs path` worked or manually add to PATH
+```bash
+# Work setup
+nvs config nvim-work
 
-## Related Documentation
+# Personal setup
+nvs config nvim
 
-- [Installation Guide](INSTALLATION.md) - How to install nvs
-- [Configuration Guide](CONFIGURATION.md) - Environment setup
-- [Development Guide](DEVELOPMENT.md) - For contributors
-- [Contributing Guide](CONTRIBUTING.md) - How to contribute
+# Minimal testing
+nvs config nvim-minimal
+```
+
+---
+
+## Global Flags
+
+These flags work with any command:
+
+| Flag              | Description                   |
+| ----------------- | ----------------------------- |
+| `--verbose`, `-v` | Enable detailed debug logging |
+| `--help`, `-h`    | Show help for command         |
+| `--version`       | Show nvs version              |
+
+---
+
+## Next Steps
+
+- [Environment Configuration →](CONFIGURATION.md)
+- [Installation Methods →](INSTALLATION.md)
+- [Contributing →](CONTRIBUTING.md)

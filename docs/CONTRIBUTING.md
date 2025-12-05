@@ -1,220 +1,242 @@
 # Contributing Guide
 
-We welcome contributions to **nvs**! This guide explains how to get involved in the project.
+Thank you for your interest in contributing to **nvs**! This guide covers everything you need to get started.
+
+---
 
 ## Ways to Contribute
 
-- **Bug Reports:** Report issues via [GitHub Issues](https://github.com/y3owk1n/nvs/issues)
-- **Feature Requests:** Suggest new features or improvements
-- **Code Contributions:** Submit pull requests with fixes or enhancements
-- **Documentation:** Improve docs, tutorials, or examples
-- **Testing:** Help test on different platforms or report compatibility issues
+| Type                | Description                                                                    |
+| ------------------- | ------------------------------------------------------------------------------ |
+| 🐛 Bug Reports      | [Open an issue](https://github.com/y3owk1n/nvs/issues) with reproduction steps |
+| 💡 Feature Requests | Suggest improvements via GitHub Issues                                         |
+| 🔧 Code             | Submit pull requests for fixes or features                                     |
+| 📖 Documentation    | Improve docs, examples, or tutorials                                           |
+| 🧪 Testing          | Test on different platforms, report compatibility issues                       |
 
-## Development Setup
+---
 
-### Prerequisites
+## Quick Start
 
-- Go 1.25 or later
-- Git
-- (Optional) Devbox for reproducible environment
+```bash
+# 1. Fork and clone
+git clone https://github.com/YOUR-USERNAME/nvs.git
+cd nvs
 
-### Getting Started
+# 2. Set up environment (optional: use Devbox)
+devbox shell  # or just ensure Go 1.21+ is installed
 
-1. **Fork the repository** on GitHub
+# 3. Install dependencies
+go mod download
 
-2. **Clone your fork:**
+# 4. Verify setup
+just test
+just lint
+just build
+```
 
-   ```bash
-   git clone https://github.com/your-username/nvs.git
-   cd nvs
-   ```
+---
 
-3. **Set up development environment:**
+## Development Workflow
 
-   ```bash
-   # If using Devbox
-   devbox shell
+### Making Changes
 
-   # Install dependencies
-   go mod download
-   ```
-
-4. **Create a feature branch:**
+1. **Create a branch:**
 
    ```bash
    git checkout -b feature/your-feature-name
    ```
 
-## Development Workflow
+2. **Make changes** following the [code standards](#code-standards)
 
-### Code Changes
+3. **Add tests** for new functionality
 
-1. **Make your changes** following the coding standards
-2. **Add tests** for new functionality
-3. **Run tests** to ensure everything works:
+4. **Run quality checks:**
 
    ```bash
-   # Run all tests
-   just test
-
-   # Run only unit tests
-   just test-unit
-
-   # Run integration tests
-   just test-integration
+   just fmt     # Format code
+   just lint    # Run linter
+   just test    # Run all tests
+   just build   # Verify build
    ```
 
-4. **Run linting:**
+5. **Commit with conventional format:**
 
    ```bash
-   just lint
+   git commit -m "feat: add support for version aliases"
    ```
 
-5. **Format code:**
+### Submitting a PR
 
-   ```bash
-   just fmt
-   ```
-
-### Testing Strategy
-
-**nvs** uses a clear separation between unit and integration tests:
-
-- **Unit Tests:** Test individual functions in isolation
-- **Integration Tests:** Test end-to-end functionality with build tag `integration`
-
-### Commit Guidelines
-
-Follow conventional commit format:
-
-- `feat:` - New features
-- `fix:` - Bug fixes
-- `docs:` - Documentation changes
-- `test:` - Test additions/modifications
-- `refactor:` - Code refactoring
-- `chore:` - Maintenance tasks
-
-Examples:
-
-```
-feat: add support for nightly builds
-fix: resolve symlink creation on Windows
-docs: update installation instructions
-test: add integration tests for config switching
-```
-
-### Pull Request Process
-
-1. **Ensure all tests pass** and linting is clean
-2. **Update documentation** if needed
-3. **Write clear commit messages**
-4. **Push to your fork:**
+1. Push to your fork:
 
    ```bash
    git push origin feature/your-feature-name
    ```
 
-5. **Create a Pull Request** on GitHub with:
-   - Clear title and description
-   - Reference any related issues
-   - Screenshots/demos for UI changes
+2. Open a Pull Request on GitHub with:
+   - Clear title describing the change
+   - Description of what and why
+   - Reference to related issues (e.g., `Fixes #123`)
+   - Screenshots for UI changes
+
+3. Wait for CI to pass and address review feedback
+
+---
 
 ## Code Standards
 
 ### Go Conventions
 
 - Follow standard Go formatting (`gofmt`)
-- Use `go vet` for static analysis
+- Run `go vet` for static analysis
 - Keep functions focused and testable
-- Add comments for exported functions
-- Handle errors appropriately
+- Document exported functions
+- Handle errors explicitly (no silent failures)
 
-### Project Structure
+### Commit Messages
 
-```
-.
-├── cmd/                    # CLI commands
-│   ├── *_test.go          # Unit tests
-│   └── *_integration_test.go  # Integration tests
-├── pkg/                    # Core packages
-│   ├── archive/           # Archive handling
-│   ├── builder/           # Neovim building
-│   ├── helpers/           # Utilities
-│   ├── installer/         # Installation logic
-│   └── releases/          # Release management
-├── docs/                  # Documentation
-└── main.go                # Entry point
+Use [Conventional Commits](https://www.conventionalcommits.org/):
+
+| Prefix      | Use Case                 |
+| ----------- | ------------------------ |
+| `feat:`     | New features             |
+| `fix:`      | Bug fixes                |
+| `docs:`     | Documentation only       |
+| `test:`     | Test additions/changes   |
+| `refactor:` | Code restructuring       |
+| `chore:`    | Maintenance tasks        |
+| `perf:`     | Performance improvements |
+
+**Examples:**
+
+```text
+feat: add support for version aliases
+fix: resolve symlink creation on Windows
+docs: update installation instructions for Nix
+test: add integration tests for config switching
 ```
 
 ### Testing Guidelines
 
-- Write unit tests for all new functions
+- Write tests for all new functionality
 - Use table-driven tests where appropriate
-- Mock external dependencies in unit tests
-- Integration tests should use real dependencies
-- Aim for good test coverage
+- Unit tests: Fast, isolated, mock external dependencies
+- Integration tests: Use `//go:build integration` tag
 
-## Platform Support
+```bash
+just test             # All tests
+just test-unit        # Unit tests only
+just test-integration # Integration tests only
+just test-coverage    # With coverage report
+```
 
-**nvs** aims to work on:
+---
 
-- macOS (Intel & Apple Silicon)
-- Linux (various distributions)
-- Windows (limited support)
+## First-Time Contributors
 
-When contributing:
+New to the project? Look for issues labeled:
 
-- Test on your platform
-- Consider cross-platform compatibility
-- Report platform-specific issues
+- `good first issue` – Simple, well-defined tasks
+- `help wanted` – Ready for community contribution
 
-## Issue Reporting
+### Your First PR
 
-When reporting bugs:
+1. Pick a `good first issue`
+2. Comment that you're working on it
+3. Follow the [development workflow](#development-workflow)
+4. Don't hesitate to ask questions!
 
-1. **Check existing issues** first
-2. **Use issue templates** when available
-3. **Provide system information:**
-   - OS and version
-   - Go version
-   - **nvs** version
-   - Steps to reproduce
-4. **Include error messages** and logs (use `--verbose`)
-5. **Attach relevant files** if needed
+---
 
-## Documentation
+## Reporting Issues
 
-- Keep README minimal and link to detailed docs
-- Update docs for any new features
-- Ensure examples are accurate and tested
-- Use clear, concise language
+### Before Opening an Issue
+
+1. Search existing issues to avoid duplicates
+2. Check the documentation
+3. Run `nvs doctor` for common problems
+
+### Bug Reports Should Include
+
+- **System info:** OS, architecture, shell
+- **nvs version:** Output of `nvs --version`
+- **Steps to reproduce:** Minimal, complete steps
+- **Expected vs actual behavior**
+- **Error messages:** Use `--verbose` for detailed logs
+
+**Template:**
+
+```markdown
+**Environment:**
+
+- OS: macOS 14.0 (arm64)
+- Shell: zsh 5.9
+- nvs version: v1.2.3
+
+**Steps to reproduce:**
+
+1. Run `nvs install nightly`
+2. Run `nvs use nightly`
+3. ...
+
+**Expected:** Should switch to nightly
+**Actual:** Error: <paste error>
+
+**Verbose output:**
+<paste output of `nvs --verbose use nightly`>
+```
+
+---
+
+## Pull Request Checklist
+
+Before submitting, ensure:
+
+- [ ] Code follows project style
+- [ ] Tests pass locally (`just test`)
+- [ ] Linting passes (`just lint`)
+- [ ] New features have tests
+- [ ] Documentation updated if needed
+- [ ] Commit messages follow conventions
+- [ ] PR description explains the change
+
+---
+
+## Code Review
+
+What to expect:
+
+- Maintainers aim to review PRs within a few days
+- Feedback is meant to improve the code, not criticize you
+- Discussion is encouraged – we want the best solution
+- Changes may be requested before merging
+
+---
 
 ## Community Guidelines
 
 - Be respectful and constructive
 - Help newcomers get started
 - Focus on solutions, not blame
+- Assume good intentions
+
+---
 
 ## Getting Help
 
-- **Documentation:** Check [docs/](docs/) first
-- **Issues:** Search existing GitHub issues
-- **Discussions:** Use GitHub Discussions for questions
-- **Discord/Slack:** Check project communication channels
+- **Documentation:** Check [docs/](.) first
+- **Issues:** Search [GitHub Issues](https://github.com/y3owk1n/nvs/issues)
+- **Discussions:** Use [GitHub Discussions](https://github.com/y3owk1n/nvs/discussions)
 
-## Related Documentation
-
-- [Installation Guide](INSTALLATION.md) - How to install nvs
-- [Usage Guide](USAGE.md) - Command reference
-- [Configuration Guide](CONFIGURATION.md) - Environment setup
-- [Development Guide](DEVELOPMENT.md) - Development setup
+---
 
 ## Recognition
 
 Contributors are recognized in:
 
 - GitHub's contributor insights
-- CHANGELOG.md for significant contributions
-- Release notes
+- Release notes for significant contributions
+- CHANGELOG.md
 
 Thank you for contributing to **nvs**! 🚀

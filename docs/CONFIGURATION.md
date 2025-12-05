@@ -1,18 +1,98 @@
 # Configuration Guide
 
-This guide explains how to configure **nvs** for optimal use, including environment setup, directory customization, and PATH configuration.
+Environment setup and customization options for **nvs**.
 
-## Environment Setup
+---
 
-Before using **nvs**, you must set up environment variables. This is done by evaluating the output of `nvs env --source`.
+## Quick Reference
 
-### Automatic Setup
+| Variable            | Description         | Default (Unix)  |
+| ------------------- | ------------------- | --------------- |
+| `NVS_CONFIG_DIR`    | Configuration files | `~/.config/nvs` |
+| `NVS_CACHE_DIR`     | Cache files         | `~/.cache/nvs`  |
+| `NVS_BIN_DIR`       | Binary symlinks     | `~/.local/bin`  |
+| `NVS_GITHUB_MIRROR` | GitHub mirror URL   | (none)          |
 
-The `--source` flag detects your shell and prints the correct syntax:
+---
+
+## Table of Contents
+
+- [Shell Setup](#shell-setup)
+- [Environment Variables](#environment-variables)
+- [Directory Structure](#directory-structure)
+- [GitHub Mirror](#github-mirror)
+- [PATH Configuration](#path-configuration)
+- [Nix / Home Manager](#nix--home-manager)
+- [Advanced Configuration](#advanced-configuration)
+
+---
+
+## Shell Setup
+
+**nvs** requires shell integration to function properly. Add the following to your shell configuration:
+
+### Bash
+
+Add to `~/.bashrc` or `~/.bash_profile`:
 
 ```bash
+# nvs environment setup
 eval "$(nvs env --source)"
+
+# Optional: Shell completions
+source <(nvs completion bash)
+
+# Optional: Auto-switch on cd
+eval "$(nvs hook bash)"
 ```
+
+### Zsh
+
+Add to `~/.zshrc`:
+
+```zsh
+# nvs environment setup
+eval "$(nvs env --source)"
+
+# Optional: Shell completions
+autoload -U compinit && compinit
+source <(nvs completion zsh)
+
+# Optional: Auto-switch on cd
+eval "$(nvs hook zsh)"
+```
+
+### Fish
+
+Add to `~/.config/fish/config.fish`:
+
+```fish
+# nvs environment setup
+nvs env --source | source
+
+# Optional: Auto-switch on cd
+nvs hook fish | source
+```
+
+For completions, run once:
+
+```fish
+nvs completion fish > ~/.config/fish/completions/nvs.fish
+```
+
+### PowerShell
+
+Add to your `$PROFILE`:
+
+```powershell
+# nvs environment setup
+nvs env --source | Invoke-Expression
+
+# Optional: Shell completions
+nvs completion powershell | Out-String | Invoke-Expression
+```
+
+### Manual Shell Specification
 
 If auto-detection fails, specify your shell explicitly:
 
@@ -20,270 +100,336 @@ If auto-detection fails, specify your shell explicitly:
 nvs env --source --shell bash
 nvs env --source --shell zsh
 nvs env --source --shell fish
+nvs env --source --shell powershell
 ```
 
-### Manual Shell Configuration
+---
 
-#### Bash
+## Environment Variables
 
-Add to `~/.bashrc` or `~/.bash_profile`:
+### NVS_CONFIG_DIR
+
+**Purpose:** Configuration storage (version records, settings)
+
+**Default:**
+
+- Unix: `~/.config/nvs`
+- Windows: `%APPDATA%\nvs`
+
+**Example:**
 
 ```bash
-eval "$(nvs env --source)"
+export NVS_CONFIG_DIR="$HOME/.nvs/config"
 ```
 
-#### Zsh
+---
 
-Add to `~/.zshrc`:
+### NVS_CACHE_DIR
 
-```zsh
-eval "$(nvs env --source)"
-```
+**Purpose:** Cache storage (release info, build artifacts)
 
-#### Fish
+**Default:**
 
-Create `~/.config/fish/conf.d/nvs.fish`:
+- Unix: `~/.cache/nvs`
+- Windows: `%LOCALAPPDATA%\nvs`
 
-```fish
-nvs env --source | source
-```
-
-> [!note]
-> Explicit shell specification avoids detection issues across different environments.
-
-## Directory Structure
-
-**nvs** follows OS-specific conventions for storing data:
-
-### Default Locations
-
-- **Configuration:** `~/.config/nvs` (Unix) / `AppData\Roaming\nvs` (Windows)
-- **Cache:** `~/.cache/nvs` (Unix) / `AppData\Local\nvs` (Windows)
-- **Binaries:** `~/.local/bin` (Unix) / `AppData\Local\Programs` (Windows)
-
-> [!note]
-> Directories are created automatically on first command execution.
-
-### Environment Variables
-
-Override defaults with these variables:
-
-| Variable            | Description       | Default (Unix)  | Default (Windows)        |
-| ------------------- | ----------------- | --------------- | ------------------------ |
-| `NVS_CONFIG_DIR`    | nvs configuration | `~/.config/nvs` | `AppData\Roaming\nvs`    |
-| `NVS_CACHE_DIR`     | Cache files       | `~/.cache/nvs`  | `AppData\Local\nvs`      |
-| `NVS_BIN_DIR`       | Binary symlinks   | `~/.local/bin`  | `AppData\Local\Programs` |
-| `NVS_GITHUB_MIRROR` | GitHub mirror URL | (none)          | (none)                   |
-
-### Setting Custom Directories
-
-#### Unix-like Systems
-
-Add to `~/.bashrc`, `~/.zshrc`, etc.:
+**Example:**
 
 ```bash
-export NVS_CONFIG_DIR="$HOME/custom-config/nvs"
-export NVS_CACHE_DIR="$HOME/custom-cache/nvs"
-export NVS_BIN_DIR="$HOME/custom-bin"
+export NVS_CACHE_DIR="$HOME/.nvs/cache"
 ```
 
-Reload configuration:
+> [!TIP]
+> Cache is automatically cleared when stale. Release info is cached for 5 minutes.
+
+---
+
+### NVS_BIN_DIR
+
+**Purpose:** Location for the `nvim` symlink
+
+**Default:**
+
+- Unix: `~/.local/bin`
+- Windows: `%LOCALAPPDATA%\Programs`
+
+**Example:**
 
 ```bash
-source ~/.bashrc  # or ~/.zshrc
+export NVS_BIN_DIR="$HOME/bin"
 ```
 
-#### Windows
+> [!IMPORTANT]
+> Ensure `NVS_BIN_DIR` is in your `PATH` for the `nvim` command to work.
 
-Temporary (current session):
+---
 
-```cmd
-set NVS_CONFIG_DIR=C:\Path\To\Custom\Config
-set NVS_CACHE_DIR=C:\Path\To\Custom\Cache
-set NVS_BIN_DIR=C:\Path\To\Custom\Bin
-```
+### NVS_GITHUB_MIRROR
 
-Permanent (via Command Prompt as admin):
+**Purpose:** Use a GitHub mirror for downloading releases (useful in restricted regions)
 
-```cmd
-setx NVS_CONFIG_DIR "C:\Path\To\Custom\Config"
-setx NVS_CACHE_DIR "C:\Path\To\Custom\Cache"
-setx NVS_BIN_DIR "C:\Path\To\Custom\Bin"
-```
+**Default:** None (uses `github.com` directly)
 
-Or use System Properties → Advanced → Environment Variables.
-
-> [!note]
-> When overriding `NVS_BIN_DIR`, update your PATH accordingly.
-
-## GitHub Mirror
-
-If you have limited access to GitHub (e.g., in certain regions), you can use a GitHub mirror for downloading Neovim releases:
+**Example:**
 
 ```bash
 export NVS_GITHUB_MIRROR="https://mirror.ghproxy.com"
 ```
 
-This replaces `https://github.com` in download URLs while still using the official GitHub API for release information.
+**Common mirrors:**
 
-> [!note]
-> The mirror only affects download URLs, not API calls. Common mirrors include `https://mirror.ghproxy.com` and `https://ghproxy.net`.
+- `https://mirror.ghproxy.com`
+- `https://ghproxy.net`
+
+> [!NOTE]
+> The mirror only affects download URLs. API calls still go to GitHub directly.
+
+---
+
+## Directory Structure
+
+**nvs** creates the following directory structure:
+
+```text
+~/.config/nvs/           # NVS_CONFIG_DIR
+└── versions/            # Installed Neovim versions
+    ├── stable/
+    ├── nightly/
+    ├── v0.10.3/
+    └── ...
+
+~/.cache/nvs/            # NVS_CACHE_DIR
+└── releases.json        # Cached release information
+
+~/.local/bin/            # NVS_BIN_DIR
+└── nvim -> versions/stable/bin/nvim  # Symlink to active version
+```
+
+All directories are created automatically on first run.
+
+---
+
+## GitHub Mirror
+
+If you have limited access to GitHub (e.g., in certain regions), configure a mirror:
+
+```bash
+# Add to shell config
+export NVS_GITHUB_MIRROR="https://mirror.ghproxy.com"
+```
+
+**How it works:**
+
+- Download URLs: `https://github.com/...` → `https://mirror.ghproxy.com/https://github.com/...`
+- API calls: Still use `api.github.com` for release information
+
+---
 
 ## PATH Configuration
 
-To use Neovim binaries installed by **nvs**, add the binary directory to your PATH.
+The `nvim` command must be accessible in your `PATH`.
 
-### Automatic PATH Setup
-
-**nvs** provides a `path` command for automatic setup:
+### Automatic Setup
 
 ```bash
-nvs path
+nvs path  # Adds NVS_BIN_DIR to PATH in shell config
 ```
 
-> [!note]
-> This may not work with Nix Home Manager. See below for alternatives.
+### Manual Setup
 
-### Manual PATH Setup
-
-#### macOS/Linux
-
-##### Bash
-
-Add to `~/.bashrc` or `~/.bash_profile`:
+**Bash/Zsh:**
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-##### Zsh
-
-Add to `~/.zshrc`:
-
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-##### Fish
-
-Add to `~/.config/fish/config.fish`:
+**Fish:**
 
 ```fish
-set -gx PATH $HOME/.local/bin $PATH
+fish_add_path $HOME/.local/bin
 ```
 
-#### Windows
+**Windows (PowerShell as Admin):**
 
-Add to PATH environment variable. Example for current session:
-
-```cmd
-set PATH=%USERPROFILE%\AppData\Local\Programs\nvim\bin;%PATH%
+```powershell
+[Environment]::SetEnvironmentVariable("Path", "$env:LOCALAPPDATA\Programs;$env:Path", "User")
 ```
 
-> [!note]
-> Target the nested `bin` folder as Windows requires the full path structure.
+---
 
-### Nix Home Manager
+## Nix / Home Manager
 
-If using Nix Home Manager, use the provided nvs module for complete setup:
+### Home Manager Module (Recommended)
+
+Full integration with automatic environment setup:
 
 ```nix
 {
-  programs.nvs = {
-    enable = true;
-    # Optional: Enable automatic version switching (default: true)
-    enableAutoSwitch = true;
-    # Optional: Customize directory locations
-    configDir = "${config.xdg.configHome}/nvs";
-    cacheDir = "${config.xdg.cacheHome}/nvs";
-    binDir = "${config.home.homeDirectory}/.local/bin";
+  inputs.nvs.url = "github:y3owk1n/nvs";
+
+  outputs = { home-manager, nvs, ... }: {
+    homeConfigurations.your-username = home-manager.lib.homeManagerConfiguration {
+      modules = [
+        { nixpkgs.overlays = [ nvs.overlays.default ]; }
+        nvs.homeManagerModules.default
+        {
+          programs.nvs = {
+            enable = true;
+
+            # All options with defaults:
+            enableAutoSwitch = true;      # Auto-switch on cd
+            enableShellIntegration = true; # Run nvs env --source
+
+            # Custom directories (optional)
+            configDir = "${config.xdg.configHome}/nvs";
+            cacheDir = "${config.xdg.cacheHome}/nvs";
+            binDir = "${config.home.homeDirectory}/.local/bin";
+
+            # Shell-specific integration
+            shellIntegration = {
+              bash = true;
+              zsh = true;
+              fish = true;
+            };
+          };
+        }
+      ];
+    };
   };
 }
 ```
 
-The Home Manager module automatically handles:
+**The module handles:**
 
-- Environment variable setup (`NVS_CONFIG_DIR`, `NVS_CACHE_DIR`, `NVS_BIN_DIR`)
-- PATH configuration (adds `binDir` to `home.sessionPath`)
-- Shell integration for environment setup (`nvs env --source`)
-- Automatic version switching (`nvs hook`) when `enableAutoSwitch = true`
-- Directory creation during activation
+- Installing nvs
+- Setting `NVS_CONFIG_DIR`, `NVS_CACHE_DIR`, `NVS_BIN_DIR`
+- Adding `binDir` to `home.sessionPath`
+- Shell integration (`nvs env --source`)
+- Auto-switch hooks (`nvs hook`)
+- Directory creation
 
-For manual PATH setup (not recommended when using the module):
+### Manual Nix Setup
+
+If not using the module, set environment manually:
 
 ```nix
 {
+  home.sessionVariables = {
+    NVS_CONFIG_DIR = "${config.xdg.configHome}/nvs";
+    NVS_CACHE_DIR = "${config.xdg.cacheHome}/nvs";
+    NVS_BIN_DIR = "${config.home.homeDirectory}/.local/bin";
+  };
+
   home.sessionPath = [
-    "$HOME/.local/bin"
+    "${config.home.homeDirectory}/.local/bin"
   ];
 }
 ```
 
-Reference: [Nix Home Manager Documentation](https://nix-community.github.io/home-manager/options.xhtml#opt-home.sessionPath)
-
-## Configuration Files
-
-**nvs** stores configuration in the config directory:
-
-- Version information and preferences
-- Installation records
-- User settings
-
-The config directory is separate from Neovim's config directory (`~/.config/nvim`).
-
-## Cache Management
-
-Cache directory stores:
-
-- Downloaded release information (5-minute TTL)
-- Temporary build artifacts
-- Metadata for installed versions
-
-Clear cache manually by deleting the cache directory or using `nvs reset`.
-
-## Troubleshooting
-
-### Environment Issues
-
-- **Command not found:** Verify PATH includes binary directory
-- **Permission denied:** Check write permissions for config/cache/bin directories
-- **Shell detection fails:** Use `--shell` flag explicitly
-
-### Directory Issues
-
-- **Custom paths not working:** Ensure environment variables are exported before running commands
-- **Old directories persist:** Manually delete default directories after setting custom paths
-
-### PATH Issues
-
-- **nvs path fails:** Manually add to PATH as shown above
-- **Binary not found:** Verify `NVS_BIN_DIR` is in PATH and symlinks exist
+---
 
 ## Advanced Configuration
 
 ### Multiple Environments
 
-For different environments (work/personal), use different config directories:
+Use separate directories for work/personal setups:
 
 ```bash
+# Work environment
 export NVS_CONFIG_DIR="$HOME/.config/nvs-work"
 export NVS_CACHE_DIR="$HOME/.cache/nvs-work"
 export NVS_BIN_DIR="$HOME/.local/bin-work"
 ```
 
-### CI/CD Usage
+Create shell aliases:
 
-For automated environments, set minimal configuration:
+```bash
+alias nvs-work='NVS_CONFIG_DIR=~/.config/nvs-work NVS_BIN_DIR=~/.local/bin-work nvs'
+```
+
+### CI/CD Configuration
+
+Minimal setup for automated environments:
 
 ```bash
 export NVS_CONFIG_DIR="/tmp/nvs-config"
 export NVS_CACHE_DIR="/tmp/nvs-cache"
 export NVS_BIN_DIR="$HOME/bin"
+
+nvs install stable
+nvs use stable
 ```
 
-## Related Documentation
+### Docker
 
-- [Installation Guide](INSTALLATION.md) - How to install nvs
-- [Usage Guide](USAGE.md) - Command reference
-- [Development Guide](DEVELOPMENT.md) - For contributors
-- [Contributing Guide](CONTRIBUTING.md) - How to contribute
+```dockerfile
+FROM ubuntu:22.04
+
+# Install dependencies
+RUN apt-get update && apt-get install -y curl git
+
+# Install nvs
+RUN curl -fsSL https://raw.githubusercontent.com/y3owk1n/nvs/main/install.sh | bash
+
+# Add to PATH
+ENV PATH="/root/.local/bin:$PATH"
+
+# Install Neovim
+RUN nvs install stable && nvs use stable
+```
+
+---
+
+## Troubleshooting
+
+### Environment Not Loading
+
+**Symptom:** `nvim: command not found` after setup
+
+**Solutions:**
+
+1. Restart your terminal
+2. Source config manually: `source ~/.bashrc` (or equivalent)
+3. Verify PATH: `echo $PATH | tr ':' '\n' | grep local`
+4. Check nvs directory exists: `ls -la ~/.local/bin/nvim`
+
+### Shell Detection Fails
+
+**Symptom:** `nvs env --source` outputs wrong format
+
+**Solution:** Specify shell explicitly:
+
+```bash
+nvs env --source --shell zsh
+```
+
+### Permission Denied
+
+**Symptom:** Cannot create symlinks or directories
+
+**Solutions:**
+
+```bash
+# Fix directory permissions
+chmod 755 ~/.local/bin
+mkdir -p ~/.config/nvs ~/.cache/nvs
+
+# Or use different directories
+export NVS_BIN_DIR="$HOME/bin"
+```
+
+### Conflicts with Other Version Managers
+
+If you use other Neovim or version managers:
+
+1. Remove other managers' PATH entries
+2. Ensure `NVS_BIN_DIR` appears first in `PATH`
+3. Use `nvs doctor` to check for conflicts
+
+---
+
+## Next Steps
+
+- [Command Reference →](USAGE.md)
+- [Installation Options →](INSTALLATION.md)
+- [Contributing →](CONTRIBUTING.md)
