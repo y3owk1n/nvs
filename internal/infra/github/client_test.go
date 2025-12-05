@@ -58,6 +58,7 @@ func TestGetAssetURL(t *testing.T) {
 		assets     []release.Asset
 		wantErr    bool
 		errContain string
+		wantURL    string
 	}{
 		{
 			name: "linux amd64 asset found",
@@ -69,6 +70,7 @@ func TestGetAssetURL(t *testing.T) {
 				),
 			},
 			wantErr: runtime.GOOS != "linux" || runtime.GOARCH != "amd64",
+			wantURL: "https://example.com/linux.tar.gz",
 		},
 		{
 			name: "macos asset found",
@@ -76,6 +78,7 @@ func TestGetAssetURL(t *testing.T) {
 				release.NewAsset("nvim-macos.tar.gz", "https://example.com/macos.tar.gz", 1000),
 			},
 			wantErr: runtime.GOOS != "darwin",
+			wantURL: "https://example.com/macos.tar.gz",
 		},
 		{
 			name: "windows asset found",
@@ -83,6 +86,7 @@ func TestGetAssetURL(t *testing.T) {
 				release.NewAsset("nvim-win64.zip", "https://example.com/win.zip", 1000),
 			},
 			wantErr: runtime.GOOS != "windows",
+			wantURL: "https://example.com/win.zip",
 		},
 		{
 			name:       "no matching asset",
@@ -107,14 +111,35 @@ func TestGetAssetURL(t *testing.T) {
 				if err != nil {
 					t.Errorf("GetAssetURL() expected no error, got %v", err)
 				}
-
 				if url == "" {
 					t.Errorf("GetAssetURL() expected URL, got empty")
+				}
+				if testCase.wantURL != "" && url != testCase.wantURL {
+					t.Errorf("GetAssetURL() = %q, want %q", url, testCase.wantURL)
 				}
 			}
 			// Note: Platform-specific asset matching depends on runtime.GOOS/GOARCH
 		})
 	}
+}
+
+// writeCacheFile is a helper to create a cache file with test data
+func writeCacheFile(t *testing.T, cacheData []map[string]any) string {
+	t.Helper()
+
+	tempDir := t.TempDir()
+	cacheFile := filepath.Join(tempDir, "cache.json")
+
+	data, err := json.Marshal(cacheData)
+	if err != nil {
+		t.Fatalf("Failed to marshal cache data: %v", err)
+	}
+
+	if err := os.WriteFile(cacheFile, data, 0o644); err != nil {
+		t.Fatalf("Failed to write cache file: %v", err)
+	}
+
+	return cacheFile
 }
 
 func TestGetChecksumURL(t *testing.T) {
@@ -200,9 +225,6 @@ func TestGetChecksumURL(t *testing.T) {
 // TestClient_FindStable tests finding the latest stable release.
 // Uses pre-populated cache file in temp directory - no network requests.
 func TestClient_FindStable(t *testing.T) {
-	tempDir := t.TempDir()
-	cacheFile := filepath.Join(tempDir, "cache.json")
-
 	// Pre-populate cache with test data
 	cacheData := []map[string]any{
 		{
@@ -227,16 +249,7 @@ func TestClient_FindStable(t *testing.T) {
 		},
 	}
 
-	data, err := json.Marshal(cacheData)
-	if err != nil {
-		t.Fatalf("Failed to marshal cache data: %v", err)
-	}
-
-	err = os.WriteFile(cacheFile, data, 0o644)
-	if err != nil {
-		t.Fatalf("Failed to write cache file: %v", err)
-	}
-
+	cacheFile := writeCacheFile(t, cacheData)
 	client := github.NewClient(cacheFile, time.Hour, "", "")
 	ctx := context.Background()
 
@@ -257,9 +270,6 @@ func TestClient_FindStable(t *testing.T) {
 // TestClient_FindNightly tests finding the latest nightly release.
 // Uses pre-populated cache file in temp directory - no network requests.
 func TestClient_FindNightly(t *testing.T) {
-	tempDir := t.TempDir()
-	cacheFile := filepath.Join(tempDir, "cache.json")
-
 	// Pre-populate cache with test data
 	cacheData := []map[string]any{
 		{
@@ -278,16 +288,7 @@ func TestClient_FindNightly(t *testing.T) {
 		},
 	}
 
-	data, err := json.Marshal(cacheData)
-	if err != nil {
-		t.Fatalf("Failed to marshal cache data: %v", err)
-	}
-
-	err = os.WriteFile(cacheFile, data, 0o644)
-	if err != nil {
-		t.Fatalf("Failed to write cache file: %v", err)
-	}
-
+	cacheFile := writeCacheFile(t, cacheData)
 	client := github.NewClient(cacheFile, time.Hour, "", "")
 	ctx := context.Background()
 
@@ -308,9 +309,6 @@ func TestClient_FindNightly(t *testing.T) {
 // TestClient_FindByTag tests finding a specific release by tag.
 // Uses pre-populated cache file in temp directory - no network requests.
 func TestClient_FindByTag(t *testing.T) {
-	tempDir := t.TempDir()
-	cacheFile := filepath.Join(tempDir, "cache.json")
-
 	// Pre-populate cache with test data
 	cacheData := []map[string]any{
 		{
@@ -329,16 +327,7 @@ func TestClient_FindByTag(t *testing.T) {
 		},
 	}
 
-	data, err := json.Marshal(cacheData)
-	if err != nil {
-		t.Fatalf("Failed to marshal cache data: %v", err)
-	}
-
-	err = os.WriteFile(cacheFile, data, 0o644)
-	if err != nil {
-		t.Fatalf("Failed to write cache file: %v", err)
-	}
-
+	cacheFile := writeCacheFile(t, cacheData)
 	client := github.NewClient(cacheFile, time.Hour, "", "")
 	ctx := context.Background()
 
