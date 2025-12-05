@@ -190,7 +190,7 @@ export NVS_GITHUB_MIRROR="https://mirror.ghproxy.com"
 
 **nvs** creates the following directory structure:
 
-```
+```text
 ~/.config/nvs/           # NVS_CONFIG_DIR
 └── versions/            # Installed Neovim versions
     ├── stable/

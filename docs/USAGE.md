@@ -147,7 +147,7 @@ nvs ls      # Shorthand
 
 **Output example:**
 
-```
+```text
    VERSION    STATUS
 ------------------------
   → nightly  Current
@@ -168,7 +168,7 @@ nvs list-remote force   # Bypass cache
 
 **Output example:**
 
-```
+```text
     TAG       STATUS                     DETAILS
 ------------------------------------------------------------------
   nightly  Current (↑)    Published: 2025-12-05, Commit: 903335a
@@ -197,7 +197,7 @@ nvs current
 
 **Output example:**
 
-```
+```text
 ℹ nightly
   Published: 2025-12-05
   Commit: 903335a

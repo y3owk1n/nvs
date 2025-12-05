@@ -110,7 +110,7 @@ Use [Conventional Commits](https://www.conventionalcommits.org/):
 
 **Examples:**
 
-```
+```text
 feat: add support for version aliases
 fix: resolve symlink creation on Windows
 docs: update installation instructions for Nix
