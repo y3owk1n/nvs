@@ -152,9 +152,7 @@ func (r *releaseAdapter) applyMirror(url string) string {
 		return url
 	}
 
-	const defaultGitHubURL = "https://github.com"
-
-	return strings.Replace(url, defaultGitHubURL, r.mirrorURL, 1)
+	return strings.Replace(url, github.DefaultGitHubBaseURL, r.mirrorURL, 1)
 }
 
 // Use switches to a specific version.

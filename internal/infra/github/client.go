@@ -18,8 +18,9 @@ import (
 )
 
 const (
-	defaultAPIBaseURL    = "https://api.github.com"
-	defaultGitHubBaseURL = "https://github.com"
+	defaultAPIBaseURL = "https://api.github.com"
+	// DefaultGitHubBaseURL is the default GitHub base URL for downloads.
+	DefaultGitHubBaseURL = "https://github.com"
 	clientTimeoutSec     = 15
 	arm64Arch            = "arm64"
 )
@@ -51,7 +52,7 @@ func (c *Client) ApplyMirror(url string) string {
 	}
 
 	// Replace https://github.com with the mirror URL
-	return strings.Replace(url, defaultGitHubBaseURL, c.mirrorURL, 1)
+	return strings.Replace(url, DefaultGitHubBaseURL, c.mirrorURL, 1)
 }
 
 // MirrorURL returns the configured mirror URL.
