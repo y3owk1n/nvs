@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -272,8 +272,15 @@ func (b *SourceBuilder) buildFromCommitInternal(
 func (b *SourceBuilder) checkRequiredTools() error {
 	requiredTools := []string{"git", "make", "cmake", "gettext", "ninja", "curl"}
 
+	checkCmd := "which"
+	if runtime.GOOS == "windows" {
+		checkCmd = "where"
+	}
+
 	for _, tool := range requiredTools {
-		_, err := exec.LookPath(tool)
+		cmd := b.execCommand(context.Background(), checkCmd, tool)
+
+		err := cmd.Run()
 		if err != nil {
 			return fmt.Errorf(
 				"%w: %s is not installed or not in PATH",
