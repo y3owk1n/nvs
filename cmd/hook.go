@@ -54,12 +54,12 @@ func runHook(cmd *cobra.Command, args []string) error {
 	var hookScript string
 
 	switch shell {
-	case "bash", "zsh", "sh":
+	case ShellBash, ShellZsh, "sh":
 		hookScript = bashZshHook
-	case "fish":
+	case ShellFish:
 		hookScript = fishHook
 	default:
-		return fmt.Errorf("%w: %s (supported: bash, zsh, fish)", ErrUnsupportedShellHook, shell)
+		return fmt.Errorf("%w: %s (supported: %s, %s, %s)", ErrUnsupportedShellHook, shell, ShellBash, ShellZsh, ShellFish)
 	}
 
 	_, err := fmt.Fprint(os.Stdout, hookScript)
