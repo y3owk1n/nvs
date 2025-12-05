@@ -17,6 +17,13 @@ import (
 // FilePerm is the file permission for created files.
 const FilePerm = 0o644
 
+// Shell names.
+const (
+	ShellBash = "bash"
+	ShellZsh  = "zsh"
+	ShellFish = "fish"
+)
+
 // pathCmd represents the "path" command.
 // It automatically adds the global binary directory to the user's PATH by modifying the appropriate shell configuration file.
 // Depending on the operating system and shell, it determines the proper rc file (e.g. ~/.bashrc, ~/.zshrc, or ~/.config/fish/config.fish)
@@ -194,10 +201,10 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	}
 
 	switch shellName {
-	case "bash", "zsh":
+	case ShellBash, ShellZsh:
 		rcFile = filepath.Join(home, fmt.Sprintf(".%src", shellName))
 		exportCmd = fmt.Sprintf("export PATH=\"$PATH:%s\"", GetGlobalBinDir())
-	case "fish":
+	case ShellFish:
 		rcFile = filepath.Join(home, ".config", "fish", "config.fish")
 		// Ensure parent directory exists for fish config
 		err := os.MkdirAll(filepath.Dir(rcFile), filesystem.DirPerm)

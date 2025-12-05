@@ -21,9 +21,6 @@ const (
 	nightly = "nightly"
 )
 
-// ErrInvalidUpgradeTarget is returned when an invalid upgrade target is specified.
-var ErrInvalidUpgradeTarget = errors.New("upgrade can only be performed for 'stable' or 'nightly'")
-
 // upgradeCmd represents the "upgrade" command (aliases: up).
 // It upgrades the installed stable and/or nightly versions of Neovim.
 // If no argument is provided, both stable and nightly versions are upgraded (if installed).
