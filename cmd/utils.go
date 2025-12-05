@@ -19,11 +19,18 @@ func copyDir(src, dst string) error {
 
 	// Create temp directory next to dst for atomic copy
 	dstDir := filepath.Dir(dst)
+
 	tempDst, err := os.MkdirTemp(dstDir, "copy-temp-")
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tempDst) // Clean up temp on failure
+
+	defer func() {
+		err := os.RemoveAll(tempDst)
+		if err != nil {
+			logrus.Warnf("Failed to clean up temp directory %s: %v", tempDst, err)
+		}
+	}()
 
 	err = os.MkdirAll(tempDst, srcInfo.Mode())
 	if err != nil {
