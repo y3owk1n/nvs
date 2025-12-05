@@ -137,12 +137,6 @@ func (b *SourceBuilder) buildFromCommitInternal(
 			progress("Cloning repository (large repo, may take a while)", -1)
 		}
 
-		// Ensure the target directory doesn't exist (git clone expects to create it)
-		err := os.RemoveAll(localPath)
-		if err != nil {
-			logrus.Warnf("Failed to clean target directory: %v", err)
-		}
-
 		logrus.Debug("Cloning repository from ", repoURL)
 
 		cmd := b.execCommand(ctx, "git", "clone", "--quiet", repoURL, localPath)
