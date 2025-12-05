@@ -44,15 +44,21 @@ func NewClient(cacheFilePath string, cacheTTL time.Duration, minVersion, mirrorU
 	}
 }
 
-// ApplyMirror replaces the default GitHub URL with the mirror URL if configured.
+// ApplyMirrorToURL replaces the default GitHub URL with the mirror URL if configured.
 // This is used for download URLs (not API calls).
-func (c *Client) ApplyMirror(url string) string {
-	if c.mirrorURL == "" {
+func ApplyMirrorToURL(url, mirrorURL string) string {
+	if mirrorURL == "" {
 		return url
 	}
 
 	// Replace https://github.com with the mirror URL
-	return strings.Replace(url, DefaultGitHubBaseURL, c.mirrorURL, 1)
+	return strings.Replace(url, DefaultGitHubBaseURL, mirrorURL, 1)
+}
+
+// ApplyMirror replaces the default GitHub URL with the mirror URL if configured.
+// This is used for download URLs (not API calls).
+func (c *Client) ApplyMirror(url string) string {
+	return ApplyMirrorToURL(url, c.mirrorURL)
 }
 
 // MirrorURL returns the configured mirror URL.

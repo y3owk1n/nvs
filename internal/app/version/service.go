@@ -148,11 +148,7 @@ func (r *releaseAdapter) GetIdentifier() string {
 
 // applyMirror replaces the default GitHub URL with the mirror URL if configured.
 func (r *releaseAdapter) applyMirror(url string) string {
-	if r.mirrorURL == "" {
-		return url
-	}
-
-	return strings.Replace(url, github.DefaultGitHubBaseURL, r.mirrorURL, 1)
+	return github.ApplyMirrorToURL(url, r.mirrorURL)
 }
 
 // Use switches to a specific version.
