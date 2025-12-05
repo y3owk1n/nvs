@@ -29,9 +29,18 @@ LuaJIT 2.1.1741571767
 ## Quick Start
 
 1. **Install nvs:**
-   ```bash
-   curl -fsSL https://raw.githubusercontent.com/y3owk1n/nvs/main/install.sh | bash
-   ```
+
+    **Option A: Install script (recommended for most users):**
+    ```bash
+    curl -fsSL https://raw.githubusercontent.com/y3owk1n/nvs/main/install.sh | bash
+    ```
+
+    **Option B: Nix Home Manager (for Nix users):**
+    ```nix
+    # In your home.nix
+    programs.nvs.enable = true;
+    ```
+    See [Installation Guide](docs/INSTALLATION.md#using-home-manager) for details.
 
 2. **Set up environment:**
    ```bash

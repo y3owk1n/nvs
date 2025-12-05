@@ -68,12 +68,12 @@ nvs env --source | source
 
 Override defaults with these variables:
 
-| Variable            | Description          | Default (Unix)  | Default (Windows)        |
-| ------------------- | -------------------- | --------------- | ------------------------ |
-| `NVS_CONFIG_DIR`    | nvs configuration    | `~/.config/nvs` | `AppData\Roaming\nvs`    |
-| `NVS_CACHE_DIR`     | Cache files          | `~/.cache/nvs`  | `AppData\Local\nvs`      |
-| `NVS_BIN_DIR`       | Binary symlinks      | `~/.local/bin`  | `AppData\Local\Programs` |
-| `NVS_GITHUB_MIRROR` | GitHub mirror URL    | (none)          | (none)                   |
+| Variable            | Description       | Default (Unix)  | Default (Windows)        |
+| ------------------- | ----------------- | --------------- | ------------------------ |
+| `NVS_CONFIG_DIR`    | nvs configuration | `~/.config/nvs` | `AppData\Roaming\nvs`    |
+| `NVS_CACHE_DIR`     | Cache files       | `~/.cache/nvs`  | `AppData\Local\nvs`      |
+| `NVS_BIN_DIR`       | Binary symlinks   | `~/.local/bin`  | `AppData\Local\Programs` |
+| `NVS_GITHUB_MIRROR` | GitHub mirror URL | (none)          | (none)                   |
 
 ### Setting Custom Directories
 
@@ -185,7 +185,31 @@ set PATH=%USERPROFILE%\AppData\Local\Programs\nvim\bin;%PATH%
 
 ### Nix Home Manager
 
-If using Nix Home Manager, add to your configuration:
+If using Nix Home Manager, use the provided nvs module for complete setup:
+
+```nix
+{
+  programs.nvs = {
+    enable = true;
+    # Optional: Enable automatic version switching (default: true)
+    enableAutoSwitch = true;
+    # Optional: Customize directory locations
+    configDir = "${config.xdg.configHome}/nvs";
+    cacheDir = "${config.xdg.cacheHome}/nvs";
+    binDir = "${config.home.homeDirectory}/.local/bin";
+  };
+}
+```
+
+The Home Manager module automatically handles:
+
+- Environment variable setup (`NVS_CONFIG_DIR`, `NVS_CACHE_DIR`, `NVS_BIN_DIR`)
+- PATH configuration (adds `binDir` to `home.sessionPath`)
+- Shell integration for environment setup (`nvs env --source`)
+- Automatic version switching (`nvs hook`) when `enableAutoSwitch = true`
+- Directory creation during activation
+
+For manual PATH setup (not recommended when using the module):
 
 ```nix
 {
@@ -263,4 +287,3 @@ export NVS_BIN_DIR="$HOME/bin"
 - [Usage Guide](USAGE.md) - Command reference
 - [Development Guide](DEVELOPMENT.md) - For contributors
 - [Contributing Guide](CONTRIBUTING.md) - How to contribute
-
