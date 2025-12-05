@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# For Windows users: Please use uninstall.ps1 instead
+
 # ANSI color codes.
 RED='\033[1;31m'
 GREEN='\033[1;32m'
@@ -36,9 +38,6 @@ case "$OS" in
 Linux | Darwin)
 	INSTALL_DIR="/usr/local/bin"
 	;;
-MINGW* | CYGWIN* | MSYS*)
-	INSTALL_DIR="$HOME/AppData/Local/Programs"
-	;;
 *)
 	log_error "Unsupported OS: $OS"
 	exit 1
@@ -46,9 +45,6 @@ MINGW* | CYGWIN* | MSYS*)
 esac
 
 TARGET_PATH="${INSTALL_DIR}/${BIN_NAME}"
-if [[ "$OS" == MINGW* || "$OS" == CYGWIN* || "$OS" == MSYS* ]]; then
-	TARGET_PATH="${INSTALL_DIR}/${BIN_NAME}.exe"
-fi
 
 log_info "Removing installed binary at ${YELLOW}$TARGET_PATH${RESET}..."
 if [ -f "${TARGET_PATH}" ]; then
