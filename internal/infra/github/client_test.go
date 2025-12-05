@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -67,21 +68,21 @@ func TestGetAssetURL(t *testing.T) {
 					1000,
 				),
 			},
-			wantErr: false,
+			wantErr: !(runtime.GOOS == "linux" && runtime.GOARCH == "amd64"),
 		},
 		{
 			name: "macos asset found",
 			assets: []release.Asset{
 				release.NewAsset("nvim-macos.tar.gz", "https://example.com/macos.tar.gz", 1000),
 			},
-			wantErr: false,
+			wantErr: runtime.GOOS != "darwin",
 		},
 		{
 			name: "windows asset found",
 			assets: []release.Asset{
 				release.NewAsset("nvim-win64.zip", "https://example.com/win.zip", 1000),
 			},
-			wantErr: false,
+			wantErr: runtime.GOOS != "windows",
 		},
 		{
 			name:       "no matching asset",
@@ -94,7 +95,7 @@ func TestGetAssetURL(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			rel := release.New("v0.10.0", false, "abc123", time.Now(), testCase.assets)
-			_, _, err := github.GetAssetURL(rel)
+			url, _, err := github.GetAssetURL(rel)
 
 			if testCase.wantErr {
 				if err == nil {
@@ -102,9 +103,15 @@ func TestGetAssetURL(t *testing.T) {
 				} else if testCase.errContain != "" && !strings.Contains(err.Error(), testCase.errContain) {
 					t.Errorf("GetAssetURL() error = %q, want to contain %q", err.Error(), testCase.errContain)
 				}
+			} else {
+				if err != nil {
+					t.Errorf("GetAssetURL() expected no error, got %v", err)
+				}
+				if url == "" {
+					t.Errorf("GetAssetURL() expected URL, got empty")
+				}
 			}
-			// Note: We can't fully test platform-specific behavior in unit tests
-			// because it depends on runtime.GOOS/GOARCH
+			// Note: Platform-specific asset matching depends on runtime.GOOS/GOARCH
 		})
 	}
 }
