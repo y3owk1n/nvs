@@ -4,7 +4,7 @@ This guide covers all available methods to install **nvs** on your system.
 
 ## Prerequisites
 
-- **Operating System:** macOS (Intel & Apple Silicon), Linux, or Windows
+- **Operating System:** macOS (Intel & Apple Silicon), Linux, or Windows (PowerShell required)
 - **Permissions:** Ability to create symlinks (may require administrator privileges on Windows)
 
 > [!warning]
@@ -19,8 +19,23 @@ The easiest way to install **nvs** is using our installation script, which autom
 > [!warning]
 > Always review remote scripts before execution. Inspect the script contents at [install.sh](https://github.com/y3owk1n/nvs/blob/main/install.sh) to ensure safety.
 
+#### Unix-like Systems (Linux, macOS, WSL)
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/y3owk1n/nvs/main/install.sh | bash
+```
+
+#### Windows
+
+> [!warning]
+> Windows support is not fully tested as the author does not use Windows. Please report any issues and feel free to contribute improvements.
+
+For Windows users, use the PowerShell installation script:
+
+```powershell
+# Download and run the installer
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/y3owk1n/nvs/main/install.ps1" -OutFile "install.ps1"
+.\install.ps1
 ```
 
 > [!note]
@@ -30,8 +45,21 @@ curl -fsSL https://raw.githubusercontent.com/y3owk1n/nvs/main/install.sh | bash
 
 If you need to uninstall **nvs**, use the provided uninstall script:
 
+**Unix-like Systems (Linux, macOS, WSL):**
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/y3owk1n/nvs/main/uninstall.sh | bash
+```
+
+**Windows:**
+
+> [!warning]
+> Windows support is not fully tested as the author does not use Windows. Please report any issues and feel free to contribute improvements.
+
+```powershell
+# Download and run the uninstaller
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/y3owk1n/nvs/main/uninstall.ps1" -OutFile "uninstall.ps1"
+.\uninstall.ps1
 ```
 
 ### Method 2: Homebrew (macOS/Linux)
@@ -191,11 +219,12 @@ nvs --help
 
 ### Windows Issues
 
-**nvs** has limited Windows support. If you encounter issues:
+**nvs** supports Windows through native PowerShell scripts. If you encounter issues:
 
-- Ensure you're running in an administrator terminal for symlink creation
-- Check that your antivirus isn't blocking the binary
-- Verify PATH environment variables are set correctly
+- Ensure you're running PowerShell with appropriate permissions (no admin required for user installation)
+- Check that your antivirus isn't blocking the binary download
+- Verify PATH environment variables are set correctly (restart terminal after installation)
+- The installer automatically adds **nvs** to your user PATH
 
 ### Permission Issues
 

@@ -1,3 +1,4 @@
+# For Windows users: Please use install.ps1 instead
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -72,29 +73,24 @@ Linux)
 	esac
 	;;
 Darwin)
-	INSTALL_DIR="/usr/local/bin"
-	case "$ARCH" in
-	x86_64)
-		ASSET="${BIN_NAME}-darwin-amd64"
-		;;
-	arm64)
-		ASSET="${BIN_NAME}-darwin-arm64"
-		;;
-	*)
-		log_error "Unsupported architecture: $ARCH"
-		exit 1
-		;;
-	esac
-	;;
-MINGW* | CYGWIN* | MSYS*)
-	INSTALL_DIR="$HOME/AppData/Local/Programs"
-	mkdir -p "$INSTALL_DIR"
-	ASSET="${BIN_NAME}-windows64.exe"
-	;;
-*)
-	log_error "Unsupported OS: $OS"
-	exit 1
-	;;
+ 	INSTALL_DIR="/usr/local/bin"
+ 	case "$ARCH" in
+ 	x86_64)
+ 		ASSET="${BIN_NAME}-darwin-amd64"
+ 		;;
+ 	arm64)
+ 		ASSET="${BIN_NAME}-darwin-arm64"
+ 		;;
+ 	*)
+ 		log_error "Unsupported architecture: $ARCH"
+ 		exit 1
+ 		;;
+ 	esac
+ 	;;
+ *)
+ 	log_error "Unsupported OS: $OS"
+ 	exit 1
+ 	;;
 esac
 
 log_info "Detected OS: ${YELLOW}$OS${RESET}"
@@ -150,16 +146,11 @@ else
 fi
 # --- End Checksum Verification ---
 
-# Make executable if not on Windows.
-if [[ "$OS" != MINGW* && "$OS" != CYGWIN* && "$OS" != MSYS* ]]; then
-	chmod +x "$TMP_FILE"
-fi
+# Make executable
+chmod +x "$TMP_FILE"
 
 # Set final target path.
 TARGET_PATH="${INSTALL_DIR}/${BIN_NAME}"
-if [[ "$OS" == MINGW* || "$OS" == CYGWIN* || "$OS" == MSYS* ]]; then
-	TARGET_PATH="${INSTALL_DIR}/${BIN_NAME}.exe"
-fi
 
 log_info "Installing to ${YELLOW}$TARGET_PATH${RESET}"
 if [ ! -w "$INSTALL_DIR" ]; then
