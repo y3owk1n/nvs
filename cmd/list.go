@@ -89,41 +89,41 @@ func RunList(cmd *cobra.Command, _ []string) error {
 		data := map[string]any{"versions": infos}
 
 		return outputJSON(data)
-	} else {
-		// Set up a table for displaying versions and their status.
-		table := tablewriter.NewWriter(os.Stdout)
-		table.SetHeader([]string{"Version", "Status"})
-		table.SetHeaderColor(
-			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
-			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
-		)
-		table.SetTablePadding("1")
-		table.SetBorder(false)
-		table.SetRowLine(false)
-		table.SetCenterSeparator("")
-		table.SetColumnSeparator("")
-		table.SetAutoWrapText(false)
+	}
 
-		// Append each version to the table.
-		for _, version := range versions {
-			var row []string
-			if current.Name() != "" && version.Name() == current.Name() {
-				// Mark the current version with an arrow and use a highlighted green color.
-				row = []string{
-					color.New(color.Bold, color.FgHiGreen).Sprintf("→ %s", version.Name()),
-					color.New(color.Bold, color.FgHiGreen).Sprintf("Current"),
-				}
-				logrus.Debugf("Marked version %s as current", version.Name())
-			} else {
-				row = []string{version.Name(), "Installed"}
+	// Set up a table for displaying versions and their status.
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"Version", "Status"})
+	table.SetHeaderColor(
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
+		tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
+	)
+	table.SetTablePadding("1")
+	table.SetBorder(false)
+	table.SetRowLine(false)
+	table.SetCenterSeparator("")
+	table.SetColumnSeparator("")
+	table.SetAutoWrapText(false)
+
+	// Append each version to the table.
+	for _, version := range versions {
+		var row []string
+		if current.Name() != "" && version.Name() == current.Name() {
+			// Mark the current version with an arrow and use a highlighted green color.
+			row = []string{
+				color.New(color.Bold, color.FgHiGreen).Sprintf("→ %s", version.Name()),
+				color.New(color.Bold, color.FgHiGreen).Sprintf("Current"),
 			}
-
-			table.Append(row)
+			logrus.Debugf("Marked version %s as current", version.Name())
+		} else {
+			row = []string{version.Name(), "Installed"}
 		}
 
-		// Render the table to the standard output.
-		table.Render()
+		table.Append(row)
 	}
+
+	// Render the table to the standard output.
+	table.Render()
 
 	return nil
 }
