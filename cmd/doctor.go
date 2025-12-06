@@ -20,8 +20,16 @@ var doctorCmd = &cobra.Command{
 	RunE:  RunDoctor,
 }
 
+// CheckResult represents the result of a system check.
+type CheckResult struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+}
+
 // RunDoctor executes the doctor command.
-func RunDoctor(cmd *cobra.Command, args []string) error {
+func RunDoctor(cmd *cobra.Command, _ []string) error {
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+
 	checks := []struct {
 		name  string
 		check func() error
@@ -33,33 +41,54 @@ func RunDoctor(cmd *cobra.Command, args []string) error {
 		{"Permissions", checkPermissions},
 	}
 
-	var issues []string
+	var (
+		issues  []string
+		results = make([]CheckResult, 0, len(checks))
+	)
 
 	for _, check := range checks {
-		_, _ = fmt.Fprintf(os.Stdout, "Checking %s... ", check.name)
+		if !jsonOutput {
+			_, _ = fmt.Fprintf(os.Stdout, "Checking %s... ", check.name)
+		}
 
 		err := check.check()
+
+		status := "ok"
 		if err != nil {
-			_, _ = fmt.Fprintf(os.Stdout, "%s\n", ui.ErrorIcon())
+			status = "error"
 
 			issues = append(issues, fmt.Sprintf("%s: %v", check.name, err))
-		} else {
-			_, _ = fmt.Fprintf(os.Stdout, "%s\n", ui.SuccessIcon())
+		}
+
+		results = append(results, CheckResult{Name: check.name, Status: status})
+
+		if !jsonOutput {
+			if err != nil {
+				_, _ = fmt.Fprintf(os.Stdout, "%s\n", ui.ErrorIcon())
+			} else {
+				_, _ = fmt.Fprintf(os.Stdout, "%s\n", ui.SuccessIcon())
+			}
 		}
 	}
 
-	if len(issues) > 0 {
-		_, _ = fmt.Fprintf(os.Stdout, "%s\n", ui.RedText("Issues found:"))
+	if jsonOutput {
+		data := map[string]any{"checks": results, "issues": issues}
 
-		for _, issue := range issues {
-			_, _ = fmt.Fprintf(os.Stdout, "  - %s\n", issue)
+		return outputJSON(data)
+	} else {
+		if len(issues) > 0 {
+			_, _ = fmt.Fprintf(os.Stdout, "%s\n", ui.RedText("Issues found:"))
+
+			for _, issue := range issues {
+				_, _ = fmt.Fprintf(os.Stdout, "  - %s\n", issue)
+			}
+
+			return fmt.Errorf("%w: %d issue(s)", ErrIssuesFound, len(issues))
 		}
 
-		return fmt.Errorf("%w: %d issue(s)", ErrIssuesFound, len(issues))
+		_, _ = fmt.Fprintf(os.Stdout,
+			"%s\n", ui.GreenText("No issues found! You are ready to go."))
 	}
-
-	_, _ = fmt.Fprintf(os.Stdout,
-		"%s\n", ui.GreenText("No issues found! You are ready to go."))
 
 	return nil
 }
@@ -193,5 +222,6 @@ func checkPermissions() error {
 }
 
 func init() {
+	doctorCmd.Flags().Bool("json", false, "Output in JSON format")
 	rootCmd.AddCommand(doctorCmd)
 }

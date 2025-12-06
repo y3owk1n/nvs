@@ -151,6 +151,16 @@ nvs config                   # Interactive selection
 nvs config nvim-test         # Direct switch
 ```
 
+### Scripting Support
+
+All listing and status commands support `--json` for machine-readable output:
+
+```bash
+nvs list --json              # Installed versions as JSON
+nvs current --json           # Current version details as JSON
+nvs doctor --json            # System checks as JSON
+```
+
 ---
 
 ## System Requirements

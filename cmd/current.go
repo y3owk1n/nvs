@@ -29,7 +29,7 @@ var currentCmd = &cobra.Command{
 }
 
 // RunCurrent executes the current command.
-func RunCurrent(_ *cobra.Command, _ []string) error {
+func RunCurrent(cmd *cobra.Command, _ []string) error {
 	logrus.Debug("Executing current command")
 
 	current, err := GetVersionService().Current()
@@ -39,50 +39,76 @@ func RunCurrent(_ *cobra.Command, _ []string) error {
 
 	logrus.Debugf("Current version detected: %s", current.Name())
 
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+
+	type CurrentInfo struct {
+		Name      string `json:"name"`
+		Type      string `json:"type"`
+		Version   string `json:"version,omitempty"`
+		Commit    string `json:"commit,omitempty"`
+		Published string `json:"published,omitempty"`
+	}
+
+	var info CurrentInfo
+
 	// Handle active version
 	switch current.Name() {
 	case constants.Stable:
 		logrus.Debug("Fetching latest stable release")
 
+		info.Name = constants.Stable
+		info.Type = "stable"
+
 		stable, err := GetVersionService().FindStable(context.Background())
 		if err != nil {
 			logrus.Warnf("Error fetching latest stable release: %v", err)
 
-			_, err = fmt.Fprintf(os.Stdout,
-				"%s %s\n",
-				ui.InfoIcon(),
-				ui.WhiteText("stable (version details unavailable)"),
-			)
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
+			if !jsonOutput {
+				_, err = fmt.Fprintf(os.Stdout,
+					"%s %s\n",
+					ui.InfoIcon(),
+					ui.WhiteText("stable (version details unavailable)"),
+				)
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
 			}
 		} else {
-			_, err = fmt.Fprintf(os.Stdout, "%s %s\n", ui.InfoIcon(), ui.CyanText(constants.Stable))
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
-			}
+			info.Version = stable.TagName()
 
-			_, err = fmt.Fprintf(os.Stdout, "  %s\n", ui.WhiteText("Version: "+stable.TagName()))
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
+			if !jsonOutput {
+				_, err = fmt.Fprintf(os.Stdout, "%s %s\n", ui.InfoIcon(), ui.CyanText(constants.Stable))
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
+
+				_, err = fmt.Fprintf(os.Stdout, "  %s\n", ui.WhiteText("Version: "+stable.TagName()))
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
 			}
 
 			logrus.Debugf("Latest stable version: %s", stable.TagName())
 		}
-	case "nightly":
+	case constants.Nightly:
 		logrus.Debug("Fetching latest nightly release")
+
+		info.Name = constants.Nightly
+		info.Type = "nightly"
 
 		nightly, err := GetVersionService().FindNightly(context.Background())
 		if err != nil {
 			logrus.Warnf("Error fetching latest nightly release: %v", err)
 
-			_, err = fmt.Fprintf(os.Stdout,
-				"%s %s\n",
-				ui.InfoIcon(),
-				ui.WhiteText("nightly (version details unavailable)"),
-			)
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
+			if !jsonOutput {
+				_, err = fmt.Fprintf(os.Stdout,
+					"%s %s\n",
+					ui.InfoIcon(),
+					ui.WhiteText("nightly (version details unavailable)"),
+				)
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
 			}
 		} else {
 			shortCommit := nightly.CommitHash()
@@ -92,19 +118,24 @@ func RunCurrent(_ *cobra.Command, _ []string) error {
 
 			publishedStr := nightly.PublishedAt().Format("2006-01-02")
 
-			_, err = fmt.Fprintf(os.Stdout, "%s %s\n", ui.InfoIcon(), ui.CyanText("nightly"))
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
-			}
+			info.Commit = shortCommit
+			info.Published = publishedStr
 
-			_, err = fmt.Fprintf(os.Stdout, "  %s\n", ui.WhiteText("Published: "+publishedStr))
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
-			}
+			if !jsonOutput {
+				_, err = fmt.Fprintf(os.Stdout, "%s %s\n", ui.InfoIcon(), ui.CyanText("nightly"))
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
 
-			_, err = fmt.Fprintf(os.Stdout, "  %s\n", ui.WhiteText("Commit: "+shortCommit))
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
+				_, err = fmt.Fprintf(os.Stdout, "  %s\n", ui.WhiteText("Published: "+publishedStr))
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
+
+				_, err = fmt.Fprintf(os.Stdout, "  %s\n", ui.WhiteText("Commit: "+shortCommit))
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
 			}
 
 			logrus.Debugf("Latest nightly commit: %s, Published: %s", shortCommit, publishedStr)
@@ -114,30 +145,45 @@ func RunCurrent(_ *cobra.Command, _ []string) error {
 		isCommitHash := GetVersionService().IsCommitReference(current.Name())
 		logrus.Debugf("isCommitHash: %t", isCommitHash)
 
-		if isCommitHash {
-			logrus.Debugf("Displaying custom commit hash: %s", current.Name())
+		info.Name = current.Name()
 
-			_, err = fmt.Fprintf(os.Stdout,
-				"%s %s\n",
-				ui.InfoIcon(),
-				ui.WhiteText(fmt.Sprintf("commit (%s)", current.Name())),
-			)
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
+		if isCommitHash {
+			info.Type = "commit"
+
+			if !jsonOutput {
+				logrus.Debugf("Displaying custom commit hash: %s", current.Name())
+
+				_, err = fmt.Fprintf(os.Stdout,
+					"%s %s\n",
+					ui.InfoIcon(),
+					ui.WhiteText(fmt.Sprintf("commit (%s)", current.Name())),
+				)
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
 			}
 		} else {
-			logrus.Debugf("Displaying custom version: %s", current.Name())
+			info.Type = "tag"
 
-			_, err = fmt.Fprintf(os.Stdout, "%s %s\n", ui.InfoIcon(), ui.WhiteText(current.Name()))
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
+			if !jsonOutput {
+				logrus.Debugf("Displaying custom version: %s", current.Name())
+
+				_, err = fmt.Fprintf(os.Stdout, "%s %s\n", ui.InfoIcon(), ui.WhiteText(current.Name()))
+				if err != nil {
+					logrus.Warnf("Failed to write to stdout: %v", err)
+				}
 			}
 		}
+	}
+
+	if jsonOutput {
+		return outputJSON(info)
 	}
 
 	return nil
 }
 
 func init() {
+	currentCmd.Flags().Bool("json", false, "Output in JSON format")
 	rootCmd.AddCommand(currentCmd)
 }

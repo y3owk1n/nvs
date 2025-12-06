@@ -27,7 +27,7 @@ var listCmd = &cobra.Command{
 }
 
 // RunList executes the list command.
-func RunList(_ *cobra.Command, _ []string) error {
+func RunList(cmd *cobra.Command, _ []string) error {
 	logrus.Debug("Executing list command")
 
 	// Retrieve installed versions from the version service.
@@ -63,44 +63,73 @@ func RunList(_ *cobra.Command, _ []string) error {
 		logrus.Debugf("Current version: %s", current.Name())
 	}
 
-	// Set up a table for displaying versions and their status.
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Version", "Status"})
-	table.SetHeaderColor(
-		tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
-		tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
-	)
-	table.SetTablePadding("1")
-	table.SetBorder(false)
-	table.SetRowLine(false)
-	table.SetCenterSeparator("")
-	table.SetColumnSeparator("")
-	table.SetAutoWrapText(false)
-
-	// Append each version to the table.
-	for _, version := range versions {
-		var row []string
-		if current.Name() != "" && version.Name() == current.Name() {
-			// Mark the current version with an arrow and use a highlighted green color.
-			row = []string{
-				color.New(color.Bold, color.FgHiGreen).Sprintf("→ %s", version.Name()),
-				color.New(color.Bold, color.FgHiGreen).Sprintf("Current"),
-			}
-			logrus.Debugf("Marked version %s as current", version.Name())
-		} else {
-			row = []string{version.Name(), "Installed"}
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+	if jsonOutput {
+		// Output in JSON format
+		type VersionInfo struct {
+			Name   string `json:"name"`
+			Status string `json:"status"`
+			Type   string `json:"type"`
 		}
 
-		table.Append(row)
-	}
+		var infos []VersionInfo
+		for _, version := range versions {
+			status := "installed"
+			if current.Name() != "" && version.Name() == current.Name() {
+				status = "current"
+			}
 
-	// Render the table to the standard output.
-	table.Render()
+			infos = append(infos, VersionInfo{
+				Name:   version.Name(),
+				Status: status,
+				Type:   version.Type().String(),
+			})
+		}
+
+		data := map[string]any{"versions": infos}
+
+		return outputJSON(data)
+	} else {
+		// Set up a table for displaying versions and their status.
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetHeader([]string{"Version", "Status"})
+		table.SetHeaderColor(
+			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
+			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
+		)
+		table.SetTablePadding("1")
+		table.SetBorder(false)
+		table.SetRowLine(false)
+		table.SetCenterSeparator("")
+		table.SetColumnSeparator("")
+		table.SetAutoWrapText(false)
+
+		// Append each version to the table.
+		for _, version := range versions {
+			var row []string
+			if current.Name() != "" && version.Name() == current.Name() {
+				// Mark the current version with an arrow and use a highlighted green color.
+				row = []string{
+					color.New(color.Bold, color.FgHiGreen).Sprintf("→ %s", version.Name()),
+					color.New(color.Bold, color.FgHiGreen).Sprintf("Current"),
+				}
+				logrus.Debugf("Marked version %s as current", version.Name())
+			} else {
+				row = []string{version.Name(), "Installed"}
+			}
+
+			table.Append(row)
+		}
+
+		// Render the table to the standard output.
+		table.Render()
+	}
 
 	return nil
 }
 
 // init registers the listCmd with the root command.
 func init() {
+	listCmd.Flags().Bool("json", false, "Output in JSON format")
 	rootCmd.AddCommand(listCmd)
 }

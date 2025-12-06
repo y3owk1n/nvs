@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -116,4 +118,17 @@ func copyFile(src, dst string) error {
 	}
 
 	return dstFile.Sync()
+}
+
+// outputJSON marshals the given data to indented JSON and prints it to stdout.
+// Returns an error if marshaling fails.
+func outputJSON(data any) error {
+	jsonBytes, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return fmt.Errorf("error marshaling JSON: %w", err)
+	}
+
+	_, _ = os.Stdout.WriteString(string(jsonBytes) + "\n")
+
+	return nil
 }
