@@ -189,7 +189,8 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 
 	_, printErr = fmt.Fprintf(
 		os.Stdout,
-		"View full changelog: https://github.com/neovim/neovim/compare/%s...%s\n\n",
+		"View full changelog: %s/neovim/neovim/compare/%s...%s\n\n",
+		constants.DefaultGitHubBaseURL,
 		shortHash(oldCommit, constants.DisplayHashLength),
 		shortHash(newCommit, constants.DisplayHashLength),
 	)
