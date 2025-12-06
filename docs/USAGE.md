@@ -145,6 +145,7 @@ Show all installed versions on your system.
 ```bash
 nvs list
 nvs ls      # Shorthand
+nvs list --json  # JSON output
 ```
 
 **Output example:**
@@ -152,8 +153,27 @@ nvs ls      # Shorthand
 ```text
    VERSION    STATUS
 ------------------------
-  → nightly  Current
-  stable     Installed
+ → nightly  Current
+ stable     Installed
+```
+
+**JSON output example:**
+
+```json
+{
+  "versions": [
+    {
+      "name": "nightly",
+      "status": "current",
+      "type": "nightly"
+    },
+    {
+      "name": "stable",
+      "status": "installed",
+      "type": "stable"
+    }
+  ]
+}
 ```
 
 ---
@@ -166,6 +186,7 @@ Show available versions from GitHub. Results are cached for 5 minutes.
 nvs list-remote
 nvs ls-remote           # Shorthand
 nvs list-remote --force # Bypass cache
+nvs list-remote --json  # JSON output
 ```
 
 **Output example:**
@@ -178,6 +199,27 @@ nvs list-remote --force # Bypass cache
   v0.11.5  Not Installed
   v0.10.4  Not Installed
   ...
+```
+
+**JSON output example:**
+
+```json
+{
+  "releases": [
+    {
+      "tag": "nightly",
+      "status": "current",
+      "details": "Published: 2025-12-05, Commit: 903335a",
+      "prerelease": true
+    },
+    {
+      "tag": "stable",
+      "status": "installed",
+      "details": "stable version: v0.11.5",
+      "prerelease": false
+    }
+  ]
+}
 ```
 
 **Status meanings:**
@@ -195,6 +237,7 @@ Display the currently active Neovim version with details.
 
 ```bash
 nvs current
+nvs current --json  # JSON output
 ```
 
 **Output example:**
@@ -203,6 +246,17 @@ nvs current
 ℹ nightly
   Published: 2025-12-05
   Commit: 903335a
+```
+
+**JSON output example:**
+
+```json
+{
+  "name": "nightly",
+  "type": "nightly",
+  "commit": "903335a",
+  "published": "2025-12-05"
+}
 ```
 
 ---
@@ -329,8 +383,29 @@ Print environment configuration. Useful for debugging or manual setup.
 
 ```bash
 nvs env                     # Show current config
+nvs env --json              # JSON output
 nvs env --source            # Output for shell eval
 nvs env --source --shell zsh  # Specify shell explicitly
+```
+
+**Output example:**
+
+```text
+   VARIABLE     VALUE
+----------------------------------
+ NVS_CONFIG_DIR  /home/user/.config/nvs
+ NVS_CACHE_DIR   /home/user/.cache/nvs
+ NVS_BIN_DIR     /home/user/.local/bin
+```
+
+**JSON output example:**
+
+```json
+{
+  "NVS_CONFIG_DIR": "/home/user/.config/nvs",
+  "NVS_CACHE_DIR": "/home/user/.cache/nvs",
+  "NVS_BIN_DIR": "/home/user/.local/bin"
+}
 ```
 
 ---
@@ -377,6 +452,36 @@ Check system health and diagnose potential issues.
 
 ```bash
 nvs doctor
+nvs doctor --json  # JSON output
+```
+
+**Output example:**
+
+```text
+Checking Shell... ✓
+Checking Environment variables... ✓
+Checking PATH... ✓
+Checking Dependencies... ✓
+Checking Permissions... ✓
+No issues found! You are ready to go.
+```
+
+**JSON output example:**
+
+```json
+{
+  "checks": [
+    {
+      "name": "Shell",
+      "status": "ok"
+    },
+    {
+      "name": "Environment variables",
+      "status": "ok"
+    }
+  ],
+  "issues": []
+}
 ```
 
 **Checks performed:**

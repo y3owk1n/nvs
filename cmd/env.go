@@ -52,7 +52,12 @@ func RunEnv(cmd *cobra.Command, _ []string) error {
 
 	source, _ := cmd.Flags().GetBool("source")
 	shell, _ := cmd.Flags().GetString("shell")
-	logrus.Debugf("--source: %v, --shell: %q", source, shell)
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+	logrus.Debugf("--source: %v, --shell: %q, --json: %v", source, shell, jsonOutput)
+
+	if source && jsonOutput {
+		return ErrMutuallyExclusiveFlags
+	}
 
 	if source {
 		// Let's try to detect the shell we're running in
@@ -130,6 +135,16 @@ func RunEnv(cmd *cobra.Command, _ []string) error {
 		}
 
 		return nil
+	}
+
+	if jsonOutput {
+		data := map[string]string{
+			"NVS_CONFIG_DIR": configDir,
+			"NVS_CACHE_DIR":  cacheDir,
+			"NVS_BIN_DIR":    binDir,
+		}
+
+		return outputJSON(data)
 	}
 
 	// Create a table to display the configuration variables.
@@ -290,4 +305,6 @@ func init() {
 		Bool("source", false, "Export environment variables so that they can be piped in source")
 	envCmd.Flags().
 		String("shell", "", "Shell type for --source output (bash|zsh|sh|fish). Auto-detected if not provided.")
+	envCmd.Flags().
+		Bool("json", false, "Output in JSON format")
 }

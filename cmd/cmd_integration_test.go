@@ -4,6 +4,8 @@ package cmd_test
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -1575,4 +1577,329 @@ func createPlatformAssets() []release.Asset {
 	}
 
 	return assets
+}
+
+// TestRunList_JSON tests the list command with --json flag.
+func TestRunList_JSON(t *testing.T) {
+	if runtime.GOOS == constants.WindowsOS {
+		t.Skip("Skipping symlink test on Windows")
+	}
+
+	tempDir := t.TempDir()
+
+	// Set env var
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+
+	cmd.InitConfig()
+
+	// Create some version dirs
+	versions := []string{"v1.0.0", "v1.1.0"}
+	for _, v := range versions {
+		err := os.Mkdir(filepath.Join(cmd.GetVersionsDir(), v), 0o755)
+		if err != nil {
+			t.Fatalf("failed to create version dir: %v", err)
+		}
+	}
+
+	// Create current symlink
+	current := constants.TestVersion
+
+	err := os.Symlink(
+		filepath.Join(cmd.GetVersionsDir(), current),
+		filepath.Join(cmd.GetVersionsDir(), "current"),
+	)
+	if err != nil {
+		t.Fatalf("failed to create current symlink: %v", err)
+	}
+
+	// Capture stdout
+	oldStdout := os.Stdout
+
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	os.Stdout = writer
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.Flags().Bool("json", false, "")
+
+	err = cobraCmd.Flags().Set("json", "true")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cobraCmd.SetContext(context.Background())
+
+	err = cmd.RunList(cobraCmd, []string{})
+	if err != nil {
+		t.Errorf("RunList failed: %v", err)
+	}
+
+	// Close writer and restore stdout
+	_ = writer.Close()
+	os.Stdout = oldStdout
+
+	// Read captured output
+	output, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Parse JSON
+	var result map[string][]map[string]any
+
+	err = json.Unmarshal(output, &result)
+	if err != nil {
+		t.Fatalf("Failed to parse JSON: %v", err)
+	}
+
+	versionsResult, ok := result["versions"]
+	if !ok {
+		t.Error("Expected 'versions' key in JSON")
+	}
+
+	if len(versionsResult) != 2 {
+		t.Errorf("Expected 2 versions, got %d", len(versionsResult))
+	}
+
+	// Check that current is marked
+	foundCurrent := false
+	for _, v := range versionsResult {
+		if v["name"] == current && v["status"] == "current" {
+			foundCurrent = true
+		}
+	}
+
+	if !foundCurrent {
+		t.Error("Current version not marked correctly")
+	}
+}
+
+// TestRunCurrent_JSON tests the current command with --json flag.
+func TestRunCurrent_JSON(t *testing.T) {
+	if runtime.GOOS == constants.WindowsOS {
+		t.Skip("Skipping symlink test on Windows")
+	}
+
+	tempDir := t.TempDir()
+
+	// Set env vars
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
+
+	// Create current symlink to a version
+	version := constants.TestVersion
+	target := filepath.Join(cmd.GetVersionsDir(), version)
+
+	err := os.Mkdir(target, 0o755)
+	if err != nil {
+		t.Fatalf("failed to create version dir: %v", err)
+	}
+
+	err = os.Symlink(target, filepath.Join(cmd.GetVersionsDir(), "current"))
+	if err != nil {
+		t.Fatalf("failed to create current symlink: %v", err)
+	}
+
+	// Capture stdout
+	oldStdout := os.Stdout
+
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	os.Stdout = writer
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.Flags().Bool("json", false, "")
+
+	err = cobraCmd.Flags().Set("json", "true")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cobraCmd.SetContext(context.Background())
+
+	err = cmd.RunCurrent(cobraCmd, []string{})
+	if err != nil {
+		t.Errorf("RunCurrent failed: %v", err)
+	}
+
+	// Close writer and restore stdout
+	_ = writer.Close()
+	os.Stdout = oldStdout
+
+	// Read captured output
+	output, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Parse JSON
+	var result map[string]any
+
+	err = json.Unmarshal(output, &result)
+	if err != nil {
+		t.Fatalf("Failed to parse JSON: %v", err)
+	}
+
+	if result["name"] != version {
+		t.Errorf("Expected name %s, got %v", version, result["name"])
+	}
+
+	if result["type"] != "tag" {
+		t.Errorf("Expected type 'tag', got %v", result["type"])
+	}
+}
+
+// TestRunDoctor_JSON tests the doctor command with --json flag.
+func TestRunDoctor_JSON(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
+
+	// Capture stdout
+	oldStdout := os.Stdout
+
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	os.Stdout = writer
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.Flags().Bool("json", false, "")
+
+	err = cobraCmd.Flags().Set("json", "true")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cobraCmd.SetContext(context.Background())
+
+	_ = cmd.RunDoctor(cobraCmd, []string{})
+	// Doctor may return error if checks fail, but we check JSON output
+
+	// Close writer and restore stdout
+	_ = writer.Close()
+	os.Stdout = oldStdout
+
+	// Read captured output
+	output, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Parse JSON
+	var result map[string]any
+
+	err = json.Unmarshal(output, &result)
+	if err != nil {
+		t.Fatalf("Failed to parse JSON: %v", err)
+	}
+
+	checks, checksPresent := result["checks"]
+	if !checksPresent {
+		t.Error("Expected 'checks' key in JSON")
+	}
+
+	checksSlice, isArray := checks.([]any)
+	if !isArray {
+		t.Error("Expected checks to be array")
+	}
+
+	if len(checksSlice) == 0 {
+		t.Error("Expected at least one check in doctor output")
+	}
+
+	issues, issuesPresent := result["issues"]
+	if !issuesPresent {
+		t.Error("Expected 'issues' key in JSON")
+	}
+
+	issuesSlice, isArray := issues.([]any)
+	if !isArray {
+		t.Error("Expected issues to be array")
+	}
+	// Issues may be empty or not
+	_ = issuesSlice
+}
+
+// TestRunEnv_JSON tests the env command with --json flag.
+func TestRunEnv_JSON(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	cmd.InitConfig()
+
+	// Capture stdout
+	oldStdout := os.Stdout
+
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	os.Stdout = writer
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.Flags().Bool("source", false, "")
+	cobraCmd.Flags().String("shell", "", "")
+	cobraCmd.Flags().Bool("json", false, "")
+
+	err = cobraCmd.Flags().Set("json", "true")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cobraCmd.SetContext(context.Background())
+
+	err = cmd.RunEnv(cobraCmd, []string{})
+	if err != nil {
+		t.Errorf("RunEnv failed: %v", err)
+	}
+
+	// Close writer and restore stdout
+	_ = writer.Close()
+	os.Stdout = oldStdout
+
+	// Read captured output
+	output, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Parse JSON
+	var result map[string]string
+
+	err = json.Unmarshal(output, &result)
+	if err != nil {
+		t.Fatalf("Failed to parse JSON: %v", err)
+	}
+
+	if _, ok := result["NVS_CONFIG_DIR"]; !ok {
+		t.Error("Expected NVS_CONFIG_DIR in JSON")
+	}
+
+	if _, ok := result["NVS_CACHE_DIR"]; !ok {
+		t.Error("Expected NVS_CACHE_DIR in JSON")
+	}
+
+	if _, ok := result["NVS_BIN_DIR"]; !ok {
+		t.Error("Expected NVS_BIN_DIR in JSON")
+	}
 }

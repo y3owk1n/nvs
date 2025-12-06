@@ -33,7 +33,7 @@ var listRemoteCmd = &cobra.Command{
 }
 
 // RunListRemote executes the list-remote command.
-func RunListRemote(cmd *cobra.Command, args []string) error {
+func RunListRemote(cmd *cobra.Command, _ []string) error {
 	// Check if the user passed --force to bypass the cache.
 	force, _ := cmd.Flags().GetBool("force")
 
@@ -92,20 +92,39 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 
 	logrus.Debugf("Current version: %s", currentName)
 
-	// Prepare a table for displaying the remote releases and their status.
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Tag", "Status", "Details"})
-	table.SetHeaderColor(
-		tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
-		tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
-		tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
+	jsonOutput, err := cmd.Flags().GetBool("json")
+	if err != nil {
+		logrus.Warnf("Failed to read json flag: %v", err)
+	}
+
+	type ReleaseInfo struct {
+		Tag        string `json:"tag"`
+		Status     string `json:"status"`
+		Details    string `json:"details"`
+		Prerelease bool   `json:"prerelease"`
+	}
+
+	var (
+		infos []ReleaseInfo
+		table *tablewriter.Table
 	)
-	table.SetTablePadding("1")
-	table.SetBorder(false)
-	table.SetRowLine(false)
-	table.SetCenterSeparator("")
-	table.SetColumnSeparator("")
-	table.SetAutoWrapText(false)
+
+	if !jsonOutput {
+		// Prepare a table for displaying the remote releases and their status.
+		table = tablewriter.NewWriter(os.Stdout)
+		table.SetHeader([]string{"Tag", "Status", "Details"})
+		table.SetHeaderColor(
+			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
+			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
+			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
+		)
+		table.SetTablePadding("1")
+		table.SetBorder(false)
+		table.SetRowLine(false)
+		table.SetCenterSeparator("")
+		table.SetColumnSeparator("")
+		table.SetAutoWrapText(false)
+	}
 
 	// Iterate over the releases and build table rows with appropriate details and color-coding.
 	svc := GetVersionService()
@@ -192,23 +211,38 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 			tag = "(no tag)"
 		}
 
-		row := []string{tag, localStatus, details}
+		if jsonOutput {
+			infos = append(infos, ReleaseInfo{
+				Tag:        tag,
+				Status:     localStatus,
+				Details:    details,
+				Prerelease: release.Prerelease(),
+			})
+		} else {
+			row := []string{tag, localStatus, details}
 
-		// Colorize the row based on status.
-		switch baseStatus {
-		case "Current":
-			row = ui.ColorizeRow(row, color.New(color.FgGreen))
-		case "Installed":
-			row = ui.ColorizeRow(row, color.New(color.FgYellow))
-		default:
-			row = ui.ColorizeRow(row, color.New(color.FgWhite))
+			// Colorize the row based on status.
+			switch baseStatus {
+			case "Current":
+				row = ui.ColorizeRow(row, color.New(color.FgGreen))
+			case "Installed":
+				row = ui.ColorizeRow(row, color.New(color.FgYellow))
+			default:
+				row = ui.ColorizeRow(row, color.New(color.FgWhite))
+			}
+
+			table.Append(row)
 		}
-
-		table.Append(row)
 	}
 
-	// Render the table to standard output.
-	table.Render()
+	if jsonOutput {
+		data := map[string]any{"releases": infos}
+
+		return outputJSON(data)
+	} else {
+		// Render the table to standard output.
+		table.Render()
+	}
 
 	return nil
 }
@@ -216,5 +250,6 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 // init registers the listRemoteCmd with the root command.
 func init() {
 	listRemoteCmd.Flags().Bool("force", false, "Bypass cache and fetch latest releases")
+	listRemoteCmd.Flags().Bool("json", false, "Output in JSON format")
 	rootCmd.AddCommand(listRemoteCmd)
 }

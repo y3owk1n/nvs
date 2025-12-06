@@ -27,7 +27,7 @@ var listCmd = &cobra.Command{
 }
 
 // RunList executes the list command.
-func RunList(_ *cobra.Command, _ []string) error {
+func RunList(cmd *cobra.Command, _ []string) error {
 	logrus.Debug("Executing list command")
 
 	// Retrieve installed versions from the version service.
@@ -61,6 +61,34 @@ func RunList(_ *cobra.Command, _ []string) error {
 		logrus.Warn("No current version set or unable to determine the current version")
 	} else {
 		logrus.Debugf("Current version: %s", current.Name())
+	}
+
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+	if jsonOutput {
+		// Output in JSON format
+		type VersionInfo struct {
+			Name   string `json:"name"`
+			Status string `json:"status"`
+			Type   string `json:"type"`
+		}
+
+		var infos []VersionInfo
+		for _, version := range versions {
+			status := "installed"
+			if current.Name() != "" && version.Name() == current.Name() {
+				status = "current"
+			}
+
+			infos = append(infos, VersionInfo{
+				Name:   version.Name(),
+				Status: status,
+				Type:   version.Type().String(),
+			})
+		}
+
+		data := map[string]any{"versions": infos}
+
+		return outputJSON(data)
 	}
 
 	// Set up a table for displaying versions and their status.
@@ -102,5 +130,6 @@ func RunList(_ *cobra.Command, _ []string) error {
 
 // init registers the listCmd with the root command.
 func init() {
+	listCmd.Flags().Bool("json", false, "Output in JSON format")
 	rootCmd.AddCommand(listCmd)
 }
