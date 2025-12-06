@@ -256,7 +256,7 @@ func (b *SourceBuilder) checkRequiredTools(ctx context.Context) error {
 	requiredTools := []string{"git", "make", "cmake", "gettext", "ninja", "curl"}
 
 	checkCmd := "which"
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == constants.WindowsOS {
 		checkCmd = "where"
 	}
 

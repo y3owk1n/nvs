@@ -13,7 +13,7 @@ import (
 // IsNeovimRunning checks if any Neovim process is currently running.
 // Returns true if nvim is running, along with the count of running instances.
 func IsNeovimRunning() (bool, int) {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == constants.WindowsOS {
 		return isNeovimRunningWindows()
 	}
 

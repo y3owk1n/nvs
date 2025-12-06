@@ -108,7 +108,7 @@ func checkPath() error {
 func checkDependencies() error {
 	// Base dependencies needed for general nvs operation
 	baseDeps := []string{"git", "curl", "tar"}
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == constants.WindowsOS {
 		baseDeps = []string{"git", "tar"} // curl might be alias in PS
 	}
 

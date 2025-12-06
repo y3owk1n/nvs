@@ -41,7 +41,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	var err error
 
 	// On Windows, automatic PATH modifications are not implemented.
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == constants.WindowsOS {
 		// Use GetGlobalBinDir() to get the path
 		nvimBinDir := filepath.Join(GetGlobalBinDir(), "nvim", "bin")
 

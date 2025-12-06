@@ -431,7 +431,7 @@ func TestRunUse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if runtime.GOOS != "windows" {
+	if runtime.GOOS != constants.WindowsOS {
 		err = os.Chmod(binPath, 0o755)
 		if err != nil {
 			t.Fatalf("failed to chmod: %v", err)
