@@ -92,7 +92,10 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 
 	logrus.Debugf("Current version: %s", currentName)
 
-	jsonOutput, _ := cmd.Flags().GetBool("json")
+	jsonOutput, err := cmd.Flags().GetBool("json")
+	if err != nil {
+		logrus.Warnf("Failed to read json flag: %v", err)
+	}
 
 	type ReleaseInfo struct {
 		Tag        string `json:"tag"`
