@@ -25,11 +25,9 @@ runs:
       run: |
         Invoke-WebRequest -Uri "https://raw.githubusercontent.com/y3owk1n/nvs/main/install.ps1" -OutFile "install.ps1"
         .\install.ps1
-        # Add paths to GITHUB_PATH for CI
+        # Add nvs path to GITHUB_PATH for CI
         $nvsDir = "$env:LOCALAPPDATA\Programs\nvs"
-        $binDir = "$env:LOCALAPPDATA\Programs"
         echo "$nvsDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-        echo "$binDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
     - name: Install Neovim version
       if: inputs.version != ''
