@@ -811,10 +811,16 @@ func TestRunListRemote_Force(t *testing.T) {
 	cmd.SetVersionServiceForTesting(mockService)
 
 	cobraCmd := &cobra.Command{}
+	cobraCmd.Flags().Bool("force", false, "")
 	cobraCmd.SetContext(context.Background())
 
-	// Test with force argument
-	err = cmd.RunListRemote(cobraCmd, []string{"force"})
+	// Test with force flag
+	err = cobraCmd.Flags().Set("force", "true")
+	if err != nil {
+		t.Fatalf("Failed to set force flag: %v", err)
+	}
+
+	err = cmd.RunListRemote(cobraCmd, []string{})
 	if err != nil {
 		t.Errorf("RunListRemote with force failed: %v", err)
 	}
