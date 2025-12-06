@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.11.0](https://github.com/y3owk1n/nvs/compare/v1.10.7...v1.11.0) (2025-12-06)
+
+
+### Features
+
+* add --pick flag for interactive version selection ([#177](https://github.com/y3owk1n/nvs/issues/177)) ([e14d63f](https://github.com/y3owk1n/nvs/commit/e14d63fa1a10bd61448b7c2b94ef4d75749cb1a5))
+* add GitHub mirror support and run command ([#163](https://github.com/y3owk1n/nvs/issues/163)) ([bd4bff3](https://github.com/y3owk1n/nvs/commit/bd4bff3db7acce4f5172eb23fc02bbe58595eef0))
+* add shell integration and doctor command for enhanced user experience ([#166](https://github.com/y3owk1n/nvs/issues/166)) ([72f5115](https://github.com/y3owk1n/nvs/commit/72f511513cb006db6f3505013125f9d08ec91440))
+* add Windows PowerShell installer support ([#164](https://github.com/y3owk1n/nvs/issues/164)) ([c22ab5f](https://github.com/y3owk1n/nvs/commit/c22ab5f58fbde69def3a43f864713e1f3aff2ec9))
+* **cli:** add --json flag for machine-readable output ([#176](https://github.com/y3owk1n/nvs/issues/176)) ([4725540](https://github.com/y3owk1n/nvs/commit/472554041ffdfec086a27fd22978d3a14ff99b35))
+* enhance Neovim build-from-source dependencies and UI progress utilities ([#173](https://github.com/y3owk1n/nvs/issues/173)) ([195c99b](https://github.com/y3owk1n/nvs/commit/195c99bf6a87714cc8527d1e0a42e781984dae57))
+* **home-manager:** add comprehensive Home Manager support ([#167](https://github.com/y3owk1n/nvs/issues/167)) ([d9bfd10](https://github.com/y3owk1n/nvs/commit/d9bfd101f739f21d5b8b56a79d167d9385b3c323))
+* implement version pinning, nightly rollback, and changelog features ([#165](https://github.com/y3owk1n/nvs/issues/165)) ([f790182](https://github.com/y3owk1n/nvs/commit/f790182b10541cd1a6a76e3a02b9eee1b1d26354))
+* make list-remote command use --force flag consistently ([#175](https://github.com/y3owk1n/nvs/issues/175)) ([45d2bf9](https://github.com/y3owk1n/nvs/commit/45d2bf9ee75aa90887aa830648c4d6edaa12b274))
+* massive refactoring of the whole repo ([#157](https://github.com/y3owk1n/nvs/issues/157)) ([f63be45](https://github.com/y3owk1n/nvs/commit/f63be45da26b7926a15404a0757677fd3f6cfb7f))
+* **test:** enhance testing infrastructure with race detection and CI updates ([#171](https://github.com/y3owk1n/nvs/issues/171)) ([a69b0e2](https://github.com/y3owk1n/nvs/commit/a69b0e2e995c8c2babc2da1f9e2ba1dc75ff58be))
+* **ui:** add progress utilities and refactor spinner usage in install/upgrade ([#170](https://github.com/y3owk1n/nvs/issues/170)) ([44909d4](https://github.com/y3owk1n/nvs/commit/44909d4711921682011e798575c0661f3d0d6a90))
+
+
+### Bug Fixes
+
+* add missing build steps to CI workflow ([#162](https://github.com/y3owk1n/nvs/issues/162)) ([eef47a6](https://github.com/y3owk1n/nvs/commit/eef47a6d2185ee5104cb2156694ee1fc380a256e))
+* correct nightly alias case in upgrade command ([#153](https://github.com/y3owk1n/nvs/issues/153)) ([a937c62](https://github.com/y3owk1n/nvs/commit/a937c627b5c764da9f5bd46aa333c8f7b6f99521))
+* demote cache read failure log level to debug ([#158](https://github.com/y3owk1n/nvs/issues/158)) ([a30f381](https://github.com/y3owk1n/nvs/commit/a30f381528390bb322ee4b097c27f1c9539dfcdb))
+* enhance stable release handling in list-remote command ([#160](https://github.com/y3owk1n/nvs/issues/160)) ([b3a0c42](https://github.com/y3owk1n/nvs/commit/b3a0c42ac84ec4a60f1d2c1a8fe4a9f3a7a28f5a))
+* separate unit and integration tests, fix TestRunPath stdin mocking, and add development guide ([#155](https://github.com/y3owk1n/nvs/issues/155)) ([3713b9d](https://github.com/y3owk1n/nvs/commit/3713b9d3fac9665f026f37a5bce6a40d31fc5e65))
+* **upgrade:** add initial prefix to progress spinner ([#159](https://github.com/y3owk1n/nvs/issues/159)) ([d5556fe](https://github.com/y3owk1n/nvs/commit/d5556fe8e977568338b8b013a219862ceae629f6))
+
 ## [1.10.7](https://github.com/y3owk1n/nvs/compare/v1.10.6...v1.10.7) (2025-08-28)
 
 
