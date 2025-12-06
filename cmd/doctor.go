@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/ui"
@@ -28,7 +29,10 @@ type CheckResult struct {
 
 // RunDoctor executes the doctor command.
 func RunDoctor(cmd *cobra.Command, _ []string) error {
-	jsonOutput, _ := cmd.Flags().GetBool("json")
+	jsonOutput, err := cmd.Flags().GetBool("json")
+	if err != nil {
+		logrus.Warnf("Failed to read json flag: %v", err)
+	}
 
 	checks := []struct {
 		name  string
