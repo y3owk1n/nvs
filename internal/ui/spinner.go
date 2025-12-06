@@ -11,12 +11,13 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/sirupsen/logrus"
-	"github.com/y3owk1n/nvs/internal/constants"
 )
 
 // RunCommandWithSpinner executes the provided command with an active spinner that updates its suffix
 // based on the command's output. It captures both stdout and stderr and returns an error if the command fails.
 func RunCommandWithSpinner(ctx context.Context, spinner *spinner.Spinner, cmd *exec.Cmd) error {
+	const goroutineNum = 2
+
 	var err error
 
 	stdoutPipe, err := cmd.StdoutPipe()
@@ -59,7 +60,7 @@ func RunCommandWithSpinner(ctx context.Context, spinner *spinner.Spinner, cmd *e
 	}
 
 	var waitGroup sync.WaitGroup
-	waitGroup.Add(constants.GoroutineNum)
+	waitGroup.Add(goroutineNum)
 
 	go updateSpinner(stdoutPipe, &waitGroup)
 	go updateSpinner(stderrPipe, &waitGroup)
