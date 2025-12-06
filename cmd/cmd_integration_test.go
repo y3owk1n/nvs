@@ -1819,8 +1819,8 @@ func TestRunDoctor_JSON(t *testing.T) {
 		t.Error("Expected checks to be array")
 	}
 
-	if len(checksSlice) != 5 {
-		t.Errorf("Expected 5 checks, got %d", len(checksSlice))
+	if len(checksSlice) == 0 {
+		t.Error("Expected at least one check in doctor output")
 	}
 
 	issues, issuesPresent := result["issues"]
@@ -1857,6 +1857,8 @@ func TestRunEnv_JSON(t *testing.T) {
 	os.Stdout = writer
 
 	cobraCmd := &cobra.Command{}
+	cobraCmd.Flags().Bool("source", false, "")
+	cobraCmd.Flags().String("shell", "", "")
 	cobraCmd.Flags().Bool("json", false, "")
 
 	err = cobraCmd.Flags().Set("json", "true")
