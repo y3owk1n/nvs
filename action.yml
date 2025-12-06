@@ -1,0 +1,50 @@
+name: "Setup nvs (Neovim Version Switcher)"
+description: "Install nvs and optionally install and switch to a Neovim version"
+author: "Kyle Wong"
+inputs:
+  version:
+    description: "Neovim version to install and use (e.g., stable, nightly, v0.10.3)"
+    required: false
+    default: "stable"
+  install-nvs:
+    description: "Whether to install nvs"
+    required: false
+    default: "true"
+runs:
+  using: "composite"
+  steps:
+    - name: Install nvs (Linux/macOS)
+      if: inputs.install-nvs == 'true' && runner.os != 'Windows'
+      shell: bash
+      run: |
+        curl -fsSL https://raw.githubusercontent.com/y3owk1n/nvs/main/install.sh | bash
+
+    - name: Install nvs (Windows)
+      if: inputs.install-nvs == 'true' && runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/y3owk1n/nvs/main/install.ps1" -OutFile "install.ps1"
+        .\install.ps1
+        # Add paths to GITHUB_PATH for CI
+        $nvsDir = "$env:LOCALAPPDATA\Programs\nvs"
+        $binDir = "$env:LOCALAPPDATA\Programs"
+        echo "$nvsDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        echo "$binDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+    - name: Install Neovim version
+      if: inputs.version != ''
+      shell: bash
+      run: |
+        nvs install ${{ inputs.version }}
+
+    - name: Use Neovim version
+      if: inputs.version != ''
+      shell: bash
+      run: |
+        nvs use ${{ inputs.version }}
+
+    - name: Add Neovim to PATH (Unix)
+      if: inputs.version != '' && runner.os != 'Windows'
+      shell: bash
+      run: |
+        echo "$HOME/.local/bin" >> $GITHUB_PATH

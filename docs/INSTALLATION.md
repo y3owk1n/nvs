@@ -32,6 +32,7 @@ nvs install stable; nvs use stable
   - [Pre-built Binaries](#method-3-pre-built-binaries)
   - [Nix Flakes](#method-4-nix-flakes)
   - [Build from Source](#method-5-build-from-source)
+  - [GitHub Actions](#method-6-github-actions)
 - [Post-Installation Setup](#post-installation-setup)
 - [Upgrading nvs](#upgrading-nvs)
 - [Uninstalling](#uninstalling)
@@ -225,6 +226,71 @@ GOOS=linux GOARCH=amd64 go build -o nvs-linux-amd64 ./main.go
 # Windows
 GOOS=windows GOARCH=amd64 go build -o nvs-windows-amd64.exe ./main.go
 ```
+
+---
+
+### Method 6: GitHub Actions
+
+Use the **nvs** action in your GitHub workflows to install nvs and Neovim versions automatically.
+
+#### Basic Usage
+
+```yaml
+- uses: y3owk1n/nvs@main
+  with:
+    version: stable  # Install and use stable Neovim
+```
+
+#### Advanced Usage
+
+```yaml
+- uses: y3owk1n/nvs@main
+  with:
+    version: nightly  # Install nightly build
+    install-nvs: true  # Install nvs (default: true)
+```
+
+#### Inputs
+
+| Input       | Description                                      | Default | Required |
+|-------------|--------------------------------------------------|---------|----------|
+| `version`   | Neovim version to install/use (e.g., `stable`, `nightly`, `v0.10.3`) | `stable` | No |
+| `install-nvs` | Whether to install nvs                           | `true`  | No |
+
+#### Supported Platforms
+
+- **Linux:** `ubuntu-latest`, `ubuntu-20.04`, etc.
+- **macOS:** `macos-latest`, `macos-12`, etc.
+- **Windows:** `windows-latest`, `windows-2022`, etc.
+
+#### Example Workflow
+
+```yaml
+name: CI
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Neovim
+        uses: y3owk1n/nvs@main
+        with:
+          version: stable
+
+      - name: Verify Neovim
+        run: nvim --version
+```
+
+The action automatically:
+- Downloads and installs nvs using the official install scripts
+- Installs the specified Neovim version
+- Adds nvs and Neovim to the `PATH` for subsequent steps
+
+> [!TIP]
+> View the [action.yml](https://github.com/y3owk1n/nvs/blob/main/action.yml) source for implementation details.
 
 ---
 
