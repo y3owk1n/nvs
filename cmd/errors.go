@@ -61,4 +61,13 @@ var (
 
 	// ErrMutuallyExclusiveFlags is returned when --source and --json flags are both provided.
 	ErrMutuallyExclusiveFlags = errors.New("--source and --json flags are mutually exclusive")
+
+	// ErrNoVersionsAvailable is returned when no versions are available for picking.
+	ErrNoVersionsAvailable = errors.New("no versions available")
+
+	// ErrSelectionCanceled is returned when the user cancels the interactive selection.
+	ErrSelectionCanceled = errors.New("selection canceled")
+
+	// ErrVersionArgRequired is returned when version argument is required but not provided.
+	ErrVersionArgRequired = errors.New("version argument is required when --pick is not used")
 )

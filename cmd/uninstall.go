@@ -25,11 +25,12 @@ import (
 //
 //	nvs uninstall v0.6.0
 //	nvs rm stable
+//	nvs uninstall --pick
 var uninstallCmd = &cobra.Command{
-	Use:     "uninstall <version>",
+	Use:     "uninstall [version]",
 	Aliases: []string{"rm", "remove", "un"},
 	Short:   "Uninstall a specific version",
-	Args:    cobra.ExactArgs(1),
+	Args:    cobra.MaximumNArgs(1),
 	RunE:    RunUninstall,
 }
 
@@ -39,7 +40,59 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 
 	logrus.Debug("Running uninstall command")
 
-	versionArg := args[0]
+	var versionArg string
+
+	// Check if --pick flag is set
+	pick, _ := cmd.Flags().GetBool("pick")
+	if pick {
+		// Launch picker for installed versions
+		versions, err := GetVersionService().List()
+		if err != nil {
+			return fmt.Errorf("error listing versions: %w", err)
+		}
+
+		if len(versions) == 0 {
+			return fmt.Errorf("%w for selection", ErrNoVersionsAvailable)
+		}
+
+		availableVersions := make([]string, 0, len(versions))
+		for _, v := range versions {
+			availableVersions = append(availableVersions, v.Name())
+		}
+
+		prompt := promptui.Select{
+			Label: "Select version to uninstall",
+			Items: availableVersions,
+		}
+
+		_, selectedVersion, err := prompt.Run()
+		if err != nil {
+			if errors.Is(err, promptui.ErrInterrupt) {
+				_, printErr := fmt.Fprintf(
+					os.Stdout,
+					"%s %s\n",
+					ui.WarningIcon(),
+					ui.WhiteText("Selection canceled."),
+				)
+				if printErr != nil {
+					logrus.Warnf("Failed to write to stdout: %v", printErr)
+				}
+
+				return nil
+			}
+
+			return fmt.Errorf("prompt failed: %w", err)
+		}
+
+		versionArg = selectedVersion
+	} else {
+		if len(args) == 0 {
+			return fmt.Errorf("%w", ErrVersionArgRequired)
+		}
+
+		versionArg = args[0]
+	}
+
 	logrus.Debug("Requested version: ", versionArg)
 
 	// Check if the version to uninstall is currently active.
@@ -193,4 +246,5 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 // init registers the uninstallCmd with the root command.
 func init() {
 	rootCmd.AddCommand(uninstallCmd)
+	uninstallCmd.Flags().BoolP("pick", "p", false, "Launch interactive picker to select version")
 }

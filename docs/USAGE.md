@@ -6,22 +6,28 @@ Complete command reference for **nvs** – the Neovim Version Switcher.
 
 ## Quick Reference
 
-| Command                   | Description                   |
-| ------------------------- | ----------------------------- |
-| `nvs install <version>`   | Install a version             |
-| `nvs use <version>`       | Switch to a version           |
-| `nvs list`                | List installed versions       |
-| `nvs list-remote`         | List available versions       |
-| `nvs current`             | Show active version           |
-| `nvs upgrade [version]`   | Upgrade installed versions    |
-| `nvs uninstall <version>` | Remove a version              |
-| `nvs pin [version]`       | Pin version to directory      |
-| `nvs rollback [index]`    | Rollback nightly version      |
-| `nvs run <version>`       | Run version without switching |
-| `nvs config [name]`       | Switch Neovim config          |
-| `nvs doctor`              | System health check           |
-| `nvs hook <shell>`        | Generate auto-switch hook     |
-| `nvs env`                 | Print environment config      |
+| Command                   | Description                     |
+| ------------------------- | ------------------------------- |
+| `nvs install <version>`   | Install a version               |
+| `nvs install --pick`      | Install with interactive picker |
+| `nvs use <version>`       | Switch to a version             |
+| `nvs use --pick`          | Switch with interactive picker  |
+| `nvs list`                | List installed versions         |
+| `nvs list-remote`         | List available versions         |
+| `nvs current`             | Show active version             |
+| `nvs upgrade [version]`   | Upgrade installed versions      |
+| `nvs upgrade --pick`      | Upgrade with interactive picker |
+| `nvs uninstall <version>` | Remove a version                |
+| `nvs uninstall --pick`    | Remove with interactive picker  |
+| `nvs pin [version]`       | Pin version to directory        |
+| `nvs pin --pick`          | Pin with interactive picker     |
+| `nvs rollback [index]`    | Rollback nightly version        |
+| `nvs run <version>`       | Run version without switching   |
+| `nvs run --pick`          | Run with interactive picker     |
+| `nvs config [name]`       | Switch Neovim config            |
+| `nvs doctor`              | System health check             |
+| `nvs hook <shell>`        | Generate auto-switch hook       |
+| `nvs env`                 | Print environment config        |
 
 **Shorthands:** `i` (install), `ls` (list), `ls-remote` (list-remote), `rm`/`un` (uninstall), `up` (upgrade), `c`/`conf` (config)
 
@@ -47,14 +53,14 @@ Complete command reference for **nvs** – the Neovim Version Switcher.
 
 **nvs** supports multiple version formats:
 
-| Format     | Example               | Description                           |
-| ---------- | --------------------- | ------------------------------------- |
-| `stable`   | `nvs install stable`  | Latest stable release                 |
-| `nightly`  | `nvs install nightly` | Latest nightly build                  |
-| `vX.Y.Z`   | `nvs install v0.10.3` | Specific version tag                  |
-| `X.Y.Z`    | `nvs install 0.10.3`  | Version without `v` prefix            |
+| Format     | Example               | Description                                                        |
+| ---------- | --------------------- | ------------------------------------------------------------------ |
+| `stable`   | `nvs install stable`  | Latest stable release                                              |
+| `nightly`  | `nvs install nightly` | Latest nightly build                                               |
+| `vX.Y.Z`   | `nvs install v0.10.3` | Specific version tag                                               |
+| `X.Y.Z`    | `nvs install 0.10.3`  | Version without `v` prefix                                         |
 | `master`   | `nvs install master`  | Build from latest master commit (resolves to specific commit hash) |
-| `<commit>` | `nvs install 2db1ae3` | Build from specific commit (7+ chars) |
+| `<commit>` | `nvs install 2db1ae3` | Build from specific commit (7+ chars)                              |
 
 ---
 
@@ -76,18 +82,22 @@ nvs install master        # Latest master commit (resolves to specific hash)
 nvs install 2db1ae3       # Short commit hash
 nvs install 2db1ae37f14d71d1391110fe18709329263c77c9  # Full hash
 
+# Interactive selection
+nvs install --pick        # Choose from available remote versions
+
 # Shorthand
 nvs i stable
 ```
 
 > [!NOTE]
-> **Base dependencies** (required): `git`, `curl`, `tar`  
-> **Build dependencies** (for source builds): `make`, `cmake`, `gettext`, `ninja`  
-> nvs automatically checks for these dependencies. Run `nvs doctor` for detailed status.  
+> **Base dependencies** (required): `git`, `curl`, `tar`
+> **Build dependencies** (for source builds): `make`, `cmake`, `gettext`, `ninja`
+> nvs automatically checks for these dependencies. Run `nvs doctor` for detailed status.
 > Build operations show real-time progress with elapsed time and status updates.
 
 **Flags:**
 
+- `--pick`, `-p` – Launch interactive picker to select version from available remote releases
 - `--verbose`, `-v` – Enable detailed logging
 
 ---
@@ -104,6 +114,9 @@ nvs use nightly
 nvs use v0.10.3
 nvs use 2db1ae3
 
+# Interactive selection
+nvs use --pick
+
 # Without arguments, reads from .nvs-version file
 nvs use
 ```
@@ -113,6 +126,7 @@ nvs use
 
 **Flags:**
 
+- `--pick`, `-p` – Launch interactive picker to select version from installed versions
 - `--force`, `-f` – Skip the running Neovim check
 
 > [!WARNING]
@@ -129,10 +143,17 @@ nvs run stable
 nvs run nightly -- --clean
 nvs run v0.10.3 -- -c "checkhealth"
 nvs run nightly -- file.txt
+
+# Interactive selection
+nvs run --pick -- --clean
 ```
 
 > [!NOTE]
 > The version must already be installed. Arguments after `--` are passed to Neovim.
+
+**Flags:**
+
+- `--pick`, `-p` – Launch interactive picker to select version from installed versions
 
 ---
 
@@ -271,6 +292,7 @@ Upgrade installed stable and/or nightly versions to the latest release.
 nvs upgrade             # Upgrade both
 nvs upgrade stable      # Upgrade stable only
 nvs upgrade nightly     # Upgrade nightly only
+nvs upgrade --pick      # Interactive selection
 nvs up                  # Shorthand
 ```
 
@@ -278,6 +300,34 @@ nvs up                  # Shorthand
 > Compares stored identifiers (release tag for stable, commit hash for nightly) to determine if an upgrade is needed.
 
 When upgrading nightly, a changelog of commits since your last version is displayed.
+
+**Flags:**
+
+- `--pick`, `-p` – Launch interactive picker to select which versions to upgrade
+
+---
+
+## Removing Versions
+
+### `nvs uninstall <version>`
+
+Remove an installed Neovim version from your system.
+
+```bash
+nvs uninstall stable
+nvs uninstall nightly
+nvs uninstall v0.10.3
+nvs uninstall --pick        # Interactive selection
+nvs rm stable               # Shorthand
+nvs un nightly              # Shorthand
+```
+
+> [!WARNING]
+> If the version being uninstalled is currently active, you'll be prompted to confirm and optionally switch to another version.
+
+**Flags:**
+
+- `--pick`, `-p` – Launch interactive picker to select version from installed versions
 
 ---
 
@@ -291,12 +341,14 @@ Create a `.nvs-version` file to pin a version to the current directory.
 nvs pin stable          # Pin stable
 nvs pin nightly         # Pin nightly
 nvs pin v0.10.3         # Pin specific version
+nvs pin --pick          # Interactive selection
 nvs pin                 # Pin current version
 nvs pin -g stable       # Pin globally (~/.nvs-version)
 ```
 
 **Flags:**
 
+- `--pick`, `-p` – Launch interactive picker to select version from installed versions
 - `--global`, `-g` – Create pin file in home directory
 
 **How it works:**

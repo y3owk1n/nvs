@@ -373,7 +373,7 @@ nvs env --source --shell fish
 
 When building Neovim from source (commits), nvs automatically checks for the following required tools:
 
-**Base dependencies** (required for all nvs operations): `git`, `curl`, `tar`  
+**Base dependencies** (required for all nvs operations): `git`, `curl`, `tar`
 **Build dependencies** (required only for building from source): `make`, `cmake`, `gettext`, `ninja`
 
 - Missing base dependencies will prevent nvs from working and show error messages

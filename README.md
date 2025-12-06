@@ -86,15 +86,21 @@ nvim --version        # Verify installation
 | Command                   | Description                                                            |
 | ------------------------- | ---------------------------------------------------------------------- |
 | `nvs install <version>`   | Install a Neovim version (`stable`, `nightly`, `v0.10.3`, commit hash) |
+| `nvs install --pick`      | Install with interactive version picker                                |
 | `nvs use <version>`       | Switch to an installed version                                         |
+| `nvs use --pick`          | Switch with interactive version picker                                 |
 | `nvs list`                | List installed versions                                                |
 | `nvs list-remote`         | List available remote versions                                         |
 | `nvs current`             | Show currently active version                                          |
 | `nvs upgrade`             | Upgrade stable and/or nightly versions                                 |
+| `nvs upgrade --pick`      | Upgrade with interactive version picker                                |
 | `nvs uninstall <version>` | Remove an installed version                                            |
+| `nvs uninstall --pick`    | Remove with interactive version picker                                 |
 | `nvs pin [version]`       | Pin version to current directory (`.nvs-version`)                      |
+| `nvs pin --pick`          | Pin with interactive version picker                                    |
 | `nvs rollback`            | Rollback to a previous nightly version                                 |
 | `nvs run <version>`       | Run a version without switching                                        |
+| `nvs run --pick`          | Run with interactive version picker                                    |
 | `nvs config`              | Switch Neovim configuration                                            |
 | `nvs doctor`              | Check system health                                                    |
 | `nvs hook <shell>`        | Generate shell hook for auto-switching                                 |
@@ -174,7 +180,7 @@ nvs doctor --json            # System checks as JSON
 | Windows  | amd64                 | ✅ Fully supported |
 | Windows  | arm64                 | ✅ Fully supported |
 
-**Base dependencies:** `git`, `curl`, `tar`  
+**Base dependencies:** `git`, `curl`, `tar`
 **Build dependencies:** `make`, `cmake`, `gettext`, `ninja` (nvs checks for these automatically)
 
 ---

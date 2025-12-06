@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
+	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	appversion "github.com/y3owk1n/nvs/internal/app/version"
@@ -46,16 +47,62 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 	defer cancel()
 
 	// Determine which aliases (versions) to upgrade.
-	// If no argument is given, upgrade both stable and "nightly".
 	var aliases []string
-	if len(args) == 0 {
-		aliases = []string{constants.Stable, constants.Nightly}
-	} else {
-		if args[0] != constants.Stable && args[0] != constants.Nightly {
-			return ErrInvalidUpgradeTarget
+
+	// Check if --pick flag is set
+	pick, _ := cmd.Flags().GetBool("pick")
+	if pick {
+		// Show picker for installed stable/nightly versions
+		availableVersions := []string{}
+		if GetVersionService().IsVersionInstalled(constants.Stable) {
+			availableVersions = append(availableVersions, constants.Stable)
 		}
 
-		aliases = []string{args[0]}
+		if GetVersionService().IsVersionInstalled(constants.Nightly) {
+			availableVersions = append(availableVersions, constants.Nightly)
+		}
+
+		if len(availableVersions) == 0 {
+			return fmt.Errorf("%w for upgrade", ErrNoVersionsAvailable)
+		}
+
+		if len(availableVersions) == 1 {
+			// Only one available, use it directly
+			aliases = availableVersions
+		} else {
+			// Multiple available, let user pick
+			prompt := promptui.Select{
+				Label: "Select versions to upgrade",
+				Items: availableVersions,
+			}
+
+			_, selectedVersion, err := prompt.Run()
+			if err != nil {
+				if errors.Is(err, promptui.ErrInterrupt) {
+					_, printErr := fmt.Fprintf(os.Stdout, "%s %s\n", ui.WarningIcon(), ui.WhiteText("Selection canceled."))
+					if printErr != nil {
+						logrus.Warnf("Failed to write to stdout: %v", printErr)
+					}
+
+					return nil
+				}
+
+				return fmt.Errorf("prompt failed: %w", err)
+			}
+
+			aliases = []string{selectedVersion}
+		}
+	} else {
+		// If no argument is given, upgrade both stable and "nightly".
+		if len(args) == 0 {
+			aliases = []string{constants.Stable, constants.Nightly}
+		} else {
+			if args[0] != constants.Stable && args[0] != constants.Nightly {
+				return ErrInvalidUpgradeTarget
+			}
+
+			aliases = []string{args[0]}
+		}
 	}
 
 	// Process each alias (version) for upgrade.
@@ -203,4 +250,6 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 // init registers the upgradeCmd with the root command.
 func init() {
 	rootCmd.AddCommand(upgradeCmd)
+	upgradeCmd.Flags().
+		BoolP("pick", "p", false, "Launch interactive picker to select versions to upgrade")
 }

@@ -416,9 +416,9 @@ func TestRunUse(t *testing.T) {
 	}
 
 	// Create binary
-	binName := "nvim"
+	binName := constants.NvimBinaryName
 	if runtime.GOOS == constants.WindowsOS {
-		binName = "nvim.exe"
+		binName = constants.NvimBinaryNameWindows
 	}
 
 	binPath := filepath.Join(target, binName)
@@ -593,9 +593,9 @@ func TestFullWorkflow(t *testing.T) {
 	}
 
 	// Create fake nvim binary
-	binName := "nvim"
+	binName := constants.NvimBinaryName
 	if runtime.GOOS == constants.WindowsOS {
-		binName = "nvim.exe"
+		binName = constants.NvimBinaryNameWindows
 	}
 
 	binPath := filepath.Join(versionDir, binName)
@@ -1901,5 +1901,458 @@ func TestRunEnv_JSON(t *testing.T) {
 
 	if _, ok := result["NVS_BIN_DIR"]; !ok {
 		t.Error("Expected NVS_BIN_DIR in JSON")
+	}
+}
+
+// TestRunUse_Pick tests the use command with --pick flag.
+func TestRunUse_Pick(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+	t.Setenv("NVS_TEST_MODE", "1")
+
+	// Save original services
+	originalVersionService := cmd.GetVersionService()
+	defer func() {
+		cmd.SetVersionServiceForTesting(originalVersionService)
+	}()
+
+	cmd.InitConfig()
+
+	// Create some installed versions
+	installedVersions := map[string]bool{
+		"v1.0.0": true,
+		"v1.1.0": true,
+		"stable": true,
+	}
+
+	mockManager := &mockVersionManagerForIntegration{
+		installed: installedVersions,
+		current:   version.Version{},
+	}
+	mockInstaller := &mockInstallerForIntegration{
+		installed: installedVersions,
+	}
+
+	assets := createPlatformAssets()
+
+	mockReleaseRepo := &mockReleaseRepoForIntegration{
+		releases: map[string]release.Release{
+			"stable": release.New("stable", false, "abc123", time.Now(), assets),
+		},
+	}
+
+	mockService, err := appversion.New(
+		mockReleaseRepo,
+		mockManager,
+		mockInstaller,
+		&appversion.Config{
+			VersionsDir:   tempDir,
+			CacheFilePath: filepath.Join(tempDir, "cache.json"),
+			GlobalBinDir:  tempDir,
+		},
+	)
+	if err != nil {
+		t.Fatalf("Failed to create mock service: %v", err)
+	}
+
+	cmd.SetVersionServiceForTesting(mockService)
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.Flags().Bool("pick", false, "")
+	cobraCmd.Flags().Bool("force", false, "")
+
+	err = cobraCmd.Flags().Set("pick", "true")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cobraCmd.SetContext(context.Background())
+
+	// Test with --pick flag - should attempt to show picker but fail in test env
+	err = cmd.RunUse(cobraCmd, []string{})
+	// In test environment without TTY, this will fail - which is expected
+	if err == nil {
+		t.Error("expected RunUse with --pick to fail in test environment")
+	}
+}
+
+// TestRunInstall_Pick tests the install command with --pick flag.
+func TestRunInstall_Pick(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+	t.Setenv("NVS_TEST_MODE", "1")
+
+	// Save original services
+	originalVersionService := cmd.GetVersionService()
+	defer func() {
+		cmd.SetVersionServiceForTesting(originalVersionService)
+	}()
+
+	cmd.InitConfig()
+
+	mockManager := &mockVersionManagerForIntegration{
+		installed: make(map[string]bool),
+		current:   version.Version{},
+	}
+	mockInstaller := &mockInstallerForIntegration{
+		installed: make(map[string]bool),
+	}
+
+	assets := createPlatformAssets()
+
+	mockReleaseRepo := &mockReleaseRepoForIntegration{
+		releases: map[string]release.Release{
+			"stable":  release.New("stable", false, "abc123", time.Now(), assets),
+			"nightly": release.New("nightly", true, "def456", time.Now(), assets),
+			"v0.10.0": release.New("v0.10.0", false, "", time.Now(), assets),
+		},
+	}
+
+	mockService, err := appversion.New(
+		mockReleaseRepo,
+		mockManager,
+		mockInstaller,
+		&appversion.Config{
+			VersionsDir:   tempDir,
+			CacheFilePath: filepath.Join(tempDir, "cache.json"),
+			GlobalBinDir:  tempDir,
+		},
+	)
+	if err != nil {
+		t.Fatalf("Failed to create mock service: %v", err)
+	}
+
+	cmd.SetVersionServiceForTesting(mockService)
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.Flags().Bool("pick", false, "")
+
+	err = cobraCmd.Flags().Set("pick", "true")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cobraCmd.SetContext(context.Background())
+
+	// Test with --pick flag - should attempt to show picker but fail in test env
+	err = cmd.RunInstall(cobraCmd, []string{})
+	// In test environment without TTY, this will fail - which is expected
+	if err == nil {
+		t.Error("expected RunInstall with --pick to fail in test environment")
+	}
+}
+
+// TestRunPin_Pick tests the pin command with --pick flag.
+func TestRunPin_Pick(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+	t.Setenv("NVS_TEST_MODE", "1")
+
+	// Save original services
+	originalVersionService := cmd.GetVersionService()
+	defer func() {
+		cmd.SetVersionServiceForTesting(originalVersionService)
+	}()
+
+	cmd.InitConfig()
+
+	// Create some installed versions
+	installedVersions := map[string]bool{
+		"v1.0.0": true,
+		"v1.1.0": true,
+		"stable": true,
+	}
+
+	mockManager := &mockVersionManagerForIntegration{
+		installed: installedVersions,
+		current:   version.New("stable", version.TypeTag, "stable", ""),
+	}
+	mockInstaller := &mockInstallerForIntegration{
+		installed: installedVersions,
+	}
+
+	assets := createPlatformAssets()
+
+	mockReleaseRepo := &mockReleaseRepoForIntegration{
+		releases: map[string]release.Release{
+			"stable": release.New("stable", false, "abc123", time.Now(), assets),
+		},
+	}
+
+	mockService, err := appversion.New(
+		mockReleaseRepo,
+		mockManager,
+		mockInstaller,
+		&appversion.Config{
+			VersionsDir:   tempDir,
+			CacheFilePath: filepath.Join(tempDir, "cache.json"),
+			GlobalBinDir:  tempDir,
+		},
+	)
+	if err != nil {
+		t.Fatalf("Failed to create mock service: %v", err)
+	}
+
+	cmd.SetVersionServiceForTesting(mockService)
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.Flags().Bool("pick", false, "")
+	cobraCmd.Flags().Bool("global", false, "")
+
+	err = cobraCmd.Flags().Set("pick", "true")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cobraCmd.SetContext(context.Background())
+
+	// Test with --pick flag - should attempt to show picker but fail in test env
+	err = cmd.RunPin(cobraCmd, []string{})
+	// In test environment without TTY, this will fail - which is expected
+	if err == nil {
+		t.Error("expected RunPin with --pick to fail in test environment")
+	}
+}
+
+// TestRunRun_Pick tests the run command with --pick flag.
+func TestRunRun_Pick(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+	t.Setenv("NVS_TEST_MODE", "1")
+
+	// Save original services
+	originalVersionService := cmd.GetVersionService()
+	defer func() {
+		cmd.SetVersionServiceForTesting(originalVersionService)
+	}()
+
+	cmd.InitConfig()
+
+	// Create some installed versions with fake binaries
+	installedVersions := map[string]bool{
+		"v1.0.0": true,
+		"v1.1.0": true,
+	}
+
+	mockManager := &mockVersionManagerForIntegration{
+		installed: installedVersions,
+		current:   version.Version{},
+	}
+	mockInstaller := &mockInstallerForIntegration{
+		installed: installedVersions,
+	}
+
+	assets := createPlatformAssets()
+
+	mockReleaseRepo := &mockReleaseRepoForIntegration{
+		releases: map[string]release.Release{
+			"v1.0.0": release.New("v1.0.0", false, "abc123", time.Now(), assets),
+		},
+	}
+
+	mockService, err := appversion.New(
+		mockReleaseRepo,
+		mockManager,
+		mockInstaller,
+		&appversion.Config{
+			VersionsDir:   tempDir,
+			CacheFilePath: filepath.Join(tempDir, "cache.json"),
+			GlobalBinDir:  tempDir,
+		},
+	)
+	if err != nil {
+		t.Fatalf("Failed to create mock service: %v", err)
+	}
+
+	cmd.SetVersionServiceForTesting(mockService)
+
+	// Create fake version directory and binary for v1.0.0
+	versionDir := filepath.Join(cmd.GetVersionsDir(), "v1.0.0")
+
+	err = os.MkdirAll(versionDir, 0o755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	binName := constants.NvimBinaryName
+	if runtime.GOOS == constants.WindowsOS {
+		binName = constants.NvimBinaryNameWindows
+	}
+
+	binPath := filepath.Join(versionDir, binName)
+
+	err = os.WriteFile(binPath, []byte("#!/bin/bash\necho test nvim"), 0o755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.Flags().Bool("pick", false, "")
+
+	err = cobraCmd.Flags().Set("pick", "true")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cobraCmd.SetContext(context.Background())
+
+	// Test with --pick flag - should attempt to show picker but fail in test env
+	err = cmd.RunRun(cobraCmd, []string{})
+	// In test environment without TTY, this will fail - which is expected
+	if err == nil {
+		t.Error("expected RunRun with --pick to fail in test environment")
+	}
+}
+
+// TestRunUninstall_Pick tests the uninstall command with --pick flag.
+func TestRunUninstall_Pick(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+	t.Setenv("NVS_TEST_MODE", "1")
+
+	// Save original services
+	originalVersionService := cmd.GetVersionService()
+	defer func() {
+		cmd.SetVersionServiceForTesting(originalVersionService)
+	}()
+
+	cmd.InitConfig()
+
+	// Create some installed versions
+	installedVersions := map[string]bool{
+		"v1.0.0": true,
+		"v1.1.0": true,
+	}
+
+	mockManager := &mockVersionManagerForIntegration{
+		installed: installedVersions,
+		current:   version.Version{},
+	}
+	mockInstaller := &mockInstallerForIntegration{
+		installed: installedVersions,
+	}
+
+	assets := createPlatformAssets()
+
+	mockReleaseRepo := &mockReleaseRepoForIntegration{
+		releases: map[string]release.Release{
+			"v1.0.0": release.New("v1.0.0", false, "abc123", time.Now(), assets),
+		},
+	}
+
+	mockService, err := appversion.New(
+		mockReleaseRepo,
+		mockManager,
+		mockInstaller,
+		&appversion.Config{
+			VersionsDir:   tempDir,
+			CacheFilePath: filepath.Join(tempDir, "cache.json"),
+			GlobalBinDir:  tempDir,
+		},
+	)
+	if err != nil {
+		t.Fatalf("Failed to create mock service: %v", err)
+	}
+
+	cmd.SetVersionServiceForTesting(mockService)
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.Flags().Bool("pick", false, "")
+
+	err = cobraCmd.Flags().Set("pick", "true")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cobraCmd.SetContext(context.Background())
+
+	// Test with --pick flag - should attempt to show picker but fail in test env
+	err = cmd.RunUninstall(cobraCmd, []string{})
+	// In test environment without TTY, this will fail - which is expected
+	if err == nil {
+		t.Error("expected RunUninstall with --pick to fail in test environment")
+	}
+}
+
+// TestRunUpgrade_Pick tests the upgrade command with --pick flag.
+func TestRunUpgrade_Pick(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+	t.Setenv("NVS_TEST_MODE", "1")
+
+	// Save original services
+	originalVersionService := cmd.GetVersionService()
+	defer func() {
+		cmd.SetVersionServiceForTesting(originalVersionService)
+	}()
+
+	cmd.InitConfig()
+
+	// Mark stable as installed
+	mockManager := &mockVersionManagerForIntegration{
+		installed: map[string]bool{"stable": true},
+		current:   version.Version{},
+	}
+	mockInstaller := &mockInstallerForIntegration{
+		installed: map[string]bool{"stable": true},
+	}
+
+	assets := createPlatformAssets()
+
+	mockReleaseRepo := &mockReleaseRepoForIntegration{
+		releases: map[string]release.Release{
+			"stable": release.New("stable", false, "abc123", time.Now(), assets),
+		},
+	}
+
+	mockService, err := appversion.New(
+		mockReleaseRepo,
+		mockManager,
+		mockInstaller,
+		&appversion.Config{
+			VersionsDir:   tempDir,
+			CacheFilePath: filepath.Join(tempDir, "cache.json"),
+			GlobalBinDir:  tempDir,
+		},
+	)
+	if err != nil {
+		t.Fatalf("Failed to create mock service: %v", err)
+	}
+
+	cmd.SetVersionServiceForTesting(mockService)
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.Flags().Bool("pick", false, "")
+
+	err = cobraCmd.Flags().Set("pick", "true")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cobraCmd.SetContext(context.Background())
+
+	// Test with --pick flag - should succeed since stable is already "up-to-date"
+	err = cmd.RunUpgrade(cobraCmd, []string{})
+	// In this test setup, stable is already up-to-date, so it should succeed
+	if err != nil {
+		t.Errorf("RunUpgrade with --pick failed: %v", err)
 	}
 }

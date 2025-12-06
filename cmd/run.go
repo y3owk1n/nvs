@@ -11,10 +11,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/version"
+	"github.com/y3owk1n/nvs/internal/ui"
 )
 
 // runCmd represents the "run" command.
@@ -26,8 +28,9 @@ import (
 //	nvs run stable
 //	nvs run nightly -- --clean
 //	nvs run v0.10.3 -- myfile.txt
+//	nvs run --pick
 var runCmd = &cobra.Command{
-	Use:   "run <version> [-- <nvim args>...]",
+	Use:   "run <version> [-- <nvim args>...] | --pick [-- <nvim args>...]",
 	Short: "Run a specific Neovim version without switching",
 	Long: `Run a specific installed Neovim version without modifying the global symlink.
 Any arguments after "--" are passed directly to the Neovim instance.
@@ -35,8 +38,8 @@ Any arguments after "--" are passed directly to the Neovim instance.
 Examples:
   nvs run stable
   nvs run nightly -- --clean
-  nvs run v0.10.3 -- -c "checkhealth"`,
-	Args: cobra.MinimumNArgs(1),
+  nvs run v0.10.3 -- -c "checkhealth"
+  nvs run --pick -- --clean`,
 	RunE: RunRun,
 }
 
@@ -45,7 +48,59 @@ func RunRun(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(cmd.Context(), constants.TimeoutMinutes*time.Minute)
 	defer cancel()
 
-	versionAlias := args[0]
+	var versionAlias string
+
+	// Check if --pick flag is set
+	pick, _ := cmd.Flags().GetBool("pick")
+	if pick {
+		// Launch picker for installed versions
+		versions, err := GetVersionService().List()
+		if err != nil {
+			return fmt.Errorf("error listing versions: %w", err)
+		}
+
+		if len(versions) == 0 {
+			return fmt.Errorf("%w for selection", ErrNoVersionsAvailable)
+		}
+
+		availableVersions := make([]string, 0, len(versions))
+		for _, v := range versions {
+			availableVersions = append(availableVersions, v.Name())
+		}
+
+		prompt := promptui.Select{
+			Label: "Select version to run",
+			Items: availableVersions,
+		}
+
+		_, selectedVersion, err := prompt.Run()
+		if err != nil {
+			if errors.Is(err, promptui.ErrInterrupt) {
+				_, printErr := fmt.Fprintf(
+					os.Stdout,
+					"%s %s\n",
+					ui.WarningIcon(),
+					ui.WhiteText("Selection canceled."),
+				)
+				if printErr != nil {
+					logrus.Warnf("Failed to write to stdout: %v", printErr)
+				}
+
+				return nil
+			}
+
+			return fmt.Errorf("prompt failed: %w", err)
+		}
+
+		versionAlias = selectedVersion
+	} else {
+		if len(args) == 0 {
+			return fmt.Errorf("%w", ErrVersionArgRequired)
+		}
+
+		versionAlias = args[0]
+	}
+
 	logrus.Debugf("Requested version to run: %s", versionAlias)
 
 	// Check if version is installed
@@ -66,13 +121,24 @@ func RunRun(cmd *cobra.Command, args []string) error {
 
 	logrus.Debugf("Found nvim binary at: %s", nvimPath)
 
-	// Get arguments to pass to nvim (everything after the version)
-	var nvimArgs []string
-	if len(args) > 1 {
+	// Get arguments to pass to nvim
+	var (
+		nvimArgs []string
+		startIdx int
+	)
+
+	if pick {
+		// When pick is used, all args are nvim args (possibly starting with "--")
+		startIdx = 0
+	} else {
+		// Skip the version arg
+		startIdx = 1
+	}
+
+	if startIdx < len(args) {
 		// Skip the "--" separator if present
-		startIdx := 1
-		if args[1] == "--" {
-			startIdx = 2
+		if args[startIdx] == "--" {
+			startIdx++
 		}
 
 		if startIdx < len(args) {
@@ -207,4 +273,5 @@ func findNvimBinary(dir string) string {
 // init registers the runCmd with the root command.
 func init() {
 	rootCmd.AddCommand(runCmd)
+	runCmd.Flags().BoolP("pick", "p", false, "Launch interactive picker to select version")
 }

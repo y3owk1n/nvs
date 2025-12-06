@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
@@ -46,26 +47,72 @@ func RunUse(cmd *cobra.Command, args []string) error {
 	defer cancel()
 
 	var alias string
-	if len(args) > 0 {
-		alias = args[0]
+
+	// Check if --pick flag is set
+	pick, _ := cmd.Flags().GetBool("pick")
+	if pick {
+		// Launch picker for installed versions
+		versions, err := GetVersionService().List()
+		if err != nil {
+			return fmt.Errorf("error listing versions: %w", err)
+		}
+
+		if len(versions) == 0 {
+			return fmt.Errorf("%w for selection", ErrNoVersionsAvailable)
+		}
+
+		availableVersions := make([]string, 0, len(versions))
+		for _, v := range versions {
+			availableVersions = append(availableVersions, v.Name())
+		}
+
+		prompt := promptui.Select{
+			Label: "Select version to use",
+			Items: availableVersions,
+		}
+
+		_, selectedVersion, err := prompt.Run()
+		if err != nil {
+			if errors.Is(err, promptui.ErrInterrupt) {
+				_, printErr := fmt.Fprintf(
+					os.Stdout,
+					"%s %s\n",
+					ui.WarningIcon(),
+					ui.WhiteText("Selection canceled."),
+				)
+				if printErr != nil {
+					logrus.Warnf("Failed to write to stdout: %v", printErr)
+				}
+
+				return nil
+			}
+
+			return fmt.Errorf("prompt failed: %w", err)
+		}
+
+		alias = selectedVersion
 	} else {
-		// Try to read from .nvs-version file
-		cwd, err := os.Getwd()
-		if err != nil {
-			return fmt.Errorf("failed to get current directory: %w", err)
-		}
+		if len(args) > 0 {
+			alias = args[0]
+		} else {
+			// Try to read from .nvs-version file
+			cwd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("failed to get current directory: %w", err)
+			}
 
-		pinnedVersion, versionFile, err := ReadVersionFile(cwd, true)
-		if err != nil {
-			return fmt.Errorf("no version specified and %w", err)
-		}
+			pinnedVersion, versionFile, err := ReadVersionFile(cwd, true)
+			if err != nil {
+				return fmt.Errorf("no version specified and %w", err)
+			}
 
-		alias = pinnedVersion
-		logrus.Debugf("Using version %s from %s", alias, versionFile)
+			alias = pinnedVersion
+			logrus.Debugf("Using version %s from %s", alias, versionFile)
 
-		_, printErr := fmt.Fprintf(os.Stdout, "%s Using version from %s\n", ui.InfoIcon(), versionFile)
-		if printErr != nil {
-			logrus.Warnf("Failed to write to stdout: %v", printErr)
+			_, printErr := fmt.Fprintf(os.Stdout, "%s Using version from %s\n", ui.InfoIcon(), versionFile)
+			if printErr != nil {
+				logrus.Warnf("Failed to write to stdout: %v", printErr)
+			}
 		}
 	}
 
@@ -151,4 +198,5 @@ func RunUse(cmd *cobra.Command, args []string) error {
 func init() {
 	rootCmd.AddCommand(useCmd)
 	useCmd.Flags().BoolP("force", "f", false, "Skip running instance check")
+	useCmd.Flags().BoolP("pick", "p", false, "Launch interactive picker to select version")
 }
