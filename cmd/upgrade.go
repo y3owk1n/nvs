@@ -39,8 +39,6 @@ var upgradeCmd = &cobra.Command{
 
 // RunUpgrade executes the upgrade command.
 func RunUpgrade(cmd *cobra.Command, args []string) error {
-	const SpinnerSpeed = 100
-
 	logrus.Debug("Starting upgrade command")
 
 	// Create a context with a 30-minute timeout for the upgrade process.
@@ -77,7 +75,7 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 
 			// Backup current nightly for rollback support
 			if oldCommitHash != "" {
-				nightlyDir := filepath.Join(GetVersionsDir(), "nightly")
+				nightlyDir := filepath.Join(GetVersionsDir(), constants.Nightly)
 				backupDir = filepath.Join(
 					GetVersionsDir(),
 					"nightly-"+shortHash(oldCommitHash, constants.ShortHashLength),
@@ -107,7 +105,10 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		}
 
 		// Create and start a spinner to show progress.
-		progressSpinner := spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond)
+		progressSpinner := spinner.New(
+			spinner.CharSets[14],
+			constants.SpinnerSpeed*time.Millisecond,
+		)
 		progressSpinner.Prefix = ui.InfoIcon() + " "
 		progressSpinner.Suffix = " Checking for updates..."
 		progressSpinner.Start()
