@@ -78,7 +78,16 @@ func RunDoctor(cmd *cobra.Command, _ []string) error {
 	if jsonOutput {
 		data := map[string]any{"checks": results, "issues": issues}
 
-		return outputJSON(data)
+		err := outputJSON(data)
+		if err != nil {
+			return err
+		}
+
+		if len(issues) > 0 {
+			return fmt.Errorf("%w: %d issue(s)", ErrIssuesFound, len(issues))
+		}
+
+		return nil
 	} else {
 		if len(issues) > 0 {
 			_, _ = fmt.Fprintf(os.Stdout, "%s\n", ui.RedText("Issues found:"))
