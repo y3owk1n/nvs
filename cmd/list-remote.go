@@ -18,23 +18,24 @@ import (
 // listRemoteCmd represents the "list-remote" command (aliases: ls-remote).
 // It fetches available remote Neovim releases from GitHub (using a cache that expires after 5 minutes)
 // and displays them in a table along with their installation status.
-// If a "force" argument is provided, the cache is bypassed.
+// If --force is provided, the cache is bypassed.
 //
 // Example usage:
 //
 //	nvs list-remote
-//	nvs list-remote force
+//	nvs list-remote --force
 var listRemoteCmd = &cobra.Command{
-	Use:     "list-remote [force]",
+	Use:     "list-remote",
 	Aliases: []string{"ls-remote"},
-	Short:   "List available remote versions with installation status (cached for 5 minutes or force)",
+	Short:   "List available remote versions with installation status (cached for 5 minutes or --force to bypass)",
+	Args:    cobra.NoArgs,
 	RunE:    RunListRemote,
 }
 
 // RunListRemote executes the list-remote command.
 func RunListRemote(cmd *cobra.Command, args []string) error {
-	// Check if the user passed "force" to bypass the cache.
-	force := len(args) > 0 && args[0] == "force"
+	// Check if the user passed --force to bypass the cache.
+	force, _ := cmd.Flags().GetBool("force")
 
 	logrus.Debug("Fetching available versions...")
 
@@ -214,5 +215,6 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 
 // init registers the listRemoteCmd with the root command.
 func init() {
+	listRemoteCmd.Flags().Bool("force", false, "Bypass cache and fetch latest releases")
 	rootCmd.AddCommand(listRemoteCmd)
 }

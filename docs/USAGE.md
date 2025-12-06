@@ -165,7 +165,7 @@ Show available versions from GitHub. Results are cached for 5 minutes.
 ```bash
 nvs list-remote
 nvs ls-remote           # Shorthand
-nvs list-remote force   # Bypass cache
+nvs list-remote --force # Bypass cache
 ```
 
 **Output example:**
