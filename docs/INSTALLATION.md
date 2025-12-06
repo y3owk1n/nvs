@@ -132,7 +132,7 @@ brew install y3owk1n/tap/nvs
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nvs.url = "github:y3owk1n/nvs";
+    nvs.url = "github:y3owk1n/nvs"; # or "https://flakehub.com/f/y3owk1n/nvs/0.1"
   };
 
   outputs = { nixpkgs, home-manager, nvs, ... }: {
