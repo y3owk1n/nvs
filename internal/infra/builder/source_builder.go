@@ -176,11 +176,11 @@ func (b *SourceBuilder) buildFromCommitInternal(
 	}
 
 	commitHashFull := strings.TrimSpace(out.String())
-	if len(commitHashFull) < constants.CommitLen {
+	if len(commitHashFull) < constants.ShortCommitLen {
 		return "", ErrCommitHashTooShort
 	}
 
-	commitHash := commitHashFull[:constants.CommitLen]
+	commitHash := commitHashFull[:constants.ShortCommitLen]
 	logrus.Debugf("Current commit hash: %s", commitHash)
 
 	// Clean build directory
