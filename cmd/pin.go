@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
@@ -30,18 +32,63 @@ Use 'nvs use' in a directory with .nvs-version to automatically use that version
 func RunPin(cmd *cobra.Command, args []string) error {
 	var versionToPin string
 
-	if len(args) > 0 {
-		versionToPin = args[0]
-		logrus.Debugf("Pinning specified version: %s", versionToPin)
-	} else {
-		// Use currently active version
-		current, err := GetVersionService().Current()
+	// Check if --pick flag is set
+	pick, _ := cmd.Flags().GetBool("pick")
+	if pick {
+		// Launch picker for installed versions
+		versions, err := GetVersionService().List()
 		if err != nil {
-			return fmt.Errorf("no version specified and no current version: %w", err)
+			return fmt.Errorf("error listing versions: %w", err)
 		}
 
-		versionToPin = current.Name()
-		logrus.Debugf("Pinning current version: %s", versionToPin)
+		if len(versions) == 0 {
+			return fmt.Errorf("%w for selection", ErrNoVersionsAvailable)
+		}
+
+		availableVersions := make([]string, 0, len(versions))
+		for _, v := range versions {
+			availableVersions = append(availableVersions, v.Name())
+		}
+
+		prompt := promptui.Select{
+			Label: "Select version to pin",
+			Items: availableVersions,
+		}
+
+		_, selectedVersion, err := prompt.Run()
+		if err != nil {
+			if errors.Is(err, promptui.ErrInterrupt) {
+				_, printErr := fmt.Fprintf(
+					os.Stdout,
+					"%s %s\n",
+					ui.WarningIcon(),
+					ui.WhiteText("Selection canceled."),
+				)
+				if printErr != nil {
+					logrus.Warnf("Failed to write to stdout: %v", printErr)
+				}
+
+				return nil
+			}
+
+			return fmt.Errorf("prompt failed: %w", err)
+		}
+
+		versionToPin = selectedVersion
+	} else {
+		if len(args) > 0 {
+			versionToPin = args[0]
+			logrus.Debugf("Pinning specified version: %s", versionToPin)
+		} else {
+			// Use currently active version
+			current, err := GetVersionService().Current()
+			if err != nil {
+				return fmt.Errorf("no version specified and no current version: %w", err)
+			}
+
+			versionToPin = current.Name()
+			logrus.Debugf("Pinning current version: %s", versionToPin)
+		}
 	}
 
 	// Get directory to write to (current working directory by default)
@@ -150,4 +197,5 @@ func init() {
 	rootCmd.AddCommand(pinCmd)
 	pinCmd.Flags().
 		BoolP("global", "g", false, "Write to home directory instead of current directory")
+	pinCmd.Flags().BoolP("pick", "p", false, "Launch interactive picker to select version")
 }

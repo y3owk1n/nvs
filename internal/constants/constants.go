@@ -76,6 +76,11 @@ const (
 	// TestCommitHash is the test commit hash.
 	TestCommitHash = "abc1234"
 
+	// NvimBinaryName is the name of the nvim binary.
+	NvimBinaryName = "nvim"
+	// NvimBinaryNameWindows is the name of the nvim binary on Windows.
+	NvimBinaryNameWindows = "nvim.exe"
+
 	// ProgressBarWidth is the default width of the progress bar.
 	ProgressBarWidth = 20
 	// ProgressFilled is the character for filled portion of the bar.

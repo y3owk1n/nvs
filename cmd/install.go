@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/briandowns/spinner"
+	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
@@ -30,11 +32,12 @@ import (
 //	nvs install nightly
 //	nvs install master
 //	nvs install 1a2b3c4 (for a commit hash)
+//	nvs install --pick
 var installCmd = &cobra.Command{
-	Use:     "install <version|stable|nightly|master|commit-hash>",
+	Use:     "install [version|stable|nightly|master|commit-hash]",
 	Aliases: []string{"i"},
 	Short:   "Install a Neovim version or commit",
-	Args:    cobra.ExactArgs(1),
+	Args:    cobra.MaximumNArgs(1),
 	RunE:    RunInstall,
 }
 
@@ -48,7 +51,59 @@ func RunInstall(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(cmd.Context(), constants.TimeoutMinutes*time.Minute)
 	defer cancel()
 
-	alias := args[0]
+	var alias string
+
+	// Check if --pick flag is set
+	pick, _ := cmd.Flags().GetBool("pick")
+	if pick {
+		// Launch picker for remote versions
+		releases, err := GetVersionService().ListRemote(ctx, false)
+		if err != nil {
+			return fmt.Errorf("error fetching releases: %w", err)
+		}
+
+		if len(releases) == 0 {
+			return fmt.Errorf("%w for selection", ErrNoVersionsAvailable)
+		}
+
+		availableVersions := make([]string, 0, len(releases))
+		for _, release := range releases {
+			availableVersions = append(availableVersions, release.TagName())
+		}
+
+		prompt := promptui.Select{
+			Label: "Select version to install",
+			Items: availableVersions,
+		}
+
+		_, selectedVersion, err := prompt.Run()
+		if err != nil {
+			if errors.Is(err, promptui.ErrInterrupt) {
+				_, printErr := fmt.Fprintf(
+					os.Stdout,
+					"%s %s\n",
+					ui.WarningIcon(),
+					ui.WhiteText("Selection canceled."),
+				)
+				if printErr != nil {
+					logrus.Warnf("Failed to write to stdout: %v", printErr)
+				}
+
+				return nil
+			}
+
+			return fmt.Errorf("prompt failed: %w", err)
+		}
+
+		alias = selectedVersion
+	} else {
+		if len(args) == 0 {
+			return fmt.Errorf("%w", ErrVersionArgRequired)
+		}
+
+		alias = args[0]
+	}
+
 	logrus.Debugf("Requested version: %s", alias)
 
 	// Create and start a spinner for progress
@@ -85,4 +140,5 @@ func RunInstall(cmd *cobra.Command, args []string) error {
 // init registers the installCmd with the root command.
 func init() {
 	rootCmd.AddCommand(installCmd)
+	installCmd.Flags().BoolP("pick", "p", false, "Launch interactive picker to select version")
 }
