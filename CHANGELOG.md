@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.0](https://github.com/y3owk1n/nvs/compare/v1.11.0...v1.12.0) (2025-12-06)
+
+
+### Features
+
+* add GitHub Action for nvs setup ([#181](https://github.com/y3owk1n/nvs/issues/181)) ([d0f30fe](https://github.com/y3owk1n/nvs/commit/d0f30fee032ab6432fdbdd84544746437fa9b407))
+
 ## [1.11.0](https://github.com/y3owk1n/nvs/compare/v1.10.7...v1.11.0) (2025-12-06)
 
 
