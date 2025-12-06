@@ -35,12 +35,14 @@ runs:
       if: inputs.version != ''
       shell: bash
       run: |
+        eval "$(nvs env --source)"
         nvs install ${{ inputs.version }}
 
     - name: Use Neovim version
       if: inputs.version != ''
       shell: bash
       run: |
+        eval "$(nvs env --source)"
         nvs use ${{ inputs.version }}
 
     - name: Add Neovim to PATH (Unix)
