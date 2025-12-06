@@ -39,7 +39,10 @@ func RunCurrent(cmd *cobra.Command, _ []string) error {
 
 	logrus.Debugf("Current version detected: %s", current.Name())
 
-	jsonOutput, _ := cmd.Flags().GetBool("json")
+	jsonOutput, err := cmd.Flags().GetBool("json")
+	if err != nil {
+		logrus.Warnf("Failed to read json flag: %v", err)
+	}
 
 	type CurrentInfo struct {
 		Name      string `json:"name"`
