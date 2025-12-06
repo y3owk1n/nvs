@@ -55,6 +55,10 @@ func RunEnv(cmd *cobra.Command, _ []string) error {
 	jsonOutput, _ := cmd.Flags().GetBool("json")
 	logrus.Debugf("--source: %v, --shell: %q, --json: %v", source, shell, jsonOutput)
 
+	if source && jsonOutput {
+		return ErrMutuallyExclusiveFlags
+	}
+
 	if source {
 		// Let's try to detect the shell we're running in
 		if shell == "" {

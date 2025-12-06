@@ -58,4 +58,7 @@ var (
 
 	// ErrUnsupportedShellHook is returned when the shell is unsupported.
 	ErrUnsupportedShellHook = errors.New("unsupported shell")
+
+	// ErrMutuallyExclusiveFlags is returned when --source and --json flags are both provided.
+	ErrMutuallyExclusiveFlags = errors.New("--source and --json flags are mutually exclusive")
 )
