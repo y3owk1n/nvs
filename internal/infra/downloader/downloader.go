@@ -10,14 +10,9 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/sirupsen/logrus"
-)
-
-const (
-	progressDiv   = 100
-	sha256HashLen = 64
+	"github.com/y3owk1n/nvs/internal/constants"
 )
 
 // Downloader handles file downloads with progress tracking.
@@ -25,13 +20,11 @@ type Downloader struct {
 	httpClient *http.Client
 }
 
-const defaultTimeout = 5 * time.Minute
-
 // New creates a new Downloader instance.
 func New() *Downloader {
 	return &Downloader{
 		httpClient: &http.Client{
-			Timeout: defaultTimeout,
+			Timeout: constants.DefaultTimeout,
 		},
 	}
 }
@@ -137,10 +130,10 @@ func (d *Downloader) VerifyChecksum(
 	}
 
 	// SHA256 hash should be 64 hex characters
-	if len(expectedHash) != sha256HashLen {
+	if len(expectedHash) != constants.Sha256HashLen {
 		return fmt.Errorf(
 			"invalid checksum format: expected %d characters, got %d: %w",
-			sha256HashLen,
+			constants.Sha256HashLen,
 			len(expectedHash),
 			ErrInvalidChecksumFormat,
 		)
@@ -187,7 +180,7 @@ func (pr *progressReader) Read(p []byte) (int, error) {
 
 	pr.read += int64(bytesRead)
 	if pr.callback != nil && pr.total > 0 {
-		percent := int((pr.read * progressDiv) / pr.total)
+		percent := int((pr.read * 100) / pr.total) //nolint:mnd // 100 for percentage calculation
 		pr.callback(percent)
 	}
 

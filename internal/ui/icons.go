@@ -1,15 +1,8 @@
 package ui
 
-import "github.com/fatih/color"
-
-// Constants for icons.
-const (
-	Checkmark = "✓"
-	Cross     = "✖"
-	Info      = "ℹ"
-	Warn      = "⚠"
-	Upgrade   = "↑"
-	Prompt    = "?"
+import (
+	"github.com/fatih/color"
+	"github.com/y3owk1n/nvs/internal/constants"
 )
 
 // ColoredIcon colors an icon with the given color.
@@ -19,32 +12,32 @@ func ColoredIcon(icon string, fgColor color.Attribute) string {
 
 // SuccessIcon returns a colored success icon.
 func SuccessIcon() string {
-	return ColoredIcon(Checkmark, color.FgGreen)
+	return ColoredIcon(constants.Checkmark, color.FgGreen)
 }
 
 // ErrorIcon returns a colored error icon.
 func ErrorIcon() string {
-	return ColoredIcon(Cross, color.FgRed)
+	return ColoredIcon(constants.Cross, color.FgRed)
 }
 
 // WarningIcon returns a colored warning icon.
 func WarningIcon() string {
-	return ColoredIcon(Warn, color.FgYellow)
+	return ColoredIcon(constants.Warn, color.FgYellow)
 }
 
 // InfoIcon returns a colored info icon.
 func InfoIcon() string {
-	return ColoredIcon(Info, color.FgBlue)
+	return ColoredIcon(constants.Info, color.FgBlue)
 }
 
 // UpgradeIcon returns a colored upgrade icon.
 func UpgradeIcon() string {
-	return ColoredIcon(Upgrade, color.FgYellow)
+	return ColoredIcon(constants.Upgrade, color.FgYellow)
 }
 
 // PromptIcon returns a colored prompt icon.
 func PromptIcon() string {
-	return ColoredIcon(Prompt, color.FgCyan)
+	return ColoredIcon(constants.Prompt, color.FgCyan)
 }
 
 // WhiteText colors text white.

@@ -12,9 +12,6 @@ import (
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
-// Windows is the string for Windows OS.
-const Windows = "windows"
-
 // resetCmd represents the "reset" command.
 // It removes all data from your configuration and cache directories and removes the symlinked nvim binary.
 // **WARNING:** This command is destructive. It deletes all configuration data, cache, and the global nvim symlink.

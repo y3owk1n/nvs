@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/platform"
 )
 
@@ -80,7 +81,7 @@ func (s *Service) List() ([]string, error) {
 			name := strings.ToLower(entry.Name())
 			if strings.Contains(name, "nvim") {
 				// Exclude nvim-data on Windows
-				if runtime.GOOS == "windows" && strings.HasSuffix(name, "-data") {
+				if runtime.GOOS == constants.WindowsOS && strings.HasSuffix(name, "-data") {
 					continue
 				}
 

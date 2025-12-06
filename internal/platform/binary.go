@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
+	"github.com/y3owk1n/nvs/internal/constants"
 )
 
 // FindNvimBinary walks through the given directory to find a Neovim binary.
@@ -25,7 +26,7 @@ func FindNvimBinary(dir string) string {
 
 		if !dirEntry.IsDir() {
 			name := dirEntry.Name()
-			if runtime.GOOS == WindowsOS {
+			if runtime.GOOS == constants.WindowsOS {
 				if strings.EqualFold(name, "nvim.exe") ||
 					(strings.HasPrefix(strings.ToLower(name), "nvim-") && strings.EqualFold(filepath.Ext(name), ".exe")) {
 					// Go two levels up: ../../nvim-win64

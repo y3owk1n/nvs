@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"github.com/y3owk1n/nvs/internal/constants"
 )
 
 // GetNvimConfigBaseDir determines the canonical configuration directory
@@ -46,7 +48,7 @@ func GetNvimConfigBaseDir() (string, error) {
 		return xdg, nil
 	}
 
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == constants.WindowsOS {
 		if local := os.Getenv("LOCALAPPDATA"); local != "" {
 			return local, nil
 		}

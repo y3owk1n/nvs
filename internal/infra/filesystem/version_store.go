@@ -12,12 +12,8 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
+	"github.com/y3owk1n/nvs/internal/constants"
 	domainversion "github.com/y3owk1n/nvs/internal/domain/version"
-)
-
-const (
-	dirPerm   = 0o755
-	windowsOS = "windows"
 )
 
 // VersionStore implements domainversion.Manager for filesystem-based storage.
@@ -59,7 +55,7 @@ func (s *VersionStore) List() ([]domainversion.Version, error) {
 		}
 
 		// Include directories and the "nightly" symlink
-		if entry.IsDir() || (entry.Type()&os.ModeSymlink != 0 && name == "nightly") {
+		if entry.IsDir() || (entry.Type()&os.ModeSymlink != 0 && name == constants.Nightly) {
 			// Read version.txt to get full info
 			versionFile := filepath.Join(s.config.VersionsDir, name, "version.txt")
 			data, err := os.ReadFile(versionFile)
@@ -160,7 +156,7 @@ func (s *VersionStore) Switch(version domainversion.Version) error {
 	}
 
 	// Create new link
-	isDir := runtime.GOOS == windowsOS
+	isDir := runtime.GOOS == constants.WindowsOS
 
 	err = updateSymlink(nvimExec, targetBin, isDir)
 	if err != nil {
@@ -226,7 +222,7 @@ func updateSymlink(target, link string, isDir bool) error {
 	err := os.Symlink(target, link)
 	if err == nil {
 		return nil
-	} else if runtime.GOOS != windowsOS {
+	} else if runtime.GOOS != constants.WindowsOS {
 		return err
 	}
 
@@ -263,7 +259,7 @@ func findNvimLinkTarget(dir string) string {
 
 		if !dirEntry.IsDir() {
 			name := dirEntry.Name()
-			if runtime.GOOS == windowsOS {
+			if runtime.GOOS == constants.WindowsOS {
 				if strings.EqualFold(name, "nvim.exe") ||
 					(strings.HasPrefix(strings.ToLower(name), "nvim-") && filepath.Ext(name) == ".exe") {
 					binaryPath = filepath.Dir(filepath.Dir(path))
@@ -295,9 +291,9 @@ func findNvimLinkTarget(dir string) string {
 // determineVersionType determines the version type from the name.
 func determineVersionType(name string) domainversion.Type {
 	switch {
-	case name == "stable":
+	case name == constants.Stable:
 		return domainversion.TypeStable
-	case strings.HasPrefix(strings.ToLower(name), "nightly"):
+	case strings.HasPrefix(strings.ToLower(name), constants.Nightly):
 		return domainversion.TypeNightly
 	case domainversion.IsCommitReference(name):
 		return domainversion.TypeCommit

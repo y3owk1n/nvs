@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/y3owk1n/nvs/internal/constants"
 	platform "github.com/y3owk1n/nvs/internal/platform"
 )
 
@@ -13,7 +14,7 @@ func TestFindNvimBinary(t *testing.T) {
 	tempDir := t.TempDir()
 
 	var versionDir string
-	if runtime.GOOS == platform.WindowsOS {
+	if runtime.GOOS == constants.WindowsOS {
 		// For Windows, create nvim-win64/v0.10.0 structure
 		nvimWin64Dir := filepath.Join(tempDir, "nvim-win64")
 		versionDir = filepath.Join(nvimWin64Dir, "v0.10.0")
@@ -27,7 +28,7 @@ func TestFindNvimBinary(t *testing.T) {
 	}
 
 	var binName string
-	if runtime.GOOS == platform.WindowsOS {
+	if runtime.GOOS == constants.WindowsOS {
 		binName = "nvim.exe"
 	} else {
 		binName = "nvim"
@@ -43,7 +44,7 @@ func TestFindNvimBinary(t *testing.T) {
 	found := platform.FindNvimBinary(tempDir)
 
 	var expected string
-	if runtime.GOOS == platform.WindowsOS {
+	if runtime.GOOS == constants.WindowsOS {
 		// On Windows FindNvimBinary returns two levels up from the .exe location.
 		expected = filepath.Dir(versionDir)
 	} else {
@@ -59,7 +60,7 @@ func TestFindNvimBinary_Prefixed(t *testing.T) {
 	tempDir := t.TempDir()
 
 	var versionDir string
-	if runtime.GOOS == platform.WindowsOS {
+	if runtime.GOOS == constants.WindowsOS {
 		// For Windows, create nvim-win64/v0.10.0 structure
 		nvimWin64Dir := filepath.Join(tempDir, "nvim-win64")
 		versionDir = filepath.Join(nvimWin64Dir, "v0.10.0")
@@ -73,7 +74,7 @@ func TestFindNvimBinary_Prefixed(t *testing.T) {
 	}
 
 	var binName string
-	if runtime.GOOS == platform.WindowsOS {
+	if runtime.GOOS == constants.WindowsOS {
 		binName = "nvim.exe"
 	} else {
 		binName = "nvim"
@@ -89,7 +90,7 @@ func TestFindNvimBinary_Prefixed(t *testing.T) {
 	found := platform.FindNvimBinary(tempDir)
 
 	var expected string
-	if runtime.GOOS == platform.WindowsOS {
+	if runtime.GOOS == constants.WindowsOS {
 		// On Windows FindNvimBinary returns two levels up from the .exe location.
 		expected = filepath.Dir(versionDir)
 	} else {
@@ -102,7 +103,7 @@ func TestFindNvimBinary_Prefixed(t *testing.T) {
 }
 
 func TestFindNvimBinary_NonExecutable(t *testing.T) {
-	if runtime.GOOS == platform.WindowsOS {
+	if runtime.GOOS == constants.WindowsOS {
 		t.Skip("Skipping executable permission test on Windows")
 	}
 
@@ -145,7 +146,7 @@ func TestFindNvimBinary_InvalidDir(t *testing.T) {
 }
 
 func TestUpdateSymlink(t *testing.T) {
-	if runtime.GOOS == platform.WindowsOS {
+	if runtime.GOOS == constants.WindowsOS {
 		t.Skip("Skipping symlink test on Windows")
 	}
 
@@ -177,7 +178,7 @@ func TestUpdateSymlink(t *testing.T) {
 }
 
 func TestUpdateSymlink_UpdateExisting(t *testing.T) {
-	if runtime.GOOS == platform.WindowsOS {
+	if runtime.GOOS == constants.WindowsOS {
 		t.Skip("Skipping symlink test on Windows")
 	}
 
@@ -242,7 +243,7 @@ func TestGetNvimConfigBaseDir_Fallback(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", "")
 
 	// For Windows, unset LOCALAPPDATA
-	if runtime.GOOS == platform.WindowsOS {
+	if runtime.GOOS == constants.WindowsOS {
 		t.Setenv("LOCALAPPDATA", "")
 	}
 
@@ -264,7 +265,7 @@ func TestGetNvimConfigBaseDir_Fallback(t *testing.T) {
 }
 
 func TestGetNvimConfigBaseDir_WindowsLOCALAPPDATA(t *testing.T) {
-	if runtime.GOOS != platform.WindowsOS {
+	if runtime.GOOS != constants.WindowsOS {
 		t.Skip("Skipping Windows-specific test on non-Windows")
 	}
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	appversion "github.com/y3owk1n/nvs/internal/app/version"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/installer"
 	"github.com/y3owk1n/nvs/internal/domain/release"
 	"github.com/y3owk1n/nvs/internal/domain/version"
@@ -138,17 +139,17 @@ func TestService_Use_Stable(t *testing.T) {
 	}
 	manager := &mockVersionManager{
 		installed: map[string]version.Version{
-			appversion.StableVersion: version.New(
-				appversion.StableVersion,
+			constants.Stable: version.New(
+				constants.Stable,
 				version.TypeStable,
 				"v0.10.0",
 				"abc123",
 			),
 		},
 		current: version.New(
-			appversion.NightlyVersion,
+			constants.Nightly,
 			version.TypeNightly,
-			appversion.NightlyVersion,
+			constants.Nightly,
 			"",
 		),
 	}
@@ -166,13 +167,17 @@ func TestService_Use_Stable(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", newErr)
 	}
 
-	resolvedVersion, err := service.Use(context.Background(), appversion.StableVersion)
+	resolvedVersion, err := service.Use(context.Background(), constants.Stable)
 	if err != nil {
 		t.Fatalf("Use stable failed: %v", err)
 	}
 
-	if manager.current.Name() != appversion.StableVersion {
-		t.Errorf("Expected current version name 'stable', got '%s'", manager.current.Name())
+	if manager.current.Name() != constants.Stable {
+		t.Errorf(
+			"Expected current version name '%s', got '%s'",
+			constants.Stable,
+			manager.current.Name(),
+		)
 	}
 
 	if manager.current.Type() != version.TypeStable {
@@ -215,7 +220,7 @@ func TestService_Use_Nightly_NotAvailable(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", newErr)
 	}
 
-	_, err := service.Use(context.Background(), appversion.NightlyVersion)
+	_, err := service.Use(context.Background(), constants.Nightly)
 	if err == nil {
 		t.Error("Expected error when nightly release is not available")
 	}
@@ -313,7 +318,7 @@ func TestService_Use_VersionNotFound(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	_, err = service.Use(context.Background(), appversion.NightlyVersion)
+	_, err = service.Use(context.Background(), constants.Nightly)
 	if err == nil {
 		t.Fatalf("Expected error for non-installed version, got nil")
 	}
@@ -364,8 +369,13 @@ func TestService_List(t *testing.T) {
 	repo := &mockReleaseRepo{}
 	manager := &mockVersionManager{
 		installed: map[string]version.Version{
-			"stable":  version.New("stable", version.TypeStable, "v0.10.0", ""),
-			"nightly": version.New("nightly", version.TypeNightly, "nightly", "abc123"),
+			constants.Stable: version.New(constants.Stable, version.TypeStable, "v0.10.0", ""),
+			constants.Nightly: version.New(
+				constants.Nightly,
+				version.TypeNightly,
+				constants.Nightly,
+				"abc123",
+			),
 		},
 	}
 	install := &mockInstaller{installed: make(map[string]version.Version)}
@@ -388,7 +398,7 @@ func TestService_List(t *testing.T) {
 func TestService_Current(t *testing.T) {
 	repo := &mockReleaseRepo{}
 	manager := &mockVersionManager{
-		current: version.New("stable", version.TypeStable, "v0.10.0", ""),
+		current: version.New(constants.Stable, version.TypeStable, "v0.10.0", ""),
 	}
 	install := &mockInstaller{installed: make(map[string]version.Version)}
 
@@ -402,8 +412,8 @@ func TestService_Current(t *testing.T) {
 		t.Fatalf("Current failed: %v", err)
 	}
 
-	if current.Name() != "stable" {
-		t.Errorf("Expected current name 'stable', got '%s'", current.Name())
+	if current.Name() != constants.Stable {
+		t.Errorf("Expected current name '%s', got '%s'", constants.Stable, current.Name())
 	}
 }
 
@@ -454,7 +464,7 @@ func TestService_IsVersionInstalled(t *testing.T) {
 	repo := &mockReleaseRepo{}
 	manager := &mockVersionManager{
 		installed: map[string]version.Version{
-			"stable": version.New("stable", version.TypeStable, "v0.10.0", ""),
+			constants.Stable: version.New(constants.Stable, version.TypeStable, "v0.10.0", ""),
 		},
 	}
 	install := &mockInstaller{installed: make(map[string]version.Version)}
@@ -464,11 +474,11 @@ func TestService_IsVersionInstalled(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	if !service.IsVersionInstalled("stable") {
+	if !service.IsVersionInstalled(constants.Stable) {
 		t.Error("Expected stable to be installed")
 	}
 
-	if service.IsVersionInstalled("nightly") {
+	if service.IsVersionInstalled(constants.Nightly) {
 		t.Error("Expected nightly to NOT be installed")
 	}
 }
@@ -537,7 +547,7 @@ func TestService_IsCommitReference(t *testing.T) {
 	}
 
 	// Invalid commit references
-	if service.IsCommitReference("stable") {
+	if service.IsCommitReference(constants.Stable) {
 		t.Error("Expected 'stable' to NOT be a commit reference")
 	}
 
@@ -550,7 +560,7 @@ func TestService_GetInstalledVersionIdentifier(t *testing.T) {
 	repo := &mockReleaseRepo{}
 	manager := &mockVersionManager{
 		identifiers: map[string]string{
-			"stable": "v0.10.0",
+			constants.Stable: "v0.10.0",
 		},
 	}
 	install := &mockInstaller{installed: make(map[string]version.Version)}
@@ -560,7 +570,7 @@ func TestService_GetInstalledVersionIdentifier(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	identifier, err := service.GetInstalledVersionIdentifier("stable")
+	identifier, err := service.GetInstalledVersionIdentifier(constants.Stable)
 	if err != nil {
 		t.Fatalf("GetInstalledVersionIdentifier failed: %v", err)
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/release"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
@@ -61,7 +62,7 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 		switch {
 		case release.Prerelease() && strings.HasPrefix(strings.ToLower(release.TagName()), "nightly"):
 			groupNightly = append(groupNightly, release)
-		case release.TagName() == stableConst:
+		case release.TagName() == constants.Stable:
 			groupStable = append(groupStable, release)
 		default:
 			groupOthers = append(groupOthers, release)
@@ -114,8 +115,8 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 		if release.Prerelease() {
 			if strings.HasPrefix(strings.ToLower(release.TagName()), "nightly") {
 				shortCommit := release.CommitHash()
-				if len(shortCommit) > ShortCommitLen {
-					shortCommit = shortCommit[:ShortCommitLen]
+				if len(shortCommit) > constants.ShortCommitLen {
+					shortCommit = shortCommit[:constants.ShortCommitLen]
 				}
 
 				details = fmt.Sprintf(
@@ -130,7 +131,7 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 			if stableErr == nil {
 				details = "stable version: " + stableRelease.TagName()
 			} else {
-				details = "stable version: " + stableConst
+				details = "stable version: " + constants.Stable
 			}
 		}
 
@@ -155,7 +156,7 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 			case release.Prerelease() &&
 				strings.HasPrefix(strings.ToLower(release.TagName()), "nightly"):
 				remoteIdentifier = release.CommitHash()
-			case release.TagName() == stableConst:
+			case release.TagName() == constants.Stable:
 				// For the "stable" tag, fetch the actual stable release to get the real version tag
 				stableRelease, stableErr := svc.FindStable(cmd.Context())
 				if stableErr == nil {
@@ -168,7 +169,7 @@ func RunListRemote(cmd *cobra.Command, args []string) error {
 			// If the installed version is different from the remote, indicate an upgrade is available.
 			if installedIdentifier != "" && remoteIdentifier != "" &&
 				installedIdentifier != remoteIdentifier {
-				upgradeIndicator = " (" + ui.Upgrade + ")"
+				upgradeIndicator = " (" + constants.Upgrade + ")"
 			}
 
 			if key == currentName {

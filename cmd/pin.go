@@ -8,14 +8,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/ui"
-)
-
-const (
-	// VersionFileName is the name of the version sync file.
-	VersionFileName = ".nvs-version"
-	// filePerm is the file permission for the version file.
-	filePerm = 0o644
 )
 
 // pinCmd represents the "pin" command.
@@ -67,10 +61,10 @@ func RunPin(cmd *cobra.Command, args []string) error {
 		dir = home
 	}
 
-	versionFile := filepath.Join(dir, VersionFileName)
+	versionFile := filepath.Join(dir, constants.VersionFileName)
 
 	// Write version to file
-	err = os.WriteFile(versionFile, []byte(versionToPin+"\n"), filePerm)
+	err = os.WriteFile(versionFile, []byte(versionToPin+"\n"), constants.FilePerm)
 	if err != nil {
 		return fmt.Errorf("failed to write version file: %w", err)
 	}
@@ -111,7 +105,7 @@ func ReadVersionFile(startDir string, checkGlobal bool) (string, string, error) 
 			homeVisited = true
 		}
 
-		versionFile := filepath.Join(dir, VersionFileName)
+		versionFile := filepath.Join(dir, constants.VersionFileName)
 
 		data, err := os.ReadFile(versionFile)
 		if err == nil {
@@ -135,7 +129,7 @@ func ReadVersionFile(startDir string, checkGlobal bool) (string, string, error) 
 
 	// Check global version file in home directory if not already visited
 	if checkGlobal && !homeVisited && homeDir != "" {
-		globalFile := filepath.Join(homeDir, VersionFileName)
+		globalFile := filepath.Join(homeDir, constants.VersionFileName)
 
 		data, err := os.ReadFile(globalFile)
 		if err == nil {

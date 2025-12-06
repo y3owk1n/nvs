@@ -11,6 +11,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/version"
 	"github.com/y3owk1n/nvs/internal/platform"
 	"github.com/y3owk1n/nvs/internal/ui"
@@ -41,7 +42,7 @@ directory or parent directories.`,
 // RunUse executes the use command.
 func RunUse(cmd *cobra.Command, args []string) error {
 	// Create a context with a timeout for the operation.
-	ctx, cancel := context.WithTimeout(cmd.Context(), TimeoutMinutes*time.Minute)
+	ctx, cancel := context.WithTimeout(cmd.Context(), constants.TimeoutMinutes*time.Minute)
 	defer cancel()
 
 	var alias string

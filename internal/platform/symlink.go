@@ -9,11 +9,7 @@ import (
 	"runtime"
 
 	"github.com/sirupsen/logrus"
-)
-
-const (
-	// WindowsOS is the string representation of the Windows operating system.
-	WindowsOS = "windows"
+	"github.com/y3owk1n/nvs/internal/constants"
 )
 
 // UpdateSymlink creates a symlink (or junction/hardlink fallback on Windows).
@@ -37,7 +33,7 @@ func UpdateSymlink(target, link string, isDir bool) error {
 	err = os.Symlink(target, link)
 	if err == nil {
 		return nil
-	} else if runtime.GOOS != WindowsOS {
+	} else if runtime.GOOS != constants.WindowsOS {
 		// On non-Windows, fail fast
 		return err
 	}

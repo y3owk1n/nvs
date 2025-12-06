@@ -13,10 +13,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/version"
 )
-
-const windowsOS = "windows"
 
 // runCmd represents the "run" command.
 // It runs a specific Neovim version without switching the global version.
@@ -43,7 +42,7 @@ Examples:
 
 // RunRun executes the run command.
 func RunRun(cmd *cobra.Command, args []string) error {
-	ctx, cancel := context.WithTimeout(cmd.Context(), TimeoutMinutes*time.Minute)
+	ctx, cancel := context.WithTimeout(cmd.Context(), constants.TimeoutMinutes*time.Minute)
 	defer cancel()
 
 	versionAlias := args[0]
@@ -142,7 +141,7 @@ func findNvimBinary(dir string) string {
 	// Common locations to check
 	var candidates []string
 
-	if runtime.GOOS == windowsOS {
+	if runtime.GOOS == constants.WindowsOS {
 		candidates = []string{
 			filepath.Join(dir, "bin", "nvim.exe"),
 			filepath.Join(dir, "nvim-win64", "bin", "nvim.exe"),
@@ -181,7 +180,7 @@ func findNvimBinary(dir string) string {
 		}
 
 		name := dirEntry.Name()
-		if runtime.GOOS == windowsOS {
+		if runtime.GOOS == constants.WindowsOS {
 			if strings.EqualFold(name, "nvim.exe") {
 				found = path
 

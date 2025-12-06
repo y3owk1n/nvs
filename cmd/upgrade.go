@@ -12,13 +12,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	appversion "github.com/y3owk1n/nvs/internal/app/version"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/ui"
-)
-
-// Constants for upgrade types.
-const (
-	stable  = "stable"
-	nightly = "nightly"
 )
 
 // upgradeCmd represents the "upgrade" command (aliases: up).
@@ -44,21 +39,19 @@ var upgradeCmd = &cobra.Command{
 
 // RunUpgrade executes the upgrade command.
 func RunUpgrade(cmd *cobra.Command, args []string) error {
-	const SpinnerSpeed = 100
-
 	logrus.Debug("Starting upgrade command")
 
 	// Create a context with a 30-minute timeout for the upgrade process.
-	ctx, cancel := context.WithTimeout(cmd.Context(), TimeoutMinutes*time.Minute)
+	ctx, cancel := context.WithTimeout(cmd.Context(), constants.TimeoutMinutes*time.Minute)
 	defer cancel()
 
 	// Determine which aliases (versions) to upgrade.
 	// If no argument is given, upgrade both stable and "nightly".
 	var aliases []string
 	if len(args) == 0 {
-		aliases = []string{stable, nightly}
+		aliases = []string{constants.Stable, constants.Nightly}
 	} else {
-		if args[0] != stable && args[0] != nightly {
+		if args[0] != constants.Stable && args[0] != constants.Nightly {
 			return ErrInvalidUpgradeTarget
 		}
 
@@ -76,16 +69,16 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 			backupCreated bool
 		)
 
-		if alias == nightly {
-			oldCommitHash, _ = GetVersionService().GetInstalledVersionIdentifier(nightly)
+		if alias == constants.Nightly {
+			oldCommitHash, _ = GetVersionService().GetInstalledVersionIdentifier(constants.Nightly)
 			logrus.Debugf("Current nightly commit: %s", oldCommitHash)
 
 			// Backup current nightly for rollback support
 			if oldCommitHash != "" {
-				nightlyDir := filepath.Join(GetVersionsDir(), "nightly")
+				nightlyDir := filepath.Join(GetVersionsDir(), constants.Nightly)
 				backupDir = filepath.Join(
 					GetVersionsDir(),
-					"nightly-"+shortHash(oldCommitHash, shortHashLength),
+					"nightly-"+shortHash(oldCommitHash, constants.ShortHashLength),
 				)
 
 				// Only backup if the backup doesn't already exist
@@ -112,7 +105,10 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		}
 
 		// Create and start a spinner to show progress.
-		progressSpinner := spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond)
+		progressSpinner := spinner.New(
+			spinner.CharSets[14],
+			constants.SpinnerSpeed*time.Millisecond,
+		)
 		progressSpinner.Prefix = ui.InfoIcon() + " "
 		progressSpinner.Suffix = " Checking for updates..."
 		progressSpinner.Start()
@@ -171,9 +167,9 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		progressSpinner.Stop()
 
 		// For nightly upgrades, add OLD version to history for rollback support
-		if alias == nightly && oldCommitHash != "" {
+		if alias == constants.Nightly && oldCommitHash != "" {
 			// Add the old commit (the one we backed up) to history
-			histErr := AddNightlyToHistory(oldCommitHash, "nightly")
+			histErr := AddNightlyToHistory(oldCommitHash, constants.Nightly)
 			if histErr != nil {
 				logrus.Warnf("Failed to add nightly to history: %v", histErr)
 			}
@@ -191,7 +187,7 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		}
 
 		// For nightly, show changelog
-		if alias == nightly && oldCommitHash != "" {
+		if alias == constants.Nightly && oldCommitHash != "" {
 			nightlyRelease, findErr := GetVersionService().FindNightly(ctx)
 			if findErr == nil && nightlyRelease.CommitHash() != oldCommitHash {
 				_ = ShowChangelog(ctx, oldCommitHash, nightlyRelease.CommitHash())

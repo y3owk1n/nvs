@@ -9,17 +9,8 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/ui"
-)
-
-const (
-	githubCompareURL     = "https://api.github.com/repos/neovim/neovim/compare"
-	changelogLimit       = 10
-	commitHashLength     = 40
-	shortHashLength      = 8
-	httpTimeoutSeconds   = 30
-	messageTruncateLimit = 70
-	displayHashLength    = 7
 )
 
 // GitHubCommit represents a commit from the GitHub Compare API.
@@ -62,13 +53,13 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 		return nil
 	}
 
-	// Truncate to max commitHashLength chars (full SHA length)
-	if len(oldCommit) > commitHashLength {
-		oldCommit = oldCommit[:commitHashLength]
+	// Truncate to max constants.CommitHashLength chars (full SHA length)
+	if len(oldCommit) > constants.CommitHashLength {
+		oldCommit = oldCommit[:constants.CommitHashLength]
 	}
 
-	if len(newCommit) > commitHashLength {
-		newCommit = newCommit[:commitHashLength]
+	if len(newCommit) > constants.CommitHashLength {
+		newCommit = newCommit[:constants.CommitHashLength]
 	}
 
 	// If they're the same, no changelog to show
@@ -78,15 +69,15 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 
 	logrus.Debugf(
 		"Fetching changelog from %s to %s",
-		shortHash(oldCommit, shortHashLength),
-		shortHash(newCommit, shortHashLength),
+		shortHash(oldCommit, constants.ShortHashLength),
+		shortHash(newCommit, constants.ShortHashLength),
 	)
 
 	// Fetch comparison from GitHub API
 	// Note: GitHub API has rate limits (60 requests/hour for unauthenticated)
 	logrus.Debug("Fetching changelog from GitHub API (subject to rate limits)")
 
-	url := fmt.Sprintf("%s/%s...%s", githubCompareURL, oldCommit, newCommit)
+	url := fmt.Sprintf("%s/%s...%s", constants.GitHubCompareURL, oldCommit, newCommit)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -96,7 +87,7 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 	req.Header.Set("User-Agent", "nvs")
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 
-	client := &http.Client{Timeout: httpTimeoutSeconds * time.Second}
+	client := &http.Client{Timeout: constants.HTTPTimeoutSeconds * time.Second}
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -151,7 +142,7 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 
 	// Show recent commits (limited)
 	displayed := 0
-	for i := len(compareResp.Commits) - 1; i >= 0 && displayed < changelogLimit; i-- {
+	for i := len(compareResp.Commits) - 1; i >= 0 && displayed < constants.ChangelogLimit; i-- {
 		commit := compareResp.Commits[i]
 
 		// Get first line of commit message
@@ -165,12 +156,12 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 		}
 
 		// Truncate long messages
-		if runeCount := len([]rune(message)); runeCount > messageTruncateLimit {
-			message = string([]rune(message)[:messageTruncateLimit-3]) + "..."
+		if runeCount := len([]rune(message)); runeCount > constants.MessageTruncateLimit {
+			message = string([]rune(message)[:constants.MessageTruncateLimit-3]) + "..."
 		}
 
 		_, printErr = fmt.Fprintf(os.Stdout, "  %s %s\n",
-			ui.CyanText(shortHash(commit.SHA, displayHashLength)),
+			ui.CyanText(shortHash(commit.SHA, constants.DisplayHashLength)),
 			message,
 		)
 		if printErr != nil {
@@ -180,11 +171,11 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 		displayed++
 	}
 
-	if compareResp.TotalCommits > changelogLimit {
+	if compareResp.TotalCommits > constants.ChangelogLimit {
 		_, printErr = fmt.Fprintf(
 			os.Stdout,
 			"  ... and %d more commits\n",
-			compareResp.TotalCommits-changelogLimit,
+			compareResp.TotalCommits-constants.ChangelogLimit,
 		)
 		if printErr != nil {
 			logrus.Warnf("Failed to write to stdout: %v", printErr)
@@ -198,9 +189,10 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 
 	_, printErr = fmt.Fprintf(
 		os.Stdout,
-		"View full changelog: https://github.com/neovim/neovim/compare/%s...%s\n\n",
-		shortHash(oldCommit, displayHashLength),
-		shortHash(newCommit, displayHashLength),
+		"View full changelog: %s/neovim/neovim/compare/%s...%s\n\n",
+		constants.DefaultGitHubBaseURL,
+		shortHash(oldCommit, constants.DisplayHashLength),
+		shortHash(newCommit, constants.DisplayHashLength),
 	)
 	if printErr != nil {
 		logrus.Warnf("Failed to write to stdout: %v", printErr)

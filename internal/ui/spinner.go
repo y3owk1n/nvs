@@ -13,14 +13,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	// goroutineNum is the number of goroutines for spinner updates (stdout + stderr).
-	goroutineNum = 2
-)
-
 // RunCommandWithSpinner executes the provided command with an active spinner that updates its suffix
 // based on the command's output. It captures both stdout and stderr and returns an error if the command fails.
 func RunCommandWithSpinner(ctx context.Context, spinner *spinner.Spinner, cmd *exec.Cmd) error {
+	const goroutineNum = 2
+
 	var err error
 
 	stdoutPipe, err := cmd.StdoutPipe()
