@@ -136,6 +136,11 @@ func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, err
 		globalReleases, err := c.FetchRemoteVersionsJSON(ctx)
 		if err == nil {
 			logrus.Debug("Using global cache releases")
+			// Opportunistically update local cache for offline fallback and performance
+			err := c.cache.Set(globalReleases)
+			if err != nil {
+				logrus.Warnf("Failed to update local cache from global cache: %v", err)
+			}
 
 			return globalReleases, nil
 		}
