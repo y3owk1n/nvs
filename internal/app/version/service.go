@@ -26,10 +26,11 @@ type Service struct {
 
 // Config holds configuration for the version service.
 type Config struct {
-	VersionsDir   string
-	CacheFilePath string
-	GlobalBinDir  string
-	MirrorURL     string // Optional GitHub mirror URL for downloads
+	VersionsDir    string
+	CacheFilePath  string
+	GlobalBinDir   string
+	MirrorURL      string // Optional GitHub mirror URL for downloads
+	UseGlobalCache bool   // Whether to use global cache for releases
 }
 
 // New creates a new version Service.

@@ -253,7 +253,7 @@ func TestClient_FindStable(t *testing.T) {
 	}
 
 	cacheFile := writeCacheFile(t, cacheData)
-	client := github.NewClient(cacheFile, time.Hour, "", "")
+	client := github.NewClient(cacheFile, time.Hour, "", "", false)
 	ctx := context.Background()
 
 	stable, err := client.FindStable(ctx)
@@ -292,7 +292,7 @@ func TestClient_FindNightly(t *testing.T) {
 	}
 
 	cacheFile := writeCacheFile(t, cacheData)
-	client := github.NewClient(cacheFile, time.Hour, "", "")
+	client := github.NewClient(cacheFile, time.Hour, "", "", false)
 	ctx := context.Background()
 
 	nightly, err := client.FindNightly(ctx)
@@ -331,7 +331,7 @@ func TestClient_FindByTag(t *testing.T) {
 	}
 
 	cacheFile := writeCacheFile(t, cacheData)
-	client := github.NewClient(cacheFile, time.Hour, "", "")
+	client := github.NewClient(cacheFile, time.Hour, "", "", false)
 	ctx := context.Background()
 
 	tests := []struct {
@@ -391,7 +391,7 @@ func TestClient_MirrorURL(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			client := github.NewClient(cacheFile, time.Hour, "", testCase.mirrorURL)
+			client := github.NewClient(cacheFile, time.Hour, "", testCase.mirrorURL, false)
 
 			if got := client.MirrorURL(); got != testCase.want {
 				t.Errorf("MirrorURL() = %v, want %v", got, testCase.want)
@@ -405,7 +405,7 @@ func TestClient_ApplyMirror(t *testing.T) {
 	tempDir := t.TempDir()
 	cacheFile := filepath.Join(tempDir, "cache.json")
 
-	client := github.NewClient(cacheFile, time.Hour, "", "https://mirror.example.com")
+	client := github.NewClient(cacheFile, time.Hour, "", "https://mirror.example.com", false)
 
 	url := "https://github.com/neovim/neovim/releases/download/v0.10.0/nvim.tar.gz"
 	want := "https://mirror.example.com/neovim/neovim/releases/download/v0.10.0/nvim.tar.gz"

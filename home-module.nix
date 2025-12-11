@@ -44,6 +44,12 @@ in
         description = "Enable automatic version switching when entering directories with .nvs-version files";
       };
 
+      useGlobalCache = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "Use global cache for releases to reduce API calls";
+      };
+
       shellIntegration = {
         bash = lib.mkOption {
           type = lib.types.bool;
@@ -73,6 +79,8 @@ in
       NVS_CONFIG_DIR = cfg.configDir;
       NVS_CACHE_DIR = cfg.cacheDir;
       NVS_BIN_DIR = cfg.binDir;
+    } // lib.optionalAttrs cfg.useGlobalCache {
+      NVS_USE_GLOBAL_CACHE = "true";
     };
 
     home.sessionPath = [

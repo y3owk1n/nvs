@@ -10,6 +10,10 @@ inputs:
     description: "Whether to install nvs"
     required: false
     default: "true"
+  use-global-cache:
+    description: "Use global cache for releases to reduce API calls"
+    required: false
+    default: "false"
 runs:
   using: "composite"
   steps:
@@ -32,6 +36,8 @@ runs:
     - name: Install Neovim version
       if: inputs.version != ''
       shell: bash
+      env:
+        NVS_USE_GLOBAL_CACHE: ${{ inputs.use-global-cache }}
       run: |
         eval "$(nvs env --source)"
         nvs install ${{ inputs.version }}
@@ -39,6 +45,8 @@ runs:
     - name: Use Neovim version
       if: inputs.version != ''
       shell: bash
+      env:
+        NVS_USE_GLOBAL_CACHE: ${{ inputs.use-global-cache }}
       run: |
         eval "$(nvs env --source)"
         nvs use ${{ inputs.version }}
@@ -46,6 +54,8 @@ runs:
     - name: Add Neovim to PATH (Unix)
       if: inputs.version != '' && runner.os != 'Windows'
       shell: bash
+      env:
+        NVS_USE_GLOBAL_CACHE: ${{ inputs.use-global-cache }}
       run: |
         eval "$(nvs env --source)"
         NVS_BIN_DIR=$(nvs env --json | sed -n 's/.*"NVS_BIN_DIR":"\([^"]*\)".*/\1/p')
@@ -54,6 +64,8 @@ runs:
     - name: Add Neovim to PATH (Windows)
       if: inputs.version != '' && runner.os == 'Windows'
       shell: pwsh
+      env:
+        NVS_USE_GLOBAL_CACHE: ${{ inputs.use-global-cache }}
       run: |
         $envJson = nvs env --json | ConvertFrom-Json
         $nvsBinDir = $envJson.NVS_BIN_DIR
