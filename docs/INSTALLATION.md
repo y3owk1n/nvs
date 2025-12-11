@@ -277,11 +277,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-       - name: Setup Neovim
-         uses: y3owk1n/nvs@main
-         with:
-           version: stable
-           use-global-cache: true
+      - name: Setup Neovim
+        uses: y3owk1n/nvs@main
+        with:
+          version: stable
+          use-global-cache: true
 
       - name: Verify Neovim
         run: nvim --version
