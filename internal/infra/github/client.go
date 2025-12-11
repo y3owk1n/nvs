@@ -96,11 +96,31 @@ func (c *Client) FetchRemoteVersionsJSON(ctx context.Context) ([]release.Release
 		)
 	}
 
-	var apiReleases []apiRelease
+	var globalReleases []globalCacheRelease
 
-	err = json.NewDecoder(resp.Body).Decode(&apiReleases)
+	err = json.NewDecoder(resp.Body).Decode(&globalReleases)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode remote versions: %w", err)
+	}
+
+	// Convert globalCacheRelease to apiRelease for compatibility
+	apiReleases := make([]apiRelease, len(globalReleases))
+	for i, gr := range globalReleases {
+		assets := make([]apiAsset, len(gr.Assets))
+		for j, ga := range gr.Assets {
+			assets[j] = apiAsset{
+				Name:               ga.Name,
+				BrowserDownloadURL: ga.BrowserDownloadURL,
+				Size:               ga.Size,
+			}
+		}
+		apiReleases[i] = apiRelease{
+			TagName:     gr.TagName,
+			Prerelease:  gr.Prerelease,
+			Assets:      assets,
+			PublishedAt: gr.PublishedAt,
+			CommitHash:  gr.CommitHash,
+		}
 	}
 
 	releases := c.convertReleases(apiReleases)
@@ -118,6 +138,22 @@ type apiRelease struct {
 	Assets      []apiAsset `json:"assets"`
 	PublishedAt string     `json:"published_at"`
 	CommitHash  string     `json:"target_commitish"`
+}
+
+// globalCacheRelease represents a release from the global cache JSON.
+type globalCacheRelease struct {
+	TagName     string             `json:"TagName"`
+	Prerelease  bool               `json:"Prerelease"`
+	Assets      []globalCacheAsset `json:"Assets"`
+	PublishedAt string             `json:"PublishedAt"`
+	CommitHash  string             `json:"CommitHash"`
+}
+
+// globalCacheAsset represents an asset from the global cache JSON.
+type globalCacheAsset struct {
+	Name               string `json:"Name"`
+	BrowserDownloadURL string `json:"BrowserDownloadURL"`
+	Size               int64  `json:"Size"`
 }
 
 // apiAsset represents an asset from the GitHub API.
