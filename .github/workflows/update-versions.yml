@@ -5,15 +5,18 @@ on:
     - cron: "0 6 * * *" # Daily at 6:00 AM UTC (after Neovim's 5:05 AM release)
   workflow_dispatch: # Manual trigger
 
+permissions:
+  contents: write
+
 jobs:
   update-versions:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.PAT }}
 
       - name: Fetch Neovim releases
         run: |
@@ -36,11 +39,10 @@ jobs:
 
           rm "$temp_file"
 
-      - name: Commit and push changes
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+      - name: Push changes
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: |
+            chore(versions): update versions.json [automated]
 
-          git add versions.json
-          git commit -m "Update versions.json [automated]" || echo "No changes to commit"
-          git push
+            This is an automated commit.
