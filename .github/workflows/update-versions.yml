@@ -31,18 +31,23 @@ jobs:
 
           while true; do
             echo "Fetching page $page..."
-            page_releases=$(curl -fsSL "https://api.github.com/repos/neovim/neovim/releases?page=$page&per_page=$per_page" \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-              -H "User-Agent: nvs")
+            temp_page=$(mktemp)
+            curl -fsSL "https://api.github.com/repos/neovim/neovim/releases?page=$page&per_page=$per_page" \
+              -H "Authorization: Bearer ${{ secrets.PAT }}" \
+              -H "User-Agent: nvs" > "$temp_page"
 
             # Check if page has releases
-            page_count=$(echo "$page_releases" | jq 'length')
+            page_count=$(jq 'length' "$temp_page")
             if [ "$page_count" -eq 0 ]; then
+              rm "$temp_page"
               break
             fi
 
             # Merge with existing releases in temp file
-            jq --argjson new "$page_releases" '. + $new' "$temp_file" > "${temp_file}.tmp" && mv "${temp_file}.tmp" "$temp_file"
+            jq -s '.[0] + .[1]' "$temp_file" "$temp_page" > "${temp_file}.tmp" && mv "${temp_file}.tmp" "$temp_file"
+
+            # Clean up temp page file
+            rm "$temp_page"
 
             # Check if this is the last page
             if [ "$page_count" -lt "$per_page" ]; then
@@ -72,6 +77,6 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: |
-            chore(versions): update versions.json [automated]
+            chore(versions): update versions.json [skip ci]
 
             This is an automated commit.
