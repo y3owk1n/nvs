@@ -69,8 +69,8 @@ func (c *Client) MirrorURL() string {
 
 // FetchRemoteVersionsJSON fetches releases from the global cache JSON.
 func (c *Client) FetchRemoteVersionsJSON(ctx context.Context) ([]release.Release, error) {
-	// URL for the global cache JSON (assuming it's in the nvs repo)
-	url := "https://raw.githubusercontent.com/y3owk1n/nvs/main/versions.json"
+	// URL for the global cache JSON
+	url := constants.GlobalCacheURL
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
