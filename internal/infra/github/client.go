@@ -105,21 +105,18 @@ func (c *Client) FetchRemoteVersionsJSON(ctx context.Context) ([]release.Release
 
 	// Convert globalCacheRelease to apiRelease for compatibility
 	apiReleases := make([]apiRelease, len(globalReleases))
-	for i, gr := range globalReleases {
-		assets := make([]apiAsset, len(gr.Assets))
-		for j, ga := range gr.Assets {
-			assets[j] = apiAsset{
-				Name:               ga.Name,
-				BrowserDownloadURL: ga.BrowserDownloadURL,
-				Size:               ga.Size,
-			}
+	for idx, globalRelease := range globalReleases {
+		assets := make([]apiAsset, len(globalRelease.Assets))
+		for j, ga := range globalRelease.Assets {
+			assets[j] = apiAsset(ga)
 		}
-		apiReleases[i] = apiRelease{
-			TagName:     gr.TagName,
-			Prerelease:  gr.Prerelease,
+
+		apiReleases[idx] = apiRelease{
+			TagName:     globalRelease.TagName,
+			Prerelease:  globalRelease.Prerelease,
 			Assets:      assets,
-			PublishedAt: gr.PublishedAt,
-			CommitHash:  gr.CommitHash,
+			PublishedAt: globalRelease.PublishedAt,
+			CommitHash:  globalRelease.CommitHash,
 		}
 	}
 
@@ -141,6 +138,8 @@ type apiRelease struct {
 }
 
 // globalCacheRelease represents a release from the global cache JSON.
+//
+//nolint:tagliatelle
 type globalCacheRelease struct {
 	TagName     string             `json:"TagName"`
 	Prerelease  bool               `json:"Prerelease"`
@@ -150,6 +149,8 @@ type globalCacheRelease struct {
 }
 
 // globalCacheAsset represents an asset from the global cache JSON.
+//
+//nolint:tagliatelle
 type globalCacheAsset struct {
 	Name               string `json:"Name"`
 	BrowserDownloadURL string `json:"BrowserDownloadURL"`
