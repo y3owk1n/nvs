@@ -21,15 +21,40 @@ jobs:
       - name: Fetch Neovim releases
         run: |
           set -euo pipefail
-          # Fetch releases from GitHub API
+          # Fetch all releases from GitHub API with pagination (same as nvs client)
           temp_file=$(mktemp)
-          curl -fsSL "https://api.github.com/repos/neovim/neovim/releases" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            > "$temp_file"
+          page=1
+          per_page=100
+
+          # Collect all releases
+          all_releases="[]"
+
+          while true; do
+            echo "Fetching page $page..."
+            page_releases=$(curl -fsSL "https://api.github.com/repos/neovim/neovim/releases?page=$page&per_page=$per_page" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "User-Agent: nvs")
+
+            # Check if page has releases
+            page_count=$(echo "$page_releases" | jq 'length')
+            if [ "$page_count" -eq 0 ]; then
+              break
+            fi
+
+            # Merge with existing releases
+            all_releases=$(echo "$all_releases" | jq --argjson new "$page_releases" '. + $new')
+
+            # Check if this is the last page
+            if [ "$page_count" -lt "$per_page" ]; then
+              break
+            fi
+
+            page=$((page + 1))
+          done
 
           # Validate and transform JSON
-          jq '[.[] | {TagName: .tag_name, Prerelease: .prerelease, Assets: [.assets[] | {Name: .name, BrowserDownloadURL: .browser_download_url, Size: .size}], PublishedAt: .published_at, CommitHash: .target_commitish}]' \
-            "$temp_file" > versions.json
+          echo "$all_releases" | jq '[.[] | {TagName: .tag_name, Prerelease: .prerelease, Assets: [.assets[] | {Name: .name, BrowserDownloadURL: .browser_download_url, Size: .size}], PublishedAt: .published_at, CommitHash: .target_commitish}]' \
+            > versions.json
 
           # Validate the output is valid JSON and not empty
           if ! jq 'length > 0' versions.json >/dev/null 2>&1; then
@@ -37,7 +62,8 @@ jobs:
             exit 1
           fi
 
-          rm "$temp_file"
+          release_count=$(jq 'length' versions.json)
+          echo "Fetched $release_count releases"
 
       - name: Push changes
         uses: stefanzweifel/git-auto-commit-action@v7
