@@ -304,7 +304,7 @@ Full integration with automatic environment setup:
              # All options with defaults:
              enableAutoSwitch = true;      # Auto-switch on cd
              enableShellIntegration = true; # Run nvs env --source
-             useGlobalCache = false;       # Use global cache to reduce API calls
+              useGlobalCache = false;       # Set to true to use global cache and reduce API calls
 
              # Custom directories (optional)
              configDir = "${config.xdg.configHome}/nvs";
@@ -328,7 +328,7 @@ Full integration with automatic environment setup:
 **The module handles:**
 
 - Installing nvs
-- Setting `NVS_CONFIG_DIR`, `NVS_CACHE_DIR`, `NVS_BIN_DIR`, `NVS_USE_GLOBAL_CACHE`
+- Setting `NVS_CONFIG_DIR`, `NVS_CACHE_DIR`, `NVS_BIN_DIR`, and `NVS_USE_GLOBAL_CACHE` (only when `useGlobalCache = true`)
 - Adding `binDir` to `home.sessionPath`
 - Shell integration (`nvs env --source`)
 - Auto-switch hooks (`nvs hook`)
