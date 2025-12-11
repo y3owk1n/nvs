@@ -17,11 +17,24 @@ jobs:
 
       - name: Fetch Neovim releases
         run: |
+          set -euo pipefail
           # Fetch releases from GitHub API
-          curl -s "https://api.github.com/repos/neovim/neovim/releases" \
+          temp_file=$(mktemp)
+          curl -fsSL "https://api.github.com/repos/neovim/neovim/releases" \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            | jq '[.[] | {TagName: .tag_name, Prerelease: .prerelease, Assets: [.assets[] | {Name: .name, BrowserDownloadURL: .browser_download_url, Size: .size}], PublishedAt: .published_at, CommitHash: .target_commitish}]' \
-            > versions.json
+            > "$temp_file"
+
+          # Validate and transform JSON
+          jq '[.[] | {TagName: .tag_name, Prerelease: .prerelease, Assets: [.assets[] | {Name: .name, BrowserDownloadURL: .browser_download_url, Size: .size}], PublishedAt: .published_at, CommitHash: .target_commitish}]' \
+            "$temp_file" > versions.json
+
+          # Validate the output is valid JSON and not empty
+          if ! jq 'length > 0' versions.json >/dev/null 2>&1; then
+            echo "Error: Generated versions.json is empty or invalid"
+            exit 1
+          fi
+
+          rm "$temp_file"
 
       - name: Commit and push changes
         run: |
