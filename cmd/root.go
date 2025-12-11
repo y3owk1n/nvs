@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -220,8 +221,22 @@ func InitConfig() {
 		logrus.Debugf("Using GitHub mirror: %s", githubMirror)
 	}
 
+	// Read global cache setting from environment
+	envValue := os.Getenv("NVS_USE_GLOBAL_CACHE")
+
+	useGlobalCache := strings.EqualFold(envValue, "true") || envValue == "1"
+	if useGlobalCache {
+		logrus.Debug("Global cache enabled")
+	}
+
 	// Initialize services
-	githubClient := github.NewClient(cacheFilePath, constants.CacheTTL, "0.5.0", githubMirror)
+	githubClient := github.NewClient(
+		cacheFilePath,
+		constants.CacheTTL,
+		"0.5.0",
+		githubMirror,
+		useGlobalCache,
+	)
 	versionManager := filesystem.New(&filesystem.Config{
 		VersionsDir:  versionsDir,
 		GlobalBinDir: globalBinDir,
@@ -239,10 +254,11 @@ func InitConfig() {
 		versionManager,
 		installService,
 		&appversion.Config{
-			VersionsDir:   versionsDir,
-			CacheFilePath: cacheFilePath,
-			GlobalBinDir:  globalBinDir,
-			MirrorURL:     githubMirror,
+			VersionsDir:    versionsDir,
+			CacheFilePath:  cacheFilePath,
+			GlobalBinDir:   globalBinDir,
+			MirrorURL:      githubMirror,
+			UseGlobalCache: useGlobalCache,
 		},
 	)
 	if err != nil {

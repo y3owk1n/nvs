@@ -20,20 +20,28 @@ import (
 
 // Client implements the release.Repository interface for GitHub.
 type Client struct {
-	httpClient *http.Client
-	cache      *Cache
-	minVersion string
-	mirrorURL  string // Optional mirror URL for GitHub (e.g., https://mirror.ghproxy.com)
+	httpClient     *http.Client
+	cache          *Cache
+	minVersion     string
+	mirrorURL      string // Optional mirror URL for GitHub (e.g., https://mirror.ghproxy.com)
+	useGlobalCache bool   // Whether to use global cache
 }
 
 // NewClient creates a new GitHub client with caching.
 // mirrorURL is optional - pass empty string to use default GitHub URLs.
-func NewClient(cacheFilePath string, cacheTTL time.Duration, minVersion, mirrorURL string) *Client {
+// useGlobalCache enables fetching from global cache.
+func NewClient(
+	cacheFilePath string,
+	cacheTTL time.Duration,
+	minVersion, mirrorURL string,
+	useGlobalCache bool,
+) *Client {
 	return &Client{
-		httpClient: &http.Client{Timeout: constants.ClientTimeoutSec * time.Second},
-		cache:      NewCache(cacheFilePath, cacheTTL),
-		minVersion: minVersion,
-		mirrorURL:  mirrorURL,
+		httpClient:     &http.Client{Timeout: constants.ClientTimeoutSec * time.Second},
+		cache:          NewCache(cacheFilePath, cacheTTL),
+		minVersion:     minVersion,
+		mirrorURL:      mirrorURL,
+		useGlobalCache: useGlobalCache,
 	}
 }
 
@@ -59,6 +67,48 @@ func (c *Client) MirrorURL() string {
 	return c.mirrorURL
 }
 
+// FetchRemoteVersionsJSON fetches releases from the global cache JSON.
+func (c *Client) FetchRemoteVersionsJSON(ctx context.Context) ([]release.Release, error) {
+	// URL for the global cache JSON
+	url := constants.GlobalCacheURL
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("User-Agent", "nvs")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch remote versions: %w", err)
+	}
+
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf(
+			"remote versions fetch failed with status %d: %w",
+			resp.StatusCode,
+			ErrAPIRequestFailed,
+		)
+	}
+
+	var apiReleases []apiRelease
+
+	err = json.NewDecoder(resp.Body).Decode(&apiReleases)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode remote versions: %w", err)
+	}
+
+	releases := c.convertReleases(apiReleases)
+	filtered := filterReleases(releases, c.minVersion)
+
+	return filtered, nil
+}
+
 // apiRelease represents a release from the GitHub API.
 //
 //nolint:tagliatelle
@@ -81,7 +131,24 @@ type apiAsset struct {
 
 // GetAll fetches all available releases from GitHub.
 func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, error) {
-	// Try cache first unless force is true
+	// Try global cache first if enabled and not force
+	if c.useGlobalCache && !force {
+		globalReleases, err := c.FetchRemoteVersionsJSON(ctx)
+		if err == nil {
+			logrus.Debug("Using global cache releases")
+			// Opportunistically update local cache for offline fallback and performance
+			err := c.cache.Set(globalReleases)
+			if err != nil {
+				logrus.Warnf("Failed to update local cache from global cache: %v", err)
+			}
+
+			return globalReleases, nil
+		}
+
+		logrus.Debugf("Global cache fetch failed: %v", err)
+	}
+
+	// Try local cache first unless force is true
 	if !force {
 		cached, err := c.cache.Get()
 		if err == nil {

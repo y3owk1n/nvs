@@ -12,6 +12,7 @@ Environment setup and customization options for **nvs**.
 | `NVS_CACHE_DIR`     | Cache files         | `~/.cache/nvs`  |
 | `NVS_BIN_DIR`       | Binary symlinks     | `~/.local/bin`  |
 | `NVS_GITHUB_MIRROR` | GitHub mirror URL   | (none)          |
+| `NVS_USE_GLOBAL_CACHE` | Use global cache for releases | `false` |
 
 ---
 
@@ -186,6 +187,30 @@ export NVS_GITHUB_MIRROR="https://mirror.ghproxy.com"
 
 ---
 
+### NVS_USE_GLOBAL_CACHE
+
+**Purpose:** Enable fetching Neovim releases from a global cache to reduce API calls and improve performance.
+
+**Default:** `false`
+
+**Example:**
+
+```bash
+export NVS_USE_GLOBAL_CACHE=true
+```
+
+**How it works:**
+
+- When enabled, `nvs ls-remote` fetches releases from a pre-built JSON cache hosted in the nvs repository.
+- This cache is updated daily via GitHub Actions, reducing GitHub API rate limits.
+- `--force` still bypasses the global cache and fetches directly from the API.
+- When disabled, behavior is unchanged (uses local cache and API).
+
+> [!TIP]
+> Enable this for faster `ls-remote` and to help avoid rate limits in high-usage scenarios.
+
+---
+
 ## Directory Structure
 
 **nvs** creates the following directory structure:
@@ -273,25 +298,26 @@ Full integration with automatic environment setup:
         { nixpkgs.overlays = [ nvs.overlays.default ]; }
         nvs.homeManagerModules.default
         {
-          programs.nvs = {
-            enable = true;
+           programs.nvs = {
+             enable = true;
 
-            # All options with defaults:
-            enableAutoSwitch = true;      # Auto-switch on cd
-            enableShellIntegration = true; # Run nvs env --source
+             # All options with defaults:
+             enableAutoSwitch = true;      # Auto-switch on cd
+             enableShellIntegration = true; # Run nvs env --source
+              useGlobalCache = false;       # Set to true to use global cache and reduce API calls
 
-            # Custom directories (optional)
-            configDir = "${config.xdg.configHome}/nvs";
-            cacheDir = "${config.xdg.cacheHome}/nvs";
-            binDir = "${config.home.homeDirectory}/.local/bin";
+             # Custom directories (optional)
+             configDir = "${config.xdg.configHome}/nvs";
+             cacheDir = "${config.xdg.cacheHome}/nvs";
+             binDir = "${config.home.homeDirectory}/.local/bin";
 
-            # Shell-specific integration
-            shellIntegration = {
-              bash = true;
-              zsh = true;
-              fish = true;
-            };
-          };
+             # Shell-specific integration
+             shellIntegration = {
+               bash = true;
+               zsh = true;
+               fish = true;
+             };
+           };
         }
       ];
     };
@@ -302,7 +328,7 @@ Full integration with automatic environment setup:
 **The module handles:**
 
 - Installing nvs
-- Setting `NVS_CONFIG_DIR`, `NVS_CACHE_DIR`, `NVS_BIN_DIR`
+- Setting `NVS_CONFIG_DIR`, `NVS_CACHE_DIR`, `NVS_BIN_DIR`, and `NVS_USE_GLOBAL_CACHE` (only when `useGlobalCache = true`)
 - Adding `binDir` to `home.sessionPath`
 - Shell integration (`nvs env --source`)
 - Auto-switch hooks (`nvs hook`)

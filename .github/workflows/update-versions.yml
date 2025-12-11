@@ -1,0 +1,46 @@
+name: Update Versions Cache
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # Daily at 6:00 AM UTC (after Neovim's 5:05 AM release)
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  update-versions:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Fetch Neovim releases
+        run: |
+          set -euo pipefail
+          # Fetch releases from GitHub API
+          temp_file=$(mktemp)
+          curl -fsSL "https://api.github.com/repos/neovim/neovim/releases" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            > "$temp_file"
+
+          # Validate and transform JSON
+          jq '[.[] | {TagName: .tag_name, Prerelease: .prerelease, Assets: [.assets[] | {Name: .name, BrowserDownloadURL: .browser_download_url, Size: .size}], PublishedAt: .published_at, CommitHash: .target_commitish}]' \
+            "$temp_file" > versions.json
+
+          # Validate the output is valid JSON and not empty
+          if ! jq 'length > 0' versions.json >/dev/null 2>&1; then
+            echo "Error: Generated versions.json is empty or invalid"
+            exit 1
+          fi
+
+          rm "$temp_file"
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+          git add versions.json
+          git commit -m "Update versions.json [automated]" || echo "No changes to commit"
+          git push

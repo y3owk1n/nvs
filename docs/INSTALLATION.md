@@ -248,14 +248,16 @@ Use the **nvs** action in your GitHub workflows to install nvs and Neovim versio
   with:
     version: nightly  # Install nightly build
     install-nvs: true  # Install nvs (default: true)
+    use-global-cache: true  # Use global cache to reduce API calls
 ```
 
 #### Inputs
 
-| Input       | Description                                      | Default | Required |
-|-------------|--------------------------------------------------|---------|----------|
-| `version`   | Neovim version to install/use (e.g., `stable`, `nightly`, `v0.10.3`) | `stable` | No |
-| `install-nvs` | Whether to install nvs                           | `true`  | No |
+| Input            | Description                                      | Default | Required |
+|------------------|--------------------------------------------------|---------|----------|
+| `version`        | Neovim version to install/use (e.g., `stable`, `nightly`, `v0.10.3`) | `stable` | No |
+| `install-nvs`    | Whether to install nvs                           | `true`  | No |
+| `use-global-cache` | Use global cache for releases to reduce API calls | `false` | No |
 
 #### Supported Platforms
 
@@ -279,6 +281,7 @@ jobs:
         uses: y3owk1n/nvs@main
         with:
           version: stable
+          use-global-cache: true
 
       - name: Verify Neovim
         run: nvim --version
