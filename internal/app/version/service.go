@@ -30,7 +30,7 @@ type Config struct {
 	CacheFilePath  string
 	GlobalBinDir   string
 	MirrorURL      string // Optional GitHub mirror URL for downloads
-	UseGlobalCache bool   // Whether to use global cache for releases
+	UseGlobalCache bool   // Whether to use global cache for releases (passed to GitHub client)
 }
 
 // New creates a new version Service.
