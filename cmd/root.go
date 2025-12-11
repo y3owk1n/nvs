@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -221,7 +222,12 @@ func InitConfig() {
 	}
 
 	// Read global cache setting from environment
-	useGlobalCache := os.Getenv("NVS_USE_GLOBAL_CACHE") == "true"
+	envValue := os.Getenv("NVS_USE_GLOBAL_CACHE")
+
+	useGlobalCache := strings.EqualFold(envValue, "true") || envValue == "1"
+	if useGlobalCache {
+		logrus.Debug("Global cache enabled")
+	}
 
 	// Initialize services
 	githubClient := github.NewClient(
