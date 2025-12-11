@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.12.0](https://github.com/y3owk1n/nvs/compare/v1.11.0...v1.12.0) (2025-12-11)
+
+
+### Features
+
+* add GitHub Action for nvs setup ([#181](https://github.com/y3owk1n/nvs/issues/181)) ([d0f30fe](https://github.com/y3owk1n/nvs/commit/d0f30fee032ab6432fdbdd84544746437fa9b407))
+* add global cache for releases ([#183](https://github.com/y3owk1n/nvs/issues/183)) ([acbdfbb](https://github.com/y3owk1n/nvs/commit/acbdfbb6865573998ebb9e0bd63836511bcc348e))
+
+
+### Bug Fixes
+
+* **cache:** parse global cache JSON with correct field casing ([#187](https://github.com/y3owk1n/nvs/issues/187)) ([e652323](https://github.com/y3owk1n/nvs/commit/e652323e4a248d7cfc0b3628a32ae92d534e4fac))
+* ensure update version CI is commitable to main [skip ci] ([#184](https://github.com/y3owk1n/nvs/issues/184)) ([7e3f979](https://github.com/y3owk1n/nvs/commit/7e3f979658764167bf2b604af058e8d4869420be))
+
 ## [1.11.0](https://github.com/y3owk1n/nvs/compare/v1.10.7...v1.11.0) (2025-12-06)
 
 
