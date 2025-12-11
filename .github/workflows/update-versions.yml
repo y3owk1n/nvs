@@ -26,8 +26,8 @@ jobs:
           page=1
           per_page=100
 
-          # Collect all releases
-          all_releases="[]"
+          # Initialize temp file with empty array
+          echo '[]' > "$temp_file"
 
           while true; do
             echo "Fetching page $page..."
@@ -41,8 +41,8 @@ jobs:
               break
             fi
 
-            # Merge with existing releases
-            all_releases=$(echo "$all_releases" | jq --argjson new "$page_releases" '. + $new')
+            # Merge with existing releases in temp file
+            jq --argjson new "$page_releases" '. + $new' "$temp_file" > "${temp_file}.tmp" && mv "${temp_file}.tmp" "$temp_file"
 
             # Check if this is the last page
             if [ "$page_count" -lt "$per_page" ]; then
@@ -53,8 +53,11 @@ jobs:
           done
 
           # Validate and transform JSON
-          echo "$all_releases" | jq '[.[] | {TagName: .tag_name, Prerelease: .prerelease, Assets: [.assets[] | {Name: .name, BrowserDownloadURL: .browser_download_url, Size: .size}], PublishedAt: .published_at, CommitHash: .target_commitish}]' \
-            > versions.json
+          jq '[.[] | {TagName: .tag_name, Prerelease: .prerelease, Assets: [.assets[] | {Name: .name, BrowserDownloadURL: .browser_download_url, Size: .size}], PublishedAt: .published_at, CommitHash: .target_commitish}]' \
+            "$temp_file" > versions.json
+
+          # Clean up temp file
+          rm "$temp_file"
 
           # Validate the output is valid JSON and not empty
           if ! jq 'length > 0' versions.json >/dev/null 2>&1; then
