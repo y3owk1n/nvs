@@ -168,23 +168,6 @@ type apiAsset struct {
 
 // GetAll fetches all available releases from GitHub.
 func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, error) {
-	// Try global cache first if enabled and not force
-	if c.useGlobalCache && !force {
-		globalReleases, err := c.FetchRemoteVersionsJSON(ctx)
-		if err == nil {
-			logrus.Debug("Using global cache releases")
-			// Opportunistically update local cache for offline fallback and performance
-			err := c.cache.Set(globalReleases)
-			if err != nil {
-				logrus.Warnf("Failed to update local cache from global cache: %v", err)
-			}
-
-			return globalReleases, nil
-		}
-
-		logrus.Debugf("Global cache fetch failed: %v", err)
-	}
-
 	// Try local cache first unless force is true
 	if !force {
 		cached, err := c.cache.Get()
@@ -199,8 +182,102 @@ func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, err
 		}
 	}
 
-	logrus.Debug("Fetching fresh releases from GitHub")
+	// Cache is stale or missing, fetch fresh data
+	var (
+		releases []release.Release
+		err      error
+	)
 
+	if c.useGlobalCache {
+		logrus.Debug("Fetching fresh releases from global cache")
+
+		releases, err = c.FetchRemoteVersionsJSON(ctx)
+		if err != nil {
+			logrus.Debugf("Global cache fetch failed: %v", err)
+			// Fall back to GitHub API
+			logrus.Debug("Falling back to fetching fresh releases from GitHub")
+
+			releases, err = c.fetchFromGitHubAPI(ctx)
+		}
+	} else {
+		logrus.Debug("Fetching fresh releases from GitHub")
+
+		releases, err = c.fetchFromGitHubAPI(ctx)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Update cache
+	err = c.cache.Set(releases)
+	if err != nil {
+		logrus.Warnf("Failed to update cache: %v", err)
+	}
+
+	return releases, nil
+}
+
+// FindStable returns the latest stable release.
+func (c *Client) FindStable(ctx context.Context) (release.Release, error) {
+	releases, err := c.GetAll(ctx, false)
+	if err != nil {
+		return release.Release{}, err
+	}
+
+	// Sort releases by published date descending (newest first)
+	sort.Slice(releases, func(i, j int) bool {
+		return releases[i].PublishedAt().After(releases[j].PublishedAt())
+	})
+
+	for _, r := range releases {
+		if !r.Prerelease() {
+			return r, nil
+		}
+	}
+
+	return release.Release{}, release.ErrNoStableRelease
+}
+
+// FindNightly returns the latest nightly release.
+func (c *Client) FindNightly(ctx context.Context) (release.Release, error) {
+	releases, err := c.GetAll(ctx, false)
+	if err != nil {
+		return release.Release{}, err
+	}
+
+	// Sort releases by published date descending (newest first)
+	sort.Slice(releases, func(i, j int) bool {
+		return releases[i].PublishedAt().After(releases[j].PublishedAt())
+	})
+
+	for _, r := range releases {
+		if r.Prerelease() && strings.HasPrefix(strings.ToLower(r.TagName()), "nightly") {
+			return r, nil
+		}
+	}
+
+	return release.Release{}, release.ErrNoNightlyRelease
+}
+
+// FindByTag returns a specific release by tag.
+func (c *Client) FindByTag(ctx context.Context, tag string) (release.Release, error) {
+	releases, err := c.GetAll(ctx, false)
+	if err != nil {
+		return release.Release{}, err
+	}
+
+	for _, r := range releases {
+		if r.TagName() == tag {
+			return r, nil
+		}
+	}
+
+	return release.Release{}, fmt.Errorf("%w: %s", release.ErrReleaseNotFound, tag)
+}
+
+// fetchFromGitHubAPI fetches releases directly from the GitHub API.
+func (c *Client) fetchFromGitHubAPI(ctx context.Context) ([]release.Release, error) {
 	var allAPIReleases []apiRelease
 
 	page := 1
@@ -271,71 +348,7 @@ func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, err
 	// Filter releases >= minVersion
 	filtered := filterReleases(releases, c.minVersion)
 
-	// Update cache
-	err := c.cache.Set(filtered)
-	if err != nil {
-		logrus.Warnf("Failed to update cache: %v", err)
-	}
-
 	return filtered, nil
-}
-
-// FindStable returns the latest stable release.
-func (c *Client) FindStable(ctx context.Context) (release.Release, error) {
-	releases, err := c.GetAll(ctx, false)
-	if err != nil {
-		return release.Release{}, err
-	}
-
-	// Sort releases by published date descending (newest first)
-	sort.Slice(releases, func(i, j int) bool {
-		return releases[i].PublishedAt().After(releases[j].PublishedAt())
-	})
-
-	for _, r := range releases {
-		if !r.Prerelease() {
-			return r, nil
-		}
-	}
-
-	return release.Release{}, release.ErrNoStableRelease
-}
-
-// FindNightly returns the latest nightly release.
-func (c *Client) FindNightly(ctx context.Context) (release.Release, error) {
-	releases, err := c.GetAll(ctx, false)
-	if err != nil {
-		return release.Release{}, err
-	}
-
-	// Sort releases by published date descending (newest first)
-	sort.Slice(releases, func(i, j int) bool {
-		return releases[i].PublishedAt().After(releases[j].PublishedAt())
-	})
-
-	for _, r := range releases {
-		if r.Prerelease() && strings.HasPrefix(strings.ToLower(r.TagName()), "nightly") {
-			return r, nil
-		}
-	}
-
-	return release.Release{}, release.ErrNoNightlyRelease
-}
-
-// FindByTag returns a specific release by tag.
-func (c *Client) FindByTag(ctx context.Context, tag string) (release.Release, error) {
-	releases, err := c.GetAll(ctx, false)
-	if err != nil {
-		return release.Release{}, err
-	}
-
-	for _, r := range releases {
-		if r.TagName() == tag {
-			return r, nil
-		}
-	}
-
-	return release.Release{}, fmt.Errorf("%w: %s", release.ErrReleaseNotFound, tag)
 }
 
 // convertReleases converts API releases to domain releases.
