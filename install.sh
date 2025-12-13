@@ -48,7 +48,7 @@ if ! command -v curl >/dev/null 2>&1; then
 fi
 
 REPO="y3owk1n/nvs"
-VERSION="1.12.0"
+VERSION="1.12.1"
 BIN_NAME="nvs"
 
 # Detect OS and architecture.
