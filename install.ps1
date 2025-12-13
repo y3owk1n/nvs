@@ -38,16 +38,17 @@ try {
 
     # Set download URLs based on architecture
     $repo = "y3owk1n/nvs"
+    $version = "1.12.0"
     $binaryName = "nvs.exe"
     $installDir = "$env:LOCALAPPDATA\Programs\nvs"
     $installPath = "$installDir\$binaryName"
 
     if ($arch -eq "AMD64") {
-        $assetUrl = "https://github.com/$repo/releases/latest/download/nvs-windows-amd64.exe"
-        $checksumUrl = "https://github.com/$repo/releases/latest/download/nvs-windows-amd64.exe.sha256"
+        $assetUrl = "https://github.com/$repo/releases/download/v$version/nvs-windows-amd64.exe"
+        $checksumUrl = "https://github.com/$repo/releases/download/v$version/nvs-windows-amd64.exe.sha256"
     } elseif ($arch -eq "ARM64") {
-        $assetUrl = "https://github.com/$repo/releases/latest/download/nvs-windows-arm64.exe"
-        $checksumUrl = "https://github.com/$repo/releases/latest/download/nvs-windows-arm64.exe.sha256"
+        $assetUrl = "https://github.com/$repo/releases/download/v$version/nvs-windows-arm64.exe"
+        $checksumUrl = "https://github.com/$repo/releases/download/v$version/nvs-windows-arm64.exe.sha256"
     } else {
         Write-ErrorMessage "Unsupported architecture: $arch"
         exit 1
