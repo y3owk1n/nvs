@@ -8,9 +8,9 @@ TMP_FILE=""
 
 # Cleanup function to remove temporary files.
 cleanup() {
-	if [[ -n "${TMP_FILE:-}" && -f "$TMP_FILE" ]]; then
-		rm -f "$TMP_FILE"
-	fi
+  if [[ -n "${TMP_FILE:-}" && -f "$TMP_FILE" ]]; then
+    rm -f "$TMP_FILE"
+  fi
 }
 trap cleanup EXIT INT TERM ERR
 
@@ -24,31 +24,32 @@ RESET='\033[0m'
 
 # Logging functions with timestamps.
 log_info() {
-	echo -e "$(date +"%Y-%m-%d %H:%M:%S") ${BLUE}[INFO]${RESET} $1"
+  echo -e "$(date +"%Y-%m-%d %H:%M:%S") ${BLUE}[INFO]${RESET} $1"
 }
 log_success() {
-	echo -e "$(date +"%Y-%m-%d %H:%M:%S") ${GREEN}[SUCCESS]${RESET} $1"
+  echo -e "$(date +"%Y-%m-%d %H:%M:%S") ${GREEN}[SUCCESS]${RESET} $1"
 }
 log_error() {
-	echo -e "$(date +"%Y-%m-%d %H:%M:%S") ${RED}[ERROR]${RESET} $1"
+  echo -e "$(date +"%Y-%m-%d %H:%M:%S") ${RED}[ERROR]${RESET} $1"
 }
 
 # Header banner.
 header() {
-	echo -e "${CYAN}========================================${RESET}"
-	echo -e "${CYAN}           NVS Installer              ${RESET}"
-	echo -e "${CYAN}========================================${RESET}"
+  echo -e "${CYAN}========================================${RESET}"
+  echo -e "${CYAN}           NVS Installer              ${RESET}"
+  echo -e "${CYAN}========================================${RESET}"
 }
 header
 
 # Dependency check: require curl or wget.
 if ! command -v curl >/dev/null 2>&1; then
-	log_error "curl is required to download files. Please install curl."
-	exit 1
+  log_error "curl is required to download files. Please install curl."
+  exit 1
 fi
 
 REPO="y3owk1n/nvs"
-BIN_NAME="nvs" # Base name for the binary
+VERSION="1.12.0"
+BIN_NAME="nvs"
 
 # Detect OS and architecture.
 OS="$(uname -s)"
@@ -59,54 +60,54 @@ INSTALL_DIR=""
 log_info "Detecting operating system and architecture..."
 case "$OS" in
 Linux)
-	INSTALL_DIR="/usr/local/bin"
-	case "$ARCH" in
-	x86_64)
-		ASSET="${BIN_NAME}-linux-amd64"
-		;;
-	aarch64 | arm64)
-		ASSET="${BIN_NAME}-linux-arm64"
-		;;
-	*)
-		log_error "Unsupported architecture: $ARCH"
-		exit 1
-		;;
-	esac
-	;;
+  INSTALL_DIR="/usr/local/bin"
+  case "$ARCH" in
+  x86_64)
+    ASSET="${BIN_NAME}-linux-amd64"
+    ;;
+  aarch64 | arm64)
+    ASSET="${BIN_NAME}-linux-arm64"
+    ;;
+  *)
+    log_error "Unsupported architecture: $ARCH"
+    exit 1
+    ;;
+  esac
+  ;;
 Darwin)
- 	INSTALL_DIR="/usr/local/bin"
- 	case "$ARCH" in
- 	x86_64)
- 		ASSET="${BIN_NAME}-darwin-amd64"
- 		;;
- 	arm64)
- 		ASSET="${BIN_NAME}-darwin-arm64"
- 		;;
- 	*)
- 		log_error "Unsupported architecture: $ARCH"
- 		exit 1
- 		;;
- 	esac
- 	;;
- *)
- 	log_error "Unsupported OS: $OS"
- 	exit 1
- 	;;
+  INSTALL_DIR="/usr/local/bin"
+  case "$ARCH" in
+  x86_64)
+    ASSET="${BIN_NAME}-darwin-amd64"
+    ;;
+  arm64)
+    ASSET="${BIN_NAME}-darwin-arm64"
+    ;;
+  *)
+    log_error "Unsupported architecture: $ARCH"
+    exit 1
+    ;;
+  esac
+  ;;
+*)
+  log_error "Unsupported OS: $OS"
+  exit 1
+  ;;
 esac
 
 log_info "Detected OS: ${YELLOW}$OS${RESET}"
 log_info "Detected Architecture: ${YELLOW}$ARCH${RESET}"
 log_info "Preparing to download asset: ${YELLOW}$ASSET${RESET}"
 
-DOWNLOAD_URL="https://github.com/${REPO}/releases/latest/download/${ASSET}"
+DOWNLOAD_URL="https://github.com/${REPO}/releases/download/v${VERSION}/${ASSET}"
 log_info "Download URL: ${YELLOW}$DOWNLOAD_URL${RESET}"
 
 # Function to download files.
 download_file() {
-	local url="$1"
-	local output="$2"
-	log_info "Downloading binary from: ${YELLOW}$url${RESET}"
-	curl -L --progress-bar -o "$output" "$url"
+  local url="$1"
+  local output="$2"
+  log_info "Downloading binary from: ${YELLOW}$url${RESET}"
+  curl -L --progress-bar -o "$output" "$url"
 }
 
 # Download the asset to a temporary file.
@@ -114,36 +115,36 @@ TMP_FILE=$(mktemp)
 download_file "$DOWNLOAD_URL" "$TMP_FILE"
 
 # --- Checksum Verification ---
-CHECKSUM_URL="https://github.com/${REPO}/releases/latest/download/${ASSET}.sha256"
+CHECKSUM_URL="https://github.com/${REPO}/releases/download/v${VERSION}/${ASSET}.sha256"
 TMP_CHECKSUM=$(mktemp)
 log_info "Downloading checksum from: ${YELLOW}$CHECKSUM_URL${RESET}"
 # Attempt to download the checksum file using curl with --fail.
 if curl -L --fail --progress-bar -o "$TMP_CHECKSUM" "$CHECKSUM_URL"; then
-	log_info "Extracting expected checksum from the checksum file..."
+  log_info "Extracting expected checksum from the checksum file..."
 
-	EXPECTED_CHECKSUM=$(awk '{ print $1 }' "$TMP_CHECKSUM")
-	log_info "Expected checksum: ${YELLOW}$EXPECTED_CHECKSUM${RESET}"
+  EXPECTED_CHECKSUM=$(awk '{ print $1 }' "$TMP_CHECKSUM")
+  log_info "Expected checksum: ${YELLOW}$EXPECTED_CHECKSUM${RESET}"
 
-	log_info "Computing checksum of the downloaded asset..."
-	if command -v sha256sum >/dev/null 2>&1; then
-		COMPUTED_CHECKSUM=$(sha256sum "$TMP_FILE" | awk '{ print $1 }')
-	else
-		COMPUTED_CHECKSUM=$(shasum -a 256 "$TMP_FILE" | awk '{ print $1 }')
-	fi
-	log_info "Computed checksum: ${YELLOW}$COMPUTED_CHECKSUM${RESET}"
+  log_info "Computing checksum of the downloaded asset..."
+  if command -v sha256sum >/dev/null 2>&1; then
+    COMPUTED_CHECKSUM=$(sha256sum "$TMP_FILE" | awk '{ print $1 }')
+  else
+    COMPUTED_CHECKSUM=$(shasum -a 256 "$TMP_FILE" | awk '{ print $1 }')
+  fi
+  log_info "Computed checksum: ${YELLOW}$COMPUTED_CHECKSUM${RESET}"
 
-	if [[ "$EXPECTED_CHECKSUM" != "$COMPUTED_CHECKSUM" ]]; then
-		log_error "Checksum verification failed! The downloaded file may be corrupted."
-		rm -f "$TMP_CHECKSUM"
-		exit 1
-	else
-		log_success "Checksum verification passed."
-	fi
-	rm -f "$TMP_CHECKSUM"
+  if [[ "$EXPECTED_CHECKSUM" != "$COMPUTED_CHECKSUM" ]]; then
+    log_error "Checksum verification failed! The downloaded file may be corrupted."
+    rm -f "$TMP_CHECKSUM"
+    exit 1
+  else
+    log_success "Checksum verification passed."
+  fi
+  rm -f "$TMP_CHECKSUM"
 else
-	log_error "Checksum file not found at ${YELLOW}$CHECKSUM_URL${RESET}. Aborting installation."
-	rm -f "$TMP_CHECKSUM"
-	exit 1
+  log_error "Checksum file not found at ${YELLOW}$CHECKSUM_URL${RESET}. Aborting installation."
+  rm -f "$TMP_CHECKSUM"
+  exit 1
 fi
 # --- End Checksum Verification ---
 
@@ -155,10 +156,10 @@ TARGET_PATH="${INSTALL_DIR}/${BIN_NAME}"
 
 log_info "Installing to ${YELLOW}$TARGET_PATH${RESET}"
 if [ ! -w "$INSTALL_DIR" ]; then
-	log_info "Elevated privileges required to install to ${INSTALL_DIR}. Prompting for sudo..."
-	sudo mv "$TMP_FILE" "$TARGET_PATH"
+  log_info "Elevated privileges required to install to ${INSTALL_DIR}. Prompting for sudo..."
+  sudo mv "$TMP_FILE" "$TARGET_PATH"
 else
-	mv "$TMP_FILE" "$TARGET_PATH"
+  mv "$TMP_FILE" "$TARGET_PATH"
 fi
 
 log_success "Installation complete!"
