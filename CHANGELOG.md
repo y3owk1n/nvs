@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.12.1](https://github.com/y3owk1n/nvs/compare/v1.12.0...v1.12.1) (2025-12-13)
+
+
+### Bug Fixes
+
+* respect TTL for global cache in ls-remote command ([#189](https://github.com/y3owk1n/nvs/issues/189)) ([b33046a](https://github.com/y3owk1n/nvs/commit/b33046a2da9356234be80a974f73d6e0bc173230))
+* use explicit version instead of latest in install scripts ([#191](https://github.com/y3owk1n/nvs/issues/191)) ([1b92419](https://github.com/y3owk1n/nvs/commit/1b924192e3f8b2a10a2bc493daa105458844af3a))
+
 ## [1.12.0](https://github.com/y3owk1n/nvs/compare/v1.11.0...v1.12.0) (2025-12-11)
 
 
