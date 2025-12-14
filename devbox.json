@@ -11,6 +11,7 @@
     "cmake@latest",
     "gettext@latest",
     "curl@latest",
-    "ninja@latest"
+    "ninja@latest",
+    "just-lsp@0.2.8"
   ]
 }
