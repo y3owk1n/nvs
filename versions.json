@@ -16,7 +16,7 @@
       {
         "Name": "nvim-linux-arm64.tar.gz",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-arm64.tar.gz",
-        "Size": 20771553
+        "Size": 20771150
       },
       {
         "Name": "nvim-linux-x86_64.appimage",
@@ -31,41 +31,41 @@
       {
         "Name": "nvim-linux-x86_64.tar.gz",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-x86_64.tar.gz",
-        "Size": 20642858
+        "Size": 20643055
       },
       {
         "Name": "nvim-macos-arm64.tar.gz",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-macos-arm64.tar.gz",
-        "Size": 9597372
+        "Size": 9597505
       },
       {
         "Name": "nvim-macos-x86_64.tar.gz",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-macos-x86_64.tar.gz",
-        "Size": 9848704
+        "Size": 9848795
       },
       {
         "Name": "nvim-win-arm64.msi",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-win-arm64.msi",
-        "Size": 18598338
+        "Size": 18610626
       },
       {
         "Name": "nvim-win-arm64.zip",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-win-arm64.zip",
-        "Size": 18841016
+        "Size": 18857780
       },
       {
         "Name": "nvim-win64.msi",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-win64.msi",
-        "Size": 18352581
+        "Size": 18368965
       },
       {
         "Name": "nvim-win64.zip",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-win64.zip",
-        "Size": 18568864
+        "Size": 18583930
       }
     ],
-    "PublishedAt": "2025-12-26T05:27:54Z",
-    "CommitHash": "e855a23c02a7f74b39a8858ce818ede5b9ecd4b1"
+    "PublishedAt": "2025-12-27T05:19:57Z",
+    "CommitHash": "47aef025a7079f35234157e1080c997c4e90a91e"
   },
   {
     "TagName": "v0.11.5",
