@@ -65,7 +65,11 @@ func copyDir(src, dst string) error {
 				// Resolve symlink target relative to the symlink's directory, not CWD
 				// Use srcPath's directory to properly resolve the target
 				symlinkDir := filepath.Dir(srcPath)
-				absTarget := filepath.Join(symlinkDir, linkTarget)
+
+				absTarget, err := filepath.Abs(filepath.Join(symlinkDir, linkTarget))
+				if err != nil {
+					return err
+				}
 
 				// Ensure src is absolute for reliable comparison
 				absSrc, err := filepath.Abs(src)
