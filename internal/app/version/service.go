@@ -279,7 +279,7 @@ func (s *Service) Upgrade(
 	ctx context.Context,
 	versionAlias string,
 	progress installer.ProgressFunc,
-) error {
+) (retErr error) {
 	normalized := normalizeVersion(versionAlias)
 
 	// Only stable and nightly can be upgraded
@@ -337,8 +337,6 @@ func (s *Service) Upgrade(
 
 	upgradeSuccess := false
 
-	var rollbackErr error
-
 	// Cleanup backup on success or restore on failure
 	defer func() {
 		if upgradeSuccess {
@@ -349,6 +347,8 @@ func (s *Service) Upgrade(
 			}
 		} else {
 			// Upgrade failed, restore backup
+			var rollbackErr error
+
 			removeErr := os.RemoveAll(versionPath)
 			if removeErr != nil {
 				logrus.Errorf("Failed to clean partial install during rollback: %v", removeErr)
@@ -369,6 +369,15 @@ func (s *Service) Upgrade(
 					rollbackErr = fmt.Errorf("failed to restore backup: %w", renameErr)
 				}
 			}
+
+			// If upgrade failed and rollback also failed, wrap the original error
+			if rollbackErr != nil && retErr != nil {
+				retErr = fmt.Errorf(
+					"failed to install release: %w (CRITICAL: rollback also failed: %w)",
+					retErr,
+					rollbackErr,
+				)
+			}
 		}
 	}()
 
@@ -380,14 +389,6 @@ func (s *Service) Upgrade(
 
 	err = s.installer.InstallRelease(ctx, releaseInfo, s.config.VersionsDir, normalized, progress)
 	if err != nil {
-		if rollbackErr != nil {
-			return fmt.Errorf(
-				"failed to install release: %w (CRITICAL: rollback also failed: %w)",
-				err,
-				rollbackErr,
-			)
-		}
-
 		return fmt.Errorf("failed to install release: %w", err)
 	}
 
