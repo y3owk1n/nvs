@@ -91,6 +91,10 @@ func (s *Service) InstallRelease(
 
 			return fmt.Errorf("download failed: %w", err)
 		}
+
+		if progress != nil {
+			progress("Verifying", constants.ProgressComplete)
+		}
 	} else {
 		if progress != nil {
 			progress("Downloading", 0)
