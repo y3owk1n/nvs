@@ -68,11 +68,12 @@ func (b *SourceBuilder) BuildFromCommit(
 	buildID := fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano())
 	logrus.Debugf("Build ID: %s", buildID)
 
+	var resolvedHash string
 	for attempt := 1; attempt <= constants.MaxAttempts; attempt++ {
 		localPath := filepath.Join(os.TempDir(), fmt.Sprintf("neovim-src-%s-%d", buildID, attempt))
 		logrus.Debugf("Temporary Neovim source directory: %s", localPath)
 
-		resolvedHash, err := b.buildFromCommitInternal(ctx, commit, dest, localPath, progress)
+		resolvedHash, err = b.buildFromCommitInternal(ctx, commit, dest, localPath, progress)
 		if err == nil {
 			return resolvedHash, nil
 		}
