@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 
 	"github.com/sirupsen/logrus"
-	"github.com/y3owk1n/nvs/internal/platform"
 )
 
 // copyDir recursively copies a directory from src to dst.
@@ -76,28 +75,6 @@ func copyDir(src, dst string) error {
 	}
 
 	return os.Rename(tempDst, dst)
-}
-
-// copyDirLocked copies a directory with file locking for thread-safe operation.
-func copyDirLocked(src, dst string) error {
-	lockFile := src + ".lock"
-
-	lockFd, lockErr := platform.NewFileLock(lockFile)
-	if lockErr != nil {
-		return fmt.Errorf("failed to open lock file: %w", lockErr)
-	}
-
-	defer func() {
-		_ = lockFd.Unlock()
-		_ = lockFd.Remove()
-	}()
-
-	lockErr = lockFd.Lock()
-	if lockErr != nil {
-		return fmt.Errorf("failed to acquire lock: %w", lockErr)
-	}
-
-	return copyDir(src, dst)
 }
 
 // copyFile copies a single file from src to dst.

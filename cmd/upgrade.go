@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	appversion "github.com/y3owk1n/nvs/internal/app/version"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/platform"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -133,20 +134,52 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 					"nightly-"+shortHash(oldCommitHash, constants.ShortHashLength),
 				)
 
-				_, statErr := os.Stat(backupDir)
-				if os.IsNotExist(statErr) {
-					_, statErr2 := os.Stat(nightlyDir)
-					if statErr2 == nil {
-						copyErr := copyDirLocked(nightlyDir, backupDir)
-						if copyErr != nil {
-							logrus.Warnf(
-								"Failed to backup nightly for rollback: %v",
-								copyErr,
-							)
-						} else {
-							logrus.Debugf("Backed up nightly to %s", backupDir)
+				nightlyLockFile := nightlyDir + ".lock"
 
-							backupCreated = true
+				nightlyLock, nightlyLockErr := platform.NewFileLock(nightlyLockFile)
+				if nightlyLockErr != nil {
+					logrus.Warnf("Failed to acquire nightly lock: %v", nightlyLockErr)
+				} else {
+					defer func() {
+						_ = nightlyLock.Unlock()
+						_ = nightlyLock.Remove()
+					}()
+
+					nightlyLockErr = nightlyLock.Lock()
+					if nightlyLockErr != nil {
+						logrus.Warnf("Failed to lock nightly: %v", nightlyLockErr)
+					} else {
+						backupLockFile := backupDir + ".lock"
+
+						backupLock, backupLockErr := platform.NewFileLock(backupLockFile)
+						if backupLockErr != nil {
+							logrus.Warnf("Failed to acquire backup lock: %v", backupLockErr)
+						} else {
+							backupLockErr = backupLock.Lock()
+							if backupLockErr != nil {
+								logrus.Warnf("Failed to lock backup: %v", backupLockErr)
+							} else {
+								_, statErr := os.Stat(backupDir)
+								if os.IsNotExist(statErr) {
+									_, statErr2 := os.Stat(nightlyDir)
+									if statErr2 == nil {
+										copyErr := copyDir(nightlyDir, backupDir)
+										if copyErr != nil {
+											logrus.Warnf(
+												"Failed to backup nightly for rollback: %v",
+												copyErr,
+											)
+										} else {
+											logrus.Debugf("Backed up nightly to %s", backupDir)
+
+											backupCreated = true
+										}
+									}
+								}
+
+								_ = backupLock.Unlock()
+								_ = backupLock.Remove()
+							}
 						}
 					}
 				}
