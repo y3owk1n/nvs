@@ -10,9 +10,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -68,6 +68,21 @@ func (b *SourceBuilder) BuildFromCommit(
 	// Generate unique build ID to avoid conflicts with concurrent builds
 	buildID := fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano())
 	logrus.Debugf("Build ID: %s", buildID)
+
+	// Create lock file to prevent cleanup of in-progress builds
+	lockFile := filepath.Join(os.TempDir(), fmt.Sprintf("neovim-src-%s.lock", buildID))
+
+	lockErr := os.WriteFile(lockFile, []byte(strconv.Itoa(os.Getpid())), constants.FilePerm)
+	if lockErr != nil {
+		logrus.Warnf("Failed to create lock file: %v", lockErr)
+	}
+	// Ensure lock file is removed when function exits
+	defer func() {
+		removeErr := os.Remove(lockFile)
+		if removeErr != nil && !os.IsNotExist(removeErr) {
+			logrus.Warnf("Failed to remove lock file: %v", removeErr)
+		}
+	}()
 
 	var resolvedHash string
 	for attempt := 1; attempt <= constants.MaxAttempts; attempt++ {
@@ -299,33 +314,21 @@ func (b *SourceBuilder) cleanupTempDirectories() {
 		return
 	}
 
-	currentPID := os.Getpid()
-
 	for _, entry := range entries {
 		if strings.HasPrefix(entry.Name(), "neovim-src-") && entry.IsDir() {
 			dirPath := filepath.Join(tempDir, entry.Name())
 
-			// Extract PID from directory name to check if process is still running
-			// Format: neovim-src-{pid}-{timestamp}-{attempt}
-			parts := strings.Split(entry.Name(), "-")
-			if len(parts) >= constants.TempDirNamePartsMin {
-				var (
-					dirPID int
-					err    error
-				)
+			// Check for lock file to skip directories from active builds
+			// Format: neovim-src-{buildID}.lock where buildID = {pid}-{timestamp}
+			lockFileName := entry.Name() + ".lock"
 
-				_, err = fmt.Sscanf(parts[2], "%d", &dirPID)
-				if err == nil {
-					if dirPID != currentPID && isProcessRunning(dirPID) {
-						logrus.Debugf(
-							"Skipping cleanup of directory from running process %d: %s",
-							dirPID,
-							dirPath,
-						)
+			lockFilePath := filepath.Join(tempDir, lockFileName)
 
-						continue
-					}
-				}
+			_, err = os.Stat(lockFilePath)
+			if err == nil {
+				logrus.Debugf("Skipping cleanup of locked directory: %s", dirPath)
+
+				continue
 			}
 
 			// Check if the directory was modified recently (within last 5 minutes)
@@ -351,16 +354,6 @@ func (b *SourceBuilder) cleanupTempDirectories() {
 			}
 		}
 	}
-}
-
-// isProcessRunning checks if a process with the given PID is running.
-func isProcessRunning(pid int) bool {
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-
-	return process.Signal(syscall.Signal(0)) == nil
 }
 
 // runCommandWithProgress runs a command while updating progress with elapsed time.
