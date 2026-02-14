@@ -179,7 +179,7 @@ func RunUse(cmd *cobra.Command, args []string) error {
 			// Now try to use it (single retry, no recursion)
 			resolvedVersion, err = GetVersionService().Use(ctx, alias)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to activate %s: %w", alias, err)
 			}
 		} else {
 			return err
