@@ -15,7 +15,7 @@ import (
 )
 
 // Windows error code for missing privilege to create symbolic links.
-const errorPrivilegeNotHeld = 1314 // ERROR_PRIVILEGE_NOT_HELD
+const errPrivilegeNotHeld syscall.Errno = 1314 // ERROR_PRIVILEGE_NOT_HELD
 
 // copyDir recursively copies a directory from src to dst.
 // Handles relative symlinks by adjusting paths when targets are outside the src tree.
@@ -108,7 +108,7 @@ func copyDir(src, dst string) error {
 				if runtime.GOOS == "windows" {
 					var errno syscall.Errno
 					if errors.As(err, &errno) {
-						isWinPermError = isWinPermError || errno == errorPrivilegeNotHeld
+						isWinPermError = isWinPermError || errno == errPrivilegeNotHeld
 					}
 				}
 
