@@ -79,23 +79,34 @@ func (d *Downloader) Download(
 	return nil
 }
 
-// VerifyChecksum downloads the checksum file and verifies the file's SHA256 hash.
-func (d *Downloader) VerifyChecksum(
+// DownloadWithChecksumVerification downloads a file and verifies its checksum.
+// The hash is computed in a single pass during download, avoiding a separate
+// file read to compute the hash afterwards.
+func (d *Downloader) DownloadWithChecksumVerification(
 	ctx context.Context,
-	file *os.File,
+	url string,
 	checksumURL string,
 	assetName string,
+	dest *os.File,
+	progress ProgressFunc,
 ) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, checksumURL, nil)
+	logrus.Debugf("Downloading from URL: %s", url)
+
+	expectedHash, err := d.fetchExpectedHash(ctx, checksumURL, assetName)
 	if err != nil {
-		return fmt.Errorf("failed to create checksum request: %w", err)
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("User-Agent", "nvs")
 
 	resp, err := d.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to download checksum: %w", err)
+		return fmt.Errorf("failed to download file: %w", err)
 	}
 
 	defer func() {
@@ -106,52 +117,49 @@ func (d *Downloader) VerifyChecksum(
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%w: status %d", ErrChecksumDownloadFailed, resp.StatusCode)
+		return fmt.Errorf("%w: status %d", ErrDownloadFailed, resp.StatusCode)
 	}
 
-	checksumData, err := io.ReadAll(resp.Body)
+	totalSize := resp.ContentLength
+	hasher := sha256.New()
+
+	progressReader := &progressReader{
+		reader:   io.TeeReader(resp.Body, hasher),
+		total:    totalSize,
+		callback: progress,
+	}
+
+	_, err = io.Copy(dest, progressReader)
 	if err != nil {
-		return fmt.Errorf("failed to read checksum data: %w", err)
+		return fmt.Errorf("failed to copy download content: %w", err)
 	}
 
-	var expectedHash string
+	actualHash := hex.EncodeToString(hasher.Sum(nil))
 
-	if strings.HasSuffix(checksumURL, "shasum.txt") {
-		// Parse shasum.txt format: multiple lines of "hash filename"
-		lines := strings.SplitSeq(strings.TrimSpace(string(checksumData)), "\n")
-		for line := range lines {
-			fields := strings.Fields(line)
-			if len(fields) >= 2 && fields[1] == assetName {
-				expectedHash = fields[0]
+	if !strings.EqualFold(actualHash, expectedHash) {
+		_ = dest.Truncate(0)
+		_, _ = dest.Seek(0, io.SeekStart)
 
-				break
-			}
-		}
-
-		if expectedHash == "" {
-			return fmt.Errorf("%w: %s not found in shasum.txt", ErrChecksumNotFound, assetName)
-		}
-	} else {
-		// Old format: single line "hash filename"
-		expectedFields := strings.Fields(string(checksumData))
-		if len(expectedFields) == 0 {
-			return ErrChecksumFileEmpty
-		}
-
-		expectedHash = expectedFields[0]
+		return fmt.Errorf("%w: expected %s, got %s", ErrChecksumMismatch, expectedHash, actualHash)
 	}
 
-	// SHA256 hash should be 64 hex characters
-	if len(expectedHash) != constants.Sha256HashLen {
-		return fmt.Errorf(
-			"invalid checksum format: expected %d characters, got %d: %w",
-			constants.Sha256HashLen,
-			len(expectedHash),
-			ErrInvalidChecksumFormat,
-		)
+	_, _ = dest.Seek(0, io.SeekStart)
+
+	return nil
+}
+
+// VerifyChecksum verifies the file's SHA256 hash against a downloaded checksum file.
+func (d *Downloader) VerifyChecksum(
+	ctx context.Context,
+	file *os.File,
+	checksumURL string,
+	assetName string,
+) error {
+	expectedHash, err := d.fetchExpectedHash(ctx, checksumURL, assetName)
+	if err != nil {
+		return err
 	}
 
-	// Compute actual hash
 	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
 		return fmt.Errorf("failed to seek file: %w", err)
@@ -166,7 +174,6 @@ func (d *Downloader) VerifyChecksum(
 
 	actualHash := hex.EncodeToString(hasher.Sum(nil))
 
-	// Reset file pointer
 	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
 		return fmt.Errorf("failed to seek file: %w", err)
@@ -177,6 +184,85 @@ func (d *Downloader) VerifyChecksum(
 	}
 
 	return nil
+}
+
+func (d *Downloader) fetchExpectedHash(
+	ctx context.Context,
+	checksumURL string,
+	assetName string,
+) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, checksumURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create checksum request: %w", err)
+	}
+
+	req.Header.Set("User-Agent", "nvs")
+
+	resp, err := d.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to download checksum: %w", err)
+	}
+
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			logrus.Warnf("failed to close response body: %v", err)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("%w: status %d", ErrChecksumDownloadFailed, resp.StatusCode)
+	}
+
+	checksumData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read checksum data: %w", err)
+	}
+
+	var expectedHash string
+
+	if strings.HasSuffix(checksumURL, "shasum.txt") {
+		lines := strings.SplitSeq(strings.TrimSpace(string(checksumData)), "\n")
+		for line := range lines {
+			fields := strings.Fields(line)
+			if len(fields) >= 2 && fields[1] == assetName {
+				expectedHash = fields[0]
+
+				break
+			}
+		}
+
+		if expectedHash == "" {
+			return "", fmt.Errorf("%w: %s not found in shasum.txt", ErrChecksumNotFound, assetName)
+		}
+	} else {
+		expectedFields := strings.Fields(string(checksumData))
+		if len(expectedFields) == 0 {
+			return "", ErrChecksumFileEmpty
+		}
+
+		if len(expectedFields) >= 2 && expectedFields[1] != assetName {
+			return "", fmt.Errorf(
+				"%w: expected %s, got %s",
+				ErrChecksumNotFound,
+				assetName,
+				expectedFields[1],
+			)
+		}
+
+		expectedHash = expectedFields[0]
+	}
+
+	if len(expectedHash) != constants.Sha256HashLen {
+		return "", fmt.Errorf(
+			"invalid checksum format: expected %d characters, got %d: %w",
+			constants.Sha256HashLen,
+			len(expectedHash),
+			ErrInvalidChecksumFormat,
+		)
+	}
+
+	return expectedHash, nil
 }
 
 // progressReader wraps an io.Reader to report progress.

@@ -312,3 +312,269 @@ func TestNew(t *testing.T) {
 		t.Error("New() returned nil")
 	}
 }
+
+// TestDownloader_DownloadWithChecksumVerification tests successful download with checksum verification.
+func TestDownloader_DownloadWithChecksumVerification(t *testing.T) {
+	expectedContent := "test file content for download with checksum"
+
+	hasher := sha256.New()
+	hasher.Write([]byte(expectedContent))
+	expectedHash := hex.EncodeToString(hasher.Sum(nil))
+
+	server := httptest.NewServer(
+		http.HandlerFunc(func(responseWriter http.ResponseWriter, r *http.Request) {
+			if r.Header.Get("User-Agent") != "nvs" {
+				t.Errorf("Expected User-Agent 'nvs', got '%s'", r.Header.Get("User-Agent"))
+			}
+
+			_, _ = responseWriter.Write([]byte(expectedContent))
+		}),
+	)
+	defer server.Close()
+
+	checksumServer := httptest.NewServer(
+		http.HandlerFunc(func(responseWriter http.ResponseWriter, r *http.Request) {
+			_, _ = responseWriter.Write([]byte(expectedHash + "  test-file.tar.gz"))
+		}),
+	)
+	defer checksumServer.Close()
+
+	downloaderInstance := downloader.New()
+	ctx := context.Background()
+
+	tempFile, err := os.CreateTemp(t.TempDir(), "download-checksum-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+
+	defer func() {
+		err := tempFile.Close()
+		if err != nil {
+			t.Logf("close error: %v", err)
+		}
+	}()
+
+	var progressUpdates []int
+
+	progressFn := func(percent int) {
+		progressUpdates = append(progressUpdates, percent)
+	}
+
+	err = downloaderInstance.DownloadWithChecksumVerification(
+		ctx,
+		server.URL,
+		checksumServer.URL,
+		"test-file.tar.gz",
+		tempFile,
+		progressFn,
+	)
+	if err != nil {
+		t.Fatalf("DownloadWithChecksumVerification() error = %v", err)
+	}
+
+	_, _ = tempFile.Seek(0, 0)
+
+	content, err := os.ReadFile(tempFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to read temp file: %v", err)
+	}
+
+	if string(content) != expectedContent {
+		t.Errorf("Downloaded content = %q, want %q", string(content), expectedContent)
+	}
+
+	if len(progressUpdates) == 0 {
+		t.Error("Progress callback was never called")
+	}
+}
+
+// TestDownloader_DownloadWithChecksumVerification_Mismatch tests checksum mismatch detection.
+func TestDownloader_DownloadWithChecksumVerification_Mismatch(t *testing.T) {
+	expectedContent := "test file content"
+
+	wrongHash := "0000000000000000000000000000000000000000000000000000000000000000"
+
+	server := httptest.NewServer(
+		http.HandlerFunc(func(responseWriter http.ResponseWriter, r *http.Request) {
+			_, _ = responseWriter.Write([]byte(expectedContent))
+		}),
+	)
+	defer server.Close()
+
+	checksumServer := httptest.NewServer(
+		http.HandlerFunc(func(responseWriter http.ResponseWriter, r *http.Request) {
+			_, _ = responseWriter.Write([]byte(wrongHash + "  test-file.tar.gz"))
+		}),
+	)
+	defer checksumServer.Close()
+
+	downloaderInstance := downloader.New()
+	ctx := context.Background()
+
+	tempFile, err := os.CreateTemp(t.TempDir(), "download-checksum-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+
+	defer func() {
+		err := tempFile.Close()
+		if err != nil {
+			t.Logf("close error: %v", err)
+		}
+	}()
+
+	err = downloaderInstance.DownloadWithChecksumVerification(
+		ctx,
+		server.URL,
+		checksumServer.URL,
+		"test-file.tar.gz",
+		tempFile,
+		nil,
+	)
+	if err == nil {
+		t.Error("DownloadWithChecksumVerification() expected error for checksum mismatch, got nil")
+	}
+}
+
+// TestDownloader_DownloadWithChecksumVerification_HTTPError tests HTTP error handling.
+func TestDownloader_DownloadWithChecksumVerification_HTTPError(t *testing.T) {
+	server := httptest.NewServer(
+		http.HandlerFunc(func(responseWriter http.ResponseWriter, r *http.Request) {
+			responseWriter.WriteHeader(http.StatusNotFound)
+		}),
+	)
+	defer server.Close()
+
+	checksumServer := httptest.NewServer(
+		http.HandlerFunc(func(responseWriter http.ResponseWriter, r *http.Request) {
+			_, _ = responseWriter.Write(
+				[]byte(
+					"abc123def456789012345678901234567890123456789012345678901234  test-file.tar.gz",
+				),
+			)
+		}),
+	)
+	defer checksumServer.Close()
+
+	downloaderInstance := downloader.New()
+	ctx := context.Background()
+
+	tempFile, err := os.CreateTemp(t.TempDir(), "download-checksum-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+
+	defer func() {
+		err := tempFile.Close()
+		if err != nil {
+			t.Logf("close error: %v", err)
+		}
+	}()
+
+	err = downloaderInstance.DownloadWithChecksumVerification(
+		ctx,
+		server.URL,
+		checksumServer.URL,
+		"test-file.tar.gz",
+		tempFile,
+		nil,
+	)
+	if err == nil {
+		t.Error("DownloadWithChecksumVerification() expected error for 404 status, got nil")
+	}
+}
+
+// TestDownloader_DownloadWithChecksumVerification_ChecksumHTTPError tests checksum server HTTP error.
+func TestDownloader_DownloadWithChecksumVerification_ChecksumHTTPError(t *testing.T) {
+	server := httptest.NewServer(
+		http.HandlerFunc(func(responseWriter http.ResponseWriter, r *http.Request) {
+			_, _ = responseWriter.Write([]byte("test content"))
+		}),
+	)
+	defer server.Close()
+
+	checksumServer := httptest.NewServer(
+		http.HandlerFunc(func(responseWriter http.ResponseWriter, r *http.Request) {
+			responseWriter.WriteHeader(http.StatusNotFound)
+		}),
+	)
+	defer checksumServer.Close()
+
+	downloaderInstance := downloader.New()
+	ctx := context.Background()
+
+	tempFile, err := os.CreateTemp(t.TempDir(), "download-checksum-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+
+	defer func() {
+		err := tempFile.Close()
+		if err != nil {
+			t.Logf("close error: %v", err)
+		}
+	}()
+
+	err = downloaderInstance.DownloadWithChecksumVerification(
+		ctx,
+		server.URL,
+		checksumServer.URL,
+		"test-file.tar.gz",
+		tempFile,
+		nil,
+	)
+	if err == nil {
+		t.Error(
+			"DownloadWithChecksumVerification() expected error for checksum server 404, got nil",
+		)
+	}
+}
+
+// TestDownloader_DownloadWithChecksumVerification_ContextCancellation tests context cancellation.
+func TestDownloader_DownloadWithChecksumVerification_ContextCancellation(t *testing.T) {
+	server := httptest.NewServer(
+		http.HandlerFunc(func(responseWriter http.ResponseWriter, r *http.Request) {
+			<-r.Context().Done()
+		}),
+	)
+	defer server.Close()
+
+	checksumServer := httptest.NewServer(
+		http.HandlerFunc(func(responseWriter http.ResponseWriter, r *http.Request) {
+			_, _ = responseWriter.Write(
+				[]byte(
+					"abc123def456789012345678901234567890123456789012345678901234  test-file.tar.gz",
+				),
+			)
+		}),
+	)
+	defer checksumServer.Close()
+
+	downloaderInstance := downloader.New()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	tempFile, err := os.CreateTemp(t.TempDir(), "download-checksum-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+
+	defer func() {
+		err := tempFile.Close()
+		if err != nil {
+			t.Logf("close error: %v", err)
+		}
+	}()
+
+	err = downloaderInstance.DownloadWithChecksumVerification(
+		ctx,
+		server.URL,
+		checksumServer.URL,
+		"test-file.tar.gz",
+		tempFile,
+		nil,
+	)
+	if err == nil {
+		t.Error("DownloadWithChecksumVerification() expected error for canceled context, got nil")
+	}
+}

@@ -3,6 +3,7 @@ package installer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -60,35 +61,52 @@ func (s *Service) InstallRelease(
 	defer func() { _ = tempFile.Close() }()
 
 	// 3. Download
-	if progress != nil {
-		progress("Downloading", 0)
-	}
-
-	err = s.downloader.Download(ctx, assetURL, tempFile, func(p int) {
-		if progress != nil {
-			progress("Downloading", p)
-		}
-	})
-	if err != nil {
-		return fmt.Errorf("download failed: %w", err)
-	}
-
-	// 4. Verify checksum (optional, if URL available)
+	// Check if we have a checksum URL for streaming verification
 	checksumURL, err := rel.GetChecksumURL()
-	if err == nil && checksumURL != "" {
+	hasChecksum := err == nil && checksumURL != ""
+
+	if hasChecksum {
 		if progress != nil {
-			progress("Verifying", 0)
+			progress("Downloading & Verifying", 0)
 		}
 
 		assetName := filepath.Base(assetURL)
 
-		err := s.downloader.VerifyChecksum(ctx, tempFile, checksumURL, assetName)
+		err = s.downloader.DownloadWithChecksumVerification(
+			ctx,
+			assetURL,
+			checksumURL,
+			assetName,
+			tempFile,
+			func(p int) {
+				if progress != nil {
+					progress("Downloading & Verifying", p)
+				}
+			},
+		)
 		if err != nil {
-			return fmt.Errorf("checksum verification failed: %w", err)
+			if errors.Is(err, downloader.ErrChecksumMismatch) {
+				return fmt.Errorf("checksum verification failed: %w", err)
+			}
+
+			return fmt.Errorf("download failed: %w", err)
+		}
+	} else {
+		if progress != nil {
+			progress("Downloading", 0)
+		}
+
+		err = s.downloader.Download(ctx, assetURL, tempFile, func(p int) {
+			if progress != nil {
+				progress("Downloading", p)
+			}
+		})
+		if err != nil {
+			return fmt.Errorf("download failed: %w", err)
 		}
 	}
 
-	// 5. Extract
+	// 4. Extract
 	if progress != nil {
 		progress("Extracting", 0)
 	}
@@ -112,7 +130,7 @@ func (s *Service) InstallRelease(
 		return fmt.Errorf("extraction failed: %w", err)
 	}
 
-	// 6. Write version file
+	// 5. Write version file
 	versionFile := filepath.Join(installPath, "version.txt")
 
 	err = os.WriteFile(versionFile, []byte(rel.GetIdentifier()), constants.FilePerm)
