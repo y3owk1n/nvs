@@ -2,16 +2,24 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
+	"syscall"
 
 	"github.com/sirupsen/logrus"
 )
 
+// Windows error code for missing privilege to create symbolic links.
+const errPrivilegeNotHeld syscall.Errno = 1314 // ERROR_PRIVILEGE_NOT_HELD
+
 // copyDir recursively copies a directory from src to dst.
-// Note: Relative symlinks may point to incorrect locations if the target is outside the src tree.
+// Handles relative symlinks by adjusting paths when targets are outside the src tree.
+// On Windows, falls back to copying target content if symlink creation fails due to permissions.
 // For atomicity, uses a temporary directory and renames on success to avoid partial copies.
 func copyDir(src, dst string) error {
 	srcInfo, err := os.Stat(src)
@@ -49,15 +57,90 @@ func copyDir(src, dst string) error {
 		dstPath := filepath.Join(tempDst, entry.Name())
 
 		// Handle symlinks
-		// Note: Relative symlinks may break if target is outside src tree
+		// For relative symlinks pointing outside src tree, adjust the target path
 		if entry.Type()&os.ModeSymlink != 0 {
-			link, err := os.Readlink(srcPath)
+			linkTarget, err := os.Readlink(srcPath)
 			if err != nil {
 				return err
 			}
 
-			err = os.Symlink(link, dstPath)
+			// If relative symlink, resolve it and recompute relative path from dst
+			if !filepath.IsAbs(linkTarget) {
+				// Resolve symlink target relative to the symlink's directory, not CWD
+				// Use srcPath's directory to properly resolve the target
+				symlinkDir := filepath.Dir(srcPath)
+
+				absTarget, err := filepath.Abs(filepath.Join(symlinkDir, linkTarget))
+				if err != nil {
+					return err
+				}
+
+				// Ensure src is absolute for reliable comparison
+				absSrc, err := filepath.Abs(src)
+				if err != nil {
+					return err
+				}
+
+				// Check if target is outside source tree
+				relToSrc, err := filepath.Rel(absSrc, absTarget)
+				if err != nil {
+					return err
+				}
+
+				// If outside src tree (starts with ".."), recompute relative path from dst
+				if relToSrc == ".." ||
+					strings.HasPrefix(relToSrc, ".."+string(filepath.Separator)) {
+					// Use different variable name to avoid shadowing outer dstDir
+					symlinkDstDir := filepath.Dir(dstPath)
+
+					linkTarget, err = filepath.Rel(symlinkDstDir, absTarget)
+					if err != nil {
+						return err
+					}
+				}
+			}
+
+			err = os.Symlink(linkTarget, dstPath)
 			if err != nil {
+				// On Windows, symlink creation requires admin privileges (ERROR_PRIVILEGE_NOT_HELD = 1314)
+				// Fall back to copying the target content
+				isWinPermError := errors.Is(err, os.ErrPermission)
+				// Windows-specific check: also detect ERROR_PRIVILEGE_NOT_HELD.
+				// Note: This block is dead code on non-Windows but compiles fine
+				// since syscall.Errno exists cross-platform (just won't match).
+				if runtime.GOOS == "windows" {
+					var errno syscall.Errno
+					if errors.As(err, &errno) {
+						isWinPermError = isWinPermError || errno == errPrivilegeNotHeld
+					}
+				}
+
+				if runtime.GOOS == "windows" && isWinPermError {
+					logrus.Warnf(
+						"Cannot create symlink on Windows without admin rights, copying target instead: %s",
+						srcPath,
+					)
+
+					// Resolve the symlink target
+					resolvedPath, statErr := os.Stat(srcPath)
+					if statErr != nil {
+						return statErr
+					}
+
+					// If it's a directory, recurse; otherwise copy the file
+					if resolvedPath.IsDir() {
+						err = copyDir(srcPath, dstPath)
+					} else {
+						err = copyFile(srcPath, dstPath)
+					}
+
+					if err != nil {
+						return err
+					}
+
+					continue
+				}
+
 				return err
 			}
 
