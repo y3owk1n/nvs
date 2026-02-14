@@ -9,9 +9,13 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 
 	"github.com/sirupsen/logrus"
 )
+
+// Windows error code for missing privilege to create symbolic links.
+const errorPrivilegeNotHeld = 1314 // ERROR_PRIVILEGE_NOT_HELD
 
 // copyDir recursively copies a directory from src to dst.
 // Handles relative symlinks by adjusting paths when targets are outside the src tree.
@@ -97,9 +101,17 @@ func copyDir(src, dst string) error {
 
 			err = os.Symlink(linkTarget, dstPath)
 			if err != nil {
-				// On Windows, symlink creation requires admin privileges
+				// On Windows, symlink creation requires admin privileges (ERROR_PRIVILEGE_NOT_HELD = 1314)
 				// Fall back to copying the target content
-				if runtime.GOOS == "windows" && errors.Is(err, os.ErrPermission) {
+				isWinPermError := errors.Is(err, os.ErrPermission)
+				if runtime.GOOS == "windows" {
+					var errno syscall.Errno
+					if errors.As(err, &errno) {
+						isWinPermError = isWinPermError || errno == errorPrivilegeNotHeld
+					}
+				}
+
+				if runtime.GOOS == "windows" && isWinPermError {
 					logrus.Warnf(
 						"Cannot create symlink on Windows without admin rights, copying target instead: %s",
 						srcPath,
