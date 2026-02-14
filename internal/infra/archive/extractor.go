@@ -98,8 +98,12 @@ func writeFile(target string, mode os.FileMode, reader io.Reader) (err error) {
 
 	defer func() {
 		cerr := file.Close()
-		if cerr != nil && err == nil {
-			err = fmt.Errorf("failed to close file %s: %w", target, cerr)
+		if cerr != nil {
+			if err == nil {
+				err = fmt.Errorf("failed to close file %s: %w", target, cerr)
+			} else {
+				err = fmt.Errorf("%w; failed to close file %s: %w", err, target, cerr)
+			}
 		}
 	}()
 
