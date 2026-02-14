@@ -360,7 +360,7 @@ func isProcessRunning(pid int) bool {
 		return false
 	}
 
-	return process.Pid == 0 || process.Signal(syscall.Signal(0)) == nil
+	return process.Signal(syscall.Signal(0)) == nil
 }
 
 // runCommandWithProgress runs a command while updating progress with elapsed time.
