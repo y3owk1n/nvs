@@ -75,7 +75,8 @@ func copyDir(src, dst string) error {
 				}
 
 				// If outside src tree (starts with ".."), recompute relative path from dst
-				if strings.HasPrefix(relToSrc, "..") {
+				if relToSrc == ".." ||
+					strings.HasPrefix(relToSrc, ".."+string(filepath.Separator)) {
 					dstDir := filepath.Dir(dstPath)
 
 					linkTarget, err = filepath.Rel(dstDir, absTarget)
