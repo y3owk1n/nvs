@@ -64,8 +64,12 @@ func (b *SourceBuilder) BuildFromCommit(
 	// Clean up any leftover temp directories from previous runs
 	b.cleanupTempDirectories()
 
+	// Generate unique build ID to avoid conflicts with concurrent builds
+	buildID := fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano())
+	logrus.Debugf("Build ID: %s", buildID)
+
 	for attempt := 1; attempt <= constants.MaxAttempts; attempt++ {
-		localPath := filepath.Join(os.TempDir(), fmt.Sprintf("neovim-src-%d", attempt))
+		localPath := filepath.Join(os.TempDir(), fmt.Sprintf("neovim-src-%s-%d", buildID, attempt))
 		logrus.Debugf("Temporary Neovim source directory: %s", localPath)
 
 		resolvedHash, err := b.buildFromCommitInternal(ctx, commit, dest, localPath, progress)
