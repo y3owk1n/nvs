@@ -121,10 +121,8 @@ func (d *Downloader) DownloadWithChecksumVerification(
 	totalSize := resp.ContentLength
 	hasher := sha256.New()
 
-	multiWriter := io.MultiWriter(dest, hasher)
-
 	progressReader := &progressReader{
-		reader:   io.TeeReader(resp.Body, multiWriter),
+		reader:   io.TeeReader(resp.Body, hasher),
 		total:    totalSize,
 		callback: progress,
 	}
