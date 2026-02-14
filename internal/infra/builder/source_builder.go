@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -64,12 +65,38 @@ func (b *SourceBuilder) BuildFromCommit(
 	// Clean up any leftover temp directories from previous runs
 	b.cleanupTempDirectories()
 
+	// Generate unique build ID to avoid conflicts with concurrent builds
+	buildID := fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano())
+	logrus.Debugf("Build ID: %s", buildID)
+
+	// Create lock file to prevent cleanup of in-progress builds
+	lockFile := filepath.Join(os.TempDir(), fmt.Sprintf("neovim-src-%s.lock", buildID))
+
+	lockErr := os.WriteFile(lockFile, []byte(strconv.Itoa(os.Getpid())), constants.FilePerm)
+	if lockErr != nil {
+		logrus.Warnf("Failed to create lock file: %v", lockErr)
+	}
+	// Ensure lock file is removed when function exits
+	defer func() {
+		removeErr := os.Remove(lockFile)
+		if removeErr != nil && !os.IsNotExist(removeErr) {
+			logrus.Warnf("Failed to remove lock file: %v", removeErr)
+		}
+	}()
+
+	var resolvedHash string
 	for attempt := 1; attempt <= constants.MaxAttempts; attempt++ {
-		localPath := filepath.Join(os.TempDir(), fmt.Sprintf("neovim-src-%d", attempt))
+		localPath := filepath.Join(os.TempDir(), fmt.Sprintf("neovim-src-%s-%d", buildID, attempt))
 		logrus.Debugf("Temporary Neovim source directory: %s", localPath)
 
-		resolvedHash, err := b.buildFromCommitInternal(ctx, commit, dest, localPath, progress)
+		resolvedHash, err = b.buildFromCommitInternal(ctx, commit, dest, localPath, progress)
 		if err == nil {
+			// Clean up temp directory on successful build
+			removeErr := os.RemoveAll(localPath)
+			if removeErr != nil {
+				logrus.Warnf("Failed to remove temporary directory: %v", removeErr)
+			}
+
 			return resolvedHash, nil
 		}
 
@@ -291,6 +318,29 @@ func (b *SourceBuilder) cleanupTempDirectories() {
 		if strings.HasPrefix(entry.Name(), "neovim-src-") && entry.IsDir() {
 			dirPath := filepath.Join(tempDir, entry.Name())
 
+			// Check for lock file to skip directories from active builds
+			// Format: neovim-src-{buildID}.lock where buildID = {pid}-{timestamp}
+			// Directory format: neovim-src-{pid}-{timestamp}-{attempt}
+			// Need to extract buildID by removing the attempt suffix
+			parts := strings.Split(entry.Name(), "-")
+
+			var lockFileName string
+			if len(parts) >= constants.TempDirNamePartsMin {
+				buildIDParts := parts[:len(parts)-1]
+				lockFileName = strings.Join(buildIDParts, "-") + ".lock"
+			} else {
+				lockFileName = entry.Name() + ".lock"
+			}
+
+			lockFilePath := filepath.Join(tempDir, lockFileName)
+
+			_, err = os.Stat(lockFilePath)
+			if err == nil {
+				logrus.Debugf("Skipping cleanup of locked directory: %s", dirPath)
+
+				continue
+			}
+
 			// Check if the directory was modified recently (within last 5 minutes)
 			// to avoid interfering with concurrent builds
 			info, err := entry.Info()
@@ -311,6 +361,54 @@ func (b *SourceBuilder) cleanupTempDirectories() {
 				logrus.Warnf("Failed to remove leftover temp directory %s: %v", dirPath, err)
 			} else {
 				logrus.Debugf("Cleaned up leftover temp directory: %s", dirPath)
+			}
+		}
+	}
+
+	// Clean up orphaned lock files
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), "neovim-src-") &&
+			strings.HasSuffix(entry.Name(), ".lock") &&
+			!entry.IsDir() {
+			lockFilePath := filepath.Join(tempDir, entry.Name())
+
+			info, err := entry.Info()
+			if err != nil {
+				logrus.Warnf("Failed to get info for lock file %s: %v", lockFilePath, err)
+
+				continue
+			}
+
+			if time.Since(info.ModTime()) < 5*time.Minute {
+				logrus.Debugf("Skipping cleanup of recent lock file: %s", lockFilePath)
+
+				continue
+			}
+
+			// Read PID from lock file to check if process is still running
+			pidData, readErr := os.ReadFile(lockFilePath)
+			if readErr == nil {
+				var pid int
+
+				_, err = fmt.Sscanf(string(pidData), "%d", &pid)
+				if err == nil {
+					if isProcessAlive(pid) {
+						logrus.Debugf(
+							"Skipping cleanup of lock file for running process %d: %s",
+							pid,
+							lockFilePath,
+						)
+
+						continue
+					}
+				}
+			}
+
+			err = os.Remove(lockFilePath)
+			if err != nil {
+				logrus.Warnf("Failed to remove orphaned lock file %s: %v", lockFilePath, err)
+			} else {
+				logrus.Debugf("Cleaned up orphaned lock file: %s", lockFilePath)
 			}
 		}
 	}
