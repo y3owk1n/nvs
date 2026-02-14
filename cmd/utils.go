@@ -2,16 +2,20 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 )
 
 // copyDir recursively copies a directory from src to dst.
-// Note: Relative symlinks may point to incorrect locations if the target is outside the src tree.
+// Handles relative symlinks by adjusting paths when targets are outside the src tree.
+// On Windows, falls back to copying target content if symlink creation fails due to permissions.
 // For atomicity, uses a temporary directory and renames on success to avoid partial copies.
 func copyDir(src, dst string) error {
 	srcInfo, err := os.Stat(src)
@@ -49,15 +53,68 @@ func copyDir(src, dst string) error {
 		dstPath := filepath.Join(tempDst, entry.Name())
 
 		// Handle symlinks
-		// Note: Relative symlinks may break if target is outside src tree
+		// For relative symlinks pointing outside src tree, adjust the target path
 		if entry.Type()&os.ModeSymlink != 0 {
-			link, err := os.Readlink(srcPath)
+			linkTarget, err := os.Readlink(srcPath)
 			if err != nil {
 				return err
 			}
 
-			err = os.Symlink(link, dstPath)
+			// If relative symlink, resolve it and recompute relative path from dst
+			if !filepath.IsAbs(linkTarget) {
+				// Resolve to absolute path from source
+				absTarget, err := filepath.Abs(filepath.Join(src, linkTarget))
+				if err != nil {
+					return err
+				}
+
+				// Check if target is outside source tree
+				relToSrc, err := filepath.Rel(src, absTarget)
+				if err != nil {
+					return err
+				}
+
+				// If outside src tree (starts with ".."), recompute relative path from dst
+				if strings.HasPrefix(relToSrc, "..") {
+					dstDir := filepath.Dir(dstPath)
+
+					linkTarget, err = filepath.Rel(dstDir, absTarget)
+					if err != nil {
+						return err
+					}
+				}
+			}
+
+			err = os.Symlink(linkTarget, dstPath)
 			if err != nil {
+				// On Windows, symlink creation requires admin privileges
+				// Fall back to copying the target content
+				if runtime.GOOS == "windows" && errors.Is(err, os.ErrPermission) {
+					logrus.Warnf(
+						"Cannot create symlink on Windows without admin rights, copying target instead: %s",
+						srcPath,
+					)
+
+					// Resolve the symlink target
+					resolvedPath, statErr := os.Stat(srcPath)
+					if statErr != nil {
+						return statErr
+					}
+
+					// If it's a directory, recurse; otherwise copy the file
+					if resolvedPath.IsDir() {
+						err = copyDir(srcPath, dstPath)
+					} else {
+						err = copyFile(srcPath, dstPath)
+					}
+
+					if err != nil {
+						return err
+					}
+
+					continue
+				}
+
 				return err
 			}
 
