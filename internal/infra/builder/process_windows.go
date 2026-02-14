@@ -24,10 +24,12 @@ func isProcessAlive(pid int) bool {
 		// Process doesn't exist or we can't access it
 		return false
 	}
+
 	defer windows.CloseHandle(handle) //nolint:errcheck
 
 	// Check if process is still running by getting exit code
 	var exitCode uint32
+
 	err = windows.GetExitCodeProcess(handle, &exitCode)
 	if err != nil {
 		return false
