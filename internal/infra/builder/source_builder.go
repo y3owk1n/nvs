@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -393,18 +392,14 @@ func (b *SourceBuilder) cleanupTempDirectories() {
 
 				_, err = fmt.Sscanf(string(pidData), "%d", &pid)
 				if err == nil {
-					process, err := os.FindProcess(pid)
-					if err == nil {
-						// Check if process is running (signal 0 returns nil if process exists)
-						if process.Signal(syscall.Signal(0)) == nil {
-							logrus.Debugf(
-								"Skipping cleanup of lock file for running process %d: %s",
-								pid,
-								lockFilePath,
-							)
+					if isProcessAlive(pid) {
+						logrus.Debugf(
+							"Skipping cleanup of lock file for running process %d: %s",
+							pid,
+							lockFilePath,
+						)
 
-							continue
-						}
+						continue
 					}
 				}
 			}
