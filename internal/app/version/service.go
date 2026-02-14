@@ -355,17 +355,11 @@ func (s *Service) Upgrade(
 				rollbackErr = fmt.Errorf("failed to clean partial install: %w", removeErr)
 			}
 
-			renameErr := os.Rename(backupPath, versionPath)
-			if renameErr != nil {
-				logrus.Errorf("Failed to restore backup during rollback: %v", renameErr)
-
-				if rollbackErr != nil {
-					rollbackErr = fmt.Errorf(
-						"%w; failed to restore backup: %w",
-						rollbackErr,
-						renameErr,
-					)
-				} else {
+			// Only attempt rename if cleanup succeeded
+			if removeErr == nil {
+				renameErr := os.Rename(backupPath, versionPath)
+				if renameErr != nil {
+					logrus.Errorf("Failed to restore backup during rollback: %v", renameErr)
 					rollbackErr = fmt.Errorf("failed to restore backup: %w", renameErr)
 				}
 			}
