@@ -10,6 +10,7 @@ import (
 
 func lockFile(f *os.File) error {
 	var overlapped windows.Overlapped
+
 	return windows.LockFileEx(
 		windows.Handle(f.Fd()),
 		windows.LOCKFILE_EXCLUSIVE_LOCK,
@@ -22,6 +23,7 @@ func lockFile(f *os.File) error {
 
 func unlockFile(f *os.File) error {
 	var overlapped windows.Overlapped
+
 	return windows.UnlockFileEx(
 		windows.Handle(f.Fd()),
 		0,
