@@ -91,6 +91,8 @@ func (d *Downloader) VerifyChecksum(
 		return fmt.Errorf("failed to create checksum request: %w", err)
 	}
 
+	req.Header.Set("User-Agent", "nvs")
+
 	resp, err := d.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to download checksum: %w", err)
