@@ -53,7 +53,12 @@ func (d *Downloader) Download(
 		return fmt.Errorf("failed to download file: %w", err)
 	}
 
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			logrus.Warnf("failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("%w: status %d", ErrDownloadFailed, resp.StatusCode)
@@ -91,7 +96,12 @@ func (d *Downloader) VerifyChecksum(
 		return fmt.Errorf("failed to download checksum: %w", err)
 	}
 
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			logrus.Warnf("failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("%w: status %d", ErrChecksumDownloadFailed, resp.StatusCode)
