@@ -337,6 +337,8 @@ func (s *Service) Upgrade(
 
 	upgradeSuccess := false
 
+	var rollbackErr error
+
 	// Cleanup backup on success or restore on failure
 	defer func() {
 		if upgradeSuccess {
@@ -350,11 +352,22 @@ func (s *Service) Upgrade(
 			removeErr := os.RemoveAll(versionPath)
 			if removeErr != nil {
 				logrus.Errorf("Failed to clean partial install during rollback: %v", removeErr)
+				rollbackErr = fmt.Errorf("failed to clean partial install: %w", removeErr)
 			}
 
 			renameErr := os.Rename(backupPath, versionPath)
 			if renameErr != nil {
 				logrus.Errorf("Failed to restore backup during rollback: %v", renameErr)
+
+				if rollbackErr != nil {
+					rollbackErr = fmt.Errorf(
+						"%w; failed to restore backup: %w",
+						rollbackErr,
+						renameErr,
+					)
+				} else {
+					rollbackErr = fmt.Errorf("failed to restore backup: %w", renameErr)
+				}
 			}
 		}
 	}()
@@ -367,6 +380,14 @@ func (s *Service) Upgrade(
 
 	err = s.installer.InstallRelease(ctx, releaseInfo, s.config.VersionsDir, normalized, progress)
 	if err != nil {
+		if rollbackErr != nil {
+			return fmt.Errorf(
+				"failed to install release: %w (CRITICAL: rollback also failed: %w)",
+				err,
+				rollbackErr,
+			)
+		}
+
 		return fmt.Errorf("failed to install release: %w", err)
 	}
 
