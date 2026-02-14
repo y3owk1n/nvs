@@ -137,6 +137,9 @@ func (d *Downloader) DownloadWithChecksumVerification(
 	actualHash := hex.EncodeToString(hasher.Sum(nil))
 
 	if !strings.EqualFold(actualHash, expectedHash) {
+		_ = dest.Truncate(0)
+		_ = os.Remove(dest.Name())
+
 		return fmt.Errorf("%w: expected %s, got %s", ErrChecksumMismatch, expectedHash, actualHash)
 	}
 
