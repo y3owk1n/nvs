@@ -62,14 +62,19 @@ func copyDir(src, dst string) error {
 
 			// If relative symlink, resolve it and recompute relative path from dst
 			if !filepath.IsAbs(linkTarget) {
-				// Resolve to absolute path from source
-				absTarget, err := filepath.Abs(filepath.Join(src, linkTarget))
+				// Resolve symlink target relative to the symlink's directory, not CWD
+				// Use srcPath's directory to properly resolve the target
+				symlinkDir := filepath.Dir(srcPath)
+				absTarget := filepath.Join(symlinkDir, linkTarget)
+
+				// Ensure src is absolute for reliable comparison
+				absSrc, err := filepath.Abs(src)
 				if err != nil {
 					return err
 				}
 
 				// Check if target is outside source tree
-				relToSrc, err := filepath.Rel(src, absTarget)
+				relToSrc, err := filepath.Rel(absSrc, absTarget)
 				if err != nil {
 					return err
 				}
