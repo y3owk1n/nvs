@@ -328,12 +328,33 @@ func AddNightlyToHistory(commitHash, tagName string) error {
 				"nightly-"+shortHash(history.Entries[i].CommitHash, constants.ShortHashLength),
 			)
 
+			lockFile := oldDir + ".lock"
+
+			lockFd, lockErr := platform.NewFileLock(lockFile)
+			if lockErr != nil {
+				logrus.Warnf("Failed to acquire lock for %s: %v", oldDir, lockErr)
+
+				continue
+			}
+
+			lockErr = lockFd.Lock()
+			if lockErr != nil {
+				logrus.Warnf("Failed to lock %s: %v", oldDir, lockErr)
+
+				_ = lockFd.Close()
+
+				continue
+			}
+
 			logrus.Debugf("Removing old nightly backup: %s", oldDir)
 
 			err := os.RemoveAll(oldDir)
 			if err != nil {
 				logrus.Warnf("Failed to remove old nightly %s: %v", oldDir, err)
 			}
+
+			_ = lockFd.Unlock()
+			_ = lockFd.Remove()
 		}
 
 		history.Entries = history.Entries[:history.Limit]
