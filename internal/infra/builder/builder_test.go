@@ -423,26 +423,38 @@ func TestBuildFromCommit_ContextCancellationWithProgress(t *testing.T) {
 // TestBuildFromCommit_ContextNotCancelledBeforeRetrySleep tests that context
 // cancellation is checked before starting the retry sleep.
 func TestBuildFromCommit_ContextNotCancelledBeforeRetrySleep(t *testing.T) {
-	var attemptMu sync.Mutex
+	var cloneAttemptMu sync.Mutex
 
-	attemptCount := 0
+	cloneAttemptCount := 0
 
 	mockExec := func(ctx context.Context, name string, args ...string) builder.Commander {
-		attemptMu.Lock()
-
-		attemptCount++
-		currentAttempt := attemptCount
-
-		attemptMu.Unlock()
-
-		// First attempt fails
-		if currentAttempt == 1 && name == gitCmd && len(args) > 0 && args[0] == gitClone {
-			return &mockCommand{runErr: errCloneFailed}
-		}
 		// Mock successful tool checks
 		if name == whichCmd &&
 			(args[0] == gitTool || args[0] == makeTool || args[0] == cmakeTool || args[0] == gettextTool || args[0] == ninjaTool || args[0] == curlTool) {
 			return &mockCommand{}
+		}
+
+		// Track only clone attempts
+		if name == gitCmd && len(args) > 0 && args[0] == gitClone {
+			cloneAttemptMu.Lock()
+
+			cloneAttemptCount++
+			currentCloneAttempt := cloneAttemptCount
+
+			cloneAttemptMu.Unlock()
+
+			// First clone attempt fails to trigger retry
+			if currentCloneAttempt == 1 {
+				return &mockCommand{runErr: errCloneFailed}
+			}
+
+			// Subsequent clones succeed but will fail later (commit hash too short)
+			return &mockCommand{}
+		}
+
+		// Simulate git rev-parse to return a valid commit hash
+		if name == gitCmd && len(args) > 0 && args[0] == gitRevParse {
+			return &mockCommand{stdoutStr: "abc1234567890"}
 		}
 
 		return &mockCommand{}
@@ -455,8 +467,8 @@ func TestBuildFromCommit_ContextNotCancelledBeforeRetrySleep(t *testing.T) {
 
 	_, _ = b.BuildFromCommit(ctx, "abc1234", t.TempDir(), nil)
 
-	// Should have made multiple attempts (up to MaxAttempts)
-	if attemptCount < 2 {
-		t.Errorf("Expected at least 2 attempts, got %d", attemptCount)
+	// Should have made multiple clone attempts (up to MaxAttempts)
+	if cloneAttemptCount < 2 {
+		t.Errorf("Expected at least 2 clone attempts, got %d", cloneAttemptCount)
 	}
 }
