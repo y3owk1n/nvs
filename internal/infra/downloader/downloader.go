@@ -90,6 +90,8 @@ func (d *Downloader) DownloadWithChecksumVerification(
 	dest *os.File,
 	progress ProgressFunc,
 ) error {
+	logrus.Debugf("Downloading from URL: %s", url)
+
 	expectedHash, err := d.fetchExpectedHash(ctx, checksumURL, assetName)
 	if err != nil {
 		return err
