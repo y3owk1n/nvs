@@ -132,18 +132,24 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 	}
 
 	_, err = os.Stat(nightlyDir)
-	if os.IsNotExist(err) {
-		return fmt.Errorf(
-			"%w: %s",
-			ErrNightlyVersionNotExists,
-			shortHash(entry.CommitHash, constants.ShortHashLength),
-		)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf(
+				"%w: %s",
+				ErrNightlyVersionNotExists,
+				shortHash(entry.CommitHash, constants.ShortHashLength),
+			)
+		}
+
+		return fmt.Errorf("failed to stat nightly directory %s: %w", nightlyDir, err)
 	}
 
 	currentNightly := filepath.Join(GetVersionsDir(), "nightly")
 
 	// Get current nightly's commit hash before removing (to potentially back it up)
-	currentCommit, err := GetVersionService().GetInstalledVersionIdentifier("nightly")
+	var currentCommit string
+
+	currentCommit, err = GetVersionService().GetInstalledVersionIdentifier("nightly")
 	if err != nil {
 		logrus.Debugf("Could not get current nightly identifier: %v", err)
 	}
