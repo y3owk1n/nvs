@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -298,9 +299,34 @@ func (b *SourceBuilder) cleanupTempDirectories() {
 		return
 	}
 
+	currentPID := os.Getpid()
+
 	for _, entry := range entries {
 		if strings.HasPrefix(entry.Name(), "neovim-src-") && entry.IsDir() {
 			dirPath := filepath.Join(tempDir, entry.Name())
+
+			// Extract PID from directory name to check if process is still running
+			// Format: neovim-src-{pid}-{timestamp}-{attempt}
+			parts := strings.Split(entry.Name(), "-")
+			if len(parts) >= constants.TempDirNamePartsMin {
+				var (
+					dirPID int
+					err    error
+				)
+
+				_, err = fmt.Sscanf(parts[2], "%d", &dirPID)
+				if err == nil {
+					if dirPID != currentPID && isProcessRunning(dirPID) {
+						logrus.Debugf(
+							"Skipping cleanup of directory from running process %d: %s",
+							dirPID,
+							dirPath,
+						)
+
+						continue
+					}
+				}
+			}
 
 			// Check if the directory was modified recently (within last 5 minutes)
 			// to avoid interfering with concurrent builds
@@ -325,6 +351,16 @@ func (b *SourceBuilder) cleanupTempDirectories() {
 			}
 		}
 	}
+}
+
+// isProcessRunning checks if a process with the given PID is running.
+func isProcessRunning(pid int) bool {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+
+	return process.Pid == 0 || process.Signal(syscall.Signal(0)) == nil
 }
 
 // runCommandWithProgress runs a command while updating progress with elapsed time.
