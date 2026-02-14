@@ -627,11 +627,19 @@ func runCommandWithSpinnerAndOutput(
 	select {
 	case err = <-errChan:
 	case <-ctx.Done():
-		// Context canceled - wait for readers to finish before returning
-		// since exec.CommandContext will kill the process
-		waitGroup.Wait()
+		// Context canceled - check if command completed before returning
+		select {
+		case doneErr := <-errChan:
+			// Command finished - return its result
+			waitGroup.Wait()
 
-		return ctx.Err()
+			return doneErr
+		default:
+			// No result yet - context was canceled before command completed
+			waitGroup.Wait()
+
+			return ctx.Err()
+		}
 	}
 
 	waitGroup.Wait()
