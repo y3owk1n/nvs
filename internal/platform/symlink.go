@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
@@ -62,7 +63,7 @@ func UpdateSymlink(target, link string, isDir bool) error {
 				"failed to create %s for %s: %s: %w",
 				linkType,
 				link,
-				stderrBuf.String(),
+				strings.TrimSpace(stderrBuf.String()),
 				err,
 			)
 		}
