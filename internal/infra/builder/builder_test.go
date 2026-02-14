@@ -251,32 +251,43 @@ func TestSourceBuilder_Interface(t *testing.T) {
 // TestBuildFromCommit_ContextCancellationDuringRetry tests that context cancellation
 // is respected in the retry loop.
 func TestBuildFromCommit_ContextCancellationDuringRetry(t *testing.T) {
-	var attemptMu sync.Mutex
+	var cloneAttemptMu sync.Mutex
 
-	attemptCount := 0
+	cloneAttemptCount := 0
 
 	mockExec := func(ctx context.Context, name string, args ...string) builder.Commander {
-		attemptMu.Lock()
-
-		attemptCount++
-		currentAttempt := attemptCount
-
-		attemptMu.Unlock()
-
-		// First attempt fails, second attempt will be canceled
-		if currentAttempt == 1 && name == gitCmd && len(args) > 0 && args[0] == gitClone {
-			return &mockCommand{runErr: errCloneFailed}
-		}
 		// Mock successful tool checks
 		if name == whichCmd &&
 			(args[0] == gitTool || args[0] == makeTool || args[0] == cmakeTool || args[0] == gettextTool || args[0] == ninjaTool || args[0] == curlTool) {
 			return &mockCommand{}
 		}
 
-		// Return command that blocks until context is canceled
-		return &mockCommand{
-			runErr: context.Canceled,
+		// Track only clone attempts
+		if name == gitCmd && len(args) > 0 && args[0] == gitClone {
+			cloneAttemptMu.Lock()
+
+			cloneAttemptCount++
+			currentCloneAttempt := cloneAttemptCount
+
+			cloneAttemptMu.Unlock()
+
+			// First clone attempt fails, subsequent attempts will be canceled
+			if currentCloneAttempt == 1 {
+				return &mockCommand{runErr: errCloneFailed}
+			}
+
+			// Return command that returns context.Canceled
+			return &mockCommand{
+				runErr: context.Canceled,
+			}
 		}
+
+		// Simulate git operations for other commands
+		if name == gitCmd && len(args) > 0 && args[0] == gitRevParse {
+			return &mockCommand{stdoutStr: "abc1234567890"}
+		}
+
+		return &mockCommand{}
 	}
 
 	b := builder.New(mockExec)
