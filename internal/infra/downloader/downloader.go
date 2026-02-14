@@ -32,6 +32,8 @@ func New() *Downloader {
 // ProgressFunc is a callback for download progress updates.
 type ProgressFunc func(percent int)
 
+const percentDivisor = 100
+
 // Download downloads a file from the given URL to the destination file.
 func (d *Downloader) Download(
 	ctx context.Context,
@@ -278,7 +280,7 @@ func (pr *progressReader) Read(p []byte) (int, error) {
 
 	pr.read += int64(bytesRead)
 	if pr.callback != nil && pr.total > 0 {
-		percent := int((pr.read * 100) / pr.total) //nolint:mnd // 100 for percentage calculation
+		percent := int((uint64(pr.read) * percentDivisor) / uint64(pr.total))
 		pr.callback(percent)
 	}
 
