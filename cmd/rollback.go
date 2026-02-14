@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -97,7 +98,7 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 
 	// If no index provided, list available versions
 	if len(args) == 0 {
-		return listNightlyHistory(history)
+		return listNightlyHistory(cmd.Context(), history)
 	}
 
 	// Parse index and rollback
@@ -130,7 +131,9 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 	currentNightly := filepath.Join(GetVersionsDir(), "nightly")
 
 	// Get current nightly's commit hash before removing (to potentially back it up)
-	currentCommit, err := GetVersionService().GetInstalledVersionIdentifier("nightly")
+	currentCommit, err := VersionServiceFromContext(
+		cmd.Context(),
+	).GetInstalledVersionIdentifier("nightly")
 	if err != nil {
 		logrus.Debugf("Could not get current nightly identifier: %v", err)
 	}
@@ -208,9 +211,9 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func listNightlyHistory(history *NightlyHistory) error {
+func listNightlyHistory(ctx context.Context, history *NightlyHistory) error {
 	// Get current nightly commit to show indicator
-	currentCommit, _ := GetVersionService().GetInstalledVersionIdentifier("nightly")
+	currentCommit, _ := VersionServiceFromContext(ctx).GetInstalledVersionIdentifier("nightly")
 
 	table := tablewriter.NewTable(os.Stdout,
 		tablewriter.WithRendition(tw.Rendition{

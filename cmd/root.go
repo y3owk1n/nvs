@@ -32,10 +32,6 @@ var (
 	// cancel cancels the context, e.g. on interrupt signals.
 	ctx, cancel = context.WithCancel(context.Background())
 
-	// Services (initialized in InitConfig).
-	versionService *appversion.Service
-	configService  *config.Service
-
 	// Configuration paths (initialized in InitConfig).
 	versionsDir   string
 	cacheFilePath string
@@ -43,7 +39,17 @@ var (
 
 	// Version of nvs, defaults to "v0.0.0" but may be set during build time.
 	Version = "v0.0.0"
+
+	// Context keys for dependency injection.
+	contextKeyVersionService = contextKey("versionService")
+	contextKeyConfigService  = contextKey("configService")
+
+	// Services (initialized in InitConfig).
+	versionService *appversion.Service
+	configService  *config.Service
 )
+
+type contextKey string
 
 // Execute initializes the configuration, sets up global flags, and executes the root command.
 // Example usage:
@@ -267,6 +273,15 @@ func InitConfig() {
 
 	configService = config.New()
 
+	if rootCmd.Context() != nil {
+		rootCmd.SetContext(
+			context.WithValue(rootCmd.Context(), contextKeyVersionService, versionService),
+		)
+		rootCmd.SetContext(
+			context.WithValue(rootCmd.Context(), contextKeyConfigService, configService),
+		)
+	}
+
 	logrus.Debug("Services initialized")
 }
 
@@ -288,8 +303,36 @@ func GetGlobalBinDir() string {
 	return globalBinDir
 }
 
-// GetVersionService returns the version service instance.
+// GetVersionService returns the version service instance from context or global fallback.
 func GetVersionService() *appversion.Service {
+	if svc := getVersionServiceFromContext(rootCmd.Context()); svc != nil {
+		return svc
+	}
+
+	return versionService
+}
+
+func getVersionServiceFromContext(ctx context.Context) *appversion.Service {
+	if ctx == nil {
+		return nil
+	}
+
+	if svc, ok := ctx.Value(contextKeyVersionService).(*appversion.Service); ok {
+		return svc
+	}
+
+	return nil
+}
+
+// VersionServiceFromContext returns the version service from the given context.
+// Falls back to the global versionService if not found in context.
+func VersionServiceFromContext(ctx context.Context) *appversion.Service {
+	if ctx != nil {
+		if svc, ok := ctx.Value(contextKeyVersionService).(*appversion.Service); ok {
+			return svc
+		}
+	}
+
 	return versionService
 }
 
@@ -303,8 +346,36 @@ func SetVersionServiceForTesting(service *appversion.Service) {
 	versionService = service
 }
 
-// GetConfigService returns the config service instance.
+// GetConfigService returns the config service instance from context or global fallback.
 func GetConfigService() *config.Service {
+	if svc := getConfigServiceFromContext(rootCmd.Context()); svc != nil {
+		return svc
+	}
+
+	return configService
+}
+
+func getConfigServiceFromContext(ctx context.Context) *config.Service {
+	if ctx == nil {
+		return nil
+	}
+
+	if svc, ok := ctx.Value(contextKeyConfigService).(*config.Service); ok {
+		return svc
+	}
+
+	return nil
+}
+
+// ConfigServiceFromContext returns the config service from the given context.
+// Falls back to the global configService if not found in context.
+func ConfigServiceFromContext(ctx context.Context) *config.Service {
+	if ctx != nil {
+		if svc, ok := ctx.Value(contextKeyConfigService).(*config.Service); ok {
+			return svc
+		}
+	}
+
 	return configService
 }
 

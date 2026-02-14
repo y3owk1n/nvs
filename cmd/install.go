@@ -57,7 +57,7 @@ func RunInstall(cmd *cobra.Command, args []string) error {
 	pick, _ := cmd.Flags().GetBool("pick")
 	if pick {
 		// Launch picker for remote versions
-		releases, err := GetVersionService().ListRemote(ctx, false)
+		releases, err := VersionServiceFromContext(cmd.Context()).ListRemote(ctx, false)
 		if err != nil {
 			return fmt.Errorf("error fetching releases: %w", err)
 		}
@@ -113,7 +113,9 @@ func RunInstall(cmd *cobra.Command, args []string) error {
 	progressSpinner.Start()
 
 	// Use version service to install
-	err := GetVersionService().Install(ctx, alias, func(phase string, progress int) {
+	err := VersionServiceFromContext(
+		cmd.Context(),
+	).Install(ctx, alias, func(phase string, progress int) {
 		progressSpinner.Suffix = " " + ui.FormatPhaseProgress(phase, progress)
 	})
 	if err != nil {

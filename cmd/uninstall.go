@@ -46,7 +46,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 	pick, _ := cmd.Flags().GetBool("pick")
 	if pick {
 		// Launch picker for installed versions
-		versions, err := GetVersionService().List()
+		versions, err := VersionServiceFromContext(cmd.Context()).List()
 		if err != nil {
 			return fmt.Errorf("error listing versions: %w", err)
 		}
@@ -98,7 +98,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 	// Check if the version to uninstall is currently active.
 	isCurrent := false
 
-	current, err := GetVersionService().Current()
+	current, err := VersionServiceFromContext(cmd.Context()).Current()
 	if err == nil {
 		// Normalize both versions for comparison
 		normalizedCurrent := current.Name()
@@ -159,7 +159,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 
 	// Uninstall using service
 	// Force uninstall if it's the current version (user already confirmed)
-	err = GetVersionService().Uninstall(versionArg, isCurrent)
+	err = VersionServiceFromContext(cmd.Context()).Uninstall(versionArg, isCurrent)
 	if err != nil {
 		if errors.Is(err, version.ErrVersionNotFound) {
 			return fmt.Errorf("version %s is not installed: %w", versionArg, ErrVersionNotInstalled)
@@ -184,7 +184,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 	// If the uninstalled version was the current version,
 	// prompt the user to switch to a different installed version.
 	if isCurrent {
-		versions, err := GetVersionService().List()
+		versions, err := VersionServiceFromContext(cmd.Context()).List()
 		if err != nil {
 			return fmt.Errorf("error listing versions: %w", err)
 		}
@@ -238,7 +238,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 			}
 
 			// Use the selected version as the new current version.
-			_, err = GetVersionService().Use(cmd.Context(), selectedVersion)
+			_, err = VersionServiceFromContext(cmd.Context()).Use(cmd.Context(), selectedVersion)
 			if err != nil {
 				return err
 			}

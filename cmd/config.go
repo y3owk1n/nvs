@@ -55,7 +55,7 @@ func RunConfig(cmd *cobra.Command, args []string) error {
 			logrus.Warnf("Failed to write to stdout: %v", err)
 		}
 
-		err = GetConfigService().Launch(cmd.Context(), args[0])
+		err = ConfigServiceFromContext(cmd.Context()).Launch(cmd.Context(), args[0])
 		if err != nil {
 			return err
 		}
@@ -64,7 +64,7 @@ func RunConfig(cmd *cobra.Command, args []string) error {
 	}
 
 	// List available configurations
-	configs, err := GetConfigService().List()
+	configs, err := ConfigServiceFromContext(cmd.Context()).List()
 	if err != nil {
 		return fmt.Errorf("failed to list configurations: %w", err)
 	}
@@ -128,7 +128,7 @@ func RunConfig(cmd *cobra.Command, args []string) error {
 		logrus.Warnf("Failed to write to stdout: %v", err)
 	}
 
-	err = GetConfigService().Launch(cmd.Context(), selectedConfig)
+	err = ConfigServiceFromContext(cmd.Context()).Launch(cmd.Context(), selectedConfig)
 	if err != nil {
 		return fmt.Errorf("failed to launch nvim with config: %w", err)
 	}

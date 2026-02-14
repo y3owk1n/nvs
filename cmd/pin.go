@@ -36,7 +36,7 @@ func RunPin(cmd *cobra.Command, args []string) error {
 	pick, _ := cmd.Flags().GetBool("pick")
 	if pick {
 		// Launch picker for installed versions
-		versions, err := GetVersionService().List()
+		versions, err := VersionServiceFromContext(cmd.Context()).List()
 		if err != nil {
 			return fmt.Errorf("error listing versions: %w", err)
 		}
@@ -81,7 +81,7 @@ func RunPin(cmd *cobra.Command, args []string) error {
 			logrus.Debugf("Pinning specified version: %s", versionToPin)
 		} else {
 			// Use currently active version
-			current, err := GetVersionService().Current()
+			current, err := VersionServiceFromContext(cmd.Context()).Current()
 			if err != nil {
 				return fmt.Errorf("no version specified and no current version: %w", err)
 			}

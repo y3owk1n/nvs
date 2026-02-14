@@ -54,11 +54,13 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 	if pick {
 		// Show picker for installed stable/nightly versions
 		availableVersions := []string{}
-		if GetVersionService().IsVersionInstalled(constants.Stable) {
+
+		versionSvc := VersionServiceFromContext(cmd.Context())
+		if versionSvc.IsVersionInstalled(constants.Stable) {
 			availableVersions = append(availableVersions, constants.Stable)
 		}
 
-		if GetVersionService().IsVersionInstalled(constants.Nightly) {
+		if versionSvc.IsVersionInstalled(constants.Nightly) {
 			availableVersions = append(availableVersions, constants.Nightly)
 		}
 
@@ -122,7 +124,9 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		)
 
 		if alias == constants.Nightly {
-			oldCommitHash, _ = GetVersionService().GetInstalledVersionIdentifier(constants.Nightly)
+			oldCommitHash, _ = VersionServiceFromContext(
+				cmd.Context(),
+			).GetInstalledVersionIdentifier(constants.Nightly)
 			logrus.Debugf("Current nightly commit: %s", oldCommitHash)
 
 			// Backup current nightly for rollback support
@@ -165,7 +169,9 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		progressSpinner.Suffix = " Checking for updates..."
 		progressSpinner.Start()
 
-		err := GetVersionService().Upgrade(ctx, alias, func(phase string, progress int) {
+		err := VersionServiceFromContext(
+			cmd.Context(),
+		).Upgrade(ctx, alias, func(phase string, progress int) {
 			progressSpinner.Suffix = " " + ui.FormatPhaseProgress(phase, progress)
 		})
 		if err != nil {
@@ -240,7 +246,7 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 
 		// For nightly, show changelog
 		if alias == constants.Nightly && oldCommitHash != "" {
-			nightlyRelease, findErr := GetVersionService().FindNightly(ctx)
+			nightlyRelease, findErr := VersionServiceFromContext(cmd.Context()).FindNightly(ctx)
 			if findErr == nil && nightlyRelease.CommitHash() != oldCommitHash {
 				_ = ShowChangelog(ctx, oldCommitHash, nightlyRelease.CommitHash())
 			}

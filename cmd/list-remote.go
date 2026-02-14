@@ -51,7 +51,7 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Retrieve the remote releases via version service
-	releasesResult, err := GetVersionService().ListRemote(cmd.Context(), force)
+	releasesResult, err := VersionServiceFromContext(cmd.Context()).ListRemote(cmd.Context(), force)
 	if err != nil {
 		return fmt.Errorf("error fetching releases: %w", err)
 	}
@@ -82,7 +82,7 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 	combined := append(append(groupNightly, groupStable...), groupOthers...)
 
 	// Determine the current installed version (if any).
-	current, err := GetVersionService().Current()
+	current, err := VersionServiceFromContext(cmd.Context()).Current()
 
 	currentName := ""
 	if err != nil {
@@ -130,7 +130,7 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Iterate over the releases and build table rows with appropriate details and color-coding.
-	svc := GetVersionService()
+	svc := VersionServiceFromContext(cmd.Context())
 	for _, release := range combined {
 		var details string
 

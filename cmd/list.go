@@ -32,7 +32,7 @@ func RunList(cmd *cobra.Command, _ []string) error {
 	logrus.Debug("Executing list command")
 
 	// Retrieve installed versions from the version service.
-	versions, err := GetVersionService().List()
+	versions, err := VersionServiceFromContext(cmd.Context()).List()
 	if err != nil {
 		return fmt.Errorf("error listing versions: %w", err)
 	}
@@ -57,7 +57,7 @@ func RunList(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Get the current active version.
-	current, err := GetVersionService().Current()
+	current, err := VersionServiceFromContext(cmd.Context()).Current()
 	if err != nil {
 		logrus.Warn("No current version set or unable to determine the current version")
 	} else {

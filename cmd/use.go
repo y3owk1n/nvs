@@ -52,7 +52,7 @@ func RunUse(cmd *cobra.Command, args []string) error {
 	pick, _ := cmd.Flags().GetBool("pick")
 	if pick {
 		// Launch picker for installed versions
-		versions, err := GetVersionService().List()
+		versions, err := VersionServiceFromContext(cmd.Context()).List()
 		if err != nil {
 			return fmt.Errorf("error listing versions: %w", err)
 		}
@@ -166,7 +166,7 @@ func RunUse(cmd *cobra.Command, args []string) error {
 	}
 
 	// Use version service to switch
-	resolvedVersion, err := GetVersionService().Use(ctx, alias)
+	resolvedVersion, err := VersionServiceFromContext(cmd.Context()).Use(ctx, alias)
 	if err != nil {
 		// If version not found, install it first, then try to use again
 		if errors.Is(err, version.ErrVersionNotFound) {
@@ -177,7 +177,7 @@ func RunUse(cmd *cobra.Command, args []string) error {
 				return err
 			}
 			// Now try to use it (single retry, no recursion)
-			resolvedVersion, err = GetVersionService().Use(ctx, alias)
+			resolvedVersion, err = VersionServiceFromContext(cmd.Context()).Use(ctx, alias)
 			if err != nil {
 				return fmt.Errorf("failed to activate %s: %w", alias, err)
 			}

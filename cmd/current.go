@@ -32,7 +32,7 @@ var currentCmd = &cobra.Command{
 func RunCurrent(cmd *cobra.Command, _ []string) error {
 	logrus.Debug("Executing current command")
 
-	current, err := GetVersionService().Current()
+	current, err := VersionServiceFromContext(cmd.Context()).Current()
 	if err != nil {
 		return fmt.Errorf("error getting current version: %w", err)
 	}
@@ -62,7 +62,7 @@ func RunCurrent(cmd *cobra.Command, _ []string) error {
 		info.Name = constants.Stable
 		info.Type = "stable"
 
-		stable, err := GetVersionService().FindStable(context.Background())
+		stable, err := VersionServiceFromContext(cmd.Context()).FindStable(context.Background())
 		if err != nil {
 			logrus.Warnf("Error fetching latest stable release: %v", err)
 
@@ -108,7 +108,7 @@ func RunCurrent(cmd *cobra.Command, _ []string) error {
 		info.Name = constants.Nightly
 		info.Type = "nightly"
 
-		nightly, err := GetVersionService().FindNightly(context.Background())
+		nightly, err := VersionServiceFromContext(cmd.Context()).FindNightly(context.Background())
 		if err != nil {
 			logrus.Warnf("Error fetching latest nightly release: %v", err)
 
@@ -154,7 +154,7 @@ func RunCurrent(cmd *cobra.Command, _ []string) error {
 		}
 	default:
 		// Handle custom version or commit hash
-		isCommitHash := GetVersionService().IsCommitReference(current.Name())
+		isCommitHash := VersionServiceFromContext(cmd.Context()).IsCommitReference(current.Name())
 		logrus.Debugf("isCommitHash: %t", isCommitHash)
 
 		info.Name = current.Name()
