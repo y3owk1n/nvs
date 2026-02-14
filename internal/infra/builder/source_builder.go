@@ -510,6 +510,9 @@ func runCommandWithProgress(
 				progress(fmt.Sprintf("%s (elapsed: %v)", phase, elapsed.Round(time.Second)), -1)
 			}
 		case <-ctx.Done():
+			// Wait for the goroutine to finish before returning
+			<-done
+
 			return ctx.Err()
 		}
 	}
@@ -616,6 +619,10 @@ func runCommandWithSpinnerAndOutput(
 	select {
 	case err = <-errChan:
 	case <-ctx.Done():
+		// Context canceled - wait for readers to finish before returning
+		// since exec.CommandContext will kill the process
+		waitGroup.Wait()
+
 		return ctx.Err()
 	}
 
