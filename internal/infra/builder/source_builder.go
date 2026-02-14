@@ -107,6 +107,11 @@ func (b *SourceBuilder) BuildFromCommit(
 			break
 		}
 
+		// Check for context cancellation - return immediately without retrying
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return "", err
+		}
+
 		// Clean up for retry (though not strictly necessary with unique paths)
 		removeErr := os.RemoveAll(localPath)
 		if removeErr != nil {
