@@ -123,7 +123,7 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 
 	defer func() {
 		_ = lockFd.Unlock()
-		_ = lockFd.Close()
+		_ = lockFd.Remove()
 	}()
 
 	lockErr = lockFd.Lock()

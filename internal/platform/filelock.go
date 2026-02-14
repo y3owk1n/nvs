@@ -7,6 +7,7 @@ import (
 // FileLock provides cross-platform file locking.
 type FileLock struct {
 	file *os.File
+	path string
 }
 
 // FilePerm is the default permission for lock files.
@@ -19,7 +20,7 @@ func NewFileLock(path string) (*FileLock, error) {
 		return nil, err
 	}
 
-	return &FileLock{file: f}, nil
+	return &FileLock{file: f, path: path}, nil
 }
 
 // Lock acquires an exclusive lock on the file.
@@ -35,6 +36,16 @@ func (fl *FileLock) Unlock() error {
 // Close closes the underlying file.
 func (fl *FileLock) Close() error {
 	return fl.file.Close()
+}
+
+// Remove removes the lock file from disk.
+func (fl *FileLock) Remove() error {
+	err := fl.file.Close()
+	if err != nil {
+		return err
+	}
+
+	return os.Remove(fl.path)
 }
 
 // Fd returns the file descriptor.

@@ -175,3 +175,32 @@ func TestFileLock_LockFilePersists(t *testing.T) {
 		t.Errorf("lock file should exist: %v", err)
 	}
 }
+
+func TestFileLock_RemoveCleansUp(t *testing.T) {
+	tempDir := t.TempDir()
+	lockPath := filepath.Join(tempDir, "test.lock")
+
+	lock, err := platform.NewFileLock(lockPath)
+	if err != nil {
+		t.Fatalf("failed to create lock: %v", err)
+	}
+
+	err = lock.Lock()
+	if err != nil {
+		t.Fatalf("failed to acquire lock: %v", err)
+	}
+
+	err = lock.Remove()
+	if err != nil {
+		t.Fatalf("failed to remove lock: %v", err)
+	}
+
+	_, err = os.Stat(lockPath)
+	if err == nil {
+		t.Error("lock file should be removed after Remove()")
+	}
+
+	if !os.IsNotExist(err) {
+		t.Errorf("expected file not found error, got: %v", err)
+	}
+}
