@@ -79,9 +79,9 @@ func (d *Downloader) Download(
 	return nil
 }
 
-// DownloadWithChecksumVerification downloads a file and verifies its checksum during download.
-// This is more efficient than downloading first and verifying afterwards, as it avoids
-// wasting bandwidth on invalid files.
+// DownloadWithChecksumVerification downloads a file and verifies its checksum.
+// The hash is computed in a single pass during download, avoiding a separate
+// file read to compute the hash afterwards.
 func (d *Downloader) DownloadWithChecksumVerification(
 	ctx context.Context,
 	url string,
