@@ -571,12 +571,6 @@ func runCommandWithSpinnerAndOutput(
 
 		buf := make([]byte, constants.BufferSize)
 		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-
 			n, err := stdoutReader.Read(buf)
 			if n > 0 {
 				line := strings.TrimSpace(string(buf[:n]))
@@ -600,12 +594,6 @@ func runCommandWithSpinnerAndOutput(
 
 		buf := make([]byte, constants.BufferSize)
 		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-
 			n, err := stderrReader.Read(buf)
 			if n > 0 {
 				line := strings.TrimSpace(string(buf[:n]))
