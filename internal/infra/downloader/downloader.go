@@ -143,6 +143,8 @@ func (d *Downloader) DownloadWithChecksumVerification(
 		return fmt.Errorf("%w: expected %s, got %s", ErrChecksumMismatch, expectedHash, actualHash)
 	}
 
+	_, _ = dest.Seek(0, io.SeekStart)
+
 	return nil
 }
 
