@@ -161,7 +161,84 @@ func copyDir(src, dst string) error {
 	}
 
 	// Atomic rename on success
-	return os.Rename(tempDst, dst)
+	err = os.Rename(tempDst, dst)
+	if err != nil {
+		// Check if the error is a cross-device link error (EXDEV)
+		// os.Rename fails when src and dst are on different filesystems
+		var linkErr *os.LinkError
+		if errors.As(err, &linkErr) && errors.Is(linkErr.Err, syscall.EXDEV) {
+			// Fall back to copying the temp directory to destination
+			// Create dst directory first
+			mkdirErr := os.MkdirAll(dst, srcInfo.Mode())
+			if mkdirErr != nil {
+				return fmt.Errorf(
+					"rename failed (cross-device): %w, failed to create dst dir: %w",
+					err,
+					mkdirErr,
+				)
+			}
+			// Copy contents from temp to dst
+			renameErr := copyDirContents(tempDst, dst)
+			if renameErr != nil {
+				return fmt.Errorf(
+					"rename failed (cross-device): %w, fallback copy also failed: %w",
+					err,
+					renameErr,
+				)
+			}
+
+			return nil
+		}
+
+		return err
+	}
+
+	return nil
+}
+
+// copyDirContents copies all entries from srcDir to dstDir.
+// Both directories must exist. This is used as a fallback when os.Rename
+// fails across filesystem boundaries.
+func copyDirContents(srcDir, dstDir string) error {
+	entries, err := os.ReadDir(srcDir)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(srcDir, entry.Name())
+		dstPath := filepath.Join(dstDir, entry.Name())
+
+		switch {
+		case entry.IsDir():
+			err := os.MkdirAll(dstPath, entry.Type().Perm())
+			if err != nil {
+				return err
+			}
+
+			err = copyDirContents(srcPath, dstPath)
+			if err != nil {
+				return err
+			}
+		case entry.Type()&os.ModeSymlink != 0:
+			linkTarget, err := os.Readlink(srcPath)
+			if err != nil {
+				return err
+			}
+
+			err = os.Symlink(linkTarget, dstPath)
+			if err != nil {
+				return err
+			}
+		default:
+			err := copyFile(srcPath, dstPath)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 // copyFile copies a single file from src to dst.
