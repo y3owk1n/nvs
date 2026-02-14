@@ -1,0 +1,68 @@
+name: Bug Report
+description: File a bug report
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to fill out this bug report.
+
+  - type: input
+    attributes:
+      label: nvs version
+      description: What version of nvs are you running? (e.g., nvs --version)
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Neovim version
+      description: What version of Neovim are you currently using? (e.g., nvim --version)
+    validations:
+      required: false
+
+  - type: input
+    attributes:
+      label: OS
+      description: What operating system are you running? (e.g., macOS 14.0, Ubuntu 22.04, Windows 11)
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: What happened?
+      description: What actually happened when you encountered the issue?
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: What did you expect?
+      description: What did you expect to happen instead?
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      description: Please provide clear steps to reproduce the issue.
+      placeholder: |
+        1. Run nvs install stable
+        2. Run nvs use stable
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Logs
+      description: If applicable, add any relevant logs or error messages.
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Workaround
+      description: If you've found a workaround, please share it here.
+    validations:
+      required: false
