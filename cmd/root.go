@@ -98,6 +98,7 @@ func InitConfig() {
 			}
 
 			logrus.Debug("Interrupt received, canceling operations...")
+			signal.Stop(sigCh)
 			cancel()
 		}()
 	})
