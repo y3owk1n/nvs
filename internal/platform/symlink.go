@@ -2,11 +2,13 @@
 package platform
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
@@ -49,10 +51,23 @@ func UpdateSymlink(target, link string, isDir bool) error {
 
 	cmd := exec.CommandContext(context.Background(), "cmd", "/C", "mklink", flag, link, target)
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+
+	var stderrBuf bytes.Buffer
+
+	cmd.Stderr = &stderrBuf
 
 	err = cmd.Run()
 	if err != nil {
+		if stderrBuf.Len() > 0 {
+			return fmt.Errorf(
+				"failed to create %s for %s: %s: %w",
+				linkType,
+				link,
+				strings.TrimSpace(stderrBuf.String()),
+				err,
+			)
+		}
+
 		return fmt.Errorf("failed to create %s for %s: %w", linkType, link, err)
 	}
 
