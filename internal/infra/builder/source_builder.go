@@ -320,7 +320,17 @@ func (b *SourceBuilder) cleanupTempDirectories() {
 
 			// Check for lock file to skip directories from active builds
 			// Format: neovim-src-{buildID}.lock where buildID = {pid}-{timestamp}
-			lockFileName := entry.Name() + ".lock"
+			// Directory format: neovim-src-{pid}-{timestamp}-{attempt}
+			// Need to extract buildID by removing the attempt suffix
+			parts := strings.Split(entry.Name(), "-")
+
+			var lockFileName string
+			if len(parts) >= constants.TempDirNamePartsMin {
+				buildIDParts := parts[:len(parts)-1]
+				lockFileName = strings.Join(buildIDParts, "-") + ".lock"
+			} else {
+				lockFileName = entry.Name() + ".lock"
+			}
 
 			lockFilePath := filepath.Join(tempDir, lockFileName)
 
