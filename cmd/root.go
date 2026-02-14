@@ -99,7 +99,6 @@ func InitConfig() {
 
 			logrus.Debug("Interrupt received, canceling operations...")
 			cancel()
-			os.Exit(1)
 		}()
 	})
 
