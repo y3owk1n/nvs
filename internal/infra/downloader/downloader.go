@@ -239,6 +239,15 @@ func (d *Downloader) fetchExpectedHash(
 			return "", ErrChecksumFileEmpty
 		}
 
+		if len(expectedFields) >= 2 && expectedFields[1] != assetName {
+			return "", fmt.Errorf(
+				"%w: expected %s, got %s",
+				ErrChecksumNotFound,
+				assetName,
+				expectedFields[1],
+			)
+		}
+
 		expectedHash = expectedFields[0]
 	}
 
