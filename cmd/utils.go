@@ -105,6 +105,9 @@ func copyDir(src, dst string) error {
 				// On Windows, symlink creation requires admin privileges (ERROR_PRIVILEGE_NOT_HELD = 1314)
 				// Fall back to copying the target content
 				isWinPermError := errors.Is(err, os.ErrPermission)
+				// Windows-specific check: also detect ERROR_PRIVILEGE_NOT_HELD.
+				// Note: This block is dead code on non-Windows but compiles fine
+				// since syscall.Errno exists cross-platform (just won't match).
 				if runtime.GOOS == "windows" {
 					var errno syscall.Errno
 					if errors.As(err, &errno) {
