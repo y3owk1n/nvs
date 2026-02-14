@@ -115,7 +115,12 @@ func (b *SourceBuilder) BuildFromCommit(
 
 		if attempt < constants.MaxAttempts {
 			logrus.Info("Retrying build with clean directory...")
-			time.Sleep(1 * time.Second)
+
+			select {
+			case <-time.After(1 * time.Second):
+			case <-ctx.Done():
+				return "", ctx.Err()
+			}
 		}
 	}
 
@@ -229,7 +234,7 @@ func (b *SourceBuilder) buildFromCommitInternal(
 	buildCmd := b.execCommand(ctx, "make", "CMAKE_BUILD_TYPE=Release")
 	buildCmd.SetDir(localPath)
 
-	err = runCommandWithProgress(buildCmd, progress, "Building Neovim")
+	err = runCommandWithProgress(ctx, buildCmd, progress, "Building Neovim")
 	if err != nil {
 		return "", fmt.Errorf("%w: %w", ErrBuildFailed, err)
 	}
@@ -248,7 +253,7 @@ func (b *SourceBuilder) buildFromCommitInternal(
 	installCmd := b.execCommand(ctx, "cmake", "--install", "build", "--prefix="+targetDir)
 	installCmd.SetDir(localPath)
 
-	err = runCommandWithProgress(installCmd, progress, "Installing Neovim")
+	err = runCommandWithProgress(ctx, installCmd, progress, "Installing Neovim")
 	if err != nil {
 		return "", fmt.Errorf("cmake install failed: %w", err)
 	}
@@ -415,9 +420,14 @@ func (b *SourceBuilder) cleanupTempDirectories() {
 }
 
 // runCommandWithProgress runs a command while updating progress with elapsed time.
-func runCommandWithProgress(cmd Commander, progress installer.ProgressFunc, phase string) error {
+func runCommandWithProgress(
+	ctx context.Context,
+	cmd Commander,
+	progress installer.ProgressFunc,
+	phase string,
+) error {
 	if progress == nil {
-		return runCommandWithSpinner(cmd)
+		return runCommandWithSpinner(ctx, cmd)
 	}
 
 	startTime := time.Now()
@@ -437,7 +447,7 @@ func runCommandWithProgress(cmd Commander, progress installer.ProgressFunc, phas
 	var lastMessage string
 
 	go func() {
-		done <- runCommandWithSpinnerAndOutput(cmd, func(line string) {
+		done <- runCommandWithSpinnerAndOutput(ctx, cmd, func(line string) {
 			// Show important cmake messages and error messages
 			isImportant := strings.HasPrefix(line, "-- ") &&
 				!strings.HasPrefix(line, "-- Looking for") &&
@@ -499,17 +509,23 @@ func runCommandWithProgress(cmd Commander, progress installer.ProgressFunc, phas
 			} else {
 				progress(fmt.Sprintf("%s (elapsed: %v)", phase, elapsed.Round(time.Second)), -1)
 			}
+		case <-ctx.Done():
+			return ctx.Err()
 		}
 	}
 }
 
 // runCommandWithSpinner runs a command while updating spinner with output.
-func runCommandWithSpinner(cmd Commander) error {
-	return runCommandWithSpinnerAndOutput(cmd, nil)
+func runCommandWithSpinner(ctx context.Context, cmd Commander) error {
+	return runCommandWithSpinnerAndOutput(ctx, cmd, nil)
 }
 
 // runCommandWithSpinnerAndOutput runs a command while updating spinner with output.
-func runCommandWithSpinnerAndOutput(cmd Commander, outputCallback func(string)) error {
+func runCommandWithSpinnerAndOutput(
+	ctx context.Context,
+	cmd Commander,
+	outputCallback func(string),
+) error {
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("failed to get stdout pipe: %w", err)
@@ -547,6 +563,12 @@ func runCommandWithSpinnerAndOutput(cmd Commander, outputCallback func(string)) 
 
 		buf := make([]byte, constants.BufferSize)
 		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
 			n, err := stdoutReader.Read(buf)
 			if n > 0 {
 				line := strings.TrimSpace(string(buf[:n]))
@@ -570,6 +592,12 @@ func runCommandWithSpinnerAndOutput(cmd Commander, outputCallback func(string)) 
 
 		buf := make([]byte, constants.BufferSize)
 		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
 			n, err := stderrReader.Read(buf)
 			if n > 0 {
 				line := strings.TrimSpace(string(buf[:n]))
@@ -585,7 +613,11 @@ func runCommandWithSpinnerAndOutput(cmd Commander, outputCallback func(string)) 
 	}()
 
 	// Wait for command to complete
-	err = <-errChan
+	select {
+	case err = <-errChan:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 
 	waitGroup.Wait()
 
