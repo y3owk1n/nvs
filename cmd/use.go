@@ -109,7 +109,12 @@ func RunUse(cmd *cobra.Command, args []string) error {
 			alias = pinnedVersion
 			logrus.Debugf("Using version %s from %s", alias, versionFile)
 
-			_, printErr := fmt.Fprintf(os.Stdout, "%s Using version from %s\n", ui.InfoIcon(), versionFile)
+			_, printErr := fmt.Fprintf(
+				os.Stdout,
+				"%s Using version from %s\n",
+				ui.InfoIcon(),
+				versionFile,
+			)
 			if printErr != nil {
 				logrus.Warnf("Failed to write to stdout: %v", printErr)
 			}

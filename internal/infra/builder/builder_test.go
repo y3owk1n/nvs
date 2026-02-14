@@ -179,7 +179,12 @@ func TestBuildFromCommit_ProgressReporting(t *testing.T) {
 			}
 		} else {
 			if call.percent != -1 {
-				t.Errorf("Progress call %d (%s): expected percent -1 for indeterminate, got %d", progressIndex, call.phase, call.percent)
+				t.Errorf(
+					"Progress call %d (%s): expected percent -1 for indeterminate, got %d",
+					progressIndex,
+					call.phase,
+					call.percent,
+				)
 			}
 			// Check that phase is one of the expected ones (may include elapsed time)
 			basePhase := strings.Split(call.phase, " (")[0]

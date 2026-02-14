@@ -221,7 +221,12 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 				if errors.Is(err, promptui.ErrInterrupt) {
 					logrus.Debug("User canceled selection")
 
-					_, printErr := fmt.Fprintf(os.Stdout, "%s %s\n", ui.WarningIcon(), ui.WhiteText("Selection canceled."))
+					_, printErr := fmt.Fprintf(
+						os.Stdout,
+						"%s %s\n",
+						ui.WarningIcon(),
+						ui.WhiteText("Selection canceled."),
+					)
 					if printErr != nil {
 						logrus.Warnf("Failed to write to stdout: %v", printErr)
 					}

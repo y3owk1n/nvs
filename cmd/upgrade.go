@@ -79,7 +79,12 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 			_, selectedVersion, err := prompt.Run()
 			if err != nil {
 				if errors.Is(err, promptui.ErrInterrupt) {
-					_, printErr := fmt.Fprintf(os.Stdout, "%s %s\n", ui.WarningIcon(), ui.WhiteText("Selection canceled."))
+					_, printErr := fmt.Fprintf(
+						os.Stdout,
+						"%s %s\n",
+						ui.WarningIcon(),
+						ui.WhiteText("Selection canceled."),
+					)
 					if printErr != nil {
 						logrus.Warnf("Failed to write to stdout: %v", printErr)
 					}

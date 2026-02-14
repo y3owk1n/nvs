@@ -6,6 +6,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/tw"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/ui"
@@ -92,18 +93,21 @@ func RunList(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Set up a table for displaying versions and their status.
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Version", "Status"})
-	table.SetHeaderColor(
-		tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
-		tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
+	table := tablewriter.NewTable(os.Stdout,
+		tablewriter.WithRendition(tw.Rendition{
+			Borders:  tw.BorderNone,
+			Settings: tw.Settings{Separators: tw.Separators{BetweenRows: tw.Off}},
+		}),
+		tablewriter.WithConfig(tablewriter.Config{
+			Header: tw.CellConfig{
+				Alignment: tw.CellAlignment{Global: tw.AlignLeft},
+			},
+			Row: tw.CellConfig{
+				Alignment: tw.CellAlignment{Global: tw.AlignLeft},
+			},
+		}),
 	)
-	table.SetTablePadding("1")
-	table.SetBorder(false)
-	table.SetRowLine(false)
-	table.SetCenterSeparator("")
-	table.SetColumnSeparator("")
-	table.SetAutoWrapText(false)
+	table.Header([]string{"Version", "Status"})
 
 	// Append each version to the table.
 	for _, version := range versions {
@@ -119,11 +123,17 @@ func RunList(cmd *cobra.Command, _ []string) error {
 			row = []string{version.Name(), "Installed"}
 		}
 
-		table.Append(row)
+		err := table.Append(row)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Render the table to the standard output.
-	table.Render()
+	err = table.Render()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

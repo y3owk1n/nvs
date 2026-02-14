@@ -12,6 +12,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/tw"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
@@ -148,35 +149,54 @@ func RunEnv(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Create a table to display the configuration variables.
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Variable", "Value"})
-	table.SetHeaderColor(
-		tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
-		tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
+	table := tablewriter.NewTable(os.Stdout,
+		tablewriter.WithRendition(tw.Rendition{
+			Borders:  tw.BorderNone,
+			Settings: tw.Settings{Separators: tw.Separators{BetweenRows: tw.Off}},
+		}),
+		tablewriter.WithConfig(tablewriter.Config{
+			Header: tw.CellConfig{
+				Alignment: tw.CellAlignment{Global: tw.AlignLeft},
+			},
+			Row: tw.CellConfig{
+				Alignment: tw.CellAlignment{Global: tw.AlignLeft},
+			},
+		}),
 	)
-	table.SetTablePadding("1")
-	table.SetBorder(false)
-	table.SetRowLine(false)
-	table.SetCenterSeparator("")
-	table.SetColumnSeparator("")
-	table.SetAutoWrapText(false)
+	table.Header([]string{"Variable", "Value"})
 
 	// Append each configuration variable and its value (with colored output).
-	table.Append([]string{
+	var err error
+
+	err = table.Append([]string{
 		"NVS_CONFIG_DIR",
 		color.New(color.Bold, color.FgCyan).Sprint(configDir),
 	})
-	table.Append([]string{
+	if err != nil {
+		return err
+	}
+
+	err = table.Append([]string{
 		"NVS_CACHE_DIR",
 		color.New(color.Bold, color.FgCyan).Sprint(cacheDir),
 	})
-	table.Append([]string{
+	if err != nil {
+		return err
+	}
+
+	err = table.Append([]string{
 		"NVS_BIN_DIR",
 		color.New(color.Bold, color.FgCyan).Sprint(binDir),
 	})
+	if err != nil {
+		return err
+	}
 
 	// Render the table to stdout.
-	table.Render()
+	err = table.Render()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
