@@ -490,6 +490,26 @@ func runCommandWithProgress(
 			}
 
 			return err
+		case <-ctx.Done():
+			// Check if command completed before context was canceled
+			select {
+			case doneErr := <-done:
+				// Command finished - if successful, return success despite cancellation
+				if doneErr == nil {
+					elapsed := time.Since(startTime)
+					progress(
+						fmt.Sprintf("%s (completed in %v)", phase, elapsed.Round(time.Second)),
+						-1,
+					)
+
+					return nil
+				}
+				// Command failed - return the error
+				return doneErr
+			default:
+				// No result yet - context was canceled before command completed
+				return ctx.Err()
+			}
 		case output := <-outputChan:
 			// Update progress with latest message
 			lastMessage = strings.TrimPrefix(output, "-- ")
@@ -514,11 +534,6 @@ func runCommandWithProgress(
 			} else {
 				progress(fmt.Sprintf("%s (elapsed: %v)", phase, elapsed.Round(time.Second)), -1)
 			}
-		case <-ctx.Done():
-			// Wait for the goroutine to finish before returning
-			<-done
-
-			return ctx.Err()
 		}
 	}
 }
