@@ -75,6 +75,12 @@ func (b *SourceBuilder) BuildFromCommit(
 
 		resolvedHash, err = b.buildFromCommitInternal(ctx, commit, dest, localPath, progress)
 		if err == nil {
+			// Clean up temp directory on successful build
+			removeErr := os.RemoveAll(localPath)
+			if removeErr != nil {
+				logrus.Warnf("Failed to remove temporary directory: %v", removeErr)
+			}
+
 			return resolvedHash, nil
 		}
 
