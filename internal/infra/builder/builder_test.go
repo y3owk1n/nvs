@@ -390,7 +390,7 @@ func TestBuildFromCommit_ContextCancellationWithProgress(t *testing.T) {
 	// Check that progress was called with build phase before cancellation
 	close(progressCalled)
 
-	var phases []string
+	phases := make([]string, 0, len(progressCalled))
 	for phase := range progressCalled {
 		phases = append(phases, phase)
 	}
