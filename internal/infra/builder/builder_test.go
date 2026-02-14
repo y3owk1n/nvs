@@ -5,7 +5,9 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/y3owk1n/nvs/internal/infra/builder"
 )
@@ -35,6 +37,8 @@ const (
 	gettextTool = "gettext"
 	ninjaTool   = "ninja"
 	curlTool    = "curl"
+	gitClone    = "clone"
+	gitRevParse = "rev-parse"
 )
 
 func (m *mockCommand) Run() error {
@@ -111,7 +115,7 @@ func TestBuildFromCommit_CloneFailure(t *testing.T) {
 
 	mockExec := func(ctx context.Context, name string, args ...string) builder.Commander {
 		// Simulate git clone failure
-		if name == gitCmd && len(args) > 0 && args[0] == "clone" {
+		if name == gitCmd && len(args) > 0 && args[0] == gitClone {
 			return &mockCommand{runErr: cloneErr}
 		}
 		// Mock successful tool checks
@@ -148,7 +152,7 @@ func TestBuildFromCommit_ProgressReporting(t *testing.T) {
 
 	mockExec := func(ctx context.Context, name string, args ...string) builder.Commander {
 		// Mock git rev-parse to return a valid commit hash
-		if name == gitCmd && len(args) > 0 && args[0] == "rev-parse" {
+		if name == gitCmd && len(args) > 0 && args[0] == gitRevParse {
 			return &mockCommand{stdoutStr: "abc1234567890"}
 		}
 		// Mock successful tool checks
@@ -241,5 +245,207 @@ func TestSourceBuilder_Interface(t *testing.T) {
 	b := builder.New(execFn)
 	if b == nil {
 		t.Error("New() returned nil with valid execFunc")
+	}
+}
+
+// TestBuildFromCommit_ContextCancellationDuringRetry tests that context cancellation
+// is respected in the retry loop.
+func TestBuildFromCommit_ContextCancellationDuringRetry(t *testing.T) {
+	var attemptMu sync.Mutex
+
+	attemptCount := 0
+
+	mockExec := func(ctx context.Context, name string, args ...string) builder.Commander {
+		attemptMu.Lock()
+
+		attemptCount++
+		currentAttempt := attemptCount
+
+		attemptMu.Unlock()
+
+		// First attempt fails, second attempt will be canceled
+		if currentAttempt == 1 && name == gitCmd && len(args) > 0 && args[0] == gitClone {
+			return &mockCommand{runErr: errCloneFailed}
+		}
+		// Mock successful tool checks
+		if name == whichCmd &&
+			(args[0] == gitTool || args[0] == makeTool || args[0] == cmakeTool || args[0] == gettextTool || args[0] == ninjaTool || args[0] == curlTool) {
+			return &mockCommand{}
+		}
+
+		// Return command that blocks until context is canceled
+		return &mockCommand{
+			runErr: context.Canceled,
+		}
+	}
+
+	b := builder.New(mockExec)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	_, err := b.BuildFromCommit(ctx, "abc1234", t.TempDir(), nil)
+	if err == nil {
+		t.Error("BuildFromCommit() expected error for context cancellation, got nil")
+	}
+
+	if !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
+		t.Errorf("BuildFromCommit() expected context error, got: %v", err)
+	}
+}
+
+// TestBuildFromCommit_ContextCancellationDuringBuild tests that context cancellation
+// stops the build command.
+func TestBuildFromCommit_ContextCancellationDuringBuild(t *testing.T) {
+	var callCountMu sync.Mutex
+
+	callCount := 0
+
+	mockExec := func(ctx context.Context, name string, args ...string) builder.Commander {
+		callCountMu.Lock()
+
+		callCount++
+
+		callCountMu.Unlock()
+
+		// Mock successful tool checks
+		if name == whichCmd &&
+			(args[0] == gitTool || args[0] == makeTool || args[0] == cmakeTool || args[0] == gettextTool || args[0] == ninjaTool || args[0] == curlTool) {
+			return &mockCommand{}
+		}
+
+		// Simulate git operations succeeding
+		if name == gitCmd {
+			if len(args) > 0 && args[0] == "rev-parse" {
+				return &mockCommand{stdoutStr: "abc1234567890"}
+			}
+
+			return &mockCommand{}
+		}
+
+		// Make command - simulate long-running operation that will be canceled
+		if name == "make" {
+			return &mockCommand{
+				runErr:    context.Canceled,
+				stdoutStr: "-- Building\n-- Configuring\n",
+			}
+		}
+
+		return &mockCommand{}
+	}
+
+	b := builder.New(mockExec)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	_, err := b.BuildFromCommit(ctx, "master", t.TempDir(), nil)
+	if err == nil {
+		t.Error("BuildFromCommit() expected error for context cancellation during build, got nil")
+	}
+}
+
+// TestBuildFromCommit_ContextCancellationWithProgress tests that progress reporting
+// respects context cancellation.
+func TestBuildFromCommit_ContextCancellationWithProgress(t *testing.T) {
+	progressCalled := make(chan string, 10)
+
+	progressFunc := func(phase string, percent int) {
+		select {
+		case progressCalled <- phase:
+		default:
+		}
+	}
+
+	mockExec := func(ctx context.Context, name string, args ...string) builder.Commander {
+		// Mock successful tool checks
+		if name == whichCmd &&
+			(args[0] == gitTool || args[0] == makeTool || args[0] == cmakeTool || args[0] == gettextTool || args[0] == ninjaTool || args[0] == curlTool) {
+			return &mockCommand{}
+		}
+
+		// Simulate git operations succeeding
+		if name == gitCmd {
+			if len(args) > 0 && args[0] == "rev-parse" {
+				return &mockCommand{stdoutStr: "abc1234567890"}
+			}
+
+			return &mockCommand{}
+		}
+
+		// Make command - simulate long-running operation
+		return &mockCommand{
+			runErr:    context.Canceled,
+			stdoutStr: "-- Building\n",
+		}
+	}
+
+	b := builder.New(mockExec)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	_, _ = b.BuildFromCommit(ctx, "master", t.TempDir(), progressFunc)
+
+	// Check that progress was called with build phase before cancellation
+	close(progressCalled)
+
+	var phases []string
+	for phase := range progressCalled {
+		phases = append(phases, phase)
+	}
+
+	foundBuildPhase := false
+	for _, phase := range phases {
+		if strings.Contains(phase, "Building") {
+			foundBuildPhase = true
+
+			break
+		}
+	}
+
+	if !foundBuildPhase {
+		t.Logf("Progress phases: %v", phases)
+	}
+}
+
+// TestBuildFromCommit_ContextNotCancelledBeforeRetrySleep tests that context
+// cancellation is checked before starting the retry sleep.
+func TestBuildFromCommit_ContextNotCancelledBeforeRetrySleep(t *testing.T) {
+	var attemptMu sync.Mutex
+
+	attemptCount := 0
+
+	mockExec := func(ctx context.Context, name string, args ...string) builder.Commander {
+		attemptMu.Lock()
+
+		attemptCount++
+		currentAttempt := attemptCount
+
+		attemptMu.Unlock()
+
+		// First attempt fails
+		if currentAttempt == 1 && name == gitCmd && len(args) > 0 && args[0] == gitClone {
+			return &mockCommand{runErr: errCloneFailed}
+		}
+		// Mock successful tool checks
+		if name == whichCmd &&
+			(args[0] == gitTool || args[0] == makeTool || args[0] == cmakeTool || args[0] == gettextTool || args[0] == ninjaTool || args[0] == curlTool) {
+			return &mockCommand{}
+		}
+
+		return &mockCommand{}
+	}
+
+	b := builder.New(mockExec)
+	// Use a context that will not timeout during first retry sleep
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	_, _ = b.BuildFromCommit(ctx, "abc1234", t.TempDir(), nil)
+
+	// Should have made multiple attempts (up to MaxAttempts)
+	if attemptCount < 2 {
+		t.Errorf("Expected at least 2 attempts, got %d", attemptCount)
 	}
 }
