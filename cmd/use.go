@@ -179,7 +179,23 @@ func RunUse(cmd *cobra.Command, args []string) error {
 			// Now try to use it (single retry, no recursion)
 			resolvedVersion, err = GetVersionService().Use(ctx, alias)
 			if err != nil {
-				return err
+				_, printErr := fmt.Fprintf(
+					os.Stdout,
+					"%s %s\n",
+					ui.ErrorIcon(),
+					ui.WhiteText(
+						fmt.Sprintf(
+							"Installation of %s completed, but failed to activate: %v",
+							alias,
+							err,
+						),
+					),
+				)
+				if printErr != nil {
+					logrus.Warnf("Failed to write to stdout: %v", printErr)
+				}
+
+				return fmt.Errorf("failed to activate %s after installation: %w", alias, err)
 			}
 		} else {
 			return err
