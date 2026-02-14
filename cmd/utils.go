@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/sirupsen/logrus"
+	"github.com/y3owk1n/nvs/internal/platform"
 )
 
 // copyDir recursively copies a directory from src to dst.
@@ -19,7 +20,6 @@ func copyDir(src, dst string) error {
 		return err
 	}
 
-	// Create temp directory next to dst for atomic copy
 	dstDir := filepath.Dir(dst)
 
 	tempDst, err := os.MkdirTemp(dstDir, "copy-temp-")
@@ -48,8 +48,6 @@ func copyDir(src, dst string) error {
 		srcPath := filepath.Join(src, entry.Name())
 		dstPath := filepath.Join(tempDst, entry.Name())
 
-		// Handle symlinks
-		// Note: Relative symlinks may break if target is outside src tree
 		if entry.Type()&os.ModeSymlink != 0 {
 			link, err := os.Readlink(srcPath)
 			if err != nil {
@@ -77,8 +75,29 @@ func copyDir(src, dst string) error {
 		}
 	}
 
-	// Atomic rename on success
 	return os.Rename(tempDst, dst)
+}
+
+// copyDirLocked copies a directory with file locking for thread-safe operation.
+func copyDirLocked(src, dst string) error {
+	lockFile := src + ".lock"
+
+	lockFd, lockErr := platform.NewFileLock(lockFile)
+	if lockErr != nil {
+		return fmt.Errorf("failed to open lock file: %w", lockErr)
+	}
+
+	defer func() {
+		_ = lockFd.Unlock()
+		_ = lockFd.Close()
+	}()
+
+	lockErr = lockFd.Lock()
+	if lockErr != nil {
+		return fmt.Errorf("failed to acquire lock: %w", lockErr)
+	}
+
+	return copyDir(src, dst)
 }
 
 // copyFile copies a single file from src to dst.

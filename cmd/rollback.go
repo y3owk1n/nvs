@@ -109,13 +109,27 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 	entry := history.Entries[index]
 	logrus.Debugf("Rolling back to nightly commit %s", entry.CommitHash)
 
-	// The rollback is essentially switching to a stored nightly version
-	// We need to check if this version directory still exists
-	// Safety check against TOCTOU races (directory may have been deleted since filtering)
 	nightlyDir := filepath.Join(
 		GetVersionsDir(),
 		"nightly-"+shortHash(entry.CommitHash, constants.ShortHashLength),
 	)
+
+	lockFile := nightlyDir + ".lock"
+
+	lockFd, lockErr := platform.NewFileLock(lockFile)
+	if lockErr != nil {
+		return fmt.Errorf("failed to open lock file: %w", lockErr)
+	}
+
+	defer func() {
+		_ = lockFd.Unlock()
+		_ = lockFd.Close()
+	}()
+
+	lockErr = lockFd.Lock()
+	if lockErr != nil {
+		return fmt.Errorf("failed to acquire lock: %w", lockErr)
+	}
 
 	_, err = os.Stat(nightlyDir)
 	if os.IsNotExist(err) {
@@ -126,7 +140,6 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 		)
 	}
 
-	// Create symlink to this version as "nightly"
 	currentNightly := filepath.Join(GetVersionsDir(), "nightly")
 
 	// Get current nightly's commit hash before removing (to potentially back it up)

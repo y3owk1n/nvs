@@ -133,19 +133,16 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 					"nightly-"+shortHash(oldCommitHash, constants.ShortHashLength),
 				)
 
-				// Only backup if the backup doesn't already exist
-				var statErr error
-
-				_, statErr = os.Stat(backupDir)
+				_, statErr := os.Stat(backupDir)
 				if os.IsNotExist(statErr) {
-					var statErr2 error
-
-					_, statErr2 = os.Stat(nightlyDir)
+					_, statErr2 := os.Stat(nightlyDir)
 					if statErr2 == nil {
-						// Copy directory (rename would break the current install)
-						copyErr := copyDir(nightlyDir, backupDir)
+						copyErr := copyDirLocked(nightlyDir, backupDir)
 						if copyErr != nil {
-							logrus.Warnf("Failed to backup nightly for rollback: %v", copyErr)
+							logrus.Warnf(
+								"Failed to backup nightly for rollback: %v",
+								copyErr,
+							)
 						} else {
 							logrus.Debugf("Backed up nightly to %s", backupDir)
 

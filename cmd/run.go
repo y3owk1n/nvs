@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/version"
+	"github.com/y3owk1n/nvs/internal/platform"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -172,13 +173,27 @@ func RunRun(cmd *cobra.Command, args []string) error {
 
 // getNvimBinaryPath returns the path to the nvim binary for a specific version.
 func getNvimBinaryPath(versionAlias string) (string, error) {
-	// Normalize version name
 	normalized := normalizeVersionForPath(versionAlias)
 
-	// Construct version directory path
 	versionDir := filepath.Join(GetVersionsDir(), normalized)
 
-	// Check if version directory exists
+	lockFile := versionDir + ".lock"
+
+	lockFd, lockErr := platform.NewFileLock(lockFile)
+	if lockErr != nil {
+		return "", fmt.Errorf("failed to open lock file: %w", lockErr)
+	}
+
+	defer func() {
+		_ = lockFd.Unlock()
+		_ = lockFd.Close()
+	}()
+
+	lockErr = lockFd.Lock()
+	if lockErr != nil {
+		return "", fmt.Errorf("failed to acquire lock: %w", lockErr)
+	}
+
 	_, statErr := os.Stat(versionDir)
 	if statErr != nil {
 		if os.IsNotExist(statErr) {
@@ -188,7 +203,6 @@ func getNvimBinaryPath(versionAlias string) (string, error) {
 		return "", fmt.Errorf("failed to access version directory %s: %w", normalized, statErr)
 	}
 
-	// Find the nvim binary
 	binaryPath := findNvimBinary(versionDir)
 	if binaryPath == "" {
 		return "", fmt.Errorf("%w in %s", ErrNvimBinaryNotFound, versionDir)
