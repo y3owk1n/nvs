@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/tw"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
@@ -62,7 +63,10 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 		if err == nil {
 			validEntries = append(validEntries, entry)
 		} else {
-			logrus.Debugf("Removing orphaned history entry: %s", shortHash(entry.CommitHash, constants.ShortHashLength))
+			logrus.Debugf(
+				"Removing orphaned history entry: %s",
+				shortHash(entry.CommitHash, constants.ShortHashLength),
+			)
 		}
 	}
 
@@ -143,7 +147,10 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 		} else if info.IsDir() {
 			// It's a real directory - back it up if we have a commit hash
 			if currentCommit != "" {
-				backupDir := filepath.Join(GetVersionsDir(), "nightly-"+shortHash(currentCommit, constants.ShortHashLength))
+				backupDir := filepath.Join(
+					GetVersionsDir(),
+					"nightly-"+shortHash(currentCommit, constants.ShortHashLength),
+				)
 
 				var backupErr error
 
@@ -205,11 +212,23 @@ func listNightlyHistory(history *NightlyHistory) error {
 	// Get current nightly commit to show indicator
 	currentCommit, _ := GetVersionService().GetInstalledVersionIdentifier("nightly")
 
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Index", "Commit", "Installed At", "Status"})
-	table.SetBorder(false)
-	table.SetRowLine(false)
+	table := tablewriter.NewTable(os.Stdout,
+		tablewriter.WithRendition(tw.Rendition{
+			Borders:  tw.BorderNone,
+			Settings: tw.Settings{Separators: tw.Separators{BetweenRows: tw.Off}},
+		}),
+		tablewriter.WithConfig(tablewriter.Config{
+			Header: tw.CellConfig{
+				Alignment: tw.CellAlignment{Global: tw.AlignLeft},
+			},
+			Row: tw.CellConfig{
+				Alignment: tw.CellAlignment{Global: tw.AlignLeft},
+			},
+		}),
+	)
+	table.Header([]string{"Index", "Commit", "Installed At", "Status"})
 
+	var err error
 	for index, entry := range history.Entries {
 		status := ""
 		if shortHash(
@@ -222,15 +241,21 @@ func listNightlyHistory(history *NightlyHistory) error {
 			status = "← current"
 		}
 
-		table.Append([]string{
+		err = table.Append([]string{
 			strconv.Itoa(index),
 			shortHash(entry.CommitHash, constants.ShortHashLength),
 			entry.InstalledAt.Format("2006-01-02 15:04"),
 			status,
 		})
+		if err != nil {
+			return err
+		}
 	}
 
-	table.Render()
+	err = table.Render()
+	if err != nil {
+		return err
+	}
 
 	var printErr error
 

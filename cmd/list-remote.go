@@ -8,6 +8,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/tw"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
@@ -111,19 +112,21 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 
 	if !jsonOutput {
 		// Prepare a table for displaying the remote releases and their status.
-		table = tablewriter.NewWriter(os.Stdout)
-		table.SetHeader([]string{"Tag", "Status", "Details"})
-		table.SetHeaderColor(
-			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
-			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
-			tablewriter.Colors{tablewriter.Bold, tablewriter.FgHiCyanColor},
+		table = tablewriter.NewTable(os.Stdout,
+			tablewriter.WithRendition(tw.Rendition{
+				Borders:  tw.BorderNone,
+				Settings: tw.Settings{Separators: tw.Separators{BetweenRows: tw.Off}},
+			}),
+			tablewriter.WithConfig(tablewriter.Config{
+				Header: tw.CellConfig{
+					Alignment: tw.CellAlignment{Global: tw.AlignLeft},
+				},
+				Row: tw.CellConfig{
+					Alignment: tw.CellAlignment{Global: tw.AlignLeft},
+				},
+			}),
 		)
-		table.SetTablePadding("1")
-		table.SetBorder(false)
-		table.SetRowLine(false)
-		table.SetCenterSeparator("")
-		table.SetColumnSeparator("")
-		table.SetAutoWrapText(false)
+		table.Header([]string{"Tag", "Status", "Details"})
 	}
 
 	// Iterate over the releases and build table rows with appropriate details and color-coding.
@@ -231,7 +234,10 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 				row = ui.ColorizeRow(row, color.New(color.FgWhite))
 			}
 
-			table.Append(row)
+			err = table.Append(row)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -241,7 +247,10 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 		return outputJSON(data)
 	} else {
 		// Render the table to standard output.
-		table.Render()
+		err = table.Render()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

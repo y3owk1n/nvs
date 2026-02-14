@@ -105,7 +105,11 @@ func TestGetAssetURL(t *testing.T) {
 				if err == nil {
 					t.Errorf("GetAssetURL() expected error, got nil")
 				} else if testCase.errContain != "" && !strings.Contains(err.Error(), testCase.errContain) {
-					t.Errorf("GetAssetURL() error = %q, want to contain %q", err.Error(), testCase.errContain)
+					t.Errorf(
+						"GetAssetURL() error = %q, want to contain %q",
+						err.Error(),
+						testCase.errContain,
+					)
 				}
 			} else {
 				if err != nil {

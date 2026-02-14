@@ -80,12 +80,21 @@ func RunCurrent(cmd *cobra.Command, _ []string) error {
 			info.Version = stable.TagName()
 
 			if !jsonOutput {
-				_, err = fmt.Fprintf(os.Stdout, "%s %s\n", ui.InfoIcon(), ui.CyanText(constants.Stable))
+				_, err = fmt.Fprintf(
+					os.Stdout,
+					"%s %s\n",
+					ui.InfoIcon(),
+					ui.CyanText(constants.Stable),
+				)
 				if err != nil {
 					logrus.Warnf("Failed to write to stdout: %v", err)
 				}
 
-				_, err = fmt.Fprintf(os.Stdout, "  %s\n", ui.WhiteText("Version: "+stable.TagName()))
+				_, err = fmt.Fprintf(
+					os.Stdout,
+					"  %s\n",
+					ui.WhiteText("Version: "+stable.TagName()),
+				)
 				if err != nil {
 					logrus.Warnf("Failed to write to stdout: %v", err)
 				}
@@ -171,7 +180,12 @@ func RunCurrent(cmd *cobra.Command, _ []string) error {
 			if !jsonOutput {
 				logrus.Debugf("Displaying custom version: %s", current.Name())
 
-				_, err = fmt.Fprintf(os.Stdout, "%s %s\n", ui.InfoIcon(), ui.WhiteText(current.Name()))
+				_, err = fmt.Fprintf(
+					os.Stdout,
+					"%s %s\n",
+					ui.InfoIcon(),
+					ui.WhiteText(current.Name()),
+				)
 				if err != nil {
 					logrus.Warnf("Failed to write to stdout: %v", err)
 				}
