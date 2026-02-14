@@ -148,5 +148,5 @@ const (
 	FileModeMask = 0o777
 
 	// TempDirNamePartsMin is the minimum number of parts in temp directory name.
-	TempDirNamePartsMin = 3
+	TempDirNamePartsMin = 5
 )
