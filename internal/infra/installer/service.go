@@ -3,6 +3,7 @@ package installer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -84,6 +85,10 @@ func (s *Service) InstallRelease(
 			},
 		)
 		if err != nil {
+			if errors.Is(err, downloader.ErrChecksumMismatch) {
+				return fmt.Errorf("checksum verification failed: %w", err)
+			}
+
 			return fmt.Errorf("download failed: %w", err)
 		}
 	} else {
