@@ -367,7 +367,7 @@ func (s *Service) Upgrade(
 			// If upgrade failed and rollback also failed, wrap the original error
 			if rollbackErr != nil && retErr != nil {
 				retErr = fmt.Errorf(
-					"failed to install release: %w (CRITICAL: rollback also failed: %w)",
+					"%w (CRITICAL: rollback also failed: %w)",
 					retErr,
 					rollbackErr,
 				)
