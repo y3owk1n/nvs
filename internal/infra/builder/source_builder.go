@@ -364,6 +364,35 @@ func (b *SourceBuilder) cleanupTempDirectories() {
 			}
 		}
 	}
+
+	// Clean up orphaned lock files
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), "neovim-src-") &&
+			strings.HasSuffix(entry.Name(), ".lock") &&
+			!entry.IsDir() {
+			lockFilePath := filepath.Join(tempDir, entry.Name())
+
+			info, err := entry.Info()
+			if err != nil {
+				logrus.Warnf("Failed to get info for lock file %s: %v", lockFilePath, err)
+
+				continue
+			}
+
+			if time.Since(info.ModTime()) < 5*time.Minute {
+				logrus.Debugf("Skipping cleanup of recent lock file: %s", lockFilePath)
+
+				continue
+			}
+
+			err = os.Remove(lockFilePath)
+			if err != nil {
+				logrus.Warnf("Failed to remove orphaned lock file %s: %v", lockFilePath, err)
+			} else {
+				logrus.Debugf("Cleaned up orphaned lock file: %s", lockFilePath)
+			}
+		}
+	}
 }
 
 // runCommandWithProgress runs a command while updating progress with elapsed time.
