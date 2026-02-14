@@ -67,7 +67,7 @@ func (s *Service) InstallRelease(
 
 	if hasChecksum {
 		if progress != nil {
-			progress("Downloading", 0)
+			progress("Downloading & Verifying", 0)
 		}
 
 		assetName := filepath.Base(assetURL)
@@ -80,7 +80,7 @@ func (s *Service) InstallRelease(
 			tempFile,
 			func(p int) {
 				if progress != nil {
-					progress("Downloading", p)
+					progress("Downloading & Verifying", p)
 				}
 			},
 		)
@@ -90,10 +90,6 @@ func (s *Service) InstallRelease(
 			}
 
 			return fmt.Errorf("download failed: %w", err)
-		}
-
-		if progress != nil {
-			progress("Verifying", constants.ProgressComplete)
 		}
 	} else {
 		if progress != nil {
@@ -107,6 +103,21 @@ func (s *Service) InstallRelease(
 		})
 		if err != nil {
 			return fmt.Errorf("download failed: %w", err)
+		}
+
+		// Verify checksum (no streaming support)
+		checksumURL, err := rel.GetChecksumURL()
+		if err == nil && checksumURL != "" {
+			if progress != nil {
+				progress("Verifying", 0)
+			}
+
+			assetName := filepath.Base(assetURL)
+
+			err := s.downloader.VerifyChecksum(ctx, tempFile, checksumURL, assetName)
+			if err != nil {
+				return fmt.Errorf("checksum verification failed: %w", err)
+			}
 		}
 	}
 
