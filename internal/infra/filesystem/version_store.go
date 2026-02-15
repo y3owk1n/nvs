@@ -128,24 +128,46 @@ func (s *VersionStore) Current() (domainversion.Version, error) {
 }
 
 // Switch activates a specific version with exclusive file locking.
-// Uses per-version lock to coordinate with Uninstall and Install operations.
+// Uses two-level locking:
+// 1. Per-version lock - coordinates with Install/Uninstall of the same version
+// 2. Global switch lock - protects shared symlinks (current + global nvim binary).
 func (s *VersionStore) Switch(version domainversion.Version) error {
-	// Acquire per-version lock to prevent races with Uninstall or Install of the same version
-	lockPath := filepath.Join(
+	// 1. Acquire per-version lock to coordinate with Install/Uninstall of same version
+	versionLockPath := filepath.Join(
 		s.config.VersionsDir,
 		fmt.Sprintf(".nvs-version-%s.lock", version.Name()),
 	)
-	lock := NewFileLock(lockPath)
+	versionLock := NewFileLock(versionLockPath)
 
-	err := lock.LockWithDefaultTimeout()
+	err := versionLock.LockWithDefaultTimeout()
 	if err != nil {
-		return fmt.Errorf("failed to acquire switch lock for %s: %w", version.Name(), err)
+		return fmt.Errorf("failed to acquire version lock for %s: %w", version.Name(), err)
 	}
 
-	defer func() {
-		unlockErr := lock.Unlock()
+	// 2. Acquire global switch lock to protect shared symlinks
+	switchLockPath := filepath.Join(s.config.VersionsDir, ".nvs-switch.lock")
+	switchLock := NewFileLock(switchLockPath)
+
+	err = switchLock.LockWithDefaultTimeout()
+	if err != nil {
+		unlockErr := versionLock.Unlock()
 		if unlockErr != nil {
-			logrus.Warnf("failed to unlock switch lock for %s: %v", version.Name(), unlockErr)
+			logrus.Warnf("failed to unlock version lock: %v", unlockErr)
+		}
+
+		return fmt.Errorf("failed to acquire switch lock: %w", err)
+	}
+
+	// Release locks in reverse order when done
+	defer func() {
+		unlockErr := switchLock.Unlock()
+		if unlockErr != nil {
+			logrus.Warnf("failed to unlock switch lock: %v", unlockErr)
+		}
+
+		unlockErr = versionLock.Unlock()
+		if unlockErr != nil {
+			logrus.Warnf("failed to unlock version lock for %s: %v", version.Name(), unlockErr)
 		}
 	}()
 
