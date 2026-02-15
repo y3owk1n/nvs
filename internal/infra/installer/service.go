@@ -15,6 +15,7 @@ import (
 	"github.com/y3owk1n/nvs/internal/infra/archive"
 	"github.com/y3owk1n/nvs/internal/infra/builder"
 	"github.com/y3owk1n/nvs/internal/infra/downloader"
+	"github.com/y3owk1n/nvs/internal/infra/filesystem"
 )
 
 // Service implements installer.Installer.
@@ -37,7 +38,7 @@ func New(
 	}
 }
 
-// InstallRelease installs a pre-built release.
+// InstallRelease installs a pre-built release with per-version locking.
 func (s *Service) InstallRelease(
 	ctx context.Context,
 	rel installer.ReleaseInfo,
@@ -45,6 +46,22 @@ func (s *Service) InstallRelease(
 	installName string,
 	progress installer.ProgressFunc,
 ) error {
+	// Acquire per-version lock to prevent concurrent installations of the same version
+	lockPath := filepath.Join(dest, fmt.Sprintf(".nvs-install-%s.lock", installName))
+	lock := filesystem.NewFileLock(lockPath)
+
+	err := lock.LockWithDefaultTimeout()
+	if err != nil {
+		return fmt.Errorf("failed to acquire install lock for %s: %w", installName, err)
+	}
+
+	defer func() {
+		unlockErr := lock.Unlock()
+		if unlockErr != nil {
+			logrus.Warnf("failed to unlock install lock for %s: %v", installName, unlockErr)
+		}
+	}()
+
 	// 1. Get asset URL
 	assetURL, err := rel.GetAssetURL()
 	if err != nil {
@@ -145,12 +162,28 @@ func (s *Service) InstallRelease(
 	return nil
 }
 
-// BuildFromCommit builds Neovim from source.
+// BuildFromCommit builds Neovim from source with per-commit locking.
 func (s *Service) BuildFromCommit(
 	ctx context.Context,
 	commit string,
 	dest string,
 	progress installer.ProgressFunc,
 ) (string, error) {
+	// Acquire per-commit lock to prevent concurrent builds of the same commit
+	lockPath := filepath.Join(dest, fmt.Sprintf(".nvs-build-%s.lock", commit))
+	lock := filesystem.NewFileLock(lockPath)
+
+	err := lock.LockWithDefaultTimeout()
+	if err != nil {
+		return "", fmt.Errorf("failed to acquire build lock for commit %s: %w", commit, err)
+	}
+
+	defer func() {
+		unlockErr := lock.Unlock()
+		if unlockErr != nil {
+			logrus.Warnf("failed to unlock build lock for commit %s: %v", commit, unlockErr)
+		}
+	}()
+
 	return s.builder.BuildFromCommit(ctx, commit, dest, progress)
 }
