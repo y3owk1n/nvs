@@ -187,24 +187,16 @@ func (s *Service) InstallRelease(
 
 // BuildFromCommit builds Neovim from source with per-version locking.
 // Uses the same per-version lock as Install, Switch, and Uninstall for coordination.
+//
+// Note: No fast-path check is performed here because the builder resolves the
+// commit to a short hash internally, making it difficult to check for existing
+// builds without performing git operations. The lock provides sufficient coordination.
 func (s *Service) BuildFromCommit(
 	ctx context.Context,
 	commit string,
 	dest string,
 	progress installer.ProgressFunc,
 ) (string, error) {
-	// Fast path: check if already built before acquiring lock
-	// Check for version.txt to ensure build was complete
-	versionPath := filepath.Join(dest, commit)
-	versionFile := filepath.Join(versionPath, "version.txt")
-
-	_, err := os.Stat(versionFile)
-	if err == nil {
-		logrus.Debugf("Version %s already exists, skipping build", commit)
-
-		return commit, nil
-	}
-
 	// Acquire per-version lock to prevent concurrent operations on the same commit
 	// The commit hash becomes the version name
 	lockPath := filepath.Join(dest, fmt.Sprintf(".nvs-version-%s.lock", commit))
@@ -217,7 +209,7 @@ func (s *Service) BuildFromCommit(
 	buildCtx, cancel := context.WithTimeout(ctx, buildLockTimeout)
 	defer cancel()
 
-	err = lock.Lock(buildCtx)
+	err := lock.Lock(buildCtx)
 	if err != nil {
 		return "", fmt.Errorf("failed to acquire build lock for commit %s: %w", commit, err)
 	}
@@ -228,15 +220,6 @@ func (s *Service) BuildFromCommit(
 			logrus.Warnf("failed to unlock build lock for commit %s: %v", commit, unlockErr)
 		}
 	}()
-
-	// Double-check after acquiring lock (another process may have built it)
-	// Check for version.txt to ensure build was complete
-	_, err = os.Stat(versionFile)
-	if err == nil {
-		logrus.Debugf("Version %s was built by another process", commit)
-
-		return commit, nil
-	}
 
 	return s.builder.BuildFromCommit(ctx, commit, dest, progress)
 }
