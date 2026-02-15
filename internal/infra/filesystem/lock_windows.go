@@ -20,7 +20,7 @@ const (
 	lockFileExclusiveLock   = 0x00000002
 	lockFileFailImmediately = 0x00000001
 	maxDWORD                = 0xFFFFFFFF
-	// ERROR_LOCK_VIOLATION = 33
+	// errLockViolation is ERROR_LOCK_VIOLATION = 33.
 	errLockViolation = 33
 )
 
