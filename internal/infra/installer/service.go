@@ -138,7 +138,7 @@ func (s *Service) BuildFromCommit(
 		}
 	}()
 
-	return s.builder.BuildFromCommit(ctx, commit, dest, progress)
+	return s.builder.BuildFromCommit(buildCtx, commit, dest, progress)
 }
 
 // UpgradeRelease upgrades an existing installation to a new release atomically.
