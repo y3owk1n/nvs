@@ -307,6 +307,10 @@ func (b *SourceBuilder) checkRequiredTools(ctx context.Context) error {
 
 		err := cmd.Run()
 		if err != nil {
+			if checkCtx.Err() != nil {
+				return fmt.Errorf("tool check timed out or was canceled: %w", checkCtx.Err())
+			}
+
 			return fmt.Errorf(
 				"%w: %s is not installed or not in PATH",
 				ErrBuildRequirementsNotMet,
