@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -40,6 +41,11 @@ var (
 	versionsDir   string
 	cacheFilePath string
 	globalBinDir  string
+
+	// errInvalidGitHubMirror is returned when the GitHub mirror URL is invalid.
+	errInvalidGitHubMirror = errors.New(
+		"invalid GitHub mirror URL: must start with http:// or https://",
+	)
 
 	// Version of nvs, defaults to "v0.0.0" but may be set during build time.
 	Version = "v0.0.0"
@@ -124,7 +130,7 @@ func InitConfig() error {
 		} else {
 			home, homeErr := os.UserHomeDir()
 			if homeErr != nil {
-				logrus.Fatalf("Failed to get user home directory: %v", homeErr)
+				return fmt.Errorf("failed to get user home directory: %w", homeErr)
 			}
 
 			baseConfigDir = filepath.Join(home, ".nvs")
@@ -135,7 +141,7 @@ func InitConfig() error {
 	// Ensure the configuration directory exists.
 	err = os.MkdirAll(baseConfigDir, constants.DirPerm)
 	if err != nil {
-		logrus.Fatalf("Failed to create config directory: %v", err)
+		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
 	logrus.Debugf("Config directory ensured: %s", baseConfigDir)
@@ -145,7 +151,7 @@ func InitConfig() error {
 
 	err = os.MkdirAll(versionsDir, constants.DirPerm)
 	if err != nil {
-		logrus.Fatalf("Failed to create versions directory: %v", err)
+		return fmt.Errorf("failed to create versions directory: %w", err)
 	}
 
 	logrus.Debugf("Versions directory ensured: %s", versionsDir)
@@ -173,7 +179,7 @@ func InitConfig() error {
 	// Ensure the cache directory exists.
 	err = os.MkdirAll(baseCacheDir, constants.DirPerm)
 	if err != nil {
-		logrus.Fatalf("Failed to create cache directory: %v", err)
+		return fmt.Errorf("failed to create cache directory: %w", err)
 	}
 
 	cacheFilePath = filepath.Join(baseCacheDir, "releases.json")
@@ -189,7 +195,7 @@ func InitConfig() error {
 		if runtime.GOOS == constants.WindowsOS {
 			home, homeErr := os.UserHomeDir()
 			if homeErr != nil {
-				logrus.Fatalf("Failed to get user home directory: %v", homeErr)
+				return fmt.Errorf("failed to get user home directory: %w", homeErr)
 			}
 
 			baseBinDir = filepath.Join(home, "AppData", "Local", "Programs")
@@ -197,7 +203,7 @@ func InitConfig() error {
 		} else {
 			home, homeErr := os.UserHomeDir()
 			if homeErr != nil {
-				logrus.Fatalf("Failed to get user home directory: %v", homeErr)
+				return fmt.Errorf("failed to get user home directory: %w", homeErr)
 			}
 
 			baseBinDir = filepath.Join(home, ".local", "bin")
@@ -207,7 +213,7 @@ func InitConfig() error {
 	// Ensure the binary directory exists.
 	err = os.MkdirAll(baseBinDir, constants.DirPerm)
 	if err != nil {
-		logrus.Fatalf("Failed to create binary directory: %v", err)
+		return fmt.Errorf("failed to create binary directory: %w", err)
 	}
 
 	globalBinDir = baseBinDir
@@ -218,7 +224,7 @@ func InitConfig() error {
 	if githubMirror != "" {
 		u, err := url.Parse(githubMirror)
 		if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
-			logrus.Fatalf("Invalid GitHub mirror URL: must start with http:// or https://")
+			return errInvalidGitHubMirror
 		}
 
 		logrus.Debugf("Using GitHub mirror: %s", githubMirror)
