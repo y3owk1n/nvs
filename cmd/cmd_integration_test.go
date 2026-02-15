@@ -154,7 +154,10 @@ func TestRunList(t *testing.T) {
 	// Set env var
 	t.Setenv("NVS_CONFIG_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	// Create some version dirs
 	versions := []string{"v1.0.0", "v1.1.0"}
@@ -192,7 +195,10 @@ func TestRunList_NoVersions(t *testing.T) {
 	// Set env var
 	t.Setenv("NVS_CONFIG_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	// No versions
 
@@ -217,7 +223,10 @@ func TestRunCurrent(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	// Create current symlink to a version
 	version := constants.TestVersion
@@ -281,7 +290,10 @@ func TestExecute(t *testing.T) {
 }
 
 func TestInitConfig(t *testing.T) {
-	cmd.InitConfig()
+	err := cmd.InitConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if cmd.GetVersionsDir() == "" {
 		t.Errorf("versionsDir not set")
@@ -335,7 +347,10 @@ func TestRunReset(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	err = cmd.RunReset(cobraCmd, []string{})
 	if err != nil {
@@ -363,7 +378,10 @@ func TestRunPath(t *testing.T) {
 	// Set env var
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	// Mock stdin with "y\n"
 	oldStdin := os.Stdin
@@ -416,7 +434,10 @@ func TestRunUse(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	// Create version (use a fake commit hash to avoid release lookup)
 	version := constants.TestCommitHash
@@ -572,7 +593,10 @@ func TestFullWorkflow(t *testing.T) {
 	t.Setenv("NVS_BIN_DIR", tempDir)
 	t.Setenv("NVS_TEST_MODE", "1")
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	cobraCmd := &cobra.Command{}
 	cobraCmd.SetContext(context.Background())
@@ -1027,7 +1051,10 @@ func TestRunEnv_SourceFish(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	cobraCmd := &cobra.Command{}
 	cobraCmd.Flags().Bool("source", false, "")
@@ -1049,7 +1076,10 @@ func TestRunEnv_SourceZsh(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	cobraCmd := &cobra.Command{}
 	cobraCmd.Flags().Bool("source", false, "")
@@ -1071,7 +1101,10 @@ func TestRunEnv_SourceSh(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	cobraCmd := &cobra.Command{}
 	cobraCmd.Flags().Bool("source", false, "")
@@ -1136,7 +1169,10 @@ func TestGetNightlyHistory(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	history, err := cmd.GetNightlyHistory()
 	if err != nil {
@@ -1154,7 +1190,10 @@ func TestAddNightlyToHistory(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	commitHash := "abc1234567890"
 	tagName := "nightly"
@@ -1195,7 +1234,10 @@ func TestRunDoctor(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	cobraCmd := &cobra.Command{}
 	cobraCmd.SetContext(context.Background())
@@ -1249,7 +1291,10 @@ func TestRunPin(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	versionName := constants.TestVersion
 	versionDir := filepath.Join(cmd.GetVersionsDir(), versionName)
@@ -1298,7 +1343,10 @@ func TestRunRollback_NoHistory(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	cobraCmd := &cobra.Command{}
 	cobraCmd.SetContext(context.Background())
@@ -1316,7 +1364,10 @@ func TestRunRun_VersionNotInstalled(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	cobraCmd := &cobra.Command{}
 	cobraCmd.SetContext(context.Background())
@@ -1334,7 +1385,10 @@ func TestRunEnv_SourceUnsupportedShell(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	cobraCmd := &cobra.Command{}
 	cobraCmd.Flags().Bool("source", false, "")
@@ -1356,7 +1410,10 @@ func TestRunUninstall_NotInstalled(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	cobraCmd := &cobra.Command{}
 	cobraCmd.SetContext(context.Background())
@@ -1379,7 +1436,10 @@ func TestRunUninstall_CurrentAborted(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	// Create a version directory
 	versionName := "v1.0.0"
@@ -1435,7 +1495,10 @@ func TestRunCurrent_NoCurrent(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	cobraCmd := &cobra.Command{}
 	cobraCmd.SetContext(context.Background())
@@ -1459,7 +1522,10 @@ func TestRunCurrent_WithStable(t *testing.T) {
 	t.Setenv("NVS_BIN_DIR", tempDir)
 	t.Setenv("NVS_TEST_MODE", "1")
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	// Create stable version directory
 	versionDir := filepath.Join(cmd.GetVersionsDir(), "stable")
@@ -1497,7 +1563,10 @@ func TestRunCurrent_WithNightly(t *testing.T) {
 	t.Setenv("NVS_BIN_DIR", tempDir)
 	t.Setenv("NVS_TEST_MODE", "1")
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	// Create nightly version directory
 	versionDir := filepath.Join(cmd.GetVersionsDir(), "nightly")
@@ -1534,7 +1603,10 @@ func TestRunCurrent_WithCommitHash(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	// Create commit hash version directory
 	commitHash := constants.TestCommitHash
@@ -1602,7 +1674,10 @@ func TestRunList_JSON(t *testing.T) {
 	// Set env var
 	t.Setenv("NVS_CONFIG_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	// Create some version dirs
 	versions := []string{"v1.0.0", "v1.1.0"}
@@ -1702,7 +1777,10 @@ func TestRunCurrent_JSON(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	// Create current symlink to a version
 	version := constants.TestVersion
@@ -1778,7 +1856,10 @@ func TestRunDoctor_JSON(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	// Capture stdout
 	oldStdout := os.Stdout
@@ -1856,7 +1937,10 @@ func TestRunEnv_JSON(t *testing.T) {
 	t.Setenv("NVS_CACHE_DIR", tempDir)
 	t.Setenv("NVS_BIN_DIR", tempDir)
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	// Capture stdout
 	oldStdout := os.Stdout
@@ -1931,7 +2015,10 @@ func TestRunUse_Pick(t *testing.T) {
 		cmd.SetVersionServiceForTesting(originalVersionService)
 	}()
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	// Create some installed versions
 	installedVersions := map[string]bool{
@@ -2006,7 +2093,10 @@ func TestRunInstall_Pick(t *testing.T) {
 		cmd.SetVersionServiceForTesting(originalVersionService)
 	}()
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	mockManager := &mockVersionManagerForIntegration{
 		installed: make(map[string]bool),
@@ -2075,7 +2165,10 @@ func TestRunPin_Pick(t *testing.T) {
 		cmd.SetVersionServiceForTesting(originalVersionService)
 	}()
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	// Create some installed versions
 	installedVersions := map[string]bool{
@@ -2150,7 +2243,10 @@ func TestRunRun_Pick(t *testing.T) {
 		cmd.SetVersionServiceForTesting(originalVersionService)
 	}()
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	// Create some installed versions with fake binaries
 	installedVersions := map[string]bool{
@@ -2243,7 +2339,10 @@ func TestRunUninstall_Pick(t *testing.T) {
 		cmd.SetVersionServiceForTesting(originalVersionService)
 	}()
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	// Create some installed versions
 	installedVersions := map[string]bool{
@@ -2316,7 +2415,10 @@ func TestRunUpgrade_Pick(t *testing.T) {
 		cmd.SetVersionServiceForTesting(originalVersionService)
 	}()
 
-	cmd.InitConfig()
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
 
 	// Mark stable as installed
 	mockManager := &mockVersionManagerForIntegration{

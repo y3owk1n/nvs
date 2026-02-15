@@ -55,13 +55,16 @@ var (
 //	}
 func Execute() error {
 	// Initialize configuration before running any commands.
-	cobra.OnInitialize(InitConfig)
+	err := InitConfig()
+	if err != nil {
+		return err
+	}
 
 	// Set a persistent flag for verbose logging.
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
 
 	// Execute the root command with the global context.
-	err := rootCmd.ExecuteContext(ctx)
+	err = rootCmd.ExecuteContext(ctx)
 	if err != nil {
 		return err
 	}
@@ -73,7 +76,7 @@ var signalOnce sync.Once
 
 // InitConfig is called automatically on command initialization.
 // It sets up logging levels, handles OS signals for graceful shutdown, and initializes services.
-func InitConfig() {
+func InitConfig() error {
 	var err error
 
 	// Set logging level based on the verbose flag.
@@ -262,12 +265,14 @@ func InitConfig() {
 		},
 	)
 	if err != nil {
-		panic(fmt.Sprintf("failed to create version service: %v", err))
+		return fmt.Errorf("failed to create version service: %w", err)
 	}
 
 	configService = config.New()
 
 	logrus.Debug("Services initialized")
+
+	return nil
 }
 
 // GetVersionsDir returns the versions directory path.
