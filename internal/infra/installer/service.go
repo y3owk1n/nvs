@@ -93,116 +93,8 @@ func (s *Service) InstallRelease(
 		return nil
 	}
 
-	// 1. Get asset URL
-	assetURL, err := rel.GetAssetURL()
-	if err != nil {
-		return fmt.Errorf("failed to get asset URL: %w", err)
-	}
-
-	// 2. Create temp file for download
-	tempFile, err := os.CreateTemp("", "nvim-release-*")
-	if err != nil {
-		return fmt.Errorf("failed to create temp file: %w", err)
-	}
-
-	defer func() { _ = os.Remove(tempFile.Name()) }()
-	defer func() { _ = tempFile.Close() }()
-
-	// 3. Download
-	// Check if we have a checksum URL for streaming verification
-	checksumURL, err := rel.GetChecksumURL()
-	hasChecksum := err == nil && checksumURL != ""
-
-	if hasChecksum {
-		if progress != nil {
-			progress("Downloading & Verifying", 0)
-		}
-
-		assetName := filepath.Base(assetURL)
-
-		err = s.downloader.DownloadWithChecksumVerification(
-			ctx,
-			assetURL,
-			checksumURL,
-			assetName,
-			tempFile,
-			func(p int) {
-				if progress != nil {
-					progress("Downloading & Verifying", p)
-				}
-			},
-		)
-		if err != nil {
-			if errors.Is(err, downloader.ErrChecksumMismatch) {
-				return fmt.Errorf("checksum verification failed: %w", err)
-			}
-
-			return fmt.Errorf("download failed: %w", err)
-		}
-	} else {
-		if progress != nil {
-			progress("Downloading", 0)
-		}
-
-		err = s.downloader.Download(ctx, assetURL, tempFile, func(p int) {
-			if progress != nil {
-				progress("Downloading", p)
-			}
-		})
-		if err != nil {
-			return fmt.Errorf("download failed: %w", err)
-		}
-	}
-
-	// 4. Extract
-	if progress != nil {
-		progress("Extracting", 0)
-	}
-
-	// Create destination directory
-	installPath := filepath.Join(dest, installName)
-
-	err = os.MkdirAll(installPath, constants.DirPerm)
-	if err != nil {
-		return fmt.Errorf("failed to create install directory: %w", err)
-	}
-
-	// Reset file position for extraction
-	_, err = tempFile.Seek(0, io.SeekStart)
-	if err != nil {
-		// Clean up the created directory on seek failure
-		cleanupErr := os.RemoveAll(installPath)
-		if cleanupErr != nil {
-			logrus.Warnf("Failed to clean up directory after seek failure: %v", cleanupErr)
-		}
-
-		return fmt.Errorf("failed to seek temp file: %w", err)
-	}
-
-	err = s.extractor.Extract(tempFile, installPath)
-	if err != nil {
-		// Clean up partial installation directory on failure
-		cleanupErr := os.RemoveAll(installPath)
-		if cleanupErr != nil {
-			logrus.Warnf("Failed to clean up partial install directory: %v", cleanupErr)
-		}
-
-		return fmt.Errorf("extraction failed: %w", err)
-	}
-
-	// 5. Write version file
-	versionFile = filepath.Join(installPath, "version.txt")
-
-	err = os.WriteFile(versionFile, []byte(rel.GetIdentifier()), constants.FilePerm)
-	if err != nil {
-		logrus.Warnf("Failed to write version file: %v", err)
-	}
-
-	if progress != nil {
-		progress("Complete", constants.ProgressComplete)
-	}
-
-	return nil
+	// Perform the actual installation
+	return s.installReleaseInternal(ctx, rel, dest, installName, progress)
 }
 
 // BuildFromCommit builds Neovim from source with per-version locking.
@@ -340,13 +232,134 @@ func (s *Service) upgradeReleaseInternal(
 		}
 	}()
 
-	// Install new version
-	err = s.InstallRelease(ctx, release, dest, installName, progress)
+	// Install new version (use internal method since lock is already held)
+	err = s.installReleaseInternal(ctx, release, dest, installName, progress)
 	if err != nil {
 		return fmt.Errorf("failed to install release: %w", err)
 	}
 
 	upgradeSuccess = true
+
+	return nil
+}
+
+// installReleaseInternal performs the actual installation without locking.
+// This is called by InstallRelease (which handles locking) and UpgradeRelease (which already holds the lock).
+func (s *Service) installReleaseInternal(
+	ctx context.Context,
+	rel installer.ReleaseInfo,
+	dest string,
+	installName string,
+	progress installer.ProgressFunc,
+) error {
+	// 1. Get asset URL
+	assetURL, err := rel.GetAssetURL()
+	if err != nil {
+		return fmt.Errorf("failed to get asset URL: %w", err)
+	}
+
+	// 2. Create temp file for download
+	tempFile, err := os.CreateTemp("", "nvim-release-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+
+	defer func() { _ = os.Remove(tempFile.Name()) }()
+	defer func() { _ = tempFile.Close() }()
+
+	// 3. Download
+	// Check if we have a checksum URL for streaming verification
+	checksumURL, err := rel.GetChecksumURL()
+	hasChecksum := err == nil && checksumURL != ""
+
+	if hasChecksum {
+		if progress != nil {
+			progress("Downloading & Verifying", 0)
+		}
+
+		assetName := filepath.Base(assetURL)
+
+		err = s.downloader.DownloadWithChecksumVerification(
+			ctx,
+			assetURL,
+			checksumURL,
+			assetName,
+			tempFile,
+			func(p int) {
+				if progress != nil {
+					progress("Downloading & Verifying", p)
+				}
+			},
+		)
+		if err != nil {
+			if errors.Is(err, downloader.ErrChecksumMismatch) {
+				return fmt.Errorf("checksum verification failed: %w", err)
+			}
+
+			return fmt.Errorf("download failed: %w", err)
+		}
+	} else {
+		if progress != nil {
+			progress("Downloading", 0)
+		}
+
+		err = s.downloader.Download(ctx, assetURL, tempFile, func(p int) {
+			if progress != nil {
+				progress("Downloading", p)
+			}
+		})
+		if err != nil {
+			return fmt.Errorf("download failed: %w", err)
+		}
+	}
+
+	// 4. Extract
+	if progress != nil {
+		progress("Extracting", 0)
+	}
+
+	// Create destination directory
+	installPath := filepath.Join(dest, installName)
+
+	err = os.MkdirAll(installPath, constants.DirPerm)
+	if err != nil {
+		return fmt.Errorf("failed to create install directory: %w", err)
+	}
+
+	// Reset file position for extraction
+	_, err = tempFile.Seek(0, io.SeekStart)
+	if err != nil {
+		// Clean up the created directory on seek failure
+		cleanupErr := os.RemoveAll(installPath)
+		if cleanupErr != nil {
+			logrus.Warnf("Failed to clean up directory after seek failure: %v", cleanupErr)
+		}
+
+		return fmt.Errorf("failed to seek temp file: %w", err)
+	}
+
+	err = s.extractor.Extract(tempFile, installPath)
+	if err != nil {
+		// Clean up partial installation directory on failure
+		cleanupErr := os.RemoveAll(installPath)
+		if cleanupErr != nil {
+			logrus.Warnf("Failed to clean up partial install directory: %v", cleanupErr)
+		}
+
+		return fmt.Errorf("extraction failed: %w", err)
+	}
+
+	// 5. Write version file
+	versionFile := filepath.Join(installPath, "version.txt")
+
+	err = os.WriteFile(versionFile, []byte(rel.GetIdentifier()), constants.FilePerm)
+	if err != nil {
+		logrus.Warnf("Failed to write version file: %v", err)
+	}
+
+	if progress != nil {
+		progress("Complete", constants.ProgressComplete)
+	}
 
 	return nil
 }
