@@ -44,7 +44,10 @@ var (
 
 	// errInvalidGitHubMirror is returned when the GitHub mirror URL is invalid.
 	errInvalidGitHubMirror = errors.New(
-		"invalid GitHub mirror URL: must start with http:// or https://",
+		"invalid GitHub mirror URL: must be a valid absolute URL with http:// or https://",
+	)
+	errInvalidGitHubMirrorHost = errors.New(
+		"invalid GitHub mirror URL: must include a valid host",
 	)
 
 	// Version of nvs, defaults to "v0.0.0" but may be set during build time.
@@ -222,17 +225,24 @@ func InitConfig() error {
 
 	// Read GitHub mirror URL from environment
 	githubMirror := os.Getenv("NVS_GITHUB_MIRROR")
+
+	var normalizedMirrorURL string
 	if githubMirror != "" {
-		u, err := url.Parse(githubMirror)
+		parsedURL, err := url.Parse(githubMirror)
 		if err != nil {
 			return fmt.Errorf("failed to parse GitHub mirror URL: %w", err)
 		}
 
-		if u.Scheme != "http" && u.Scheme != "https" {
+		if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
 			return errInvalidGitHubMirror
 		}
 
-		logrus.Debugf("Using GitHub mirror: %s", githubMirror)
+		if parsedURL.Host == "" {
+			return errInvalidGitHubMirrorHost
+		}
+
+		normalizedMirrorURL = strings.TrimRight(parsedURL.String(), "/")
+		logrus.Debugf("Using GitHub mirror: %s", normalizedMirrorURL)
 	}
 
 	// Read global cache setting from environment
@@ -248,7 +258,7 @@ func InitConfig() error {
 		cacheFilePath,
 		constants.CacheTTL,
 		"0.5.0",
-		githubMirror,
+		normalizedMirrorURL,
 		useGlobalCache,
 	)
 	versionManager := filesystem.New(&filesystem.Config{
@@ -271,7 +281,7 @@ func InitConfig() error {
 			VersionsDir:    versionsDir,
 			CacheFilePath:  cacheFilePath,
 			GlobalBinDir:   globalBinDir,
-			MirrorURL:      githubMirror,
+			MirrorURL:      normalizedMirrorURL,
 			UseGlobalCache: useGlobalCache,
 		},
 	)
