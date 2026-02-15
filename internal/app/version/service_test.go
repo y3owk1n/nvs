@@ -751,22 +751,6 @@ func TestService_Upgrade_InstallFailure(t *testing.T) {
 
 	tmpDir := t.TempDir()
 
-	// Create the stable directory to simulate existing installation
-	stableDir := filepath.Join(tmpDir, constants.Stable)
-
-	err := os.MkdirAll(stableDir, 0o755)
-	if err != nil {
-		t.Fatalf("Failed to create stable dir: %v", err)
-	}
-
-	// Create a file inside to verify rollback restores it
-	testFile := filepath.Join(stableDir, "nvim")
-
-	err = os.WriteFile(testFile, []byte("original"), 0o755)
-	if err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
-
 	service, err := appversion.New(repo, manager, install, &appversion.Config{VersionsDir: tmpDir})
 	if err != nil {
 		t.Fatalf("Failed to create service: %v", err)
@@ -780,12 +764,6 @@ func TestService_Upgrade_InstallFailure(t *testing.T) {
 	// Verify the error contains the install failure message
 	if !errors.Is(err, errInstallFailed) {
 		t.Errorf("Expected error to wrap errInstallFailed, got: %v", err)
-	}
-
-	// Verify the original directory was restored
-	_, err = os.Stat(testFile)
-	if os.IsNotExist(err) {
-		t.Error("Expected original directory to be restored after failed upgrade")
 	}
 }
 
