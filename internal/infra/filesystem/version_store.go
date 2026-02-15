@@ -128,25 +128,24 @@ func (s *VersionStore) Current() (domainversion.Version, error) {
 }
 
 // Switch activates a specific version with exclusive file locking.
+// Uses per-version lock to coordinate with Uninstall and Install operations.
 func (s *VersionStore) Switch(version domainversion.Version) error {
-	// Use default lock file path if not specified
-	lockPath := s.config.LockFilePath
-	if lockPath == "" {
-		lockPath = filepath.Join(s.config.VersionsDir, ".nvs-switch.lock")
-	}
-
+	// Acquire per-version lock to prevent races with Uninstall or Install of the same version
+	lockPath := filepath.Join(
+		s.config.VersionsDir,
+		fmt.Sprintf(".nvs-version-%s.lock", version.Name()),
+	)
 	lock := NewFileLock(lockPath)
 
-	// Acquire lock with default timeout
 	err := lock.LockWithDefaultTimeout()
 	if err != nil {
-		return fmt.Errorf("failed to acquire switch lock: %w", err)
+		return fmt.Errorf("failed to acquire switch lock for %s: %w", version.Name(), err)
 	}
-	// Ensure lock is released even if panic occurs
+
 	defer func() {
 		unlockErr := lock.Unlock()
 		if unlockErr != nil {
-			logrus.Warnf("failed to unlock: %v", unlockErr)
+			logrus.Warnf("failed to unlock switch lock for %s: %v", version.Name(), unlockErr)
 		}
 	}()
 
@@ -198,11 +197,12 @@ func (s *VersionStore) IsInstalled(v domainversion.Version) bool {
 }
 
 // Uninstall removes an installed version with per-version locking.
+// Uses the same per-version lock as Switch and Install for coordination.
 func (s *VersionStore) Uninstall(version domainversion.Version, force bool) error {
-	// Acquire per-version lock to prevent races with Switch or other operations
+	// Acquire per-version lock to prevent races with Switch or Install of the same version
 	lockPath := filepath.Join(
 		s.config.VersionsDir,
-		fmt.Sprintf(".nvs-uninstall-%s.lock", version.Name()),
+		fmt.Sprintf(".nvs-version-%s.lock", version.Name()),
 	)
 	lock := NewFileLock(lockPath)
 

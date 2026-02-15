@@ -39,6 +39,7 @@ func New(
 }
 
 // InstallRelease installs a pre-built release with per-version locking.
+// Uses the same per-version lock as Switch and Uninstall for coordination.
 func (s *Service) InstallRelease(
 	ctx context.Context,
 	rel installer.ReleaseInfo,
@@ -46,8 +47,8 @@ func (s *Service) InstallRelease(
 	installName string,
 	progress installer.ProgressFunc,
 ) error {
-	// Acquire per-version lock to prevent concurrent installations of the same version
-	lockPath := filepath.Join(dest, fmt.Sprintf(".nvs-install-%s.lock", installName))
+	// Acquire per-version lock to prevent concurrent operations on the same version
+	lockPath := filepath.Join(dest, fmt.Sprintf(".nvs-version-%s.lock", installName))
 	lock := filesystem.NewFileLock(lockPath)
 
 	err := lock.LockWithDefaultTimeout()
@@ -162,15 +163,17 @@ func (s *Service) InstallRelease(
 	return nil
 }
 
-// BuildFromCommit builds Neovim from source with per-commit locking.
+// BuildFromCommit builds Neovim from source with per-version locking.
+// Uses the same per-version lock as Install, Switch, and Uninstall for coordination.
 func (s *Service) BuildFromCommit(
 	ctx context.Context,
 	commit string,
 	dest string,
 	progress installer.ProgressFunc,
 ) (string, error) {
-	// Acquire per-commit lock to prevent concurrent builds of the same commit
-	lockPath := filepath.Join(dest, fmt.Sprintf(".nvs-build-%s.lock", commit))
+	// Acquire per-version lock to prevent concurrent operations on the same commit
+	// The commit hash becomes the version name
+	lockPath := filepath.Join(dest, fmt.Sprintf(".nvs-version-%s.lock", commit))
 	lock := filesystem.NewFileLock(lockPath)
 
 	err := lock.LockWithDefaultTimeout()
