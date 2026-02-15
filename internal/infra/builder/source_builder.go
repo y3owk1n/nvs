@@ -58,12 +58,6 @@ func (b *SourceBuilder) BuildFromCommit(
 	dest string,
 	progress installer.ProgressFunc,
 ) (string, error) {
-	// Check for required build tools
-	err := b.checkRequiredTools(ctx)
-	if err != nil {
-		return "", fmt.Errorf("build requirements not met: %w", err)
-	}
-
 	// Clean up any leftover temp directories from previous runs
 	b.cleanupTempDirectories()
 
@@ -86,8 +80,22 @@ func (b *SourceBuilder) BuildFromCommit(
 		}
 	}()
 
-	var resolvedHash string
+	var (
+		resolvedHash string
+		err          error
+	)
 	for attempt := 1; attempt <= constants.MaxAttempts; attempt++ {
+		// Check for required build tools on each attempt
+		err = b.checkRequiredTools(ctx)
+		if err != nil {
+			// Don't retry if build requirements are not met
+			if errors.Is(err, ErrBuildRequirementsNotMet) {
+				return "", fmt.Errorf("build requirements not met: %w", err)
+			}
+			// Return immediately on context cancellation/timeout
+			return "", fmt.Errorf("build requirements check failed: %w", err)
+		}
+
 		localPath := filepath.Join(os.TempDir(), fmt.Sprintf("neovim-src-%s-%d", buildID, attempt))
 		logrus.Debugf("Temporary Neovim source directory: %s", localPath)
 
@@ -103,11 +111,6 @@ func (b *SourceBuilder) BuildFromCommit(
 		}
 
 		logrus.Errorf("Build attempt %d failed: %v", attempt, err)
-
-		// Don't retry if build requirements are not met
-		if errors.Is(err, ErrBuildRequirementsNotMet) {
-			break
-		}
 
 		// Check for context cancellation - return immediately without retrying
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
