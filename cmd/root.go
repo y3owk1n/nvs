@@ -224,7 +224,11 @@ func InitConfig() error {
 	githubMirror := os.Getenv("NVS_GITHUB_MIRROR")
 	if githubMirror != "" {
 		u, err := url.Parse(githubMirror)
-		if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		if err != nil {
+			return fmt.Errorf("failed to parse GitHub mirror URL: %w", err)
+		}
+
+		if u.Scheme != "http" && u.Scheme != "https" {
 			return errInvalidGitHubMirror
 		}
 
