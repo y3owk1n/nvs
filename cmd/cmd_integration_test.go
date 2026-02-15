@@ -88,6 +88,18 @@ func (m *mockInstallerForIntegration) BuildFromCommit(
 	return constants.TestCommitHash, nil
 }
 
+func (m *mockInstallerForIntegration) UpgradeRelease(
+	ctx context.Context,
+	rel installer.ReleaseInfo,
+	dest, installName string,
+	progress installer.ProgressFunc,
+) error {
+	// Simulate successful upgrade
+	m.installed[installName] = true
+
+	return nil
+}
+
 // mockReleaseRepoForIntegration implements release.Repository for integration testing.
 type mockReleaseRepoForIntegration struct {
 	releases map[string]release.Release

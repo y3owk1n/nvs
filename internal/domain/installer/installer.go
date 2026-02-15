@@ -15,6 +15,17 @@ type Installer interface {
 		progress ProgressFunc,
 	) error
 
+	// UpgradeRelease upgrades an existing installation to a new release.
+	// It atomically backs up the existing version, installs the new one, and handles rollback on failure.
+	// This ensures proper locking coordination during the upgrade process.
+	UpgradeRelease(
+		ctx context.Context,
+		release ReleaseInfo,
+		dest string,
+		installName string,
+		progress ProgressFunc,
+	) error
+
 	// BuildFromCommit builds Neovim from source at a specific commit.
 	// The built version is installed to the destination directory.
 	// Returns the resolved commit hash that was installed.

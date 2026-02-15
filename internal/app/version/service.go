@@ -4,8 +4,6 @@ package version
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -279,7 +277,7 @@ func (s *Service) Upgrade(
 	ctx context.Context,
 	versionAlias string,
 	progress installer.ProgressFunc,
-) (retErr error) {
+) error {
 	normalized := normalizeVersion(versionAlias)
 
 	// Only stable and nightly can be upgraded
@@ -326,67 +324,16 @@ func (s *Service) Upgrade(
 		return ErrAlreadyUpToDate
 	}
 
-	// Backup existing version
-	versionPath := filepath.Join(s.config.VersionsDir, normalized)
-	backupPath := versionPath + ".backup"
-
-	err = os.Rename(versionPath, backupPath)
-	if err != nil {
-		return fmt.Errorf("failed to backup version: %w", err)
-	}
-
-	upgradeSuccess := false
-
-	// Cleanup backup on success or restore on failure
-	defer func() {
-		if upgradeSuccess {
-			// Upgrade succeeded, remove backup
-			removeErr := os.RemoveAll(backupPath)
-			if removeErr != nil {
-				logrus.Errorf("Failed to remove backup after successful upgrade: %v", removeErr)
-			}
-		} else {
-			// Upgrade failed, restore backup
-			var rollbackErr error
-
-			removeErr := os.RemoveAll(versionPath)
-			if removeErr != nil {
-				logrus.Errorf("Failed to clean partial install during rollback: %v", removeErr)
-				rollbackErr = fmt.Errorf("failed to clean partial install: %w", removeErr)
-			}
-
-			// Only attempt rename if cleanup succeeded
-			if removeErr == nil {
-				renameErr := os.Rename(backupPath, versionPath)
-				if renameErr != nil {
-					logrus.Errorf("Failed to restore backup during rollback: %v", renameErr)
-					rollbackErr = fmt.Errorf("failed to restore backup: %w", renameErr)
-				}
-			}
-
-			// If upgrade failed and rollback also failed, wrap the original error
-			if rollbackErr != nil && retErr != nil {
-				retErr = fmt.Errorf(
-					"%w (CRITICAL: rollback also failed: %w)",
-					retErr,
-					rollbackErr,
-				)
-			}
-		}
-	}()
-
-	// Install new version
+	// Use installer.UpgradeRelease for atomic upgrade with proper locking
 	releaseInfo := &releaseAdapter{
 		Release:   rel,
 		mirrorURL: s.config.MirrorURL,
 	}
 
-	err = s.installer.InstallRelease(ctx, releaseInfo, s.config.VersionsDir, normalized, progress)
+	err = s.installer.UpgradeRelease(ctx, releaseInfo, s.config.VersionsDir, normalized, progress)
 	if err != nil {
-		return fmt.Errorf("failed to install release: %w", err)
+		return fmt.Errorf("failed to upgrade: %w", err)
 	}
-
-	upgradeSuccess = true
 
 	return nil
 }

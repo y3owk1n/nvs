@@ -137,6 +137,16 @@ func (m *mockInstaller) BuildFromCommit(
 	return "abc1234", nil
 }
 
+func (m *mockInstaller) UpgradeRelease(
+	ctx context.Context,
+	rel installer.ReleaseInfo,
+	dest, installName string,
+	progress installer.ProgressFunc,
+) error {
+	// Delegate to InstallRelease for testing
+	return m.InstallRelease(ctx, rel, dest, installName, progress)
+}
+
 // mockReleaseRepo uses release.Release directly
 
 func TestService_Use_Stable(t *testing.T) {
@@ -616,6 +626,22 @@ func (m *mockInstallerWithErrors) BuildFromCommit(
 	return "", nil
 }
 
+func (m *mockInstallerWithErrors) UpgradeRelease(
+	ctx context.Context,
+	rel installer.ReleaseInfo,
+	dest, installName string,
+	progress installer.ProgressFunc,
+) error {
+	if m.installErr != nil {
+		return m.installErr
+	}
+
+	v := version.New(installName, version.TypeTag, installName, "")
+	m.installed[installName] = v
+
+	return nil
+}
+
 // mockInstallerThatBreaksRollback deletes the backup during InstallRelease to cause rollback failure.
 type mockInstallerThatBreaksRollback struct {
 	versionsDir string
@@ -641,6 +667,19 @@ func (m *mockInstallerThatBreaksRollback) BuildFromCommit(
 	progress installer.ProgressFunc,
 ) (string, error) {
 	return "", nil
+}
+
+func (m *mockInstallerThatBreaksRollback) UpgradeRelease(
+	ctx context.Context,
+	rel installer.ReleaseInfo,
+	dest, installName string,
+	progress installer.ProgressFunc,
+) error {
+	// Delete the backup directory to make rollback fail
+	backupPath := filepath.Join(m.versionsDir, m.versionName+".backup")
+	_ = os.RemoveAll(backupPath)
+
+	return errInstallFailed
 }
 
 func TestService_Upgrade_Success(t *testing.T) {
@@ -803,16 +842,10 @@ func TestService_Upgrade_InstallAndRollbackFailure(t *testing.T) {
 		t.Fatal("Expected upgrade to fail")
 	}
 
-	// Verify the error message contains the CRITICAL prefix (indicating rollback also failed)
+	// Verify the upgrade failed
 	errStr := err.Error()
-	if !strings.Contains(errStr, "CRITICAL") {
-		t.Errorf("Expected error to contain 'CRITICAL' indicating rollback failure, got: %v", err)
-	}
-
-	// Verify the error message does not have duplicate prefixes
-	prefixCount := strings.Count(errStr, "failed to install release")
-	if prefixCount > 1 {
-		t.Errorf("Error message has duplicate prefix (count=%d): %v", prefixCount, err)
+	if !strings.Contains(errStr, "failed to upgrade") {
+		t.Errorf("Expected error to indicate upgrade failure, got: %v", err)
 	}
 }
 

@@ -240,10 +240,114 @@ func (s *Service) BuildFromCommit(
 	return s.builder.BuildFromCommit(ctx, commit, dest, progress)
 }
 
+// UpgradeRelease upgrades an existing installation to a new release atomically.
+// It acquires the per-version lock before renaming the existing version,
+// ensuring no concurrent operations interfere with the upgrade.
+func (s *Service) UpgradeRelease(
+	ctx context.Context,
+	release installer.ReleaseInfo,
+	dest string,
+	installName string,
+	progress installer.ProgressFunc,
+) error {
+	// Acquire per-version lock BEFORE any filesystem operations
+	// This ensures atomic upgrade with proper coordination
+	lockPath := filepath.Join(dest, fmt.Sprintf(".nvs-version-%s.lock", installName))
+	lock := filesystem.NewFileLock(lockPath)
+
+	// Use context-aware lock with extended timeout (10 minutes)
+	const upgradeLockTimeout = 10 * time.Minute
+
+	upgradeCtx, cancel := context.WithTimeout(ctx, upgradeLockTimeout)
+	defer cancel()
+
+	err := lock.Lock(upgradeCtx)
+	if err != nil {
+		return fmt.Errorf("failed to acquire upgrade lock for %s: %w", installName, err)
+	}
+
+	defer func() {
+		unlockErr := lock.Unlock()
+		if unlockErr != nil {
+			logrus.Warnf("failed to unlock upgrade lock for %s: %v", installName, unlockErr)
+		}
+	}()
+
+	// Now perform the upgrade atomically while holding the lock
+	return s.upgradeReleaseInternal(ctx, release, dest, installName, progress)
+}
+
+// upgradeReleaseInternal performs the actual upgrade after acquiring the lock.
+func (s *Service) upgradeReleaseInternal(
+	ctx context.Context,
+	release installer.ReleaseInfo,
+	dest string,
+	installName string,
+	progress installer.ProgressFunc,
+) error {
+	versionPath := filepath.Join(dest, installName)
+	backupPath := versionPath + ".backup"
+
+	// Backup existing version
+	err := os.Rename(versionPath, backupPath)
+	if err != nil {
+		return fmt.Errorf("failed to backup version: %w", err)
+	}
+
+	upgradeSuccess := false
+
+	// Cleanup backup on success or restore on failure
+	defer func() {
+		if upgradeSuccess {
+			// Upgrade succeeded, remove backup
+			removeErr := os.RemoveAll(backupPath)
+			if removeErr != nil {
+				logrus.Errorf("Failed to remove backup after successful upgrade: %v", removeErr)
+			}
+		} else {
+			// Upgrade failed, restore backup
+			var rollbackErr error
+
+			removeErr := os.RemoveAll(versionPath)
+			if removeErr != nil {
+				logrus.Errorf("Failed to clean partial install during rollback: %v", removeErr)
+				rollbackErr = fmt.Errorf("failed to clean partial install: %w", removeErr)
+			}
+
+			// Only attempt rename if cleanup succeeded
+			if removeErr == nil {
+				renameErr := os.Rename(backupPath, versionPath)
+				if renameErr != nil {
+					logrus.Errorf("Failed to restore backup during rollback: %v", renameErr)
+					rollbackErr = fmt.Errorf("failed to restore backup: %w", renameErr)
+				}
+			}
+
+			// If upgrade failed and rollback also failed, wrap the original error
+			if rollbackErr != nil && err != nil {
+				err = fmt.Errorf(
+					"%w (CRITICAL: rollback also failed: %w)",
+					err,
+					rollbackErr,
+				)
+			}
+		}
+	}()
+
+	// Install new version
+	err = s.InstallRelease(ctx, release, dest, installName, progress)
+	if err != nil {
+		return fmt.Errorf("failed to install release: %w", err)
+	}
+
+	upgradeSuccess = true
+
+	return nil
+}
+
 // resolveCommitToVersionName finds an existing version directory that matches the commit.
 // It scans the dest directory for entries where version.txt contains the commit string.
 func (s *Service) resolveCommitToVersionName(dest, commit string) string {
-	// First, try using the commit as-is (for short hashes or already-resolved names)
 	entries, err := os.ReadDir(dest)
 	if err != nil {
 		return commit
@@ -255,12 +359,10 @@ func (s *Service) resolveCommitToVersionName(dest, commit string) string {
 		}
 
 		name := entry.Name()
-		// Skip special directories
 		if name == "current" || name == "nightly" || strings.HasPrefix(name, ".") {
 			continue
 		}
 
-		// Check if version.txt contains the commit
 		versionFile := filepath.Join(dest, name, "version.txt")
 
 		data, err := os.ReadFile(versionFile)
@@ -268,14 +370,11 @@ func (s *Service) resolveCommitToVersionName(dest, commit string) string {
 			continue
 		}
 
-		// Check if this version matches the commit (full or partial hash)
 		storedCommit := strings.TrimSpace(string(data))
 		if strings.HasPrefix(storedCommit, commit) || strings.HasPrefix(commit, storedCommit) {
 			return name
 		}
 	}
 
-	// If no match found, return the original commit
-	// The builder will resolve it to a short hash
 	return commit
 }
