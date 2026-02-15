@@ -432,11 +432,50 @@ Process B: acquires lock → sees version already exists
 
 ### Timeout Behavior
 
-Default lock timeout: **30 seconds**
+**Standard operations** (Switch, Uninstall, Install): **30 seconds**
+
+**Build operations** (BuildFromCommit): **15 minutes**
+  - Builds can take several minutes with auto-retry logic
+  - Extended timeout prevents premature failures during long builds
 
 If a lock cannot be acquired within the timeout, the operation fails with:
 ```
 timeout waiting for file lock
+```
+
+### Fast-Path Optimization
+
+Both `Install` and `BuildFromCommit` implement a fast-path check:
+
+1. **Before locking**: Check if version already exists
+2. **If exists**: Return immediately without acquiring lock
+3. **After locking**: Double-check (another process may have installed)
+
+This prevents unnecessary waiting when:
+- Version is already installed
+- Another process completes installation while waiting
+
+### Production Considerations
+
+**Build Retry + Locking:**
+- Build operations auto-retry up to 3 times on failure
+- Lock is held across all retry attempts
+- Extended 15-minute timeout accommodates retry loops
+
+**Example Build Scenario:**
+```
+Process A: nvs install --from-source abc123
+  → acquires lock
+  → attempt 1 fails (network timeout)
+  → waits 1 second
+  → attempt 2 fails (build error)
+  → waits 1 second
+  → attempt 3 succeeds
+  → releases lock (total time: 8 minutes)
+
+Process B: nvs install --from-source abc123 (starts 2 min after A)
+  → sees version exists (fast-path)
+  → returns immediately (no lock needed)
 ```
 
 ### Debugging Lock Issues
