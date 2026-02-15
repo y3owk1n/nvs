@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -100,7 +99,7 @@ func (s *Service) InstallRelease(
 // BuildFromCommit builds Neovim from source with per-version locking.
 // Uses the same per-version lock as Install, Switch, and Uninstall for coordination.
 //
-// The lock uses the resolved version name (short hash) to ensure consistency
+// The lock uses the short hash version name to ensure consistency
 // with Switch/Uninstall operations, which use the directory name.
 func (s *Service) BuildFromCommit(
 	ctx context.Context,
@@ -108,11 +107,15 @@ func (s *Service) BuildFromCommit(
 	dest string,
 	progress installer.ProgressFunc,
 ) (string, error) {
-	// Resolve the commit to a version name by scanning for matching entries
-	// This ensures the lock key matches what Switch/Uninstall will use
-	versionName := s.resolveCommitToVersionName(dest, commit)
+	// Compute the short hash for the lock key.
+	// The builder always creates the version directory with a 7-character short hash,
+	// so we must use the same short hash for locking to coordinate with Switch/Uninstall.
+	versionName := commit
+	if len(commit) > constants.ShortCommitLen {
+		versionName = commit[:constants.ShortCommitLen]
+	}
 
-	// Acquire per-version lock using the resolved version name
+	// Acquire per-version lock using the short hash
 	lockPath := filepath.Join(dest, fmt.Sprintf(".nvs-version-%s.lock", versionName))
 	lock := filesystem.NewFileLock(lockPath)
 
@@ -362,39 +365,4 @@ func (s *Service) installReleaseInternal(
 	}
 
 	return nil
-}
-
-// resolveCommitToVersionName finds an existing version directory that matches the commit.
-// It scans the dest directory for entries where version.txt contains the commit string.
-func (s *Service) resolveCommitToVersionName(dest, commit string) string {
-	entries, err := os.ReadDir(dest)
-	if err != nil {
-		return commit
-	}
-
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		name := entry.Name()
-		if name == "current" || name == "nightly" || strings.HasPrefix(name, ".") {
-			continue
-		}
-
-		versionFile := filepath.Join(dest, name, "version.txt")
-
-		data, err := os.ReadFile(versionFile)
-		if err != nil {
-			continue
-		}
-
-		storedCommit := strings.TrimSpace(string(data))
-		// Match if stored commit starts with user input (handles short hash -> full hash)
-		if strings.HasPrefix(storedCommit, commit) {
-			return name
-		}
-	}
-
-	return commit
 }
