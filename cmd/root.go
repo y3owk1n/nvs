@@ -51,6 +51,10 @@ var (
 	Version = "v0.0.0"
 )
 
+func init() {
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
+}
+
 // Execute initializes the configuration, sets up global flags, and executes the root command.
 // Example usage:
 //
@@ -60,9 +64,6 @@ var (
 //	    }
 //	}
 func Execute() error {
-	// Set a persistent flag for verbose logging.
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
-
 	// Use PersistentPreRunE to ensure flags are parsed before InitConfig runs,
 	// and errors are propagated properly through cobra's error handling.
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
