@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
@@ -47,11 +48,21 @@ func (s *Service) InstallRelease(
 	installName string,
 	progress installer.ProgressFunc,
 ) error {
+	// Fast path: check if already installed before acquiring lock
+	versionPath := filepath.Join(dest, installName)
+
+	_, err := os.Stat(versionPath)
+	if err == nil {
+		logrus.Debugf("Version %s already exists, skipping install", installName)
+
+		return nil
+	}
+
 	// Acquire per-version lock to prevent concurrent operations on the same version
 	lockPath := filepath.Join(dest, fmt.Sprintf(".nvs-version-%s.lock", installName))
 	lock := filesystem.NewFileLock(lockPath)
 
-	err := lock.LockWithDefaultTimeout()
+	err = lock.LockWithDefaultTimeout()
 	if err != nil {
 		return fmt.Errorf("failed to acquire install lock for %s: %w", installName, err)
 	}
@@ -62,6 +73,14 @@ func (s *Service) InstallRelease(
 			logrus.Warnf("failed to unlock install lock for %s: %v", installName, unlockErr)
 		}
 	}()
+
+	// Double-check after acquiring lock (another process may have installed it)
+	_, err = os.Stat(versionPath)
+	if err == nil {
+		logrus.Debugf("Version %s was installed by another process", installName)
+
+		return nil
+	}
 
 	// 1. Get asset URL
 	assetURL, err := rel.GetAssetURL()
@@ -171,12 +190,29 @@ func (s *Service) BuildFromCommit(
 	dest string,
 	progress installer.ProgressFunc,
 ) (string, error) {
+	// Fast path: check if already built before acquiring lock
+	versionPath := filepath.Join(dest, commit)
+
+	_, err := os.Stat(versionPath)
+	if err == nil {
+		logrus.Debugf("Version %s already exists, skipping build", commit)
+
+		return commit, nil
+	}
+
 	// Acquire per-version lock to prevent concurrent operations on the same commit
 	// The commit hash becomes the version name
 	lockPath := filepath.Join(dest, fmt.Sprintf(".nvs-version-%s.lock", commit))
 	lock := filesystem.NewFileLock(lockPath)
 
-	err := lock.LockWithDefaultTimeout()
+	// Use extended timeout for build operations (15 minutes)
+	// Builds can take several minutes with multiple retry attempts
+	const buildLockTimeout = 15 * time.Minute
+
+	buildCtx, cancel := context.WithTimeout(ctx, buildLockTimeout)
+	defer cancel()
+
+	err = lock.Lock(buildCtx)
 	if err != nil {
 		return "", fmt.Errorf("failed to acquire build lock for commit %s: %w", commit, err)
 	}
@@ -187,6 +223,14 @@ func (s *Service) BuildFromCommit(
 			logrus.Warnf("failed to unlock build lock for commit %s: %v", commit, unlockErr)
 		}
 	}()
+
+	// Double-check after acquiring lock (another process may have built it)
+	_, err = os.Stat(versionPath)
+	if err == nil {
+		logrus.Debugf("Version %s was built by another process", commit)
+
+		return commit, nil
+	}
 
 	return s.builder.BuildFromCommit(ctx, commit, dest, progress)
 }
