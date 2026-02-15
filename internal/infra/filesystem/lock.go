@@ -106,8 +106,10 @@ func (fl *FileLock) Unlock() error {
 	closeErr = fl.file.Close()
 	fl.file = nil
 
-	// Remove lock file (best effort)
-	_ = os.Remove(fl.path)
+	// Note: we intentionally do NOT remove the lock file here.
+	// Removing it would create a race condition where another process
+	// could open+lock a new file at the same path (different inode)
+	// while a third process still holds a lock on the old (deleted) inode.
 
 	if unlockErr != nil {
 		return fmt.Errorf("failed to release lock: %w", unlockErr)

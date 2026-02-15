@@ -4,7 +4,6 @@ package filesystem
 import (
 	"context"
 	"errors"
-	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -31,11 +30,8 @@ func TestFileLock_BasicLockUnlock(t *testing.T) {
 		t.Fatalf("Failed to release lock: %v", err)
 	}
 
-	// Lock file should be cleaned up
-	_, err = os.Stat(lockPath)
-	if !os.IsNotExist(err) {
-		t.Error("Lock file should be removed after unlock")
-	}
+	// Lock file is intentionally NOT removed to prevent race conditions
+	// where a new process could lock a different inode at the same path
 }
 
 func TestFileLock_ConcurrentAccess(t *testing.T) {
@@ -147,11 +143,8 @@ func TestFileLock_WithLock(t *testing.T) {
 		t.Error("Function inside WithLock was not executed")
 	}
 
-	// Lock file should be cleaned up
-	_, err = os.Stat(lockPath)
-	if !os.IsNotExist(err) {
-		t.Error("Lock file should be removed after WithLock")
-	}
+	// Lock file is intentionally NOT removed to prevent race conditions
+	// where a new process could lock a different inode at the same path
 }
 
 func TestFileLock_UnlockWithoutLock(t *testing.T) {
