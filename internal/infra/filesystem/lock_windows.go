@@ -13,9 +13,11 @@ var (
 	procUnlockFileEx = kernel32.NewProc("UnlockFileEx")
 )
 
+// Windows constants for LockFileEx.
 const (
-	LOCKFILE_EXCLUSIVE_LOCK   = 0x00000002
-	LOCKFILE_FAIL_IMMEDIATELY = 0x00000001
+	lockFileExclusiveLock   = 0x00000002
+	lockFileFailImmediately = 0x00000001
+	maxDWORD                = 0xFFFFFFFF
 )
 
 // acquireLockPlatform acquires an exclusive lock using LockFileEx (Windows).
@@ -25,17 +27,18 @@ func (fl *FileLock) acquireLockPlatform() error {
 	var overlapped syscall.Overlapped
 
 	ret, _, err := procLockFileEx.Call(
-		uintptr(handle),
-		uintptr(LOCKFILE_EXCLUSIVE_LOCK),
+		handle,
+		uintptr(lockFileExclusiveLock),
 		uintptr(0),
-		uintptr(0xFFFFFFFF),
-		uintptr(0xFFFFFFFF),
+		uintptr(maxDWORD),
+		uintptr(maxDWORD),
 		uintptr(unsafe.Pointer(&overlapped)),
 	)
 
 	if ret == 0 {
 		return err
 	}
+
 	return nil
 }
 
@@ -46,15 +49,16 @@ func (fl *FileLock) releaseLockPlatform() error {
 	var overlapped syscall.Overlapped
 
 	ret, _, err := procUnlockFileEx.Call(
-		uintptr(handle),
+		handle,
 		uintptr(0),
-		uintptr(0xFFFFFFFF),
-		uintptr(0xFFFFFFFF),
+		uintptr(maxDWORD),
+		uintptr(maxDWORD),
 		uintptr(unsafe.Pointer(&overlapped)),
 	)
 
 	if ret == 0 {
 		return err
 	}
+
 	return nil
 }
