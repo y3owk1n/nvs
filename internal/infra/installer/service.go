@@ -174,6 +174,12 @@ func (s *Service) InstallRelease(
 
 	err = s.extractor.Extract(tempFile, installPath)
 	if err != nil {
+		// Clean up partial installation directory on failure
+		cleanupErr := os.RemoveAll(installPath)
+		if cleanupErr != nil {
+			logrus.Warnf("Failed to clean up partial install directory: %v", cleanupErr)
+		}
+
 		return fmt.Errorf("extraction failed: %w", err)
 	}
 
