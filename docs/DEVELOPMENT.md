@@ -13,6 +13,7 @@ Technical reference for developing and maintaining **nvs**.
 - [Building](#building)
 - [CI/CD](#cicd)
 - [Debugging](#debugging)
+- [Concurrency and Locking](#concurrency-and-locking)
 - [Release Process](#release-process)
 
 ---
@@ -368,6 +369,84 @@ go tool pprof cpu.prof
 # Memory profile
 go test -memprofile=mem.prof -bench=.
 go tool pprof mem.prof
+```
+
+---
+
+## Concurrency and Locking
+
+**nvs** uses file-based locking to ensure thread-safe and process-safe concurrent operations on version storage.
+
+### Why File Locking?
+
+Multiple `nvs` processes may run concurrently (e.g., parallel installs, simultaneous `use` and `uninstall` operations). Without coordination, race conditions can corrupt:
+- Symlinks (concurrent `Switch` operations)
+- Version directories (concurrent `Install`/`Uninstall`)
+- Build artifacts (concurrent `BuildFromCommit`)
+
+### Lock Implementation
+
+Uses cross-platform advisory file locking:
+- **Unix**: `flock()` system call
+- **Windows**: `LockFileEx` API
+
+Lock files are **not deleted** after use to prevent inode reuse race conditions.
+
+### Lock Strategy
+
+**Per-version locking**: Each version has its own lock file:
+```
+{versions_dir}/.nvs-version-{version_name}.lock
+```
+
+This allows:
+- Concurrent operations on **different** versions
+- Exclusive access for operations on the **same** version
+
+### Protected Operations
+
+| Operation | Lock File | Purpose |
+|-----------|-----------|---------|
+| `Switch` | `.nvs-version-{version}.lock` | Prevent concurrent symlink updates |
+| `Install` | `.nvs-version-{version}.lock` | Prevent concurrent installs of same version |
+| `Uninstall` | `.nvs-version-{version}.lock` | Coordinate with Switch/Install |
+| `BuildFromCommit` | `.nvs-version-{commit}.lock` | Prevent concurrent builds of same commit |
+
+### Example Race Scenarios Prevented
+
+**Scenario 1: Switch + Uninstall**
+```
+Process A: nvs use v1.0.0    → acquires lock for v1.0.0
+Process B: nvs uninstall v1.0.0 → waits for lock
+Process A: updates symlinks → releases lock
+Process B: acquires lock → checks if current → removes directory
+```
+
+**Scenario 2: Concurrent Install**
+```
+Process A: nvs install v1.0.0 → acquires lock for v1.0.0
+Process B: nvs install v1.0.0 → waits for lock
+Process A: downloads/extracts → releases lock
+Process B: acquires lock → sees version already exists
+```
+
+### Timeout Behavior
+
+Default lock timeout: **30 seconds**
+
+If a lock cannot be acquired within the timeout, the operation fails with:
+```
+timeout waiting for file lock
+```
+
+### Debugging Lock Issues
+
+```bash
+# Check for stale lock files
+ls -la ~/.local/share/nvs/versions/.nvs-version-*.lock
+
+# Force remove (use with caution - may crash active process)
+rm ~/.local/share/nvs/versions/.nvs-version-v1.0.0.lock
 ```
 
 ---
