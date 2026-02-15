@@ -225,6 +225,8 @@ func InitConfig() error {
 
 	// Read GitHub mirror URL from environment
 	githubMirror := os.Getenv("NVS_GITHUB_MIRROR")
+
+	var normalizedMirrorURL string
 	if githubMirror != "" {
 		parsedURL, err := url.Parse(githubMirror)
 		if err != nil {
@@ -239,7 +241,8 @@ func InitConfig() error {
 			return errInvalidGitHubMirrorHost
 		}
 
-		logrus.Debugf("Using GitHub mirror: %s", githubMirror)
+		normalizedMirrorURL = parsedURL.String()
+		logrus.Debugf("Using GitHub mirror: %s", normalizedMirrorURL)
 	}
 
 	// Read global cache setting from environment
@@ -255,7 +258,7 @@ func InitConfig() error {
 		cacheFilePath,
 		constants.CacheTTL,
 		"0.5.0",
-		githubMirror,
+		normalizedMirrorURL,
 		useGlobalCache,
 	)
 	versionManager := filesystem.New(&filesystem.Config{
@@ -278,7 +281,7 @@ func InitConfig() error {
 			VersionsDir:    versionsDir,
 			CacheFilePath:  cacheFilePath,
 			GlobalBinDir:   globalBinDir,
-			MirrorURL:      githubMirror,
+			MirrorURL:      normalizedMirrorURL,
 			UseGlobalCache: useGlobalCache,
 		},
 	)
