@@ -20,6 +20,8 @@ import (
 	"github.com/y3owk1n/nvs/internal/domain/installer"
 )
 
+const toolCheckTimeout = 30 * time.Second
+
 // SourceBuilder builds Neovim from source code.
 type SourceBuilder struct {
 	execCommand ExecCommandFunc
@@ -297,8 +299,11 @@ func (b *SourceBuilder) checkRequiredTools(ctx context.Context) error {
 		checkCmd = "where"
 	}
 
+	checkCtx, cancel := context.WithTimeout(ctx, toolCheckTimeout)
+	defer cancel()
+
 	for _, tool := range requiredTools {
-		cmd := b.execCommand(ctx, checkCmd, tool)
+		cmd := b.execCommand(checkCtx, checkCmd, tool)
 
 		err := cmd.Run()
 		if err != nil {
