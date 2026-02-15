@@ -3,6 +3,7 @@
 package filesystem
 
 import (
+	"errors"
 	"os"
 	"syscall"
 	"unsafe"
@@ -19,6 +20,8 @@ const (
 	lockFileExclusiveLock   = 0x00000002
 	lockFileFailImmediately = 0x00000001
 	maxDWORD                = 0xFFFFFFFF
+	// ERROR_LOCK_VIOLATION = 33
+	errLockViolation = 33
 )
 
 // tryAcquireLock attempts to acquire an exclusive lock using LockFileEx (Windows) in non-blocking mode.
@@ -39,7 +42,8 @@ func tryAcquireLock(file *os.File) error {
 
 	if ret == 0 {
 		// Check if the error is ERROR_LOCK_VIOLATION (lock is busy)
-		if errno, ok := err.(syscall.Errno); ok && errno == 33 { // ERROR_LOCK_VIOLATION = 33
+		var errno syscall.Errno
+		if errors.As(err, &errno) && errno == errLockViolation {
 			return ErrLockBusy
 		}
 
