@@ -64,7 +64,14 @@ func (s *Service) InstallRelease(
 	lockPath := filepath.Join(dest, fmt.Sprintf(".nvs-version-%s.lock", installName))
 	lock := filesystem.NewFileLock(lockPath)
 
-	err = lock.LockWithDefaultTimeout()
+	// Use context-aware lock with extended timeout (10 minutes)
+	// This accommodates slow downloads while respecting caller cancellation
+	const installLockTimeout = 10 * time.Minute
+
+	installCtx, cancel := context.WithTimeout(ctx, installLockTimeout)
+	defer cancel()
+
+	err = lock.Lock(installCtx)
 	if err != nil {
 		return fmt.Errorf("failed to acquire install lock for %s: %w", installName, err)
 	}
