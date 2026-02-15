@@ -182,14 +182,14 @@ func (s *Service) upgradeReleaseInternal(
 	dest string,
 	installName string,
 	progress installer.ProgressFunc,
-) error {
+) (retErr error) {
 	versionPath := filepath.Join(dest, installName)
 	backupPath := versionPath + ".backup"
 
 	// Backup existing version
-	err := os.Rename(versionPath, backupPath)
-	if err != nil {
-		return fmt.Errorf("failed to backup version: %w", err)
+	retErr = os.Rename(versionPath, backupPath)
+	if retErr != nil {
+		return fmt.Errorf("failed to backup version: %w", retErr)
 	}
 
 	upgradeSuccess := false
@@ -222,10 +222,10 @@ func (s *Service) upgradeReleaseInternal(
 			}
 
 			// If upgrade failed and rollback also failed, wrap the original error
-			if rollbackErr != nil && err != nil {
-				err = fmt.Errorf(
+			if rollbackErr != nil && retErr != nil {
+				retErr = fmt.Errorf(
 					"%w (CRITICAL: rollback also failed: %w)",
-					err,
+					retErr,
 					rollbackErr,
 				)
 			}
@@ -233,9 +233,9 @@ func (s *Service) upgradeReleaseInternal(
 	}()
 
 	// Install new version (use internal method since lock is already held)
-	err = s.installReleaseInternal(ctx, release, dest, installName, progress)
-	if err != nil {
-		return fmt.Errorf("failed to install release: %w", err)
+	retErr = s.installReleaseInternal(ctx, release, dest, installName, progress)
+	if retErr != nil {
+		return fmt.Errorf("failed to install release: %w", retErr)
 	}
 
 	upgradeSuccess = true
