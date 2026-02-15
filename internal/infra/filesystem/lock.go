@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -15,6 +16,7 @@ import (
 type FileLock struct {
 	path string
 	file *os.File
+	mu   sync.Mutex
 }
 
 // NewFileLock creates a new file lock at the specified path.
@@ -28,16 +30,28 @@ var ErrLockTimeout = errors.New("timeout waiting for file lock")
 // ErrLockFailed is returned when lock acquisition fails.
 var ErrLockFailed = errors.New("failed to acquire file lock")
 
+// ErrLockHeld is returned when attempting to acquire a lock already held by the same process.
+var ErrLockHeld = errors.New("lock already held")
+
 const (
 	// defaultDirPerms are permissions for creating lock directory.
 	defaultDirPerms = 0o755
 	// defaultFilePerms are permissions for creating lock file.
 	defaultFilePerms = 0o644
+	// lockPollInterval is the interval between lock acquisition attempts.
+	lockPollInterval = 10 * time.Millisecond
 )
 
 // Lock attempts to acquire an exclusive lock with a timeout.
 // The lock is automatically released when the process exits or Unlock is called.
 func (fl *FileLock) Lock(ctx context.Context) error {
+	fl.mu.Lock()
+	defer fl.mu.Unlock()
+
+	if fl.file != nil {
+		return ErrLockHeld
+	}
+
 	// Create lock file directory if needed
 	dir := filepath.Dir(fl.path)
 
@@ -52,47 +66,50 @@ func (fl *FileLock) Lock(ctx context.Context) error {
 		return fmt.Errorf("failed to open lock file: %w", err)
 	}
 
-	fl.file = file
+	// Try to acquire lock with timeout using polling
+	ticker := time.NewTicker(lockPollInterval)
+	defer ticker.Stop()
 
-	// Try to acquire lock with timeout
-	done := make(chan error, 1)
-	go func() {
-		done <- fl.acquireLock()
-	}()
+	for {
+		err = tryAcquireLock(file)
+		if err == nil {
+			fl.file = file
 
-	select {
-	case err := <-done:
-		if err != nil {
-			closeErr := fl.file.Close()
+			return nil
+		}
+
+		if !errors.Is(err, ErrLockBusy) {
+			closeErr := file.Close()
 			if closeErr != nil {
-				logrus.Warnf("failed to close lock file after lock error: %v", closeErr)
+				logrus.Warnf("failed to close lock file: %v", closeErr)
 			}
-
-			fl.file = nil
 
 			return err
 		}
 
-		return nil
-	case <-ctx.Done():
-		// Close file descriptor to interrupt flock syscall
-		// This will cause the goroutine to return with an error
-		closeErr := fl.file.Close()
-		if closeErr != nil {
-			logrus.Warnf("failed to close lock file after timeout: %v", closeErr)
+		// Lock is busy, wait for ticker or context cancellation
+		select {
+		case <-ticker.C:
+			// Try again
+		case <-ctx.Done():
+			closeErr := file.Close()
+			if closeErr != nil {
+				logrus.Warnf("failed to close lock file: %v", closeErr)
+			}
+
+			return fmt.Errorf("%w: %w", ErrLockTimeout, ctx.Err())
 		}
-
-		// Wait for goroutine to finish
-		<-done
-
-		fl.file = nil
-
-		return fmt.Errorf("%w: %w", ErrLockTimeout, ctx.Err())
 	}
 }
 
+// ErrLockBusy indicates the lock is currently held by another process.
+var ErrLockBusy = errors.New("lock is busy")
+
 // Unlock releases the lock and closes the file.
 func (fl *FileLock) Unlock() error {
+	fl.mu.Lock()
+	defer fl.mu.Unlock()
+
 	if fl.file == nil {
 		return nil
 	}
@@ -100,7 +117,7 @@ func (fl *FileLock) Unlock() error {
 	var unlockErr, closeErr error
 
 	// Release the lock
-	unlockErr = fl.releaseLock()
+	unlockErr = releaseLock(fl.file)
 
 	// Close the file
 	closeErr = fl.file.Close()
@@ -149,16 +166,4 @@ func (fl *FileLock) LockWithDefaultTimeout() error {
 	defer cancel()
 
 	return fl.Lock(ctx)
-}
-
-// acquireLock performs the actual platform-specific lock acquisition.
-// This must be implemented in platform-specific files.
-func (fl *FileLock) acquireLock() error {
-	return fl.acquireLockPlatform()
-}
-
-// releaseLock performs the actual platform-specific lock release.
-// This must be implemented in platform-specific files.
-func (fl *FileLock) releaseLock() error {
-	return fl.releaseLockPlatform()
 }

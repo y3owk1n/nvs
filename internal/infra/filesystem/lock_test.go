@@ -6,6 +6,7 @@ import (
 	"errors"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -39,7 +40,7 @@ func TestFileLock_ConcurrentAccess(t *testing.T) {
 	lockPath := filepath.Join(tempDir, "test.lock")
 
 	var (
-		counter   int
+		counter   int32
 		waitGroup sync.WaitGroup
 	)
 
@@ -64,18 +65,14 @@ func TestFileLock_ConcurrentAccess(t *testing.T) {
 				}
 			}()
 
-			// Critical section: increment counter
-			current := counter
-
-			time.Sleep(10 * time.Millisecond) // Simulate some work
-
-			counter = current + 1
+			// Critical section: increment counter atomically
+			atomic.AddInt32(&counter, 1)
 		})
 	}
 
 	waitGroup.Wait()
 
-	if counter != numGoroutines {
+	if atomic.LoadInt32(&counter) != int32(numGoroutines) {
 		t.Errorf("Expected counter to be %d, got %d", numGoroutines, counter)
 	}
 }

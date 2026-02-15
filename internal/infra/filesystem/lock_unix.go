@@ -4,33 +4,26 @@ package filesystem
 
 import (
 	"errors"
+	"os"
 	"syscall"
-	"time"
 )
 
-// lockRetryInterval is the interval between lock acquisition attempts.
-const lockRetryInterval = 10 * time.Millisecond
-
-// acquireLockPlatform acquires an exclusive lock using flock (Unix) with non-blocking retry.
-func (fl *FileLock) acquireLockPlatform() error {
-	for {
-		// Try non-blocking lock acquisition
-		err := syscall.Flock(int(fl.file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
-		if err == nil {
-			return nil
-		}
-
-		// If error is not EWOULDBLOCK, return the error
-		if !errors.Is(err, syscall.EWOULDBLOCK) {
-			return err
-		}
-
-		// Lock is busy, wait a bit and retry
-		time.Sleep(lockRetryInterval)
+// tryAcquireLock attempts to acquire an exclusive lock using flock (Unix) in non-blocking mode.
+// Returns ErrLockBusy if the lock is already held.
+func tryAcquireLock(file *os.File) error {
+	err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+	if err == nil {
+		return nil
 	}
+
+	if errors.Is(err, syscall.EWOULDBLOCK) {
+		return ErrLockBusy
+	}
+
+	return err
 }
 
-// releaseLockPlatform releases the flock (Unix).
-func (fl *FileLock) releaseLockPlatform() error {
-	return syscall.Flock(int(fl.file.Fd()), syscall.LOCK_UN)
+// releaseLock releases the flock (Unix).
+func releaseLock(file *os.File) error {
+	return syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
 }

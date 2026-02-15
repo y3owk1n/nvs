@@ -3,6 +3,7 @@
 package filesystem
 
 import (
+	"os"
 	"syscall"
 	"unsafe"
 )
@@ -20,15 +21,16 @@ const (
 	maxDWORD                = 0xFFFFFFFF
 )
 
-// acquireLockPlatform acquires an exclusive lock using LockFileEx (Windows).
-func (fl *FileLock) acquireLockPlatform() error {
-	handle := fl.file.Fd()
+// tryAcquireLock attempts to acquire an exclusive lock using LockFileEx (Windows) in non-blocking mode.
+// Returns ErrLockBusy if the lock is already held.
+func tryAcquireLock(file *os.File) error {
+	handle := file.Fd()
 
 	var overlapped syscall.Overlapped
 
 	ret, _, err := procLockFileEx.Call(
 		handle,
-		uintptr(lockFileExclusiveLock),
+		uintptr(lockFileExclusiveLock|lockFileFailImmediately),
 		uintptr(0),
 		uintptr(maxDWORD),
 		uintptr(maxDWORD),
@@ -36,15 +38,20 @@ func (fl *FileLock) acquireLockPlatform() error {
 	)
 
 	if ret == 0 {
+		// Check if the error is ERROR_LOCK_VIOLATION (lock is busy)
+		if errno, ok := err.(syscall.Errno); ok && errno == 33 { // ERROR_LOCK_VIOLATION = 33
+			return ErrLockBusy
+		}
+
 		return err
 	}
 
 	return nil
 }
 
-// releaseLockPlatform releases the LockFileEx lock (Windows).
-func (fl *FileLock) releaseLockPlatform() error {
-	handle := fl.file.Fd()
+// releaseLock releases the LockFileEx lock (Windows).
+func releaseLock(file *os.File) error {
+	handle := file.Fd()
 
 	var overlapped syscall.Overlapped
 
