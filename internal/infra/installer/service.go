@@ -49,9 +49,11 @@ func (s *Service) InstallRelease(
 	progress installer.ProgressFunc,
 ) error {
 	// Fast path: check if already installed before acquiring lock
+	// Check for version.txt to ensure installation was complete
 	versionPath := filepath.Join(dest, installName)
+	versionFile := filepath.Join(versionPath, "version.txt")
 
-	_, err := os.Stat(versionPath)
+	_, err := os.Stat(versionFile)
 	if err == nil {
 		logrus.Debugf("Version %s already exists, skipping install", installName)
 
@@ -75,7 +77,8 @@ func (s *Service) InstallRelease(
 	}()
 
 	// Double-check after acquiring lock (another process may have installed it)
-	_, err = os.Stat(versionPath)
+	// Check for version.txt to ensure installation was complete
+	_, err = os.Stat(versionFile)
 	if err == nil {
 		logrus.Debugf("Version %s was installed by another process", installName)
 
@@ -168,7 +171,7 @@ func (s *Service) InstallRelease(
 	}
 
 	// 5. Write version file
-	versionFile := filepath.Join(installPath, "version.txt")
+	versionFile = filepath.Join(installPath, "version.txt")
 
 	err = os.WriteFile(versionFile, []byte(rel.GetIdentifier()), constants.FilePerm)
 	if err != nil {
@@ -191,9 +194,11 @@ func (s *Service) BuildFromCommit(
 	progress installer.ProgressFunc,
 ) (string, error) {
 	// Fast path: check if already built before acquiring lock
+	// Check for version.txt to ensure build was complete
 	versionPath := filepath.Join(dest, commit)
+	versionFile := filepath.Join(versionPath, "version.txt")
 
-	_, err := os.Stat(versionPath)
+	_, err := os.Stat(versionFile)
 	if err == nil {
 		logrus.Debugf("Version %s already exists, skipping build", commit)
 
@@ -225,7 +230,8 @@ func (s *Service) BuildFromCommit(
 	}()
 
 	// Double-check after acquiring lock (another process may have built it)
-	_, err = os.Stat(versionPath)
+	// Check for version.txt to ensure build was complete
+	_, err = os.Stat(versionFile)
 	if err == nil {
 		logrus.Debugf("Version %s was built by another process", commit)
 
