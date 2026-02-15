@@ -586,13 +586,15 @@ func runCommandWithSpinnerAndOutput(
 	// Run command and capture output concurrently
 	errChan := make(chan error, 1)
 
-	go func() {
-		errChan <- cmd.Run()
-	}()
-
 	// Read from both pipes concurrently
 	var waitGroup sync.WaitGroup
-	waitGroup.Add(constants.NumReaders)
+	waitGroup.Add(constants.NumReaders + 1)
+
+	go func() {
+		defer waitGroup.Done()
+
+		errChan <- cmd.Run()
+	}()
 
 	go func() {
 		defer waitGroup.Done()
