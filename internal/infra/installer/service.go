@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -201,18 +202,20 @@ func (s *Service) InstallRelease(
 // BuildFromCommit builds Neovim from source with per-version locking.
 // Uses the same per-version lock as Install, Switch, and Uninstall for coordination.
 //
-// Note: No fast-path check is performed here because the builder resolves the
-// commit to a short hash internally, making it difficult to check for existing
-// builds without performing git operations. The lock provides sufficient coordination.
+// The lock uses the resolved version name (short hash) to ensure consistency
+// with Switch/Uninstall operations, which use the directory name.
 func (s *Service) BuildFromCommit(
 	ctx context.Context,
 	commit string,
 	dest string,
 	progress installer.ProgressFunc,
 ) (string, error) {
-	// Acquire per-version lock to prevent concurrent operations on the same commit
-	// The commit hash becomes the version name
-	lockPath := filepath.Join(dest, fmt.Sprintf(".nvs-version-%s.lock", commit))
+	// Resolve the commit to a version name by scanning for matching entries
+	// This ensures the lock key matches what Switch/Uninstall will use
+	versionName := s.resolveCommitToVersionName(dest, commit)
+
+	// Acquire per-version lock using the resolved version name
+	lockPath := filepath.Join(dest, fmt.Sprintf(".nvs-version-%s.lock", versionName))
 	lock := filesystem.NewFileLock(lockPath)
 
 	// Use extended timeout for build operations (15 minutes)
@@ -224,15 +227,55 @@ func (s *Service) BuildFromCommit(
 
 	err := lock.Lock(buildCtx)
 	if err != nil {
-		return "", fmt.Errorf("failed to acquire build lock for commit %s: %w", commit, err)
+		return "", fmt.Errorf("failed to acquire build lock for %s: %w", versionName, err)
 	}
 
 	defer func() {
 		unlockErr := lock.Unlock()
 		if unlockErr != nil {
-			logrus.Warnf("failed to unlock build lock for commit %s: %v", commit, unlockErr)
+			logrus.Warnf("failed to unlock build lock for %s: %v", versionName, unlockErr)
 		}
 	}()
 
 	return s.builder.BuildFromCommit(ctx, commit, dest, progress)
+}
+
+// resolveCommitToVersionName finds an existing version directory that matches the commit.
+// It scans the dest directory for entries where version.txt contains the commit string.
+func (s *Service) resolveCommitToVersionName(dest, commit string) string {
+	// First, try using the commit as-is (for short hashes or already-resolved names)
+	entries, err := os.ReadDir(dest)
+	if err != nil {
+		return commit
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+		// Skip special directories
+		if name == "current" || name == "nightly" || strings.HasPrefix(name, ".") {
+			continue
+		}
+
+		// Check if version.txt contains the commit
+		versionFile := filepath.Join(dest, name, "version.txt")
+
+		data, err := os.ReadFile(versionFile)
+		if err != nil {
+			continue
+		}
+
+		// Check if this version matches the commit (full or partial hash)
+		storedCommit := strings.TrimSpace(string(data))
+		if strings.HasPrefix(storedCommit, commit) || strings.HasPrefix(commit, storedCommit) {
+			return name
+		}
+	}
+
+	// If no match found, return the original commit
+	// The builder will resolve it to a short hash
+	return commit
 }
