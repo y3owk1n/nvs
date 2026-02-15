@@ -54,17 +54,17 @@ var (
 //	    }
 //	}
 func Execute() error {
-	// Initialize configuration before running any commands.
-	err := InitConfig()
-	if err != nil {
-		return err
-	}
-
 	// Set a persistent flag for verbose logging.
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
 
+	// Use PersistentPreRunE to ensure flags are parsed before InitConfig runs,
+	// and errors are propagated properly through cobra's error handling.
+	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		return InitConfig()
+	}
+
 	// Execute the root command with the global context.
-	err = rootCmd.ExecuteContext(ctx)
+	err := rootCmd.ExecuteContext(ctx)
 	if err != nil {
 		return err
 	}
