@@ -170,6 +170,12 @@ func (s *Service) InstallRelease(
 	// Reset file position for extraction
 	_, err = tempFile.Seek(0, io.SeekStart)
 	if err != nil {
+		// Clean up the created directory on seek failure
+		cleanupErr := os.RemoveAll(installPath)
+		if cleanupErr != nil {
+			logrus.Warnf("Failed to clean up directory after seek failure: %v", cleanupErr)
+		}
+
 		return fmt.Errorf("failed to seek temp file: %w", err)
 	}
 
