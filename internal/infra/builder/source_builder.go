@@ -312,9 +312,10 @@ func (b *SourceBuilder) checkRequiredTools(ctx context.Context) error {
 			}
 
 			return fmt.Errorf(
-				"%w: %s is not installed or not in PATH",
+				"%w: %s is not installed or not in PATH: %w",
 				ErrBuildRequirementsNotMet,
 				tool,
+				err,
 			)
 		}
 	}
