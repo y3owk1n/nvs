@@ -377,7 +377,8 @@ func (s *Service) resolveCommitToVersionName(dest, commit string) string {
 		}
 
 		storedCommit := strings.TrimSpace(string(data))
-		if strings.HasPrefix(storedCommit, commit) || strings.HasPrefix(commit, storedCommit) {
+		// Match if stored commit starts with user input (handles short hash -> full hash)
+		if strings.HasPrefix(storedCommit, commit) {
 			return name
 		}
 	}
