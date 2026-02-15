@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.13.0](https://github.com/y3owk1n/nvs/compare/v1.12.1...v1.13.0) (2026-02-15)
+
+
+### Features
+
+* bump golang and deps with tablewrite API changes ([#194](https://github.com/y3owk1n/nvs/issues/194)) ([b444f9a](https://github.com/y3owk1n/nvs/commit/b444f9a8bf887c7481f3164b14ea99b1f76bcb7b))
+* **downloader:** add streaming checksum verification ([#207](https://github.com/y3owk1n/nvs/issues/207)) ([1a753a9](https://github.com/y3owk1n/nvs/commit/1a753a9fa632b0e11ee1263605f6b5ce245429e0))
+* **filesystem:** add file-based locking for concurrent operations ([#211](https://github.com/y3owk1n/nvs/issues/211)) ([57443b0](https://github.com/y3owk1n/nvs/commit/57443b0065b17c2480cb0fc70d63a8908fef471d))
+
+
+### Bug Fixes
+
+* add host validation for GitHub mirror URL ([#215](https://github.com/y3owk1n/nvs/issues/215)) ([62878b3](https://github.com/y3owk1n/nvs/commit/62878b388ec0b56af0fd4e829ae7109244b124cd))
+* allow deferred functions to execute on interrupt ([#210](https://github.com/y3owk1n/nvs/issues/210)) ([61818e6](https://github.com/y3owk1n/nvs/commit/61818e692143f142da54889afc584ead56902978))
+* **archive:** preserve io.Copy errors when close also fails ([#203](https://github.com/y3owk1n/nvs/issues/203)) ([4942022](https://github.com/y3owk1n/nvs/commit/4942022c71e09ca199712e4b0e0cf1453f24fedf))
+* **builder:** add context timeout to checkRequiredTools ([#212](https://github.com/y3owk1n/nvs/issues/212)) ([f4e6207](https://github.com/y3owk1n/nvs/commit/f4e62079d74c49a8d150579cbb23efdabc3246cd))
+* **builder:** add WaitGroup tracking to prevent goroutine leak ([#213](https://github.com/y3owk1n/nvs/issues/213)) ([5f9ef03](https://github.com/y3owk1n/nvs/commit/5f9ef039ad362e90266eab3e65984f7431899e7f))
+* **builder:** use unique build ID to prevent concurrent directory conflicts ([#202](https://github.com/y3owk1n/nvs/issues/202)) ([653692b](https://github.com/y3owk1n/nvs/commit/653692b6144353d4724467e58cc2ced429ec1580))
+* **downloader:** improves observability of close errors ([#200](https://github.com/y3owk1n/nvs/issues/200)) ([9de095a](https://github.com/y3owk1n/nvs/commit/9de095a9749bc5a39963b6c54b39fb25bcfc157a))
+* propagate context cancellation to build commands ([#204](https://github.com/y3owk1n/nvs/issues/204)) ([64d964c](https://github.com/y3owk1n/nvs/commit/64d964c03ccff5570def3e40fa9e9a2964972ace))
+* return error from InitConfig instead of using panic ([#214](https://github.com/y3owk1n/nvs/issues/214)) ([7950708](https://github.com/y3owk1n/nvs/commit/79507086e98fc14866bdeff78faaf33a6a68089a))
+* **symlink:** capture stderr from Windows mklink fallback ([#209](https://github.com/y3owk1n/nvs/issues/209)) ([353bc6e](https://github.com/y3owk1n/nvs/commit/353bc6eca69790672a8ae05e1682e40e0c7222e5))
+* **use:** improve error handling when activation fails after auto-install ([#198](https://github.com/y3owk1n/nvs/issues/198)) ([0a414b1](https://github.com/y3owk1n/nvs/commit/0a414b18c08643c4b1ed7e441af870c69eeb6117))
+* **utils:** handle broken symlinks and add Windows compatibility ([#201](https://github.com/y3owk1n/nvs/issues/201)) ([6c1de2b](https://github.com/y3owk1n/nvs/commit/6c1de2b58fd0435ae8cad169137d919168147cd9))
+* **version:** report rollback failures during upgrade ([#199](https://github.com/y3owk1n/nvs/issues/199)) ([889926d](https://github.com/y3owk1n/nvs/commit/889926de98c36340e4215ad91e8a4ba308020f30))
+
 ## [1.12.1](https://github.com/y3owk1n/nvs/compare/v1.12.0...v1.12.1) (2025-12-13)
 
 
