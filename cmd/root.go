@@ -241,7 +241,7 @@ func InitConfig() error {
 			return errInvalidGitHubMirrorHost
 		}
 
-		normalizedMirrorURL = parsedURL.String()
+		normalizedMirrorURL = strings.TrimRight(parsedURL.String(), "/")
 		logrus.Debugf("Using GitHub mirror: %s", normalizedMirrorURL)
 	}
 
