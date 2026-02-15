@@ -586,7 +586,7 @@ func runCommandWithSpinnerAndOutput(
 	// Run command and capture output concurrently
 	errChan := make(chan error, 1)
 
-	// Read from both pipes concurrently
+	// Wait for all goroutines to complete
 	var waitGroup sync.WaitGroup
 	waitGroup.Add(constants.NumReaders + 1)
 
@@ -596,6 +596,7 @@ func runCommandWithSpinnerAndOutput(
 		errChan <- cmd.Run()
 	}()
 
+	// Read from both pipes concurrently
 	go func() {
 		defer waitGroup.Done()
 
