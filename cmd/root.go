@@ -44,7 +44,10 @@ var (
 
 	// errInvalidGitHubMirror is returned when the GitHub mirror URL is invalid.
 	errInvalidGitHubMirror = errors.New(
-		"invalid GitHub mirror URL: must start with http:// or https://",
+		"invalid GitHub mirror URL: must be a valid absolute URL with http:// or https://",
+	)
+	errInvalidGitHubMirrorHost = errors.New(
+		"invalid GitHub mirror URL: must include a valid host",
 	)
 
 	// Version of nvs, defaults to "v0.0.0" but may be set during build time.
@@ -223,13 +226,17 @@ func InitConfig() error {
 	// Read GitHub mirror URL from environment
 	githubMirror := os.Getenv("NVS_GITHUB_MIRROR")
 	if githubMirror != "" {
-		u, err := url.Parse(githubMirror)
+		parsedURL, err := url.Parse(githubMirror)
 		if err != nil {
 			return fmt.Errorf("failed to parse GitHub mirror URL: %w", err)
 		}
 
-		if u.Scheme != "http" && u.Scheme != "https" {
+		if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
 			return errInvalidGitHubMirror
+		}
+
+		if parsedURL.Host == "" {
+			return errInvalidGitHubMirrorHost
 		}
 
 		logrus.Debugf("Using GitHub mirror: %s", githubMirror)
