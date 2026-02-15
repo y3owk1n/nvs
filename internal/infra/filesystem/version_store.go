@@ -25,7 +25,6 @@ type VersionStore struct {
 type Config struct {
 	VersionsDir  string
 	GlobalBinDir string
-	LockFilePath string
 }
 
 // New creates a new VersionStore.
