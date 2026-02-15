@@ -126,13 +126,55 @@ func (s *VersionStore) Current() (domainversion.Version, error) {
 	return domainversion.New(targetName, vType, targetName, commitHash), nil
 }
 
-// Switch activates a specific version.
+// Switch activates a specific version with exclusive file locking.
+// Uses two-level locking:
+// 1. Per-version lock - coordinates with Install/Uninstall of the same version
+// 2. Global switch lock - protects shared symlinks (current + global nvim binary).
 func (s *VersionStore) Switch(version domainversion.Version) error {
+	// 1. Acquire per-version lock to coordinate with Install/Uninstall of same version
+	versionLockPath := filepath.Join(
+		s.config.VersionsDir,
+		fmt.Sprintf(".nvs-version-%s.lock", version.Name()),
+	)
+	versionLock := NewFileLock(versionLockPath)
+
+	err := versionLock.LockWithDefaultTimeout()
+	if err != nil {
+		return fmt.Errorf("failed to acquire version lock for %s: %w", version.Name(), err)
+	}
+
+	// 2. Acquire global switch lock to protect shared symlinks
+	switchLockPath := filepath.Join(s.config.VersionsDir, ".nvs-switch.lock")
+	switchLock := NewFileLock(switchLockPath)
+
+	err = switchLock.LockWithDefaultTimeout()
+	if err != nil {
+		unlockErr := versionLock.Unlock()
+		if unlockErr != nil {
+			logrus.Warnf("failed to unlock version lock: %v", unlockErr)
+		}
+
+		return fmt.Errorf("failed to acquire switch lock: %w", err)
+	}
+
+	// Release locks in reverse order when done
+	defer func() {
+		unlockErr := switchLock.Unlock()
+		if unlockErr != nil {
+			logrus.Warnf("failed to unlock switch lock: %v", unlockErr)
+		}
+
+		unlockErr = versionLock.Unlock()
+		if unlockErr != nil {
+			logrus.Warnf("failed to unlock version lock for %s: %v", version.Name(), unlockErr)
+		}
+	}()
+
 	versionPath := filepath.Join(s.config.VersionsDir, version.Name())
 	currentLink := filepath.Join(s.config.VersionsDir, "current")
 
 	// Update current symlink
-	err := updateSymlink(versionPath, currentLink, true)
+	err = updateSymlink(versionPath, currentLink, true)
 	if err != nil {
 		return fmt.Errorf("failed to update current symlink: %w", err)
 	}
@@ -175,8 +217,28 @@ func (s *VersionStore) IsInstalled(v domainversion.Version) bool {
 	return err == nil
 }
 
-// Uninstall removes an installed version.
+// Uninstall removes an installed version with per-version locking.
+// Uses the same per-version lock as Switch and Install for coordination.
 func (s *VersionStore) Uninstall(version domainversion.Version, force bool) error {
+	// Acquire per-version lock to prevent races with Switch or Install of the same version
+	lockPath := filepath.Join(
+		s.config.VersionsDir,
+		fmt.Sprintf(".nvs-version-%s.lock", version.Name()),
+	)
+	lock := NewFileLock(lockPath)
+
+	err := lock.LockWithDefaultTimeout()
+	if err != nil {
+		return fmt.Errorf("failed to acquire uninstall lock for %s: %w", version.Name(), err)
+	}
+
+	defer func() {
+		unlockErr := lock.Unlock()
+		if unlockErr != nil {
+			logrus.Warnf("failed to unlock uninstall lock for %s: %v", version.Name(), unlockErr)
+		}
+	}()
+
 	// Check if version is current
 	if !force {
 		current, err := s.Current()
@@ -187,7 +249,7 @@ func (s *VersionStore) Uninstall(version domainversion.Version, force bool) erro
 
 	versionPath := filepath.Join(s.config.VersionsDir, version.Name())
 
-	err := os.RemoveAll(versionPath)
+	err = os.RemoveAll(versionPath)
 	if err != nil {
 		return fmt.Errorf("failed to remove version directory: %w", err)
 	}

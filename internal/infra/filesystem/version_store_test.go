@@ -4,7 +4,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/y3owk1n/nvs/internal/domain/version"
 	filesystem "github.com/y3owk1n/nvs/internal/infra/filesystem"
@@ -300,5 +302,136 @@ func TestVersionStore_GetInstalledReleaseIdentifier_NotFound(t *testing.T) {
 	_, err := store.GetInstalledReleaseIdentifier("nonexistent")
 	if err == nil {
 		t.Error("Expected error when version.txt doesn't exist")
+	}
+}
+
+func TestVersionStore_Switch_Concurrent(t *testing.T) {
+	if runtime.GOOS == windowsOS {
+		t.Skip("Skipping symlink test on Windows")
+	}
+
+	tempDir := t.TempDir()
+	binDir := t.TempDir()
+
+	store := filesystem.New(&filesystem.Config{
+		VersionsDir:  tempDir,
+		GlobalBinDir: binDir,
+	})
+
+	// Create two version directories
+	versions := []string{"v1.0.0", "v1.1.0"}
+	for _, v := range versions {
+		versionDir := filepath.Join(tempDir, v)
+
+		err := os.MkdirAll(versionDir, 0o755)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		nvimPath := filepath.Join(versionDir, "nvim")
+
+		err = os.WriteFile(nvimPath, []byte("#!/bin/bash\necho nvim"), 0o755)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Concurrently switch between versions
+	var waitGroup sync.WaitGroup
+
+	numSwitches := 10
+
+	for switchIndex := range numSwitches {
+		waitGroup.Add(1)
+
+		go func(index int) {
+			defer waitGroup.Done()
+
+			versionName := versions[index%2]
+			v := version.New(versionName, version.TypeTag, versionName, "")
+
+			// Small delay to increase chance of race conditions
+			time.Sleep(time.Duration(index) * time.Millisecond)
+
+			err := store.Switch(v)
+			if err != nil {
+				t.Errorf("Switch failed: %v", err)
+			}
+		}(switchIndex)
+	}
+
+	waitGroup.Wait()
+
+	// Verify that current symlink exists and points to one of the versions
+	currentLink := filepath.Join(tempDir, "current")
+
+	target, err := os.Readlink(currentLink)
+	if err != nil {
+		t.Fatalf("Failed to read current symlink after concurrent switches: %v", err)
+	}
+
+	validTarget := false
+	for _, v := range versions {
+		expectedTarget := filepath.Join(tempDir, v)
+		if target == expectedTarget {
+			validTarget = true
+
+			break
+		}
+	}
+
+	if !validTarget {
+		t.Errorf("Current symlink points to unexpected target: %s", target)
+	}
+}
+
+func TestVersionStore_Uninstall_Concurrent(t *testing.T) {
+	tempDir := t.TempDir()
+	binDir := t.TempDir()
+
+	store := filesystem.New(&filesystem.Config{
+		VersionsDir:  tempDir,
+		GlobalBinDir: binDir,
+	})
+
+	// Create multiple version directories
+	versions := []string{"v1.0.0", "v1.1.0", "v1.2.0"}
+	for _, v := range versions {
+		versionDir := filepath.Join(tempDir, v)
+
+		err := os.MkdirAll(versionDir, 0o755)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Concurrently uninstall different versions
+	var waitGroup sync.WaitGroup
+
+	for _, versionName := range versions {
+		waitGroup.Add(1)
+
+		go func(name string) {
+			defer waitGroup.Done()
+
+			v := version.New(name, version.TypeTag, name, "")
+
+			err := store.Uninstall(v, true)
+			if err != nil {
+				t.Errorf("Uninstall failed for %s: %v", name, err)
+			}
+		}(versionName)
+	}
+
+	waitGroup.Wait()
+
+	// Verify all directories are removed
+	for _, v := range versions {
+		versionDir := filepath.Join(tempDir, v)
+
+		_, err := os.Stat(versionDir)
+		if err == nil {
+			t.Errorf("Version directory %s should have been removed", v)
+		}
 	}
 }

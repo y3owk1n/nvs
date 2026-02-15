@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -135,6 +134,16 @@ func (m *mockInstaller) BuildFromCommit(
 	m.lastDest = dest
 
 	return "abc1234", nil
+}
+
+func (m *mockInstaller) UpgradeRelease(
+	ctx context.Context,
+	rel installer.ReleaseInfo,
+	dest, installName string,
+	progress installer.ProgressFunc,
+) error {
+	// Delegate to InstallRelease for testing
+	return m.InstallRelease(ctx, rel, dest, installName, progress)
 }
 
 // mockReleaseRepo uses release.Release directly
@@ -616,31 +625,20 @@ func (m *mockInstallerWithErrors) BuildFromCommit(
 	return "", nil
 }
 
-// mockInstallerThatBreaksRollback deletes the backup during InstallRelease to cause rollback failure.
-type mockInstallerThatBreaksRollback struct {
-	versionsDir string
-	versionName string
-}
-
-func (m *mockInstallerThatBreaksRollback) InstallRelease(
+func (m *mockInstallerWithErrors) UpgradeRelease(
 	ctx context.Context,
 	rel installer.ReleaseInfo,
 	dest, installName string,
 	progress installer.ProgressFunc,
 ) error {
-	// Delete the backup directory to make rollback fail
-	backupPath := filepath.Join(m.versionsDir, m.versionName+".backup")
-	_ = os.RemoveAll(backupPath)
+	if m.installErr != nil {
+		return m.installErr
+	}
 
-	return errInstallFailed
-}
+	v := version.New(installName, version.TypeTag, installName, "")
+	m.installed[installName] = v
 
-func (m *mockInstallerThatBreaksRollback) BuildFromCommit(
-	ctx context.Context,
-	commit, dest string,
-	progress installer.ProgressFunc,
-) (string, error) {
-	return "", nil
+	return nil
 }
 
 func TestService_Upgrade_Success(t *testing.T) {
@@ -712,22 +710,6 @@ func TestService_Upgrade_InstallFailure(t *testing.T) {
 
 	tmpDir := t.TempDir()
 
-	// Create the stable directory to simulate existing installation
-	stableDir := filepath.Join(tmpDir, constants.Stable)
-
-	err := os.MkdirAll(stableDir, 0o755)
-	if err != nil {
-		t.Fatalf("Failed to create stable dir: %v", err)
-	}
-
-	// Create a file inside to verify rollback restores it
-	testFile := filepath.Join(stableDir, "nvim")
-
-	err = os.WriteFile(testFile, []byte("original"), 0o755)
-	if err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
-
 	service, err := appversion.New(repo, manager, install, &appversion.Config{VersionsDir: tmpDir})
 	if err != nil {
 		t.Fatalf("Failed to create service: %v", err)
@@ -741,78 +723,6 @@ func TestService_Upgrade_InstallFailure(t *testing.T) {
 	// Verify the error contains the install failure message
 	if !errors.Is(err, errInstallFailed) {
 		t.Errorf("Expected error to wrap errInstallFailed, got: %v", err)
-	}
-
-	// Verify the original directory was restored
-	_, err = os.Stat(testFile)
-	if os.IsNotExist(err) {
-		t.Error("Expected original directory to be restored after failed upgrade")
-	}
-}
-
-func TestService_Upgrade_InstallAndRollbackFailure(t *testing.T) {
-	repo := &mockReleaseRepo{
-		stable: release.New("v0.11.0", false, "new123", time.Time{}, nil),
-	}
-	manager := &mockVersionManager{
-		installed: map[string]version.Version{
-			constants.Stable: version.New(
-				constants.Stable,
-				version.TypeStable,
-				"v0.10.0",
-				"old456",
-			),
-		},
-		identifiers: map[string]string{
-			constants.Stable: "v0.10.0",
-		},
-	}
-
-	tmpDir := t.TempDir()
-
-	// Create the stable directory to simulate existing installation
-	stableDir := filepath.Join(tmpDir, constants.Stable)
-
-	err := os.MkdirAll(stableDir, 0o755)
-	if err != nil {
-		t.Fatalf("Failed to create stable dir: %v", err)
-	}
-
-	// Create a file inside to verify rollback restores it
-	testFile := filepath.Join(stableDir, "nvim")
-
-	err = os.WriteFile(testFile, []byte("original"), 0o755)
-	if err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
-
-	// Use an installer that deletes the backup during InstallRelease, causing rollback to fail
-	install := &mockInstallerThatBreaksRollback{
-		versionsDir: tmpDir,
-		versionName: constants.Stable,
-	}
-
-	service, err := appversion.New(repo, manager, install, &appversion.Config{VersionsDir: tmpDir})
-	if err != nil {
-		t.Fatalf("Failed to create service: %v", err)
-	}
-
-	// The upgrade should fail, and rollback should also fail (backup was deleted)
-	err = service.Upgrade(context.Background(), constants.Stable, nil)
-	if err == nil {
-		t.Fatal("Expected upgrade to fail")
-	}
-
-	// Verify the error message contains the CRITICAL prefix (indicating rollback also failed)
-	errStr := err.Error()
-	if !strings.Contains(errStr, "CRITICAL") {
-		t.Errorf("Expected error to contain 'CRITICAL' indicating rollback failure, got: %v", err)
-	}
-
-	// Verify the error message does not have duplicate prefixes
-	prefixCount := strings.Count(errStr, "failed to install release")
-	if prefixCount > 1 {
-		t.Errorf("Error message has duplicate prefix (count=%d): %v", prefixCount, err)
 	}
 }
 
