@@ -125,7 +125,7 @@ else
 
     # Allow Go to use any available toolchain
     preBuild = ''
-      export GOTOOLCHAIN=local
+      export GOTOOLCHAIN=auto
     '';
 
     postInstall = ''
