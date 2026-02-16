@@ -12,6 +12,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/renderer"
 	"github.com/olekukonko/tablewriter/tw"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -150,10 +151,10 @@ func RunEnv(cmd *cobra.Command, _ []string) error {
 
 	// Create a table to display the configuration variables.
 	table := tablewriter.NewTable(os.Stdout,
-		tablewriter.WithRendition(tw.Rendition{
+		tablewriter.WithRenderer(renderer.NewBlueprint(tw.Rendition{
 			Borders:  tw.BorderNone,
 			Settings: tw.Settings{Separators: tw.Separators{BetweenRows: tw.Off}},
-		}),
+		})),
 		tablewriter.WithConfig(tablewriter.Config{
 			Header: tw.CellConfig{
 				Alignment: tw.CellAlignment{Global: tw.AlignLeft},
