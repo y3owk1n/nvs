@@ -12,7 +12,7 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	appversion "github.com/y3owk1n/nvs/internal/app/version"
+	"github.com/y3owk1n/nvs/internal/app/versionsvc"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
@@ -171,7 +171,7 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			progressSpinner.Stop()
 
-			if errors.Is(err, appversion.ErrNotInstalled) {
+			if errors.Is(err, versionsvc.ErrNotInstalled) {
 				logrus.Debugf("'%s' is not installed. Skipping upgrade.", alias)
 
 				_, printErr := fmt.Fprintf(os.Stdout,
@@ -187,7 +187,7 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 				continue
 			}
 
-			if errors.Is(err, appversion.ErrAlreadyUpToDate) {
+			if errors.Is(err, versionsvc.ErrAlreadyUpToDate) {
 				logrus.Debugf("%s is already up-to-date", alias)
 
 				_, printErr := fmt.Fprintf(os.Stdout,

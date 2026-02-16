@@ -14,44 +14,44 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/cmd"
-	appversion "github.com/y3owk1n/nvs/internal/app/version"
+	"github.com/y3owk1n/nvs/internal/app/versionsvc"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/installer"
 	"github.com/y3owk1n/nvs/internal/domain/release"
-	"github.com/y3owk1n/nvs/internal/domain/version"
+	"github.com/y3owk1n/nvs/internal/domain/vtypes"
 )
 
-// mockVersionManagerForIntegration implements version.Manager for integration testing.
+// mockVersionManagerForIntegration implements vtypes.Manager for integration testing.
 type mockVersionManagerForIntegration struct {
 	installed map[string]bool
-	current   version.Version
+	current   vtypes.Version
 }
 
-func (m *mockVersionManagerForIntegration) List() ([]version.Version, error) {
-	versions := make([]version.Version, 0, len(m.installed))
+func (m *mockVersionManagerForIntegration) List() ([]vtypes.Version, error) {
+	versions := make([]vtypes.Version, 0, len(m.installed))
 	for name := range m.installed {
-		v := version.New(name, version.TypeTag, name, "")
+		v := vtypes.New(name, vtypes.TypeTag, name, "")
 		versions = append(versions, v)
 	}
 
 	return versions, nil
 }
 
-func (m *mockVersionManagerForIntegration) Current() (version.Version, error) {
+func (m *mockVersionManagerForIntegration) Current() (vtypes.Version, error) {
 	return m.current, nil
 }
 
-func (m *mockVersionManagerForIntegration) Switch(v version.Version) error {
+func (m *mockVersionManagerForIntegration) Switch(v vtypes.Version) error {
 	m.current = v
 
 	return nil
 }
 
-func (m *mockVersionManagerForIntegration) IsInstalled(v version.Version) bool {
+func (m *mockVersionManagerForIntegration) IsInstalled(v vtypes.Version) bool {
 	return m.installed[v.Name()]
 }
 
-func (m *mockVersionManagerForIntegration) Uninstall(v version.Version, force bool) error {
+func (m *mockVersionManagerForIntegration) Uninstall(v vtypes.Version, force bool) error {
 	delete(m.installed, v.Name())
 
 	return nil
@@ -508,7 +508,7 @@ func TestRunUse_InstallAndSwitch(t *testing.T) {
 	// Create mocked services for testing without network dependency
 	mockManager := &mockVersionManagerForIntegration{
 		installed: sharedInstalled,
-		current:   version.Version{},
+		current:   vtypes.Version{},
 	}
 	mockInstaller := &mockInstallerForIntegration{
 		installed: sharedInstalled,
@@ -546,11 +546,11 @@ func TestRunUse_InstallAndSwitch(t *testing.T) {
 	}
 
 	// Create service with mocks
-	mockService, err := appversion.New(
+	mockService, err := versionsvc.New(
 		mockReleaseRepo,
 		mockManager,
 		mockInstaller,
-		&appversion.Config{
+		&versionsvc.Config{
 			VersionsDir:   tempDir,
 			CacheFilePath: filepath.Join(tempDir, "cache.json"),
 			GlobalBinDir:  tempDir,
@@ -762,7 +762,7 @@ func TestRunListRemote(t *testing.T) {
 	// Create mocked services
 	mockManager := &mockVersionManagerForIntegration{
 		installed: make(map[string]bool),
-		current:   version.Version{},
+		current:   vtypes.Version{},
 	}
 	mockInstaller := &mockInstallerForIntegration{
 		installed: make(map[string]bool),
@@ -778,11 +778,11 @@ func TestRunListRemote(t *testing.T) {
 		},
 	}
 
-	mockService, err := appversion.New(
+	mockService, err := versionsvc.New(
 		mockReleaseRepo,
 		mockManager,
 		mockInstaller,
-		&appversion.Config{
+		&versionsvc.Config{
 			VersionsDir:   tempDir,
 			CacheFilePath: filepath.Join(tempDir, "cache.json"),
 			GlobalBinDir:  tempDir,
@@ -818,7 +818,7 @@ func TestRunListRemote_Force(t *testing.T) {
 
 	mockManager := &mockVersionManagerForIntegration{
 		installed: make(map[string]bool),
-		current:   version.Version{},
+		current:   vtypes.Version{},
 	}
 	mockInstaller := &mockInstallerForIntegration{
 		installed: make(map[string]bool),
@@ -832,11 +832,11 @@ func TestRunListRemote_Force(t *testing.T) {
 		},
 	}
 
-	mockService, err := appversion.New(
+	mockService, err := versionsvc.New(
 		mockReleaseRepo,
 		mockManager,
 		mockInstaller,
-		&appversion.Config{
+		&versionsvc.Config{
 			VersionsDir:   tempDir,
 			CacheFilePath: filepath.Join(tempDir, "cache.json"),
 			GlobalBinDir:  tempDir,
@@ -880,7 +880,7 @@ func TestRunListRemote_WithInstalledVersions(t *testing.T) {
 	// Mark stable as installed
 	mockManager := &mockVersionManagerForIntegration{
 		installed: map[string]bool{"stable": true},
-		current:   version.New("stable", version.TypeTag, "stable", ""),
+		current:   vtypes.New("stable", vtypes.TypeTag, "stable", ""),
 	}
 	mockInstaller := &mockInstallerForIntegration{
 		installed: map[string]bool{"stable": true},
@@ -895,11 +895,11 @@ func TestRunListRemote_WithInstalledVersions(t *testing.T) {
 		},
 	}
 
-	mockService, err := appversion.New(
+	mockService, err := versionsvc.New(
 		mockReleaseRepo,
 		mockManager,
 		mockInstaller,
-		&appversion.Config{
+		&versionsvc.Config{
 			VersionsDir:   tempDir,
 			CacheFilePath: filepath.Join(tempDir, "cache.json"),
 			GlobalBinDir:  tempDir,
@@ -947,7 +947,7 @@ func TestRunUpgrade_NotInstalled(t *testing.T) {
 	// No versions installed
 	mockManager := &mockVersionManagerForIntegration{
 		installed: make(map[string]bool),
-		current:   version.Version{},
+		current:   vtypes.Version{},
 	}
 	mockInstaller := &mockInstallerForIntegration{
 		installed: make(map[string]bool),
@@ -961,11 +961,11 @@ func TestRunUpgrade_NotInstalled(t *testing.T) {
 		},
 	}
 
-	mockService, err := appversion.New(
+	mockService, err := versionsvc.New(
 		mockReleaseRepo,
 		mockManager,
 		mockInstaller,
-		&appversion.Config{
+		&versionsvc.Config{
 			VersionsDir:   tempDir,
 			CacheFilePath: filepath.Join(tempDir, "cache.json"),
 			GlobalBinDir:  tempDir,
@@ -1003,7 +1003,7 @@ func TestRunUpgrade_BothVersions(t *testing.T) {
 	// No versions installed - both should be skipped
 	mockManager := &mockVersionManagerForIntegration{
 		installed: make(map[string]bool),
-		current:   version.Version{},
+		current:   vtypes.Version{},
 	}
 	mockInstaller := &mockInstallerForIntegration{
 		installed: make(map[string]bool),
@@ -1018,11 +1018,11 @@ func TestRunUpgrade_BothVersions(t *testing.T) {
 		},
 	}
 
-	mockService, err := appversion.New(
+	mockService, err := versionsvc.New(
 		mockReleaseRepo,
 		mockManager,
 		mockInstaller,
-		&appversion.Config{
+		&versionsvc.Config{
 			VersionsDir:   tempDir,
 			CacheFilePath: filepath.Join(tempDir, "cache.json"),
 			GlobalBinDir:  tempDir,
@@ -1356,7 +1356,7 @@ func TestRunRollback_NoHistory(t *testing.T) {
 	t.Logf("RunRollback with no history result: %v", err)
 }
 
-// TestRunRun_VersionNotInstalled tests run command with non-existent version.
+// TestRunRun_VersionNotInstalled tests run command with non-existent vtypes.
 func TestRunRun_VersionNotInstalled(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -2029,7 +2029,7 @@ func TestRunUse_Pick(t *testing.T) {
 
 	mockManager := &mockVersionManagerForIntegration{
 		installed: installedVersions,
-		current:   version.Version{},
+		current:   vtypes.Version{},
 	}
 	mockInstaller := &mockInstallerForIntegration{
 		installed: installedVersions,
@@ -2043,11 +2043,11 @@ func TestRunUse_Pick(t *testing.T) {
 		},
 	}
 
-	mockService, err := appversion.New(
+	mockService, err := versionsvc.New(
 		mockReleaseRepo,
 		mockManager,
 		mockInstaller,
-		&appversion.Config{
+		&versionsvc.Config{
 			VersionsDir:   tempDir,
 			CacheFilePath: filepath.Join(tempDir, "cache.json"),
 			GlobalBinDir:  tempDir,
@@ -2100,7 +2100,7 @@ func TestRunInstall_Pick(t *testing.T) {
 
 	mockManager := &mockVersionManagerForIntegration{
 		installed: make(map[string]bool),
-		current:   version.Version{},
+		current:   vtypes.Version{},
 	}
 	mockInstaller := &mockInstallerForIntegration{
 		installed: make(map[string]bool),
@@ -2116,11 +2116,11 @@ func TestRunInstall_Pick(t *testing.T) {
 		},
 	}
 
-	mockService, err := appversion.New(
+	mockService, err := versionsvc.New(
 		mockReleaseRepo,
 		mockManager,
 		mockInstaller,
-		&appversion.Config{
+		&versionsvc.Config{
 			VersionsDir:   tempDir,
 			CacheFilePath: filepath.Join(tempDir, "cache.json"),
 			GlobalBinDir:  tempDir,
@@ -2179,7 +2179,7 @@ func TestRunPin_Pick(t *testing.T) {
 
 	mockManager := &mockVersionManagerForIntegration{
 		installed: installedVersions,
-		current:   version.New("stable", version.TypeTag, "stable", ""),
+		current:   vtypes.New("stable", vtypes.TypeTag, "stable", ""),
 	}
 	mockInstaller := &mockInstallerForIntegration{
 		installed: installedVersions,
@@ -2193,11 +2193,11 @@ func TestRunPin_Pick(t *testing.T) {
 		},
 	}
 
-	mockService, err := appversion.New(
+	mockService, err := versionsvc.New(
 		mockReleaseRepo,
 		mockManager,
 		mockInstaller,
-		&appversion.Config{
+		&versionsvc.Config{
 			VersionsDir:   tempDir,
 			CacheFilePath: filepath.Join(tempDir, "cache.json"),
 			GlobalBinDir:  tempDir,
@@ -2256,7 +2256,7 @@ func TestRunRun_Pick(t *testing.T) {
 
 	mockManager := &mockVersionManagerForIntegration{
 		installed: installedVersions,
-		current:   version.Version{},
+		current:   vtypes.Version{},
 	}
 	mockInstaller := &mockInstallerForIntegration{
 		installed: installedVersions,
@@ -2270,11 +2270,11 @@ func TestRunRun_Pick(t *testing.T) {
 		},
 	}
 
-	mockService, err := appversion.New(
+	mockService, err := versionsvc.New(
 		mockReleaseRepo,
 		mockManager,
 		mockInstaller,
-		&appversion.Config{
+		&versionsvc.Config{
 			VersionsDir:   tempDir,
 			CacheFilePath: filepath.Join(tempDir, "cache.json"),
 			GlobalBinDir:  tempDir,
@@ -2352,7 +2352,7 @@ func TestRunUninstall_Pick(t *testing.T) {
 
 	mockManager := &mockVersionManagerForIntegration{
 		installed: installedVersions,
-		current:   version.Version{},
+		current:   vtypes.Version{},
 	}
 	mockInstaller := &mockInstallerForIntegration{
 		installed: installedVersions,
@@ -2366,11 +2366,11 @@ func TestRunUninstall_Pick(t *testing.T) {
 		},
 	}
 
-	mockService, err := appversion.New(
+	mockService, err := versionsvc.New(
 		mockReleaseRepo,
 		mockManager,
 		mockInstaller,
-		&appversion.Config{
+		&versionsvc.Config{
 			VersionsDir:   tempDir,
 			CacheFilePath: filepath.Join(tempDir, "cache.json"),
 			GlobalBinDir:  tempDir,
@@ -2423,7 +2423,7 @@ func TestRunUpgrade_Pick(t *testing.T) {
 	// Mark stable as installed
 	mockManager := &mockVersionManagerForIntegration{
 		installed: map[string]bool{"stable": true},
-		current:   version.Version{},
+		current:   vtypes.Version{},
 	}
 	mockInstaller := &mockInstallerForIntegration{
 		installed: map[string]bool{"stable": true},
@@ -2437,11 +2437,11 @@ func TestRunUpgrade_Pick(t *testing.T) {
 		},
 	}
 
-	mockService, err := appversion.New(
+	mockService, err := versionsvc.New(
 		mockReleaseRepo,
 		mockManager,
 		mockInstaller,
-		&appversion.Config{
+		&versionsvc.Config{
 			VersionsDir:   tempDir,
 			CacheFilePath: filepath.Join(tempDir, "cache.json"),
 			GlobalBinDir:  tempDir,

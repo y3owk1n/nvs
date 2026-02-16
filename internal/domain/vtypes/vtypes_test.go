@@ -1,64 +1,64 @@
-package version_test
+package vtypes_test
 
 import (
 	"testing"
 
-	"github.com/y3owk1n/nvs/internal/domain/version"
+	"github.com/y3owk1n/nvs/internal/domain/vtypes"
 )
 
 func TestNew(t *testing.T) {
 	tests := []struct {
 		name        string
 		versionName string
-		versionType version.Type
+		versionType vtypes.Type
 		identifier  string
 		commitHash  string
 		wantName    string
-		wantType    version.Type
+		wantType    vtypes.Type
 		wantID      string
 		wantCommit  string
 	}{
 		{
 			name:        "stable version",
 			versionName: "stable",
-			versionType: version.TypeStable,
+			versionType: vtypes.TypeStable,
 			identifier:  "v0.10.0",
 			commitHash:  "",
 			wantName:    "stable",
-			wantType:    version.TypeStable,
+			wantType:    vtypes.TypeStable,
 			wantID:      "v0.10.0",
 			wantCommit:  "",
 		},
 		{
 			name:        "nightly version",
 			versionName: "nightly",
-			versionType: version.TypeNightly,
+			versionType: vtypes.TypeNightly,
 			identifier:  "nightly-2024-12-04",
 			commitHash:  "abc123def456",
 			wantName:    "nightly",
-			wantType:    version.TypeNightly,
+			wantType:    vtypes.TypeNightly,
 			wantID:      "nightly-2024-12-04",
 			wantCommit:  "abc123def456",
 		},
 		{
 			name:        "commit hash",
 			versionName: "1a2b3c4",
-			versionType: version.TypeCommit,
+			versionType: vtypes.TypeCommit,
 			identifier:  "1a2b3c4",
 			commitHash:  "1a2b3c4d5e6f7890abcdef1234567890abcdef12",
 			wantName:    "1a2b3c4",
-			wantType:    version.TypeCommit,
+			wantType:    vtypes.TypeCommit,
 			wantID:      "1a2b3c4",
 			wantCommit:  "1a2b3c4d5e6f7890abcdef1234567890abcdef12",
 		},
 		{
 			name:        "specific tag",
 			versionName: "v0.9.5",
-			versionType: version.TypeTag,
+			versionType: vtypes.TypeTag,
 			identifier:  "v0.9.5",
 			commitHash:  "",
 			wantName:    "v0.9.5",
-			wantType:    version.TypeTag,
+			wantType:    vtypes.TypeTag,
 			wantID:      "v0.9.5",
 			wantCommit:  "",
 		},
@@ -66,7 +66,7 @@ func TestNew(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			ver := version.New(
+			ver := vtypes.New(
 				testCase.versionName,
 				testCase.versionType,
 				testCase.identifier,
@@ -95,14 +95,14 @@ func TestNew(t *testing.T) {
 func TestTypeString(t *testing.T) {
 	tests := []struct {
 		name string
-		t    version.Type
+		t    vtypes.Type
 		want string
 	}{
-		{"stable", version.TypeStable, "stable"},
-		{"nightly", version.TypeNightly, "nightly"},
-		{"commit", version.TypeCommit, "commit"},
-		{"tag", version.TypeTag, "tag"},
-		{"unknown", version.Type(999), "unknown"},
+		{"stable", vtypes.TypeStable, "stable"},
+		{"nightly", vtypes.TypeNightly, "nightly"},
+		{"commit", vtypes.TypeCommit, "commit"},
+		{"tag", vtypes.TypeTag, "tag"},
+		{"unknown", vtypes.Type(999), "unknown"},
 	}
 
 	for _, tt := range tests {
@@ -147,7 +147,7 @@ func TestIsCommitReference(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := version.IsCommitReference(tt.input); got != tt.want {
+			if got := vtypes.IsCommitReference(tt.input); got != tt.want {
 				t.Errorf("IsCommitReference(%q) = %v, want %v", tt.input, got, tt.want)
 			}
 		})

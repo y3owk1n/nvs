@@ -15,7 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/app/config"
-	appversion "github.com/y3owk1n/nvs/internal/app/version"
+	"github.com/y3owk1n/nvs/internal/app/versionsvc"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/infra/archive"
 	"github.com/y3owk1n/nvs/internal/infra/builder"
@@ -34,7 +34,7 @@ var (
 	ctx, cancel = context.WithCancel(context.Background())
 
 	// Services (initialized in InitConfig).
-	versionService *appversion.Service
+	versionService *versionsvc.Service
 	configService  *config.Service
 
 	// Configuration paths (initialized in InitConfig).
@@ -273,11 +273,11 @@ func InitConfig() error {
 
 	installService := installer.New(dl, extractor, srcBuilder)
 
-	versionService, err = appversion.New(
+	versionService, err = versionsvc.New(
 		githubClient,
 		versionManager,
 		installService,
-		&appversion.Config{
+		&versionsvc.Config{
 			VersionsDir:    versionsDir,
 			CacheFilePath:  cacheFilePath,
 			GlobalBinDir:   globalBinDir,
@@ -315,13 +315,13 @@ func GetGlobalBinDir() string {
 }
 
 // GetVersionService returns the version service instance.
-func GetVersionService() *appversion.Service {
+func GetVersionService() *versionsvc.Service {
 	return versionService
 }
 
 // SetVersionServiceForTesting sets the version service for testing.
 // This should only be used in tests.
-func SetVersionServiceForTesting(service *appversion.Service) {
+func SetVersionServiceForTesting(service *versionsvc.Service) {
 	if os.Getenv("NVS_TEST_MODE") == "" {
 		panic("SetVersionServiceForTesting should only be called in tests")
 	}

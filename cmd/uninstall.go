@@ -10,7 +10,7 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/y3owk1n/nvs/internal/domain/version"
+	"github.com/y3owk1n/nvs/internal/domain/vtypes"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -161,7 +161,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 	// Force uninstall if it's the current version (user already confirmed)
 	err = GetVersionService().Uninstall(versionArg, isCurrent)
 	if err != nil {
-		if errors.Is(err, version.ErrVersionNotFound) {
+		if errors.Is(err, vtypes.ErrVersionNotFound) {
 			return fmt.Errorf("version %s is not installed: %w", versionArg, ErrVersionNotInstalled)
 		}
 

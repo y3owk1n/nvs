@@ -1,4 +1,4 @@
-package version
+package vtypes
 
 import "errors"
 
