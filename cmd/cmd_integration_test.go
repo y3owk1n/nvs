@@ -1356,7 +1356,8 @@ func TestRunRollback_NoHistory(t *testing.T) {
 	t.Logf("RunRollback with no history result: %v", err)
 }
 
-// TestRunRun_VersionNotInstalled tests run command with non-existent vtypes.
+// TestRunRun_VersionNotInstalled tests run command with non-existent version.
+
 func TestRunRun_VersionNotInstalled(t *testing.T) {
 	tempDir := t.TempDir()
 
