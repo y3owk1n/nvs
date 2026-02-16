@@ -1,5 +1,5 @@
-// Package version provides the core domain model for Neovim version management.
-package version
+// Package vtypes provides the core domain model for Neovim version management.
+package vtypes
 
 import "strings"
 

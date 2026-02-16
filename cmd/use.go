@@ -13,7 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
-	"github.com/y3owk1n/nvs/internal/domain/version"
+	"github.com/y3owk1n/nvs/internal/domain/vtypes"
 	"github.com/y3owk1n/nvs/internal/platform"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
@@ -169,7 +169,7 @@ func RunUse(cmd *cobra.Command, args []string) error {
 	resolvedVersion, err := GetVersionService().Use(ctx, alias)
 	if err != nil {
 		// If version not found, install it first, then try to use again
-		if errors.Is(err, version.ErrVersionNotFound) {
+		if errors.Is(err, vtypes.ErrVersionNotFound) {
 			logrus.Infof("Version %s not found. Installing...", alias)
 			// Install the version
 			err = RunInstall(cmd, []string{alias})

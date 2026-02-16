@@ -15,7 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
-	"github.com/y3owk1n/nvs/internal/domain/version"
+	"github.com/y3owk1n/nvs/internal/domain/vtypes"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -107,7 +107,7 @@ func RunRun(cmd *cobra.Command, args []string) error {
 	if !GetVersionService().IsVersionInstalled(versionAlias) {
 		return fmt.Errorf(
 			"%w: %s (use 'nvs install %s' first)",
-			version.ErrVersionNotFound,
+			vtypes.ErrVersionNotFound,
 			versionAlias,
 			versionAlias,
 		)
@@ -199,7 +199,7 @@ func getNvimBinaryPath(versionAlias string) (string, error) {
 
 // normalizeVersionForPath normalizes a version string for use as a directory name.
 func normalizeVersionForPath(versionStr string) string {
-	return version.NormalizeVersionForPath(versionStr)
+	return vtypes.NormalizeVersionForPath(versionStr)
 }
 
 // findNvimBinary searches for the nvim binary in a version directory.

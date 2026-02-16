@@ -1,10 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.16.0/.schema/devbox.schema.json",
   "packages": [
-    "go@1.25.5",
     "gopls@0.21.0",
     "gotools@0.34.0",
-    "golangci-lint@2.8.0",
     "gofumpt@0.9.2",
     "golines@0.13.0",
     "just@1.46.0",
@@ -12,6 +10,8 @@
     "gettext@latest",
     "curl@latest",
     "ninja@latest",
-    "just-lsp@0.3.2"
+    "go@1.26.0",
+    "golangci-lint@2.9.0",
+    "just-lsp@0.3.3"
   ]
 }

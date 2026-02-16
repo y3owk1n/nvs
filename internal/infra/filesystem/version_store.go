@@ -13,10 +13,10 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
-	domainversion "github.com/y3owk1n/nvs/internal/domain/version"
+	"github.com/y3owk1n/nvs/internal/domain/vtypes"
 )
 
-// VersionStore implements domainversion.Manager for filesystem-based storage.
+// VersionStore implements vtypes.Manager for filesystem-based storage.
 type VersionStore struct {
 	config *Config
 }
@@ -35,13 +35,13 @@ func New(config *Config) *VersionStore {
 }
 
 // List returns all installed versions.
-func (s *VersionStore) List() ([]domainversion.Version, error) {
+func (s *VersionStore) List() ([]vtypes.Version, error) {
 	entries, err := os.ReadDir(s.config.VersionsDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read versions directory: %w", err)
 	}
 
-	var versions []domainversion.Version
+	var versions []vtypes.Version
 
 	for _, entry := range entries {
 		name := entry.Name()
@@ -68,7 +68,7 @@ func (s *VersionStore) List() ([]domainversion.Version, error) {
 			// Determine version type
 			vType := determineVersionType(name)
 
-			versions = append(versions, domainversion.New(
+			versions = append(versions, vtypes.New(
 				name,
 				vType,
 				name,
@@ -81,12 +81,12 @@ func (s *VersionStore) List() ([]domainversion.Version, error) {
 }
 
 // Current returns the currently active version.
-func (s *VersionStore) Current() (domainversion.Version, error) {
+func (s *VersionStore) Current() (vtypes.Version, error) {
 	link := filepath.Join(s.config.VersionsDir, "current")
 
 	info, err := os.Lstat(link)
 	if err != nil {
-		return domainversion.Version{}, fmt.Errorf("failed to lstat current: %w", err)
+		return vtypes.Version{}, fmt.Errorf("failed to lstat current: %w", err)
 	}
 
 	var targetName string
@@ -96,7 +96,7 @@ func (s *VersionStore) Current() (domainversion.Version, error) {
 	case info.Mode()&os.ModeSymlink != 0:
 		target, err := os.Readlink(link)
 		if err != nil {
-			return domainversion.Version{}, fmt.Errorf("failed to read symlink: %w", err)
+			return vtypes.Version{}, fmt.Errorf("failed to read symlink: %w", err)
 		}
 
 		targetName = filepath.Base(target)
@@ -104,12 +104,12 @@ func (s *VersionStore) Current() (domainversion.Version, error) {
 		// Windows junction - resolve using EvalSymlinks
 		resolved, err := filepath.EvalSymlinks(link)
 		if err != nil {
-			return domainversion.Version{}, fmt.Errorf("failed to resolve junction: %w", err)
+			return vtypes.Version{}, fmt.Errorf("failed to resolve junction: %w", err)
 		}
 
 		targetName = filepath.Base(resolved)
 	default:
-		return domainversion.Version{}, domainversion.ErrNoCurrentVersion
+		return vtypes.Version{}, vtypes.ErrNoCurrentVersion
 	}
 
 	// Read version info
@@ -123,14 +123,14 @@ func (s *VersionStore) Current() (domainversion.Version, error) {
 
 	vType := determineVersionType(targetName)
 
-	return domainversion.New(targetName, vType, targetName, commitHash), nil
+	return vtypes.New(targetName, vType, targetName, commitHash), nil
 }
 
 // Switch activates a specific version with exclusive file locking.
 // Uses two-level locking:
 // 1. Per-version lock - coordinates with Install/Uninstall of the same version
 // 2. Global switch lock - protects shared symlinks (current + global nvim binary).
-func (s *VersionStore) Switch(version domainversion.Version) error {
+func (s *VersionStore) Switch(version vtypes.Version) error {
 	// 1. Acquire per-version lock to coordinate with Install/Uninstall of same version
 	versionLockPath := filepath.Join(
 		s.config.VersionsDir,
@@ -211,7 +211,7 @@ func (s *VersionStore) Switch(version domainversion.Version) error {
 }
 
 // IsInstalled checks if a version is installed.
-func (s *VersionStore) IsInstalled(v domainversion.Version) bool {
+func (s *VersionStore) IsInstalled(v vtypes.Version) bool {
 	_, err := os.Stat(filepath.Join(s.config.VersionsDir, v.Name()))
 
 	return err == nil
@@ -219,7 +219,7 @@ func (s *VersionStore) IsInstalled(v domainversion.Version) bool {
 
 // Uninstall removes an installed version with per-version locking.
 // Uses the same per-version lock as Switch and Install for coordination.
-func (s *VersionStore) Uninstall(version domainversion.Version, force bool) error {
+func (s *VersionStore) Uninstall(version vtypes.Version, force bool) error {
 	// Acquire per-version lock to prevent races with Switch or Install of the same version
 	lockPath := filepath.Join(
 		s.config.VersionsDir,
@@ -243,7 +243,7 @@ func (s *VersionStore) Uninstall(version domainversion.Version, force bool) erro
 	if !force {
 		current, err := s.Current()
 		if err == nil && current.Name() == version.Name() {
-			return domainversion.ErrVersionInUse
+			return vtypes.ErrVersionInUse
 		}
 	}
 
@@ -351,15 +351,15 @@ func findNvimLinkTarget(dir string) string {
 }
 
 // determineVersionType determines the version type from the name.
-func determineVersionType(name string) domainversion.Type {
+func determineVersionType(name string) vtypes.Type {
 	switch {
 	case name == constants.Stable:
-		return domainversion.TypeStable
+		return vtypes.TypeStable
 	case strings.HasPrefix(strings.ToLower(name), constants.Nightly):
-		return domainversion.TypeNightly
-	case domainversion.IsCommitReference(name):
-		return domainversion.TypeCommit
+		return vtypes.TypeNightly
+	case vtypes.IsCommitReference(name):
+		return vtypes.TypeCommit
 	default:
-		return domainversion.TypeTag
+		return vtypes.TypeTag
 	}
 }

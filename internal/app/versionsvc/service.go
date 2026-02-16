@@ -1,5 +1,5 @@
-// Package version provides the application service for version management.
-package version
+// Package versionsvc provides the application service for version management.
+package versionsvc
 
 import (
 	"context"
@@ -10,14 +10,14 @@ import (
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/installer"
 	"github.com/y3owk1n/nvs/internal/domain/release"
-	"github.com/y3owk1n/nvs/internal/domain/version"
+	"github.com/y3owk1n/nvs/internal/domain/vtypes"
 	"github.com/y3owk1n/nvs/internal/infra/github"
 )
 
 // Service orchestrates version management operations.
 type Service struct {
 	releaseRepo    release.Repository
-	versionManager version.Manager
+	versionManager vtypes.Manager
 	installer      installer.Installer
 	config         *Config
 }
@@ -34,7 +34,7 @@ type Config struct {
 // New creates a new version Service.
 func New(
 	releaseRepo release.Repository,
-	versionManager version.Manager,
+	versionManager vtypes.Manager,
 	installer installer.Installer,
 	config *Config,
 ) (*Service, error) {
@@ -65,7 +65,7 @@ func (s *Service) Install(
 	normalized := normalizeVersion(versionAlias)
 
 	// Check if it's a commit hash
-	if version.IsCommitReference(normalized) {
+	if vtypes.IsCommitReference(normalized) {
 		// Build from source for commit hashes
 		_, err := s.installer.BuildFromCommit(
 			ctx,
@@ -158,11 +158,11 @@ func (s *Service) Use(ctx context.Context, versionAlias string) (string, error) 
 	normalized := normalizeVersion(versionAlias)
 
 	// Determine target version
-	var targetVersion version.Version
+	var targetVersion vtypes.Version
 
-	if version.IsCommitReference(normalized) {
+	if vtypes.IsCommitReference(normalized) {
 		// For commit hash, the version name is the hash itself
-		targetVersion = version.New(normalized, version.TypeCommit, normalized, "")
+		targetVersion = vtypes.New(normalized, vtypes.TypeCommit, normalized, "")
 	} else {
 		// Resolve from release
 		var (
@@ -186,12 +186,12 @@ func (s *Service) Use(ctx context.Context, versionAlias string) (string, error) 
 		// Determine version type
 		vType := determineVersionType(normalized)
 
-		targetVersion = version.New(normalized, vType, rel.TagName(), rel.CommitHash())
+		targetVersion = vtypes.New(normalized, vType, rel.TagName(), rel.CommitHash())
 	}
 
 	// Check if already installed
 	if !s.versionManager.IsInstalled(targetVersion) {
-		return "", fmt.Errorf("%w: %s", version.ErrVersionNotFound, targetVersion.Name())
+		return "", fmt.Errorf("%w: %s", vtypes.ErrVersionNotFound, targetVersion.Name())
 	}
 
 	// Check if already current
@@ -212,7 +212,7 @@ func (s *Service) Use(ctx context.Context, versionAlias string) (string, error) 
 }
 
 // List returns all installed versions.
-func (s *Service) List() ([]version.Version, error) {
+func (s *Service) List() ([]vtypes.Version, error) {
 	versions, err := s.versionManager.List()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list versions: %w", err)
@@ -222,10 +222,10 @@ func (s *Service) List() ([]version.Version, error) {
 }
 
 // Current returns the currently active version.
-func (s *Service) Current() (version.Version, error) {
+func (s *Service) Current() (vtypes.Version, error) {
 	current, err := s.versionManager.Current()
 	if err != nil {
-		return version.Version{}, fmt.Errorf("failed to get current version: %w", err)
+		return vtypes.Version{}, fmt.Errorf("failed to get current version: %w", err)
 	}
 
 	return current, nil
@@ -241,7 +241,7 @@ func (s *Service) Uninstall(versionAlias string, force bool) error {
 		return fmt.Errorf("failed to list versions: %w", err)
 	}
 
-	var targetVersion version.Version
+	var targetVersion vtypes.Version
 
 	found := false
 
@@ -255,7 +255,7 @@ func (s *Service) Uninstall(versionAlias string, force bool) error {
 	}
 
 	if !found {
-		return fmt.Errorf("%w: %s", version.ErrVersionNotFound, normalized)
+		return fmt.Errorf("%w: %s", vtypes.ErrVersionNotFound, normalized)
 	}
 
 	// Uninstall
@@ -287,7 +287,7 @@ func (s *Service) Upgrade(
 
 	// Check if installed
 	if !s.versionManager.IsInstalled(
-		version.New(normalized, determineVersionType(normalized), normalized, ""),
+		vtypes.New(normalized, determineVersionType(normalized), normalized, ""),
 	) {
 		return ErrNotInstalled
 	}
@@ -340,20 +340,20 @@ func (s *Service) Upgrade(
 
 // normalizeVersion normalizes a version string.
 func normalizeVersion(versionStr string) string {
-	return version.NormalizeVersionForPath(versionStr)
+	return vtypes.NormalizeVersionForPath(versionStr)
 }
 
 // determineVersionType determines the version type from the name.
-func determineVersionType(name string) version.Type {
+func determineVersionType(name string) vtypes.Type {
 	switch {
 	case name == constants.Stable:
-		return version.TypeStable
+		return vtypes.TypeStable
 	case strings.HasPrefix(strings.ToLower(name), "nightly"):
-		return version.TypeNightly
-	case version.IsCommitReference(name):
-		return version.TypeCommit
+		return vtypes.TypeNightly
+	case vtypes.IsCommitReference(name):
+		return vtypes.TypeCommit
 	default:
-		return version.TypeTag
+		return vtypes.TypeTag
 	}
 }
 
@@ -361,7 +361,7 @@ func determineVersionType(name string) version.Type {
 func (s *Service) IsVersionInstalled(versionName string) bool {
 	normalized := normalizeVersion(versionName)
 	versionType := determineVersionType(normalized)
-	v := version.New(normalized, versionType, normalized, "")
+	v := vtypes.New(normalized, versionType, normalized, "")
 
 	return s.versionManager.IsInstalled(v)
 }
@@ -385,5 +385,5 @@ func (s *Service) FindNightly(ctx context.Context) (release.Release, error) {
 
 // IsCommitReference checks if a string is a commit reference.
 func (s *Service) IsCommitReference(str string) bool {
-	return version.IsCommitReference(str)
+	return vtypes.IsCommitReference(str)
 }

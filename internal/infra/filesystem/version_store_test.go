@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/y3owk1n/nvs/internal/domain/version"
+	"github.com/y3owk1n/nvs/internal/domain/vtypes"
 	filesystem "github.com/y3owk1n/nvs/internal/infra/filesystem"
 )
 
@@ -43,7 +43,7 @@ func TestVersionStore_Switch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	v := version.New("v1.0.0", version.TypeTag, "v1.0.0", "")
+	v := vtypes.New("v1.0.0", vtypes.TypeTag, "v1.0.0", "")
 
 	err = store.Switch(v)
 	if err != nil {
@@ -211,13 +211,13 @@ func TestVersionStore_IsInstalled(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	v := version.New("stable", version.TypeStable, "stable", "")
+	v := vtypes.New("stable", vtypes.TypeStable, "stable", "")
 
 	if !store.IsInstalled(v) {
 		t.Error("Expected stable to be installed")
 	}
 
-	vNotInstalled := version.New("nightly", version.TypeNightly, "nightly", "")
+	vNotInstalled := vtypes.New("nightly", vtypes.TypeNightly, "nightly", "")
 
 	if store.IsInstalled(vNotInstalled) {
 		t.Error("Expected nightly to NOT be installed")
@@ -241,7 +241,7 @@ func TestVersionStore_Uninstall(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	v := version.New("v0.10.0", version.TypeTag, "v0.10.0", "")
+	v := vtypes.New("v0.10.0", vtypes.TypeTag, "v0.10.0", "")
 
 	// Uninstall with force=true (no current check)
 	err = store.Uninstall(v, true)
@@ -348,7 +348,7 @@ func TestVersionStore_Switch_Concurrent(t *testing.T) {
 			defer waitGroup.Done()
 
 			versionName := versions[index%2]
-			v := version.New(versionName, version.TypeTag, versionName, "")
+			v := vtypes.New(versionName, vtypes.TypeTag, versionName, "")
 
 			// Small delay to increase chance of race conditions
 			time.Sleep(time.Duration(index) * time.Millisecond)
@@ -414,7 +414,7 @@ func TestVersionStore_Uninstall_Concurrent(t *testing.T) {
 		go func(name string) {
 			defer waitGroup.Done()
 
-			v := version.New(name, version.TypeTag, name, "")
+			v := vtypes.New(name, vtypes.TypeTag, name, "")
 
 			err := store.Uninstall(v, true)
 			if err != nil {

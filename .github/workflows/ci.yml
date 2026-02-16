@@ -29,7 +29,7 @@ jobs:
       # Install Go directly on Windows
       - name: Setup Go
         if: runner.os == 'Windows'
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
           cache: true
@@ -39,7 +39,7 @@ jobs:
         if: runner.os == 'Windows'
         uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.6.2
+          version: v2.9.0
 
       # Install just on Windows
       - name: Install just
