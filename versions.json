@@ -16,7 +16,7 @@
       {
         "Name": "nvim-linux-arm64.tar.gz",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-arm64.tar.gz",
-        "Size": 21194563
+        "Size": 21194489
       },
       {
         "Name": "nvim-linux-x86_64.appimage",
@@ -31,41 +31,41 @@
       {
         "Name": "nvim-linux-x86_64.tar.gz",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-x86_64.tar.gz",
-        "Size": 21052152
+        "Size": 21052147
       },
       {
         "Name": "nvim-macos-arm64.tar.gz",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-macos-arm64.tar.gz",
-        "Size": 9825700
+        "Size": 9825827
       },
       {
         "Name": "nvim-macos-x86_64.tar.gz",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-macos-x86_64.tar.gz",
-        "Size": 10075745
+        "Size": 10075393
       },
       {
         "Name": "nvim-win-arm64.msi",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-win-arm64.msi",
-        "Size": 18842000
+        "Size": 18821520
       },
       {
         "Name": "nvim-win-arm64.zip",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-win-arm64.zip",
-        "Size": 19100779
+        "Size": 19081580
       },
       {
         "Name": "nvim-win64.msi",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-win64.msi",
-        "Size": 18620816
+        "Size": 18629008
       },
       {
         "Name": "nvim-win64.zip",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-win64.zip",
-        "Size": 18841864
+        "Size": 18854777
       }
     ],
-    "PublishedAt": "2026-05-26T06:31:54Z",
-    "CommitHash": "d214c24129f0f63c8c1739d655595565a6d4d059"
+    "PublishedAt": "2026-05-27T06:39:39Z",
+    "CommitHash": "b3dfa86e02b0ce0f3ef9bc7b90dbbd790e7da31e"
   },
   {
     "TagName": "v0.12.2",
