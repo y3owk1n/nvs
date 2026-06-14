@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -81,51 +82,98 @@ func RunEnv(cmd *cobra.Command, _ []string) error {
 		}
 
 		// add binDir to PATH if it's not already there, avoid duplicates
-		addPath := !strings.Contains(os.Getenv("PATH"), binDir)
+		//
+		// The previous code used strings.Contains on the raw PATH
+		// string, which produces false positives when binDir is a
+		// prefix or substring of some other PATH entry (e.g.
+		// binDir = "/home/u/bin", PATH = "/home/u/bin-extra:/usr/bin"
+		// would have matched). The correct check splits PATH on
+		// the platform's path-list separator and does exact-match
+		// comparison on each entry.
+		addPath := !pathListContains(os.Getenv("PATH"), binDir)
 		logrus.Debugf("binDir already in PATH: %v (addPath=%v)", !addPath, addPath)
 
 		// explicitly default to error `unsupported`, add in more shell in future
 		switch shell {
 		case "fish":
-			_, err = fmt.Fprintf(os.Stdout, "set -gx NVS_CONFIG_DIR %q;\n", configDir)
+			// shellQuote uses POSIX-style single-quote escaping
+			// (works in fish too). It is required because Go's
+			// %q produces a double-quoted Go string that fish
+			// would interpret as allowing $-expansion, e.g. a
+			// path containing a literal '$' would be re-expanded
+			// by the shell. Single-quote escaping prevents all
+			// expansion in both POSIX shells and fish.
+			_, err = fmt.Fprintf(
+				os.Stdout,
+				"set -gx NVS_CONFIG_DIR %s;\n",
+				shellQuote(configDir),
+			)
 			if err != nil {
 				logrus.Warnf("Failed to write to stdout: %v", err)
 			}
 
-			_, err = fmt.Fprintf(os.Stdout, "set -gx NVS_CACHE_DIR %q;\n", cacheDir)
+			_, err = fmt.Fprintf(
+				os.Stdout,
+				"set -gx NVS_CACHE_DIR %s;\n",
+				shellQuote(cacheDir),
+			)
 			if err != nil {
 				logrus.Warnf("Failed to write to stdout: %v", err)
 			}
 
-			_, err = fmt.Fprintf(os.Stdout, "set -gx NVS_BIN_DIR %q;\n", binDir)
+			_, err = fmt.Fprintf(
+				os.Stdout,
+				"set -gx NVS_BIN_DIR %s;\n",
+				shellQuote(binDir),
+			)
 			if err != nil {
 				logrus.Warnf("Failed to write to stdout: %v", err)
 			}
 
 			if addPath {
-				_, err = fmt.Fprintf(os.Stdout, "set -gx PATH %q $PATH;\n", binDir)
+				_, err = fmt.Fprintf(
+					os.Stdout,
+					"set -gx PATH %s $PATH;\n",
+					shellQuote(binDir),
+				)
 				if err != nil {
 					logrus.Warnf("Failed to write to stdout: %v", err)
 				}
 			}
 		case "bash", "zsh", "sh", "":
-			_, err = fmt.Fprintf(os.Stdout, "export NVS_CONFIG_DIR=%q\n", configDir)
+			_, err = fmt.Fprintf(
+				os.Stdout,
+				"export NVS_CONFIG_DIR=%s\n",
+				shellQuote(configDir),
+			)
 			if err != nil {
 				logrus.Warnf("Failed to write to stdout: %v", err)
 			}
 
-			_, err = fmt.Fprintf(os.Stdout, "export NVS_CACHE_DIR=%q\n", cacheDir)
+			_, err = fmt.Fprintf(
+				os.Stdout,
+				"export NVS_CACHE_DIR=%s\n",
+				shellQuote(cacheDir),
+			)
 			if err != nil {
 				logrus.Warnf("Failed to write to stdout: %v", err)
 			}
 
-			_, err = fmt.Fprintf(os.Stdout, "export NVS_BIN_DIR=%q\n", binDir)
+			_, err = fmt.Fprintf(
+				os.Stdout,
+				"export NVS_BIN_DIR=%s\n",
+				shellQuote(binDir),
+			)
 			if err != nil {
 				logrus.Warnf("Failed to write to stdout: %v", err)
 			}
 
 			if addPath {
-				_, err = fmt.Fprintf(os.Stdout, "export PATH=%q:$PATH\n", binDir)
+				_, err = fmt.Fprintf(
+					os.Stdout,
+					"export PATH=%s:$PATH\n",
+					shellQuote(binDir),
+				)
 				if err != nil {
 					logrus.Warnf("Failed to write to stdout: %v", err)
 				}
@@ -200,6 +248,36 @@ func RunEnv(cmd *cobra.Command, _ []string) error {
 	}
 
 	return nil
+}
+
+// pathListContains reports whether item is a path-list entry in
+// list. The list is split on the platform's path-list separator
+// (':' on Unix, ';' on Windows) and each entry is compared for
+// exact equality. This is the correct semantic for checking
+// whether a directory is already on PATH; substring matching
+// (strings.Contains) yields false positives whenever item is a
+// prefix or substring of any other entry.
+func pathListContains(list, item string) bool {
+	if list == "" {
+		return false
+	}
+
+	return slices.Contains(strings.Split(list, string(os.PathListSeparator)), item)
+}
+
+// shellQuote returns a POSIX-shell-safe single-quoted form of s
+// that is also valid in fish. The single-quote escape works by
+// closing the current single-quoted string, inserting a literal
+// backslash-escaped single quote, and re-opening: '\”. The result
+// is interpreted by the shell as a literal string with no
+// expansion of $, `, \, or any other metacharacter.
+//
+// This is used in place of Go's %q verb because %q produces a
+// double-quoted Go string that fish would interpret as allowing
+// $-expansion — a path containing a literal '$' would be silently
+// re-expanded by the shell.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 // DetectShell detects the current shell.
