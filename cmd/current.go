@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
 
@@ -62,7 +61,7 @@ func RunCurrent(cmd *cobra.Command, _ []string) error {
 		info.Name = constants.Stable
 		info.Type = "stable"
 
-		stable, err := GetVersionService().FindStable(context.Background())
+		stable, err := GetVersionService().FindStable(cmd.Context())
 		if err != nil {
 			logrus.Warnf("Error fetching latest stable release: %v", err)
 
@@ -108,7 +107,7 @@ func RunCurrent(cmd *cobra.Command, _ []string) error {
 		info.Name = constants.Nightly
 		info.Type = "nightly"
 
-		nightly, err := GetVersionService().FindNightly(context.Background())
+		nightly, err := GetVersionService().FindNightly(cmd.Context())
 		if err != nil {
 			logrus.Warnf("Error fetching latest nightly release: %v", err)
 
