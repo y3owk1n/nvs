@@ -130,8 +130,23 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 		table.Header([]string{"Tag", "Status", "Details"})
 	}
 
-	// Iterate over the releases and build table rows with appropriate details and color-coding.
+	// Get the version service once. The rest of this function uses
+	// it for per-release lookups (IsVersionInstalled,
+	// GetInstalledVersionIdentifier).
 	svc := GetVersionService()
+
+	// Resolve the "stable" pseudo-release once before the loop. Each
+	// call below used to invoke FindStable independently, which
+	// re-decodes the GitHub releases cache (or, on a cache miss, hits
+	// the network) for every release in the list.
+	var stableReleaseTag string
+
+	stableRelease, stableErr := svc.FindStable(cmd.Context())
+	if stableErr == nil {
+		stableReleaseTag = stableRelease.TagName()
+	}
+
+	// Iterate over the releases and build table rows with appropriate details and color-coding.
 	for _, release := range combined {
 		var details string
 
@@ -151,9 +166,8 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 			}
 		} else if release.TagName() == "stable" {
 			// For stable releases, show the actual version tag.
-			stableRelease, stableErr := svc.FindStable(cmd.Context())
-			if stableErr == nil {
-				details = "stable version: " + stableRelease.TagName()
+			if stableReleaseTag != "" {
+				details = "stable version: " + stableReleaseTag
 			} else {
 				details = "stable version: " + constants.Stable
 			}
@@ -181,11 +195,9 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 				strings.HasPrefix(strings.ToLower(release.TagName()), "nightly"):
 				remoteIdentifier = release.CommitHash()
 			case release.TagName() == constants.Stable:
-				// For the "stable" tag, fetch the actual stable release to get the real version tag
-				stableRelease, stableErr := svc.FindStable(cmd.Context())
-				if stableErr == nil {
-					remoteIdentifier = stableRelease.TagName()
-				}
+				// For the "stable" tag, use the cached real
+				// version tag we resolved before the loop.
+				remoteIdentifier = stableReleaseTag
 			default:
 				remoteIdentifier = release.TagName()
 			}
