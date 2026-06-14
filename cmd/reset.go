@@ -245,12 +245,19 @@ func assertSafeToRemovePath(path string) error {
 	cleaned := filepath.Clean(path)
 	sep := string(filepath.Separator)
 
-	// Reject the platform root separator after Clean has
-	// collapsed any number of leading or repeated separators.
-	// This catches "/", "//", "///" on Unix and "\", "\\",
-	// "\\\\" on Windows (all of which clean to the same single
-	// separator on the respective platform).
-	if cleaned == sep {
+	// Reject the platform root separator and the UNC root.
+	// After Clean:
+	//   - Unix collapses any leading or repeated "/" to a
+	//     single "/", so cleaned == sep catches "/", "//",
+	//     "///" and so on.
+	//   - Windows converts forward slashes to "\" and
+	//     collapses them. A single "\" stays single (root of
+	//     the current drive). Two or more "\" are preserved
+	//     as the UNC prefix ("\\") by filepath.Clean — which
+	//     is why the previous "cleaned == sep" check missed
+	//     the Windows "//" and "\\\\" cases. Catching both
+	//     forms here closes that gap.
+	if cleaned == sep || cleaned == sep+sep {
 		return fmt.Errorf(
 			"%w: %q is a filesystem root",
 			errUnsafeResetPath,
@@ -351,15 +358,23 @@ func isDriveRoot(path string) bool {
 	return true
 }
 
-// isFilesystemRoot reports whether path is a filesystem root:
-// "/" on Unix, "\\" on Windows. The check uses
-// filepath.Separator (not a hard-coded "/") so the same source
-// works on every platform — on Windows, "/" is intentionally
-// not treated as a root, matching the convention that "\\" is
-// the only Windows root path. The drive check delegates to
-// isDriveRoot, which already handles "C:\\" / "D:/".
+// isFilesystemRoot reports whether path is a filesystem root.
+// Three forms count, all derived from filepath.Separator:
+//   - string(filepath.Separator) alone: the root of the
+//     current drive on Windows ("\") or the system root on
+//     Unix ("/")
+//   - two separators in a row: the UNC prefix on Windows
+//     ("\\"), which filepath.Clean preserves verbatim
+//   - any Windows drive root ("C:\\", "D:/", ...), delegated
+//     to isDriveRoot
+//
+// On Unix, "sep+sep" is "//", which filepath.Clean collapses
+// to "/", so the second branch never fires on Unix — but the
+// check is still correct (and harmless) if a caller passes
+// an already-cleaned "//" string directly.
 func isFilesystemRoot(path string) bool {
-	if path == string(filepath.Separator) {
+	sep := string(filepath.Separator)
+	if path == sep || path == sep+sep {
 		return true
 	}
 
