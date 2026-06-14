@@ -1,5 +1,56 @@
 # Changelog
 
+## [1.13.1](https://github.com/y3owk1n/nvs/compare/v1.13.0...v1.13.1) (2026-06-14)
+
+
+### Bug Fixes
+
+* **builder:** always remove per-attempt temp dir on exit ([e62318d](https://github.com/y3owk1n/nvs/commit/e62318df08061d60f645796e824e4b216d47bec0))
+* **builder:** handle partial-line and long-line build output with bufio.Scanner ([52cab69](https://github.com/y3owk1n/nvs/commit/52cab699eba4387624af6c2b34194c187718d5ec))
+* **builder:** kill child process when context is canceled ([94f8d8a](https://github.com/y3owk1n/nvs/commit/94f8d8aa7168ec5cabef6ad92e809dd07e52c904))
+* **changelog:** cap body decode, URL-escape commits, alloc-free rune count ([4d756db](https://github.com/y3owk1n/nvs/commit/4d756dbe04cb05d478ca9696f493ac5c8430d5c7))
+* **current:** honor cobra context in FindStable/FindNightly calls ([e499699](https://github.com/y3owk1n/nvs/commit/e4996998336523fe155bc5cf84a6b64c7c4c37ad))
+* **current:** surface FindStable/FindNightly errors in --json mode ([b461241](https://github.com/y3owk1n/nvs/commit/b461241ca38249982382246248436542d2eafe70))
+* **doctor:** use CreateTemp for permission probe, log remove failures ([10b0b97](https://github.com/y3owk1n/nvs/commit/10b0b97f3f97c7c6d6c702debcff44fab6f51063))
+* **env:** correct PATH-membership check, use safe shell quoting ([da4ecab](https://github.com/y3owk1n/nvs/commit/da4ecab450cb1322bb529c426950b12c2f1a50db))
+* **filesystem/version_store:** capture mklink stderr for error reporting ([961caf7](https://github.com/y3owk1n/nvs/commit/961caf76f24d9bcc2f7c905b205d86a8bb24a945))
+* **github:** harden cache against corruption, races, and clobbering ([81f558d](https://github.com/y3owk1n/nvs/commit/81f558dc9927c73ee5948021d5e849b3bf7599c1))
+* **github:** retry transient HTTP failures, cap response bodies, paginate safely ([9250bb2](https://github.com/y3owk1n/nvs/commit/9250bb2bdff49c3f279171272f01c2648a721786))
+* **github:** serve stale cache as last resort on total network failure ([3265d4c](https://github.com/y3owk1n/nvs/commit/3265d4c3a120600170072dfed6678dc765788aa0))
+* **github:** singleflight GetAll and clone the in-memory snapshot ([b6b76e4](https://github.com/y3owk1n/nvs/commit/b6b76e4a771c3d72b70dbb6705538bd888a9beeb))
+* **install/upgrade:** stop spinner reliably on panic via defer ([59d177a](https://github.com/y3owk1n/nvs/commit/59d177a6b23eff57c026ea3b5c72b229e387b7fe))
+* **path:** hoist Clean() out of PATH loop, replace substring check with path-component match ([d9aeaaf](https://github.com/y3owk1n/nvs/commit/d9aeaaff439e900707dcc59c58029f935e77a400))
+* **platform/binary:** use filepath.SkipAll instead of io.EOF in WalkDir ([2670e45](https://github.com/y3owk1n/nvs/commit/2670e45ce773b82e84e7e7f0a076ec92309a0e37))
+* **reset:** catch UNC root "\\\\" in safety guard ([#219](https://github.com/y3owk1n/nvs/issues/219)) ([6131528](https://github.com/y3owk1n/nvs/commit/61315288112ce6f76b426c4d1abdc5356c466672))
+* **reset:** guard os.RemoveAll against unsafe paths ([b2cae8b](https://github.com/y3owk1n/nvs/commit/b2cae8b34f630e57f3478b5dc9f7d9fb039a0e9e))
+* **reset:** use filepath.Separator for cross-platform root checks ([5563d58](https://github.com/y3owk1n/nvs/commit/5563d58c8a3d85c6cd3c0848dbd709ce49cd1283))
+* **rollback:** dedup history by full commit hash, fsync+cleanup history file ([45e98cc](https://github.com/y3owk1n/nvs/commit/45e98cc317a3a393053b07abe17542cf43f7e584))
+* **rollback:** preserve nightly directory when identifier is missing ([d91144d](https://github.com/y3owk1n/nvs/commit/d91144d069340628dfe264f62f9cc0df6191be4f))
+* **root:** defer cancel() in Execute to release the global context ([d4a4e5a](https://github.com/y3owk1n/nvs/commit/d4a4e5a75afd59f909423aa2df48a7b1bfea0fe0))
+* **spinner:** eliminate data race on spinner.Suffix between writers and animation goroutine ([663a669](https://github.com/y3owk1n/nvs/commit/663a66923630919a088d8d44e26244d3323d9e27))
+* **ui,archive:** custom spinner with race-free stop, extract progress reporting ([c364ccc](https://github.com/y3owk1n/nvs/commit/c364cccd5288b8e5f4094681b737bec79974b243))
+* **uninstall:** require confirmation when current version is unknown ([8859083](https://github.com/y3owk1n/nvs/commit/8859083190830e9adce87835d6f32d871f25c325))
+* **upgrade,rollback:** make nightly backup creation race-free ([0e838fd](https://github.com/y3owk1n/nvs/commit/0e838fd5a49802b26e6047c14ffc8fb32032147c))
+* **upgrade:** stage nightly backup in temp dir so atomic rename never collides ([0c5ca61](https://github.com/y3owk1n/nvs/commit/0c5ca6150c2471dad381510ba2f1c458f81ae38e))
+* **upgrade:** warn on identifier read failure, lock nightly backup ([7a86f76](https://github.com/y3owk1n/nvs/commit/7a86f7664784454ff72168a932c27775bf3ae53b))
+* **use:** don't re-trigger install picker on 'use --pick' fall-through ([0bddf5f](https://github.com/y3owk1n/nvs/commit/0bddf5f264f9e6dda5989bad588bfba177ac7a90))
+* **vtypes,cmd,service:** validate version names to prevent path traversal ([23af0f3](https://github.com/y3owk1n/nvs/commit/23af0f3bc6bff853037afba10395743cc9197098))
+
+
+### Performance Improvements
+
+* **config:** pre-allocate configs slice in List() ([b492efa](https://github.com/y3owk1n/nvs/commit/b492efab12e4a1ce8c7cd08f74ab85ef73d5df54))
+* **extractor,builder,downloader:** small per-iteration wins ([440cf2e](https://github.com/y3owk1n/nvs/commit/440cf2efd567afbea1d0060c46d2bb1e1e30c967))
+* **github:** add in-memory cache to GetAll to avoid re-decoding JSON per call ([6497600](https://github.com/y3owk1n/nvs/commit/6497600a17ab1ef97a29b4bae34dddcb01667358))
+* **github:** pre-sort releases at convert boundary, O(1) FindByTag ([3fbfd8a](https://github.com/y3owk1n/nvs/commit/3fbfd8a91db6c8a6f62a0687ffe29863d120e554))
+* **http:** share a tuned *http.Transport across all outbound HTTP traffic ([9bb883f](https://github.com/y3owk1n/nvs/commit/9bb883fae18c3988d976d3635bd396eca39e4132))
+* **list-remote:** batch identifier lookup, eliminate per-release I/O ([6fe830b](https://github.com/y3owk1n/nvs/commit/6fe830b52a6ad4fa094971bdcd3dd883c9d8be8f))
+* **list-remote:** replace N+1 os.Stat with one os.ReadDir via set lookup ([83fbff6](https://github.com/y3owk1n/nvs/commit/83fbff621a1367f7c16c24d98b9eddaa6fc2bb31))
+* **list-remote:** resolve stable release tag once instead of per-iteration ([214ecd3](https://github.com/y3owk1n/nvs/commit/214ecd3c6d6c2a222142873435e4fb941ce600a9))
+* **list,list-remote:** hoist color.New out of hot loops ([1f2d048](https://github.com/y3owk1n/nvs/commit/1f2d048c555f88fdc98989b4f200582c82956bd4))
+* **ui/spinner:** remove dead RunCommandWithSpinner ([47bf999](https://github.com/y3owk1n/nvs/commit/47bf999bf39937aefc34c2547b4746f77b17bc1b))
+* **versionsvc:** memoize releaseAdapter asset resolution across GetAssetURL and GetChecksumURL ([25bbb19](https://github.com/y3owk1n/nvs/commit/25bbb19fe3415fee30936cee153fd28332d52705))
+
 ## [1.13.0](https://github.com/y3owk1n/nvs/compare/v1.12.1...v1.13.0) (2026-02-16)
 
 
