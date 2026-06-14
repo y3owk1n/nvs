@@ -172,6 +172,17 @@ func RunRun(cmd *cobra.Command, args []string) error {
 
 // getNvimBinaryPath returns the path to the nvim binary for a specific version.
 func getNvimBinaryPath(versionAlias string) (string, error) {
+	// Reject path-traversal or otherwise malformed input before
+	// any filepath.Join + os.Stat + exec.Command path. The
+	// returned binary path is passed directly to
+	// exec.CommandContext, so a malicious alias that resolves
+	// to a file under the user's control would be exec'd
+	// without this gate.
+	err := vtypes.ValidateVersionName(versionAlias)
+	if err != nil {
+		return "", err
+	}
+
 	// Normalize version name
 	normalized := normalizeVersionForPath(versionAlias)
 

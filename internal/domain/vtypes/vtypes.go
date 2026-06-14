@@ -1,7 +1,16 @@
 // Package vtypes provides the core domain model for Neovim version management.
 package vtypes
 
-import "strings"
+import (
+	"errors"
+	"fmt"
+	"strings"
+)
+
+// ErrInvalidVersionName is returned when a version name is not
+// safe to use as a filesystem path component. The set of rejected
+// names is defined by IsValidVersionName.
+var ErrInvalidVersionName = errors.New("invalid version name")
 
 // Version represents a Neovim version.
 type Version struct {
@@ -123,4 +132,63 @@ func NormalizeVersionForPath(versionStr string) string {
 	}
 
 	return versionStr
+}
+
+// IsValidVersionName reports whether name is safe to use as a
+// filesystem path component (i.e. a version directory name).
+//
+// It rejects:
+//   - Empty strings
+//   - The "." and ".." segment names
+//   - Path separators ('/' and '\\')
+//   - Any non-printable or control character (NUL, newline, etc.)
+//
+// The allowed character set is a conservative [a-zA-Z0-9._-]
+// subset. This covers every version form nvs actually produces
+// or accepts:
+//   - Literal aliases: "stable", "nightly"
+//   - Release tags: "v0.10.0", "v0.10.0-beta1"
+//   - Branch names: "master", "main"
+//   - Commit hashes: 7-40 hexadecimal characters
+//
+// The validator runs as the last gate before a name is joined
+// onto VersionsDir and used for filesystem or exec operations
+// in service.Install, service.Use, service.Uninstall,
+// service.Upgrade, and cmd/run.getNvimBinaryPath. Rejecting
+// pathological input here turns what would otherwise be a path
+// traversal (e.g. "../etc/passwd" → VersionsDir/../etc/passwd
+// after filepath.Clean) or an unintended exec of an
+// attacker-controlled binary into a clean error.
+func IsValidVersionName(name string) bool {
+	if name == "" || name == "." || name == ".." {
+		return false
+	}
+
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z':
+		case r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9':
+		case r == '.' || r == '-' || r == '_':
+		default:
+			return false
+		}
+	}
+
+	return true
+}
+
+// ValidateVersionName returns ErrInvalidVersionName wrapped with
+// the offending input if name is not a safe version name (see
+// IsValidVersionName). On success it returns nil.
+//
+// The wrapped error preserves the rejected input so logs and
+// error messages tell the user exactly which character or
+// segment triggered the rejection.
+func ValidateVersionName(name string) error {
+	if IsValidVersionName(name) {
+		return nil
+	}
+
+	return fmt.Errorf("%w: %q", ErrInvalidVersionName, name)
 }

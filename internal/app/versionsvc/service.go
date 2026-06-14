@@ -63,6 +63,18 @@ func (s *Service) Install(
 	versionAlias string,
 	progress installer.ProgressFunc,
 ) error {
+	// Reject path-traversal or otherwise malformed input before
+	// it reaches filepath.Join(VersionsDir, ...) or any installer
+	// syscall. Without this check, an attacker who can place a
+	// crafted .nvs-version file in a project directory could
+	// coerce 'nvs install' into creating or writing outside the
+	// versions root, or into treating a non-version path as a
+	// build source.
+	validateErr := vtypes.ValidateVersionName(versionAlias)
+	if validateErr != nil {
+		return validateErr
+	}
+
 	// Normalize version
 	normalized := normalizeVersion(versionAlias)
 
@@ -228,6 +240,16 @@ func (r *releaseAdapter) resolveAsset() assetLookup {
 
 // Use switches to a specific version.
 func (s *Service) Use(ctx context.Context, versionAlias string) (string, error) {
+	// Reject path-traversal input before any filepath operation.
+	// This guards the .nvs-version file path: a malicious value
+	// in that file would otherwise flow into the symlink target
+	// and end up exec'd by downstream tools that respect the
+	// 'current' link.
+	err := vtypes.ValidateVersionName(versionAlias)
+	if err != nil {
+		return "", err
+	}
+
 	normalized := normalizeVersion(versionAlias)
 
 	// Determine target version
@@ -306,6 +328,13 @@ func (s *Service) Current() (vtypes.Version, error) {
 
 // Uninstall removes an installed version.
 func (s *Service) Uninstall(versionAlias string, force bool) error {
+	// Reject path-traversal input before any filepath operation
+	// or filesystem deletion.
+	err := vtypes.ValidateVersionName(versionAlias)
+	if err != nil {
+		return err
+	}
+
 	normalized := normalizeVersion(versionAlias)
 
 	// Find the version
@@ -351,6 +380,12 @@ func (s *Service) Upgrade(
 	versionAlias string,
 	progress installer.ProgressFunc,
 ) error {
+	// Reject path-traversal input before any filepath operation.
+	validateErr := vtypes.ValidateVersionName(versionAlias)
+	if validateErr != nil {
+		return validateErr
+	}
+
 	normalized := normalizeVersion(versionAlias)
 
 	// Only stable and nightly can be upgraded
@@ -432,6 +467,14 @@ func determineVersionType(name string) vtypes.Type {
 
 // IsVersionInstalled checks if a version is installed.
 func (s *Service) IsVersionInstalled(versionName string) bool {
+	// Reject path-traversal input up front: an invalid name
+	// cannot match an installed version, so the answer is
+	// unambiguous (false) without needing to perform the lookup.
+	err := vtypes.ValidateVersionName(versionName)
+	if err != nil {
+		return false
+	}
+
 	normalized := normalizeVersion(versionName)
 	versionType := determineVersionType(normalized)
 	v := vtypes.New(normalized, versionType, normalized, "")
@@ -494,6 +537,12 @@ func (s *Service) InstalledVersionIdentifiers() (map[string]string, error) {
 
 // GetInstalledVersionIdentifier returns the identifier (commit hash) of an installed version.
 func (s *Service) GetInstalledVersionIdentifier(versionName string) (string, error) {
+	// Reject path-traversal input before any filepath operation.
+	err := vtypes.ValidateVersionName(versionName)
+	if err != nil {
+		return "", err
+	}
+
 	normalized := normalizeVersion(versionName)
 
 	return s.versionManager.GetInstalledReleaseIdentifier(normalized)

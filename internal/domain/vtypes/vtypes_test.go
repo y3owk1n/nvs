@@ -1,6 +1,8 @@
 package vtypes_test
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/y3owk1n/nvs/internal/domain/vtypes"
@@ -149,6 +151,159 @@ func TestIsCommitReference(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := vtypes.IsCommitReference(tt.input); got != tt.want {
 				t.Errorf("IsCommitReference(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsValidVersionName(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+		want  bool
+	}{
+		// Valid inputs we expect in the wild
+		{"empty string", "", false},
+		{"single dot", ".", false},
+		{"double dot", "..", false},
+		{"literal stable", "stable", true},
+		{"literal nightly", "nightly", true},
+		{"release tag vX.Y.Z", "v0.10.0", true},
+		{"release tag with pre-release", "v0.10.0-beta1", true},
+		{"master branch", "master", true},
+		{"main branch", "main", true},
+		{"7-char hex", "abc1234", true},
+		{"40-char hex", "1234567890abcdef1234567890abcdef12345678", true},
+
+		// Path-traversal payloads
+		{"parent dir escape", "../etc/passwd", false},
+		{"nested parent escape", "stable/../../etc/passwd", false},
+		{"absolute path posix", "/etc/passwd", false},
+		{"absolute path on Windows", "\\windows\\system32", false},
+		{"backslash only", "..\\foo", false},
+		{"trailing slash", "stable/", false},
+		{"leading slash", "/stable", false},
+		{"embedded slash", "stab/le", false},
+		{"embedded backslash", `stab\le`, false},
+
+		// Suspicious characters
+		{"NUL byte", "v0.10.0\x00", false},
+		{"newline", "v0.10.0\n", false},
+		{"tab", "v0.10.0\t", false},
+		{"space", "v 0.10.0", false},
+		{"semicolon (shell metachar)", "stable;rm -rf /", false},
+		{"ampersand", "stable&&evil", false},
+		{"pipe", "stable|evil", false},
+		{"dollar sign", "$HOME", false},
+		{"backtick", "`evil`", false},
+		{"colon", "C:\\foo", false},
+		{"asterisk (glob)", "stable*", false},
+		{"question mark (glob)", "stable?", false},
+		{"bracket", "v0.10.[0]", false},
+		{"non-ASCII (unicode)", "v0.10.0β", false},
+		{"emoji", "v0.10.0🎉", false},
+		{"DEL byte", "v0.10.0\x7f", false},
+
+		// Edge cases
+		{"just a dot and letter", ".v0.10.0", true},
+		{"underscore", "v0_10_0", true},
+		{"plus sign", "v0.10.0+build1", false}, // not in our allow-list
+		{"tilde (home dir)", "~/stable", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := vtypes.IsValidVersionName(tt.input); got != tt.want {
+				t.Errorf("IsValidVersionName(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestValidateVersionName(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{"valid stable", "stable", false},
+		{"valid v0.10.0", "v0.10.0", false},
+		{"valid commit hash", "abc1234", false},
+		{"invalid: empty", "", true},
+		{"invalid: parent escape", "../etc/passwd", true},
+		{"invalid: absolute", "/etc/passwd", true},
+		{"invalid: null byte", "v0.10.0\x00", true},
+		{"invalid: space", "v 0.10.0", true},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := vtypes.ValidateVersionName(testCase.input)
+
+			gotErr := err != nil
+			if gotErr != testCase.wantErr {
+				t.Errorf(
+					"ValidateVersionName(%q) error = %v, wantErr %v",
+					testCase.input,
+					err,
+					testCase.wantErr,
+				)
+			}
+		})
+	}
+}
+
+func TestValidateVersionName_InvalidIncludesInput(t *testing.T) {
+	t.Parallel()
+
+	err := vtypes.ValidateVersionName("../etc/passwd")
+	if err == nil {
+		t.Fatal("expected error for path-traversal input")
+	}
+
+	if !errors.Is(err, vtypes.ErrInvalidVersionName) {
+		t.Errorf("expected error to wrap ErrInvalidVersionName, got %v", err)
+	}
+
+	// The error message should mention the rejected input so
+	// the user knows exactly which character or segment
+	// triggered the rejection.
+	if !strings.Contains(err.Error(), "../etc/passwd") {
+		t.Errorf("expected error message to include rejected input, got %q", err.Error())
+	}
+}
+
+func TestNormalizeVersionForPath(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"stable alias", "stable", "stable"},
+		{"nightly alias", "nightly", "nightly"},
+		{"commit hash preserved", "abc1234", "abc1234"},
+		{"master branch preserved", "master", "master"},
+		{"main branch preserved", "main", "main"},
+		{"bare version gets v prefix", "0.10.0", "v0.10.0"},
+		{"already-prefixed version preserved", "v0.10.0", "v0.10.0"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := vtypes.NormalizeVersionForPath(test.input); got != test.want {
+				t.Errorf("NormalizeVersionForPath(%q) = %q, want %q", test.input, got, test.want)
 			}
 		})
 	}

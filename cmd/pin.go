@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/domain/vtypes"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -89,6 +90,16 @@ func RunPin(cmd *cobra.Command, args []string) error {
 			versionToPin = current.Name()
 			logrus.Debugf("Pinning current version: %s", versionToPin)
 		}
+
+		// Reject path-traversal or malformed input before writing it
+		// to disk. The .nvs-version file is later read back by
+		// 'nvs use' (and other commands) and its contents are
+		// joined into a filesystem path; an unvalidated write would
+		// plant a path-traversal payload in the repo.
+		err := vtypes.ValidateVersionName(versionToPin)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Get directory to write to (current working directory by default)
@@ -158,6 +169,19 @@ func ReadVersionFile(startDir string, checkGlobal bool) (string, string, error) 
 		if err == nil {
 			version := strings.TrimSpace(string(data))
 			if version != "" {
+				// Reject path-traversal or otherwise malformed
+				// contents before they can flow into 'nvs use',
+				// the service layer, or an exec. A malicious
+				// .nvs-version file in a shared repo would
+				// otherwise be read verbatim and joined onto
+				// VersionsDir.
+				validateErr := vtypes.ValidateVersionName(version)
+				if validateErr != nil {
+					logrus.Warnf("Ignoring invalid version in %s: %v", versionFile, validateErr)
+
+					return "", "", validateErr
+				}
+
 				logrus.Debugf("Found version %s in %s", version, versionFile)
 
 				return version, versionFile, nil
@@ -182,6 +206,17 @@ func ReadVersionFile(startDir string, checkGlobal bool) (string, string, error) 
 		if err == nil {
 			version := strings.TrimSpace(string(data))
 			if version != "" {
+				validateErr := vtypes.ValidateVersionName(version)
+				if validateErr != nil {
+					logrus.Warnf(
+						"Ignoring invalid global version in %s: %v",
+						globalFile,
+						validateErr,
+					)
+
+					return "", "", validateErr
+				}
+
 				logrus.Debugf("Found global version %s in %s", version, globalFile)
 
 				return version, globalFile, nil
