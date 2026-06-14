@@ -38,6 +38,9 @@ type Commander interface {
 	SetStderr(stderr any)
 	StdoutPipe() (any, error)
 	StderrPipe() (any, error)
+	// Kill terminates the underlying process. It is a no-op (returning
+	// nil) for implementations that have no associated OS process.
+	Kill() error
 }
 
 // New creates a new SourceBuilder instance.
@@ -651,7 +654,17 @@ func runCommandWithSpinnerAndOutput(
 
 			return doneErr
 		default:
-			// No result yet - context was canceled before command completed
+			// No result yet - context was canceled before command completed.
+			// Kill the child process so that its stdout/stderr pipes close
+			// and the reader goroutines can exit. Without this, the child
+			// would keep running (with its inherited stdout/stderr) and the
+			// reader goroutines would block on Read until the process tree
+			// eventually died on its own.
+			killErr := cmd.Kill()
+			if killErr != nil {
+				logrus.Debugf("failed to kill child process on ctx cancel: %v", killErr)
+			}
+
 			waitGroup.Wait()
 
 			return ctx.Err()

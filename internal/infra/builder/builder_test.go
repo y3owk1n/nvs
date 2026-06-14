@@ -78,6 +78,10 @@ func (m *mockCommand) StderrPipe() (any, error) {
 	return m.stderrBuf, nil
 }
 
+func (m *mockCommand) Kill() error {
+	return nil
+}
+
 // TestNew tests the New constructor.
 func TestNew(t *testing.T) {
 	tests := []struct {

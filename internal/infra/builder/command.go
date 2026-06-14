@@ -47,3 +47,11 @@ func (e *execCommand) StdoutPipe() (any, error) {
 func (e *execCommand) StderrPipe() (any, error) {
 	return e.cmd.StderrPipe()
 }
+
+func (e *execCommand) Kill() error {
+	if e.cmd.Process == nil {
+		return nil
+	}
+
+	return e.cmd.Process.Kill()
+}
