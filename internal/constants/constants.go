@@ -45,6 +45,19 @@ const (
 	// HTTPTimeoutSeconds is the timeout in seconds for HTTP requests.
 	HTTPTimeoutSeconds = 30
 
+	// MaxGitHubRetries is the number of times to retry a transient
+	// GitHub API request before giving up. The actual request budget
+	// is 1 + MaxGitHubRetries attempts.
+	MaxGitHubRetries = 3
+	// GitHubInitialBackoff is the delay before the first retry.
+	// Subsequent retries double this (200ms, 400ms, 800ms).
+	GitHubInitialBackoff = 200 * time.Millisecond
+	// MaxGitHubResponseBytes bounds the size of a single GitHub
+	// response body. 32 MiB is far more than any plausible
+	// /releases response but still bounded so a malicious upstream
+	// cannot OOM the process.
+	MaxGitHubResponseBytes int64 = 32 << 20
+
 	// ChangelogLimit is the limit for changelog entries.
 	ChangelogLimit = 10
 	// CommitHashLength is the length of a commit hash.

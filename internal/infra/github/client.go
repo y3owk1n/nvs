@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"runtime"
 	"slices"
@@ -89,19 +90,9 @@ func (c *Client) MirrorURL() string {
 
 // FetchRemoteVersionsJSON fetches releases from the global cache JSON.
 func (c *Client) FetchRemoteVersionsJSON(ctx context.Context) ([]release.Release, error) {
-	// URL for the global cache JSON
-	url := constants.GlobalCacheURL
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	resp, err := c.doWithRetry(ctx, constants.GlobalCacheURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("User-Agent", "nvs")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch remote versions: %w", err)
+		return nil, err
 	}
 
 	defer func() {
@@ -118,7 +109,9 @@ func (c *Client) FetchRemoteVersionsJSON(ctx context.Context) ([]release.Release
 
 	var globalReleases []globalCacheRelease
 
-	err = json.NewDecoder(resp.Body).Decode(&globalReleases)
+	dec := json.NewDecoder(io.LimitReader(resp.Body, constants.MaxGitHubResponseBytes))
+
+	err = dec.Decode(&globalReleases)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode remote versions: %w", err)
 	}
@@ -364,79 +357,86 @@ func (c *Client) FindByTag(ctx context.Context, tag string) (release.Release, er
 	return release.Release{}, fmt.Errorf("%w: %s", release.ErrReleaseNotFound, tag)
 }
 
+// apiPageSize is the number of releases requested per page from
+// the GitHub API.
+const apiPageSize = 100
+
 // fetchFromGitHubAPI fetches releases directly from the GitHub API.
 func (c *Client) fetchFromGitHubAPI(ctx context.Context) ([]release.Release, error) {
-	var allAPIReleases []apiRelease
+	const maxPages = 50
 
-	page := 1
-	perPage := 100
+	apiReleases := make([]apiRelease, 0, apiPageSize)
 
-	for {
-		req, err := http.NewRequestWithContext(
-			ctx,
-			http.MethodGet,
-			fmt.Sprintf(
-				"%s/repos/neovim/neovim/releases?page=%d&per_page=%d",
-				constants.DefaultAPIBaseURL,
-				page,
-				perPage,
-			),
-			nil,
+	for page := 1; page <= maxPages; page++ {
+		url := fmt.Sprintf(
+			"%s/repos/neovim/neovim/releases?page=%d&per_page=%d",
+			constants.DefaultAPIBaseURL,
+			page,
+			apiPageSize,
 		)
+
+		pageReleases, lastPage, err := c.fetchGitHubAPIPage(ctx, url)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create request: %w", err)
+			return nil, err
 		}
 
-		req.Header.Set("User-Agent", "nvs")
+		apiReleases = append(apiReleases, pageReleases...)
 
-		resp, err := c.httpClient.Do(req)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch releases: %w", err)
-		}
-
-		logrus.Debugf("GitHub API status code: %d", resp.StatusCode)
-
-		if resp.StatusCode == http.StatusForbidden {
-			_ = resp.Body.Close()
-
-			return nil, fmt.Errorf("%w: please try again later", ErrRateLimitExceeded)
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			_ = resp.Body.Close()
-
-			return nil, fmt.Errorf("%w: %d", ErrAPIRequestFailed, resp.StatusCode)
-		}
-
-		var apiReleases []apiRelease
-
-		err = json.NewDecoder(resp.Body).Decode(&apiReleases)
-		_ = resp.Body.Close()
-
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode response: %w", err)
-		}
-
-		if len(apiReleases) == 0 {
+		if lastPage {
 			break
 		}
-
-		allAPIReleases = append(allAPIReleases, apiReleases...)
-
-		// Check if there are more pages
-		if len(apiReleases) < perPage {
-			break
-		}
-
-		page++
 	}
 
-	releases := c.convertReleases(allAPIReleases)
+	releases := c.convertReleases(apiReleases)
 
 	// Filter releases >= minVersion
 	filtered := filterReleases(releases, c.minVersion)
 
 	return filtered, nil
+}
+
+// fetchGitHubAPIPage fetches a single page of releases. lastPage is
+// true when the server returned fewer results than apiPageSize (or
+// zero) and there are no more pages to fetch.
+func (c *Client) fetchGitHubAPIPage(
+	ctx context.Context,
+	url string,
+) ([]apiRelease, bool, error) {
+	resp, err := c.doWithRetry(ctx, url)
+	if err != nil {
+		return nil, false, err
+	}
+
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	logrus.Debugf("GitHub API status code: %d", resp.StatusCode)
+
+	if resp.StatusCode == http.StatusForbidden {
+		return nil, false, fmt.Errorf("%w: please try again later", ErrRateLimitExceeded)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, false, fmt.Errorf("%w: %d", ErrAPIRequestFailed, resp.StatusCode)
+	}
+
+	var apiReleases []apiRelease
+
+	dec := json.NewDecoder(io.LimitReader(resp.Body, constants.MaxGitHubResponseBytes))
+
+	err = dec.Decode(&apiReleases)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if len(apiReleases) == 0 {
+		return apiReleases, true, nil
+	}
+
+	lastPage := len(apiReleases) < apiPageSize
+
+	return apiReleases, lastPage, nil
 }
 
 // convertReleases converts API releases to domain releases.
