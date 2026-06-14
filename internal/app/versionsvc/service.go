@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
@@ -113,25 +115,50 @@ type releaseAdapter struct {
 	release.Release
 
 	mirrorURL string
+
+	// assetOnce + assetResult memoize the platform-specific asset
+	// resolution so that GetAssetURL and GetChecksumURL share a
+	// single underlying github.GetAssetURL call. The previous
+	// implementation re-invoked github.GetAssetURL on every
+	// GetChecksumURL call just to recover the asset pattern, which
+	// re-scanned the release's assets list per install. Per the
+	// installer pipeline (internal/infra/installer/service.go),
+	// each install calls GetAssetURL once and GetChecksumURL once,
+	// so caching turns 2 asset-list scans into 1.
+	assetOnce   sync.Once
+	assetResult assetLookup
+
+	// assetResolveCount tracks how many times the asset resolution
+	// actually ran (i.e. how many cache misses occurred). It is
+	// not used for caching (sync.Once is), but it lets tests verify
+	// that the cache actually short-circuits the second call
+	// instead of re-running github.GetAssetURL. The count is
+	// incremented inside the once.Do block, so once the first
+	// resolution completes, the count remains 1 for the lifetime
+	// of the adapter.
+	assetResolveCount atomic.Int64
 }
 
 func (r *releaseAdapter) GetAssetURL() (string, error) {
-	url, _, err := github.GetAssetURL(r.Release)
-	if err != nil {
-		return "", err
+	result := r.resolveAsset()
+	if result.Err != nil {
+		return "", result.Err
 	}
 
-	return r.applyMirror(url), nil
+	return result.URL, nil
 }
 
 func (r *releaseAdapter) GetChecksumURL() (string, error) {
-	// Find asset name first to get pattern
-	_, pattern, err := github.GetAssetURL(r.Release)
-	if err != nil {
-		return "", err
+	// Reuse the cached asset resolution: we need the pattern to find
+	// the matching checksum file, but the URL itself is not relevant
+	// here. If asset resolution already failed, surface that error
+	// before attempting a second lookup.
+	asset := r.resolveAsset()
+	if asset.Err != nil {
+		return "", asset.Err
 	}
 
-	url, err := github.GetChecksumURL(r.Release, pattern)
+	url, err := github.GetChecksumURL(r.Release, asset.Pattern)
 	if err != nil {
 		return "", err
 	}
@@ -148,9 +175,55 @@ func (r *releaseAdapter) GetIdentifier() string {
 	return r.TagName()
 }
 
+// AssetResolveCount returns the number of times the underlying
+// asset resolution function (github.GetAssetURL) has actually been
+// invoked on this adapter. The count is incremented inside the
+// sync.Once block, so it stays at 1 for the lifetime of the
+// adapter after the first call. It exists solely to support
+// regression tests that verify the asset cache actually
+// short-circuits the second call.
+func (r *releaseAdapter) AssetResolveCount() int64 {
+	return r.assetResolveCount.Load()
+}
+
 // applyMirror replaces the default GitHub URL with the mirror URL if configured.
 func (r *releaseAdapter) applyMirror(url string) string {
 	return github.ApplyMirrorToURL(url, r.mirrorURL)
+}
+
+// assetLookup is the cached result of resolving a release's
+// platform-specific asset: the mirror-applied download URL, the
+// original asset name pattern (needed to look up the checksum file),
+// and any error from the resolution. The fields are populated
+// together by a single sync.Once, so callers always see a consistent
+// snapshot.
+type assetLookup struct {
+	URL     string
+	Pattern string
+	Err     error
+}
+
+// resolveAsset returns the cached asset lookup, computing it on the
+// first call. The error from the underlying github.GetAssetURL is
+// captured in the result and returned to subsequent callers as-is,
+// preserving the pre-existing error-propagation semantics.
+//
+// assetResolveCount is incremented inside the sync.Once block, so
+// it counts the number of times github.GetAssetURL was actually
+// invoked (i.e. the number of times the cache missed). After the
+// first call, the count stays at 1 forever.
+func (r *releaseAdapter) resolveAsset() assetLookup {
+	r.assetOnce.Do(func() {
+		url, pattern, err := github.GetAssetURL(r.Release)
+		r.assetResult = assetLookup{
+			URL:     r.applyMirror(url),
+			Pattern: pattern,
+			Err:     err,
+		}
+		r.assetResolveCount.Add(1)
+	})
+
+	return r.assetResult
 }
 
 // Use switches to a specific version.
