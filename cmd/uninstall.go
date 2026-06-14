@@ -96,10 +96,25 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 	logrus.Debug("Requested version: ", versionArg)
 
 	// Check if the version to uninstall is currently active.
+	//
+	// Current() can fail in two distinct ways:
+	//   - os.ErrNotExist: no current symlink has ever been set
+	//     (the user has installed versions but never used one),
+	//     in which case the target cannot be "current" and we
+	//     can safely skip the confirmation prompt.
+	//   - any other error (broken symlink, junction resolve
+	//     failure, permission error): we genuinely don't know
+	//     whether the target is the active version, so we
+	//     must require explicit confirmation rather than
+	//     silently treat it as "not current" and let the
+	//     service layer's internal Current() check fail
+	//     the same way — leaving the current symlink
+	//     dangling in the worst case.
 	isCurrent := false
 
 	current, err := GetVersionService().Current()
-	if err == nil {
+	switch {
+	case err == nil:
 		// Normalize both versions for comparison
 		normalizedCurrent := current.Name()
 		normalizedArg := versionArg
@@ -115,6 +130,15 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 		if normalizedCurrent == normalizedArg {
 			isCurrent = true
 		}
+	case errors.Is(err, os.ErrNotExist):
+		// No current symlink at all — target cannot be current.
+	default:
+		logrus.Warnf(
+			"Could not determine current version; requiring explicit confirmation: %v",
+			err,
+		)
+
+		isCurrent = true
 	}
 
 	// If the version is currently active, prompt for confirmation.
