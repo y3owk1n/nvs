@@ -204,14 +204,12 @@ func copyFile(src, dst string) error {
 }
 
 // outputJSON marshals the given data to indented JSON and prints it to stdout.
-// Returns an error if marshaling or writing fails.
+// Returns an error if encoding or writing fails.
 func outputJSON(data any) error {
-	jsonBytes, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		return fmt.Errorf("error marshaling JSON: %w", err)
-	}
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
 
-	_, err = os.Stdout.WriteString(string(jsonBytes) + "\n")
+	err := encoder.Encode(data)
 	if err != nil {
 		return fmt.Errorf("error writing JSON output: %w", err)
 	}
