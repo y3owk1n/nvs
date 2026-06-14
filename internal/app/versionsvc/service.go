@@ -366,6 +366,30 @@ func (s *Service) IsVersionInstalled(versionName string) bool {
 	return s.versionManager.IsInstalled(v)
 }
 
+// InstalledVersionNames returns the names of all currently installed
+// versions. It is intended for callers that need to test membership
+// in a loop (e.g. cmd/list-remote.go), where repeatedly calling
+// IsVersionInstalled would issue an os.Stat per iteration. Callers
+// should build a set from the result and look up keys in O(1).
+//
+// Note: this delegates to the version manager's List(), which already
+// filters out the "current" sentinel and nightly backup directories
+// (prefix "nightly-"). Callers asking about a tag like "nightly" or
+// "v0.10.0" will see the expected true/false.
+func (s *Service) InstalledVersionNames() ([]string, error) {
+	versions, err := s.versionManager.List()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list installed versions: %w", err)
+	}
+
+	names := make([]string, 0, len(versions))
+	for _, v := range versions {
+		names = append(names, v.Name())
+	}
+
+	return names, nil
+}
+
 // GetInstalledVersionIdentifier returns the identifier (commit hash) of an installed version.
 func (s *Service) GetInstalledVersionIdentifier(versionName string) (string, error) {
 	normalized := normalizeVersion(versionName)

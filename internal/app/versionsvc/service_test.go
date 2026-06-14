@@ -498,6 +498,77 @@ func TestService_IsVersionInstalled(t *testing.T) {
 	}
 }
 
+// TestService_InstalledVersionNames verifies that InstalledVersionNames
+// returns the names of all installed versions (as reported by the
+// version manager's List()). This method is the bulk-fetch companion
+// to IsVersionInstalled: callers like cmd/list-remote.go build a set
+// from the result so that membership tests inside a per-release loop
+// are O(1) instead of issuing an os.Stat per iteration.
+func TestService_InstalledVersionNames(t *testing.T) {
+	repo := &mockReleaseRepo{}
+	manager := &mockVersionManager{
+		installed: map[string]vtypes.Version{
+			constants.Stable: vtypes.New(constants.Stable, vtypes.TypeStable, "v0.10.0", "abc123"),
+			"v0.10.0":        vtypes.New("v0.10.0", vtypes.TypeTag, "v0.10.0", "abc123"),
+			constants.Nightly: vtypes.New(
+				constants.Nightly,
+				vtypes.TypeNightly,
+				constants.Nightly,
+				"def456",
+			),
+		},
+	}
+	install := &mockInstaller{installed: make(map[string]vtypes.Version)}
+
+	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: "/tmp"})
+	if err != nil {
+		t.Fatalf("Failed to create service: %v", err)
+	}
+
+	names, err := service.InstalledVersionNames()
+	if err != nil {
+		t.Fatalf("InstalledVersionNames failed: %v", err)
+	}
+
+	// Map iteration order is not stable; build a set for comparison.
+	got := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		got[name] = struct{}{}
+	}
+
+	for _, want := range []string{constants.Stable, "v0.10.0", constants.Nightly} {
+		if _, ok := got[want]; !ok {
+			t.Errorf("expected %q in installed set, got %v", want, names)
+		}
+	}
+}
+
+// TestService_InstalledVersionNames_Empty verifies the empty case
+// (no versions installed): InstalledVersionNames must return a
+// non-nil empty slice so callers can range over it without a nil
+// check, and the result must not contain spurious entries.
+func TestService_InstalledVersionNames_Empty(t *testing.T) {
+	repo := &mockReleaseRepo{}
+	manager := &mockVersionManager{
+		installed: map[string]vtypes.Version{},
+	}
+	install := &mockInstaller{installed: make(map[string]vtypes.Version)}
+
+	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: "/tmp"})
+	if err != nil {
+		t.Fatalf("Failed to create service: %v", err)
+	}
+
+	names, err := service.InstalledVersionNames()
+	if err != nil {
+		t.Fatalf("InstalledVersionNames failed: %v", err)
+	}
+
+	if len(names) != 0 {
+		t.Errorf("expected no installed versions, got %v", names)
+	}
+}
+
 func TestService_FindStable(t *testing.T) {
 	repo := &mockReleaseRepo{
 		stable: release.New("v0.10.0", false, "abc123", time.Time{}, nil),

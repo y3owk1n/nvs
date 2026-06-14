@@ -135,6 +135,24 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 	// GetInstalledVersionIdentifier).
 	svc := GetVersionService()
 
+	// Build a set of installed version names once, then test
+	// membership in O(1) inside the loop. The previous code called
+	// svc.IsVersionInstalled(key) per release, which performs an
+	// os.Stat for each call (N+1 syscalls for N releases). With many
+	// remote releases (the GitHub API can return dozens at once) this
+	// adds up to a noticeable sync hit on every list-remote invocation.
+	installedSet := make(map[string]struct{})
+	{
+		installedNames, listErr := svc.InstalledVersionNames()
+		if listErr != nil {
+			logrus.Debugf("failed to enumerate installed versions: %v", listErr)
+		} else {
+			for _, name := range installedNames {
+				installedSet[name] = struct{}{}
+			}
+		}
+	}
+
 	// Resolve the "stable" pseudo-release once before the loop. Each
 	// call below used to invoke FindStable independently, which
 	// re-decodes the GitHub releases cache (or, on a cache miss, hits
@@ -180,7 +198,7 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 		upgradeIndicator := ""
 
 		// Check if the release is installed locally.
-		if svc.IsVersionInstalled(key) {
+		if _, isInstalled := installedSet[key]; isInstalled {
 			// Check for upgrade availability
 			installedIdentifier, err := svc.GetInstalledVersionIdentifier(key)
 			if err != nil {
