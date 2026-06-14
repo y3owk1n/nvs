@@ -2,13 +2,16 @@ package cmd
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -125,6 +128,11 @@ func RunReset(_ *cobra.Command, _ []string) error {
 	// Remove the configuration directory.
 	logrus.Debugf("Removing config directory: %s", baseConfigDir)
 
+	assertErr := assertSafeToRemovePath(baseConfigDir)
+	if assertErr != nil {
+		return assertErr
+	}
+
 	err = os.RemoveAll(baseConfigDir)
 	if err != nil {
 		return fmt.Errorf("failed to remove config directory: %w", err)
@@ -132,6 +140,11 @@ func RunReset(_ *cobra.Command, _ []string) error {
 
 	// Remove the cache directory.
 	logrus.Debugf("Removing cache directory: %s", baseCacheDir)
+
+	assertErr = assertSafeToRemovePath(baseCacheDir)
+	if assertErr != nil {
+		return assertErr
+	}
 
 	err = os.RemoveAll(baseCacheDir)
 	if err != nil {
@@ -141,6 +154,17 @@ func RunReset(_ *cobra.Command, _ []string) error {
 	// Remove the global nvim symlink if it exists.
 	nvimSymlink := filepath.Join(baseBinDir, "nvim")
 	logrus.Debugf("Removing nvim symlink: %s", nvimSymlink)
+
+	// Use os.Remove (not os.RemoveAll) so we never recurse into
+	// a directory by accident; the symlink target is always a
+	// single file path. We still guard the parent directory
+	// against being a top-level system dir: deleting
+	// <some-root>/nvim is at best confusing, at worst destructive
+	// if 'nvim' happens to be a real binary there.
+	assertErr = assertSafeToRemoveParent(nvimSymlink)
+	if assertErr != nil {
+		return assertErr
+	}
 
 	err = os.Remove(nvimSymlink)
 	if err != nil && !os.IsNotExist(err) {
@@ -163,4 +187,146 @@ func RunReset(_ *cobra.Command, _ []string) error {
 // init registers the resetCmd with the root command.
 func init() {
 	rootCmd.AddCommand(resetCmd)
+}
+
+// errUnsafeResetPath is returned by assertSafeToRemovePath and
+// assertSafeToRemoveParent when the path under consideration
+// could not possibly be a valid NVS data directory. The check
+// protects against a misconfigured (or hostile)
+// NVS_CONFIG_DIR / NVS_CACHE_DIR / NVS_BIN_DIR environment
+// variable that points at a filesystem root or a top-level
+// system directory: a 'nvs reset' on such a setup would
+// otherwise devolve into a recursive removal of the entire
+// disk.
+//
+// We refuse the operation before the user is even prompted for
+// confirmation so the danger is surfaced immediately and
+// unambiguously, regardless of whether the user reads the
+// "Directories to be removed:" warning that is printed above
+// the prompt.
+var errUnsafeResetPath = errors.New("refusing to remove unsafe path")
+
+// assertSafeToRemovePath returns errUnsafeResetPath if path
+// refers to a location that os.RemoveAll would be catastrophically
+// destructive on. It is intended as a guard for the config
+// directory and cache directory removals in RunReset.
+//
+// The check rejects:
+//   - Empty strings
+//   - The current directory (".") and the parent-of-root ("/")
+//   - Top-level system directories whose parent is a root
+//     (e.g. "/etc" with parent "/", "C:\\Users" with parent
+//     "C:\\")
+//   - Windows drive roots ("C:\\", "D:\\", ...)
+//
+// A valid NVS config or cache directory is always at least
+// three levels deep (e.g. "/Users/jane/.config/nvs"), so the
+// "top-level" rejection never fires for legitimate setups.
+func assertSafeToRemovePath(path string) error {
+	if path == "" {
+		return fmt.Errorf("%w: empty path", errUnsafeResetPath)
+	}
+
+	cleaned := filepath.Clean(path)
+	if cleaned == "/" || cleaned == "." {
+		return fmt.Errorf(
+			"%w: %q is a filesystem root or current directory",
+			errUnsafeResetPath,
+			path,
+		)
+	}
+
+	if isDriveRoot(cleaned) {
+		return fmt.Errorf(
+			"%w: %q is a drive root",
+			errUnsafeResetPath,
+			path,
+		)
+	}
+
+	parent := filepath.Dir(cleaned)
+	if parent == cleaned {
+		return fmt.Errorf(
+			"%w: %q has no parent",
+			errUnsafeResetPath,
+			path,
+		)
+	}
+
+	if isFilesystemRoot(parent) {
+		return fmt.Errorf(
+			"%w: %q is a top-level system directory (parent %q)",
+			errUnsafeResetPath,
+			path,
+			parent,
+		)
+	}
+
+	return nil
+}
+
+// assertSafeToRemoveParent is the single-file analog of
+// assertSafeToRemovePath. It is used for the nvim symlink
+// removal, where os.Remove is used (not os.RemoveAll) so the
+// risk is much lower, but we still want to refuse to operate
+// on <some-root>/nvim or <top-level-dir>/nvim since neither
+// is a legitimate nvs symlink target.
+//
+// The check delegates to assertSafeToRemovePath on the
+// symlink's parent directory, so it rejects the same set of
+// dangerous parents (roots, top-level system directories,
+// drive roots).
+func assertSafeToRemoveParent(path string) error {
+	parent := filepath.Dir(path)
+
+	err := assertSafeToRemovePath(parent)
+	if err != nil {
+		return fmt.Errorf(
+			"%w: %q parent is unsafe: %w",
+			errUnsafeResetPath,
+			path,
+			err,
+		)
+	}
+
+	return nil
+}
+
+// driveRootLen is the byte length of a Windows drive root
+// such as "C:\\" or "D:/". Used by isDriveRoot.
+const driveRootLen = 3
+
+// isDriveRoot reports whether path is a Windows drive root
+// like "C:\\" or "D:/". The check is unconditional — on Unix
+// the format does not match any real path so the answer is
+// always false, and the function is safe to call on any OS.
+func isDriveRoot(path string) bool {
+	if runtime.GOOS != constants.WindowsOS {
+		return false
+	}
+
+	if len(path) != driveRootLen {
+		return false
+	}
+
+	if path[1] != ':' {
+		return false
+	}
+
+	if path[2] != '\\' && path[2] != '/' {
+		return false
+	}
+
+	return true
+}
+
+// isFilesystemRoot reports whether path is a filesystem root:
+// "/" on Unix, "\\" or a drive root on Windows. The drive
+// check delegates to isDriveRoot.
+func isFilesystemRoot(path string) bool {
+	if path == "/" || path == "\\" {
+		return true
+	}
+
+	return isDriveRoot(path)
 }
