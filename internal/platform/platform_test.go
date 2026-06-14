@@ -56,28 +56,43 @@ func TestFindNvimBinary(t *testing.T) {
 	}
 }
 
+// TestFindNvimBinary_Prefixed exercises the nvim-<suffix> branch
+// of FindNvimBinary. The basic TestFindNvimBinary only covers
+// the exact-match case (name == "nvim" / "nvim.exe"), but
+// Neovim's real release tarballs unpack to a binary named
+// 'nvim-linux64' / 'nvim-macos-arm64' / 'nvim-win64.exe' (or
+// similar). The prefix branch is what makes FindNvimBinary
+// locate those installations.
+//
+// On Unix: a file named 'nvim-linux64' (not 'nvim') is created
+// and made executable; FindNvimBinary must return its full path
+// via the HasPrefix(name, "nvim-") branch.
+//
+// On Windows: a file named 'nvim-linux64.exe' (not 'nvim.exe')
+// is created; FindNvimBinary must return the directory two
+// levels up (the version directory) via the HasPrefix +
+// EqualFold(".exe") branch.
 func TestFindNvimBinary_Prefixed(t *testing.T) {
 	tempDir := t.TempDir()
 
 	var versionDir string
+
+	var binName string
+
 	if runtime.GOOS == constants.WindowsOS {
-		// For Windows, create nvim-win64/v0.10.0 structure
 		nvimWin64Dir := filepath.Join(tempDir, "nvim-win64")
 		versionDir = filepath.Join(nvimWin64Dir, "v0.10.0")
+
+		binName = "nvim-linux64.exe"
 	} else {
 		versionDir = filepath.Join(tempDir, "v0.10.0")
+
+		binName = "nvim-linux64"
 	}
 
 	err := os.MkdirAll(versionDir, 0o755)
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	var binName string
-	if runtime.GOOS == constants.WindowsOS {
-		binName = "nvim.exe"
-	} else {
-		binName = "nvim"
 	}
 
 	binPath := filepath.Join(versionDir, binName)
@@ -91,7 +106,8 @@ func TestFindNvimBinary_Prefixed(t *testing.T) {
 
 	var expected string
 	if runtime.GOOS == constants.WindowsOS {
-		// On Windows FindNvimBinary returns two levels up from the .exe location.
+		// On Windows FindNvimBinary returns two levels up from
+		// the .exe location.
 		expected = filepath.Dir(versionDir)
 	} else {
 		expected = binPath
