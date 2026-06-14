@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.13.2](https://github.com/y3owk1n/nvs/compare/v1.13.1...v1.13.2) (2026-06-14)
+
+
+### Bug Fixes
+
+* **constants:** embed shell hook scripts from real .sh/.fish files ([1e571d4](https://github.com/y3owk1n/nvs/commit/1e571d467b043cd58f17da92213c95cb7c02e0a8))
+* **constants:** restore full BashZshHook and FishHook scripts ([da067ea](https://github.com/y3owk1n/nvs/commit/da067ea52ffcd7347d0a2d2cee37e7f2971ffe92))
+
 ## [1.13.1](https://github.com/y3owk1n/nvs/compare/v1.13.0...v1.13.1) (2026-06-14)
 
 
