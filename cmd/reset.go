@@ -213,24 +213,55 @@ var errUnsafeResetPath = errors.New("refusing to remove unsafe path")
 //
 // The check rejects:
 //   - Empty strings
-//   - The current directory (".") and the parent-of-root ("/")
+//   - The current directory (".")
+//   - The platform's root separator, after filepath.Clean has
+//     normalized repeated separators (e.g. "/" on Unix, "\\" on
+//     Windows; any number of leading or repeated separators
+//     clean to the same form on each platform)
+//   - Windows drive roots ("C:\\", "D:\\", ...)
 //   - Top-level system directories whose parent is a root
 //     (e.g. "/etc" with parent "/", "C:\\Users" with parent
 //     "C:\\")
-//   - Windows drive roots ("C:\\", "D:\\", ...)
+//   - Paths that are so degenerate they have no parent
+//     (e.g. "." in some corner cases)
 //
 // A valid NVS config or cache directory is always at least
-// three levels deep (e.g. "/Users/jane/.config/nvs"), so the
-// "top-level" rejection never fires for legitimate setups.
+// three levels deep (e.g. "/Users/jane/Library/Application
+// Support/nvs"), so the "top-level" rejection never fires for
+// legitimate setups.
+//
+// The checks use filepath.Separator (rather than hard-coded
+// '/' and '\\') so the same source code works on Unix and
+// Windows. Without the platform-separator comparison, the
+// "root separator" branch would only catch "/" on Unix and
+// miss "\\" on Windows (and vice versa), which is exactly the
+// mismatch that produced the original Windows CI failure
+// where pathListContains's test data hard-coded ':'.
 func assertSafeToRemovePath(path string) error {
 	if path == "" {
 		return fmt.Errorf("%w: empty path", errUnsafeResetPath)
 	}
 
 	cleaned := filepath.Clean(path)
-	if cleaned == "/" || cleaned == "." {
+	sep := string(filepath.Separator)
+
+	// Reject the platform root separator after Clean has
+	// collapsed any number of leading or repeated separators.
+	// This catches "/", "//", "///" on Unix and "\", "\\",
+	// "\\\\" on Windows (all of which clean to the same single
+	// separator on the respective platform).
+	if cleaned == sep {
 		return fmt.Errorf(
-			"%w: %q is a filesystem root or current directory",
+			"%w: %q is a filesystem root",
+			errUnsafeResetPath,
+			path,
+		)
+	}
+
+	// Reject the current directory.
+	if cleaned == "." {
+		return fmt.Errorf(
+			"%w: %q is the current directory",
 			errUnsafeResetPath,
 			path,
 		)
@@ -321,10 +352,14 @@ func isDriveRoot(path string) bool {
 }
 
 // isFilesystemRoot reports whether path is a filesystem root:
-// "/" on Unix, "\\" or a drive root on Windows. The drive
-// check delegates to isDriveRoot.
+// "/" on Unix, "\\" on Windows. The check uses
+// filepath.Separator (not a hard-coded "/") so the same source
+// works on every platform — on Windows, "/" is intentionally
+// not treated as a root, matching the convention that "\\" is
+// the only Windows root path. The drive check delegates to
+// isDriveRoot, which already handles "C:\\" / "D:/".
 func isFilesystemRoot(path string) bool {
-	if path == "/" || path == "\\" {
+	if path == string(filepath.Separator) {
 		return true
 	}
 

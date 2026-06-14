@@ -266,12 +266,11 @@ func TestIsFilesystemRoot(t *testing.T) {
 		cases := []struct {
 			path string
 			want bool
-			skip bool
 		}{
-			{`C:\`, true, false},
-			{`/`, false, false}, // / is not a Windows drive root
-			{`\`, true, false},
-			{`C:\Users`, false, false},
+			{`C:\`, true},
+			{`/`, false}, // / is not a Windows drive root
+			{`\`, true},
+			{`C:\Users`, false},
 		}
 
 		for _, test := range cases {
