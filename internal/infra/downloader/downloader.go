@@ -13,6 +13,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/infra/httpclient"
 )
 
 // Downloader handles file downloads with progress tracking.
@@ -23,9 +24,7 @@ type Downloader struct {
 // New creates a new Downloader instance.
 func New() *Downloader {
 	return &Downloader{
-		httpClient: &http.Client{
-			Timeout: constants.DefaultTimeout,
-		},
+		httpClient: httpclient.NewClient(constants.DefaultTimeout),
 	}
 }
 

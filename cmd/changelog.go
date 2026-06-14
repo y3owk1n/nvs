@@ -10,6 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/infra/httpclient"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -87,7 +88,7 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 	req.Header.Set("User-Agent", "nvs")
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 
-	client := &http.Client{Timeout: constants.HTTPTimeoutSeconds * time.Second}
+	client := httpclient.NewClient(constants.HTTPTimeoutSeconds * time.Second)
 
 	resp, err := client.Do(req)
 	if err != nil {

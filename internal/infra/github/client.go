@@ -17,6 +17,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/release"
+	"github.com/y3owk1n/nvs/internal/infra/httpclient"
 )
 
 // Client implements the release.Repository interface for GitHub.
@@ -48,7 +49,7 @@ func NewClient(
 	useGlobalCache bool,
 ) *Client {
 	return &Client{
-		httpClient:     &http.Client{Timeout: constants.ClientTimeoutSec * time.Second},
+		httpClient:     httpclient.NewClient(constants.ClientTimeoutSec * time.Second),
 		cache:          NewCache(cacheFilePath, cacheTTL),
 		minVersion:     minVersion,
 		mirrorURL:      mirrorURL,
