@@ -58,8 +58,8 @@ func TestAssertSafeToRemovePath(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "Unix root with trailing slash",
-			path:    "//",
+			name:    "root with repeated separator",
+			path:    string(filepath.Separator) + string(filepath.Separator),
 			wantErr: true,
 		},
 
@@ -270,6 +270,7 @@ func TestIsFilesystemRoot(t *testing.T) {
 			{`C:\`, true},
 			{`/`, false}, // / is not a Windows drive root
 			{`\`, true},
+			{`\\`, true}, // UNC root
 			{`C:\Users`, false},
 		}
 
@@ -292,8 +293,8 @@ func TestIsFilesystemRoot(t *testing.T) {
 	}
 
 	// Unix.
-	for _, sample := range []string{"/", "/*not-root*", "/etc"} {
-		want := sample == "/"
+	for _, sample := range []string{"/", "//", "/*not-root*", "/etc"} {
+		want := sample == "/" || sample == "//"
 		if got := isFilesystemRoot(sample); got != want {
 			t.Errorf("isFilesystemRoot(%q) = %v, want %v", sample, got, want)
 		}
