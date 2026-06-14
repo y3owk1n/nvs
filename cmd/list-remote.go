@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -80,7 +81,7 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 	)
 
 	// Combine all groups into one slice for display.
-	combined := append(append(groupNightly, groupStable...), groupOthers...)
+	combined := slices.Concat(groupNightly, groupStable, groupOthers)
 
 	// Determine the current installed version (if any).
 	current, err := GetVersionService().Current()

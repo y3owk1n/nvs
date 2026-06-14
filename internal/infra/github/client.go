@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -264,8 +264,8 @@ func (c *Client) FindStable(ctx context.Context) (release.Release, error) {
 	}
 
 	// Sort releases by published date descending (newest first)
-	sort.Slice(releases, func(i, j int) bool {
-		return releases[i].PublishedAt().After(releases[j].PublishedAt())
+	slices.SortFunc(releases, func(a, b release.Release) int {
+		return b.PublishedAt().Compare(a.PublishedAt())
 	})
 
 	for _, r := range releases {
@@ -285,8 +285,8 @@ func (c *Client) FindNightly(ctx context.Context) (release.Release, error) {
 	}
 
 	// Sort releases by published date descending (newest first)
-	sort.Slice(releases, func(i, j int) bool {
-		return releases[i].PublishedAt().After(releases[j].PublishedAt())
+	slices.SortFunc(releases, func(a, b release.Release) int {
+		return b.PublishedAt().Compare(a.PublishedAt())
 	})
 
 	for _, r := range releases {

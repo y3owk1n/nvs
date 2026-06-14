@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"time"
 
@@ -375,8 +375,8 @@ func loadNightlyHistory() (*NightlyHistory, error) {
 	}
 
 	// Sort by installed_at descending (most recent first)
-	sort.Slice(history.Entries, func(i, j int) bool {
-		return history.Entries[i].InstalledAt.After(history.Entries[j].InstalledAt)
+	slices.SortFunc(history.Entries, func(a, b NightlyHistoryEntry) int {
+		return b.InstalledAt.Compare(a.InstalledAt)
 	})
 
 	return &history, nil
