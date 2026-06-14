@@ -3,6 +3,7 @@ package github_test
 import (
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -196,5 +197,111 @@ func TestNewCache(t *testing.T) {
 
 	if cache == nil {
 		t.Error("NewCache() returned nil")
+	}
+}
+
+func TestCache_Get_CorruptedCacheDeleted(t *testing.T) {
+	tempDir := t.TempDir()
+	cacheFile := filepath.Join(tempDir, "cache.json")
+
+	err := os.WriteFile(cacheFile, []byte("not valid json {{{"), 0o644)
+	if err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	cache := github.NewCache(cacheFile, time.Hour)
+
+	_, err = cache.Get()
+	if err == nil {
+		t.Fatal("Cache.Get() expected error for corrupted JSON, got nil")
+	}
+
+	_, statErr := os.Stat(cacheFile)
+	if !os.IsNotExist(statErr) {
+		t.Errorf("Corrupted cache file was not removed (stat err = %v)", statErr)
+	}
+}
+
+func TestCache_Set_EmptyIsNoop(t *testing.T) {
+	tempDir := t.TempDir()
+	cacheFile := filepath.Join(tempDir, "cache.json")
+
+	const seedTag = "v0.11.0"
+
+	cache := github.NewCache(cacheFile, time.Hour)
+
+	original := []release.Release{
+		release.New(seedTag, false, "abc123", time.Now(), []release.Asset{}),
+	}
+
+	err := cache.Set(original)
+	if err != nil {
+		t.Fatalf("Seed Cache.Set() error = %v", err)
+	}
+
+	// An empty Set must not clobber the valid on-disk cache.
+	err = cache.Set(nil)
+	if err != nil {
+		t.Fatalf("Cache.Set(nil) error = %v", err)
+	}
+
+	got, err := cache.Get()
+	if err != nil {
+		t.Fatalf("Cache.Get() error = %v", err)
+	}
+
+	if len(got) != 1 || got[0].TagName() != seedTag {
+		t.Errorf("Empty Set clobbered cache; got %d releases, want 1 (tag %q)", len(got), seedTag)
+	}
+}
+
+func TestCache_Set_ConcurrentDoesNotCorrupt(t *testing.T) {
+	tempDir := t.TempDir()
+	cacheFile := filepath.Join(tempDir, "cache.json")
+
+	cache := github.NewCache(cacheFile, time.Hour)
+
+	const goroutines = 8
+
+	var waitGroup sync.WaitGroup
+
+	waitGroup.Add(goroutines)
+
+	for idx := range goroutines {
+		go func(idx int) {
+			defer waitGroup.Done()
+
+			batch := make([]release.Release, 0, 10)
+			for range 10 {
+				batch = append(batch, release.New(
+					"v0.0.0",
+					false,
+					"abc",
+					time.Now(),
+					[]release.Asset{},
+				))
+			}
+
+			setErr := cache.Set(batch)
+			if setErr != nil {
+				t.Errorf("goroutine %d: Cache.Set() error = %v", idx, setErr)
+			}
+		}(idx)
+	}
+
+	waitGroup.Wait()
+
+	_, statErr := os.Stat(cacheFile + ".tmp")
+	if !os.IsNotExist(statErr) {
+		t.Errorf("Temp file was not cleaned up (err = %v)", statErr)
+	}
+
+	got, err := cache.Get()
+	if err != nil {
+		t.Fatalf("Cache.Get() after concurrent Set error = %v", err)
+	}
+
+	if len(got) != 10 {
+		t.Errorf("Got %d releases, want 10", len(got))
 	}
 }

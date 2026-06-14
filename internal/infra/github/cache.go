@@ -2,7 +2,11 @@ package github
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -11,9 +15,15 @@ import (
 )
 
 // Cache handles caching of GitHub releases.
+//
+// Cache is safe for concurrent use. Set serializes the temp-file write
+// and rename so two concurrent Set calls cannot corrupt the cache file
+// by racing on the shared temp file path.
 type Cache struct {
 	filePath string
 	ttl      time.Duration
+
+	setMu sync.Mutex
 }
 
 // NewCache creates a new cache instance.
@@ -46,7 +56,20 @@ func (c *Cache) Get() ([]release.Release, error) {
 
 	err = json.Unmarshal(data, &apiReleases)
 	if err != nil {
-		return nil, err
+		// Corrupted cache (truncated write, disk full mid-rename, etc.).
+		// Delete the bad file so future calls don't keep paying the parse
+		// cost and fall through to the network path instead.
+		removeErr := os.Remove(c.filePath)
+		if removeErr != nil &&
+			!errors.Is(removeErr, fs.ErrNotExist) {
+			logrus.Warnf(
+				"Failed to remove corrupted cache file %s: %v",
+				c.filePath,
+				removeErr,
+			)
+		}
+
+		return nil, fmt.Errorf("corrupted cache removed: %w", err)
 	}
 
 	// Convert to domain releases
@@ -81,7 +104,20 @@ func (c *Cache) Get() ([]release.Release, error) {
 }
 
 // Set stores releases in cache.
+//
+// If releases is empty, Set is a no-op: an empty network response must
+// not clobber a valid on-disk cache. Concurrent Set calls are
+// serialized to avoid the temp-file race.
 func (c *Cache) Set(releases []release.Release) error {
+	if len(releases) == 0 {
+		logrus.Debug("Skipping cache write for empty release list")
+
+		return nil
+	}
+
+	c.setMu.Lock()
+	defer c.setMu.Unlock()
+
 	// Convert domain releases to API format for caching
 	apiReleases := make([]apiRelease, 0, len(releases))
 
@@ -117,13 +153,31 @@ func (c *Cache) Set(releases []release.Release) error {
 		return err
 	}
 
+	// Best-effort cleanup of the temp file on any failure from here on.
+	defer func() {
+		_, statErr := os.Stat(tempFile)
+		if statErr == nil {
+			_ = os.Remove(tempFile)
+		}
+	}()
+
+	// Sync to disk so a power loss between the temp file write and the
+	// rename cannot leave the renamed cache file empty or partially
+	// flushed.
+	cacheFile, openErr := os.OpenFile(tempFile, os.O_RDWR, constants.FilePerm)
+	if openErr == nil {
+		syncErr := cacheFile.Sync()
+		if syncErr != nil {
+			logrus.Warnf("Failed to fsync cache temp file: %v", syncErr)
+		}
+
+		_ = cacheFile.Close()
+	}
+
 	// Atomically rename temp file to final location
 	err = os.Rename(tempFile, c.filePath)
 	if err != nil {
-		// Clean up temp file on failure
-		_ = os.Remove(tempFile)
-
-		return err
+		return fmt.Errorf("rename cache temp file: %w", err)
 	}
 
 	logrus.Debugf("Cached %d releases to %s", len(releases), c.filePath)
