@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
+	"unicode/utf8"
 
 	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
@@ -78,7 +81,12 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 	// Note: GitHub API has rate limits (60 requests/hour for unauthenticated)
 	logrus.Debug("Fetching changelog from GitHub API (subject to rate limits)")
 
-	url := fmt.Sprintf("%s/%s...%s", constants.GitHubCompareURL, oldCommit, newCommit)
+	url := fmt.Sprintf(
+		"%s/%s...%s",
+		constants.GitHubCompareURL,
+		url.PathEscape(oldCommit),
+		url.PathEscape(newCommit),
+	)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -112,7 +120,14 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 
 	var compareResp GitHubCompareResponse
 
-	err = json.NewDecoder(resp.Body).Decode(&compareResp)
+	// Wrap the body with io.LimitReader before decoding. Every
+	// other HTTP body decode in this codebase does the same
+	// (see internal/infra/github/client.go). Without the cap, a
+	// malicious or compromised upstream could return an
+	// unbounded body and cause OOM.
+	dec := json.NewDecoder(io.LimitReader(resp.Body, constants.MaxGitHubResponseBytes))
+
+	err = dec.Decode(&compareResp)
 	if err != nil {
 		logrus.Warnf("Failed to parse changelog: %v", err)
 
@@ -156,9 +171,15 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 			}
 		}
 
-		// Truncate long messages
-		if runeCount := len([]rune(message)); runeCount > constants.MessageTruncateLimit {
-			message = string([]rune(message)[:constants.MessageTruncateLimit-3]) + "..."
+		// Truncate long messages. utf8.RuneCountInString is
+		// allocation-free for the count; the full rune slice
+		// is only materialized when we actually have to slice
+		// the string. The previous code allocated the rune
+		// slice twice (once for the count, once for the slice)
+		// on every commit.
+		if utf8.RuneCountInString(message) > constants.MessageTruncateLimit {
+			runes := []rune(message)[:constants.MessageTruncateLimit-3]
+			message = string(runes) + "..."
 		}
 
 		_, printErr = fmt.Fprintf(os.Stdout, "  %s %s\n",
