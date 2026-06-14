@@ -107,14 +107,16 @@ func RunInstall(cmd *cobra.Command, args []string) error {
 	logrus.Debugf("Requested version: %s", alias)
 
 	// Create and start a spinner for progress
-	progressSpinner := spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond)
-	progressSpinner.Prefix = ui.InfoIcon() + " "
-	progressSpinner.Suffix = fmt.Sprintf(" Installing %s...", alias)
+	progressSpinner := ui.NewSafeSpinner(
+		spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond),
+	)
+	progressSpinner.SetPrefix(ui.InfoIcon() + " ")
+	progressSpinner.SetSuffix(fmt.Sprintf(" Installing %s...", alias))
 	progressSpinner.Start()
 
 	// Use version service to install
 	err := GetVersionService().Install(ctx, alias, func(phase string, progress int) {
-		progressSpinner.Suffix = " " + ui.FormatPhaseProgress(phase, progress)
+		progressSpinner.SetSuffix(" " + ui.FormatPhaseProgress(phase, progress))
 	})
 	if err != nil {
 		progressSpinner.Stop()

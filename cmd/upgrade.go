@@ -157,16 +157,18 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		}
 
 		// Create and start a spinner to show progress.
-		progressSpinner := spinner.New(
-			spinner.CharSets[14],
-			constants.SpinnerSpeed*time.Millisecond,
+		progressSpinner := ui.NewSafeSpinner(
+			spinner.New(
+				spinner.CharSets[14],
+				constants.SpinnerSpeed*time.Millisecond,
+			),
 		)
-		progressSpinner.Prefix = ui.InfoIcon() + " "
-		progressSpinner.Suffix = " Checking for updates..."
+		progressSpinner.SetPrefix(ui.InfoIcon() + " ")
+		progressSpinner.SetSuffix(" Checking for updates...")
 		progressSpinner.Start()
 
 		err := GetVersionService().Upgrade(ctx, alias, func(phase string, progress int) {
-			progressSpinner.Suffix = " " + ui.FormatPhaseProgress(phase, progress)
+			progressSpinner.SetSuffix(" " + ui.FormatPhaseProgress(phase, progress))
 		})
 		if err != nil {
 			progressSpinner.Stop()
