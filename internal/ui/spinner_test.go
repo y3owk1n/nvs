@@ -1,6 +1,7 @@
 package ui_test
 
 import (
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -19,17 +20,22 @@ func TestSafeSpinnerSetSuffixConcurrent(t *testing.T) {
 	t.Cleanup(safe.Stop)
 
 	const writers = 8
+
 	const iters = 200
 
 	var waitGroup sync.WaitGroup
 	waitGroup.Add(writers)
-	for i := range writers {
-		go func(id int) {
+
+	for idx := range writers {
+		go func(workerIdx int) {
 			defer waitGroup.Done()
-			for j := range iters {
-				safe.SetSuffix(" writer=" + string(rune('A'+id)) + " iter=" + itoa(j))
+
+			for tick := range iters {
+				safe.SetSuffix(
+					" writer=" + string(rune('A'+workerIdx)) + " iter=" + strconv.Itoa(tick),
+				)
 			}
-		}(i)
+		}(idx)
 	}
 
 	waitGroup.Wait()
@@ -45,17 +51,20 @@ func TestSafeSpinnerSetPrefixConcurrent(t *testing.T) {
 	t.Cleanup(safe.Stop)
 
 	const writers = 4
+
 	const iters = 100
 
 	var waitGroup sync.WaitGroup
 	waitGroup.Add(writers)
-	for i := range writers {
-		go func(id int) {
+
+	for idx := range writers {
+		go func(workerIdx int) {
 			defer waitGroup.Done()
-			for j := range iters {
-				safe.SetPrefix(" P" + itoa(id) + "-" + itoa(j))
+
+			for tick := range iters {
+				safe.SetPrefix(" P" + strconv.Itoa(workerIdx) + "-" + strconv.Itoa(tick))
 			}
-		}(i)
+		}(idx)
 	}
 
 	waitGroup.Wait()
@@ -73,28 +82,14 @@ func TestSafeSpinnerStartStopIdempotent(t *testing.T) {
 	safe.Stop() // double-stop must not panic
 }
 
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	var buf [20]byte
-	pos := len(buf)
-	for n > 0 {
-		pos--
-		buf[pos] = byte('0' + n%10)
-		n /= 10
-	}
-	return string(buf[pos:])
-}
-
 // safeWriter discards spinner output during tests so we don't corrupt the
 // real terminal.
 type safeWriter struct {
 	t *testing.T
 }
 
-func (sw *safeWriter) Write(p []byte) (int, error) {
-	sw.t.Logf("spinner output suppressed (%d bytes)", len(p))
+func (sw *safeWriter) Write(data []byte) (int, error) {
+	sw.t.Logf("spinner output suppressed (%d bytes)", len(data))
 
-	return len(p), nil
+	return len(data), nil
 }
