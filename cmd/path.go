@@ -77,13 +77,18 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	pathEnv := os.Getenv("PATH")
 	logrus.Debug("Current PATH: ", pathEnv)
 
-	// Check if GetGlobalBinDir() is already in PATH
+	// Check if GetGlobalBinDir() is already in PATH. Hoist the
+	// Clean() of GetGlobalBinDir() out of the loop — it is
+	// loop-invariant, and Clean() walks the path string on every
+	// call.
+	binDirClean := filepath.Clean(GetGlobalBinDir())
+
 	pathSeparator := string(os.PathListSeparator)
 	paths := strings.Split(pathEnv, pathSeparator)
 
 	found := false
 	for _, p := range paths {
-		if filepath.Clean(p) == filepath.Clean(GetGlobalBinDir()) {
+		if filepath.Clean(p) == binDirClean {
 			found = true
 
 			break
@@ -310,7 +315,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 		// Check if the global bin directory is already in PATH
 		globalBinDir := GetGlobalBinDir()
-		if !strings.Contains(string(data), globalBinDir) {
+		if !rcFileContainsPathComponent(string(data), globalBinDir) {
 			file, err := os.OpenFile(rcFile, os.O_APPEND|os.O_WRONLY, constants.FilePerm)
 			if err != nil {
 				return fmt.Errorf("failed to open %s: %w", rcFile, err)
@@ -357,4 +362,112 @@ func RunPath(_ *cobra.Command, _ []string) error {
 // init registers the pathCmd with the root command.
 func init() {
 	rootCmd.AddCommand(pathCmd)
+}
+
+// rcFileContainsPathComponent reports whether target appears in
+// content as a distinct path component. Using a raw strings.Contains
+// is wrong: if the rc file has a different path of which target is
+// a prefix or substring (e.g. target=/home/u/.local/bin, rc has
+// `export PATH="$PATH:/home/u/.local/bin-extra"`) or if target
+// appears in a comment, the substring check would return true and
+// we'd skip appending, leaving the user without a working PATH
+// entry.
+//
+// The correct check requires target to be delimited on both sides
+// by characters that cannot extend a path component. We treat
+// ASCII letters/digits, '_', '-', and '.' as path-component
+// characters (delimiters are everything else, including '/', ' ',
+// '"', "'", '$', ':', '=', and the string boundaries). This
+// matches the same set of characters that are valid in PATH
+// components and in the contents of typical rc-file PATH
+// assignments.
+//
+// The check iterates line-by-line and only considers lines that
+// look PATH-related (contain 'PATH' or 'path') to keep
+// false-positives from comments minimal.
+func rcFileContainsPathComponent(content, target string) bool {
+	if target == "" {
+		return false
+	}
+
+	for line := range strings.SplitSeq(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+
+		if !strings.Contains(trimmed, "PATH") && !strings.Contains(trimmed, "path") {
+			continue
+		}
+
+		if lineHasPathComponent(trimmed, target) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// lineHasPathComponent reports whether target appears in line
+// bounded by non-path-component characters (or string boundaries)
+// on both sides.
+func lineHasPathComponent(line, target string) bool {
+	if target == "" {
+		return false
+	}
+
+	for idx := strings.Index(line, target); idx >= 0; idx = nextIndex(line, target, idx) {
+		beforeOK := idx == 0 || !isPathComponentByte(line[idx-1])
+		afterIdx := idx + len(target)
+
+		afterOK := afterIdx >= len(line) || !isPathComponentByte(line[afterIdx])
+		if beforeOK && afterOK {
+			return true
+		}
+	}
+
+	return false
+}
+
+// nextIndex returns the next index in line at or after 'from'
+// where target appears. It is used to advance past the
+// occurrence we just inspected.
+func nextIndex(line, target string, from int) int {
+	if from < 0 {
+		return strings.Index(line, target)
+	}
+
+	// Move one byte past the previous match's start so we don't
+	// re-match at the same position.
+	start := from + 1
+	if start >= len(line) {
+		return -1
+	}
+
+	rel := strings.Index(line[start:], target)
+	if rel < 0 {
+		return -1
+	}
+
+	return start + rel
+}
+
+// isPathComponentByte reports whether ch is a byte that can extend
+// a path component. Matches the ASCII letters/digits, '_', '-',
+// and '.' that show up in real filesystem paths and in
+// shell-tokenized PATH entries; everything else is treated as a
+// delimiter.
+func isPathComponentByte(chr byte) bool {
+	switch {
+	case chr >= 'a' && chr <= 'z':
+		return true
+	case chr >= 'A' && chr <= 'Z':
+		return true
+	case chr >= '0' && chr <= '9':
+		return true
+	case chr == '_' || chr == '-' || chr == '.':
+		return true
+	default:
+		return false
+	}
 }
