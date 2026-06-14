@@ -38,9 +38,9 @@ func RunCurrent(cmd *cobra.Command, _ []string) error {
 
 	logrus.Debugf("Current version detected: %s", current.Name())
 
-	jsonOutput, err := cmd.Flags().GetBool("json")
-	if err != nil {
-		logrus.Warnf("Failed to read json flag: %v", err)
+	jsonOutput, flagErr := cmd.Flags().GetBool("json")
+	if flagErr != nil {
+		logrus.Warnf("Failed to read json flag: %v", flagErr)
 	}
 
 	type CurrentInfo struct {
@@ -61,19 +61,30 @@ func RunCurrent(cmd *cobra.Command, _ []string) error {
 		info.Name = constants.Stable
 		info.Type = "stable"
 
-		stable, err := GetVersionService().FindStable(cmd.Context())
-		if err != nil {
-			logrus.Warnf("Error fetching latest stable release: %v", err)
+		// findErr is kept separate from the err reused below for
+		// stdout writes; the two failure modes are independent
+		// (network vs. terminal) and shouldn't clobber each other.
+		stable, findErr := GetVersionService().FindStable(cmd.Context())
+		if findErr != nil {
+			logrus.Warnf("Error fetching latest stable release: %v", findErr)
 
 			if !jsonOutput {
-				_, err = fmt.Fprintf(os.Stdout,
+				_, printErr := fmt.Fprintf(
+					os.Stdout,
 					"%s %s\n",
 					ui.InfoIcon(),
 					ui.WhiteText("stable (version details unavailable)"),
 				)
-				if err != nil {
-					logrus.Warnf("Failed to write to stdout: %v", err)
+				if printErr != nil {
+					logrus.Warnf("Failed to write to stdout: %v", printErr)
 				}
+			} else {
+				// In --json mode, scripts consume stdout as data
+				// and rely on the exit code for status. Returning
+				// here turns a fetch failure into a non-zero exit
+				// so the script can detect it, rather than
+				// silently emitting a partial object.
+				return fmt.Errorf("failed to fetch latest stable release: %w", findErr)
 			}
 		} else {
 			info.Version = stable.TagName()
@@ -107,19 +118,26 @@ func RunCurrent(cmd *cobra.Command, _ []string) error {
 		info.Name = constants.Nightly
 		info.Type = "nightly"
 
-		nightly, err := GetVersionService().FindNightly(cmd.Context())
-		if err != nil {
-			logrus.Warnf("Error fetching latest nightly release: %v", err)
+		// See the comment in the stable branch above for why
+		// findErr / printErr are separate from the outer err.
+		nightly, findErr := GetVersionService().FindNightly(cmd.Context())
+		if findErr != nil {
+			logrus.Warnf("Error fetching latest nightly release: %v", findErr)
 
 			if !jsonOutput {
-				_, err = fmt.Fprintf(os.Stdout,
+				_, printErr := fmt.Fprintf(
+					os.Stdout,
 					"%s %s\n",
 					ui.InfoIcon(),
 					ui.WhiteText("nightly (version details unavailable)"),
 				)
-				if err != nil {
-					logrus.Warnf("Failed to write to stdout: %v", err)
+				if printErr != nil {
+					logrus.Warnf("Failed to write to stdout: %v", printErr)
 				}
+			} else {
+				// See stable branch — emit non-zero exit so
+				// --json consumers can detect the partial result.
+				return fmt.Errorf("failed to fetch latest nightly release: %w", findErr)
 			}
 		} else {
 			shortCommit := nightly.CommitHash()
@@ -133,17 +151,30 @@ func RunCurrent(cmd *cobra.Command, _ []string) error {
 			info.Published = publishedStr
 
 			if !jsonOutput {
-				_, err = fmt.Fprintf(os.Stdout, "%s %s\n", ui.InfoIcon(), ui.CyanText("nightly"))
+				_, err = fmt.Fprintf(
+					os.Stdout,
+					"%s %s\n",
+					ui.InfoIcon(),
+					ui.CyanText("nightly"),
+				)
 				if err != nil {
 					logrus.Warnf("Failed to write to stdout: %v", err)
 				}
 
-				_, err = fmt.Fprintf(os.Stdout, "  %s\n", ui.WhiteText("Published: "+publishedStr))
+				_, err = fmt.Fprintf(
+					os.Stdout,
+					"  %s\n",
+					ui.WhiteText("Published: "+publishedStr),
+				)
 				if err != nil {
 					logrus.Warnf("Failed to write to stdout: %v", err)
 				}
 
-				_, err = fmt.Fprintf(os.Stdout, "  %s\n", ui.WhiteText("Commit: "+shortCommit))
+				_, err = fmt.Fprintf(
+					os.Stdout,
+					"  %s\n",
+					ui.WhiteText("Commit: "+shortCommit),
+				)
 				if err != nil {
 					logrus.Warnf("Failed to write to stdout: %v", err)
 				}
