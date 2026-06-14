@@ -94,6 +94,48 @@ func TestCache_Get_Stale(t *testing.T) {
 	}
 }
 
+func TestCache_GetIgnoreStale_BypassesTTL(t *testing.T) {
+	tempDir := t.TempDir()
+	cacheFile := filepath.Join(tempDir, "cache.json")
+
+	const tag = "v0.11.0"
+
+	cache := github.NewCache(cacheFile, time.Nanosecond)
+
+	releases := []release.Release{
+		release.New(tag, false, "abc123", time.Now(), []release.Asset{}),
+	}
+
+	err := cache.Set(releases)
+	if err != nil {
+		t.Fatalf("Cache.Set() error = %v", err)
+	}
+
+	// Wait for cache to become stale per the normal Get path.
+	time.Sleep(time.Millisecond)
+
+	got, err := cache.GetIgnoreStale()
+	if err != nil {
+		t.Fatalf("Cache.GetIgnoreStale() error = %v", err)
+	}
+
+	if len(got) != 1 || got[0].TagName() != tag {
+		t.Errorf("GetIgnoreStale() got %d releases, want 1 (tag %q)", len(got), tag)
+	}
+}
+
+func TestCache_GetIgnoreStale_NoFile(t *testing.T) {
+	tempDir := t.TempDir()
+	cacheFile := filepath.Join(tempDir, "missing.json")
+
+	cache := github.NewCache(cacheFile, time.Hour)
+
+	_, err := cache.GetIgnoreStale()
+	if err == nil {
+		t.Error("Cache.GetIgnoreStale() expected error for missing file, got nil")
+	}
+}
+
 func TestCache_Get_InvalidJSON(t *testing.T) {
 	tempDir := t.TempDir()
 	cacheFile := filepath.Join(tempDir, "cache.json")

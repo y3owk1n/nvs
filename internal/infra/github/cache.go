@@ -46,61 +46,19 @@ func (c *Cache) Get() ([]release.Release, error) {
 		return nil, ErrCacheStale
 	}
 
-	data, err := os.ReadFile(c.filePath)
+	return c.read()
+}
+
+// GetIgnoreStale retrieves releases from cache without checking the
+// TTL. Use this as a last-resort fallback when a fresh fetch fails:
+// the data may be old, but is better than no data at all.
+func (c *Cache) GetIgnoreStale() ([]release.Release, error) {
+	_, err := os.Stat(c.filePath)
 	if err != nil {
 		return nil, err
 	}
 
-	// We need to unmarshal to API format first, then convert
-	var apiReleases []apiRelease
-
-	err = json.Unmarshal(data, &apiReleases)
-	if err != nil {
-		// Corrupted cache (truncated write, disk full mid-rename, etc.).
-		// Delete the bad file so future calls don't keep paying the parse
-		// cost and fall through to the network path instead.
-		removeErr := os.Remove(c.filePath)
-		if removeErr != nil &&
-			!errors.Is(removeErr, fs.ErrNotExist) {
-			logrus.Warnf(
-				"Failed to remove corrupted cache file %s: %v",
-				c.filePath,
-				removeErr,
-			)
-		}
-
-		return nil, fmt.Errorf("corrupted cache removed: %w", err)
-	}
-
-	// Convert to domain releases
-	releases := make([]release.Release, 0, len(apiReleases))
-	for _, apiRelease := range apiReleases {
-		publishedAt, err := time.Parse(time.RFC3339, apiRelease.PublishedAt)
-		if err != nil {
-			logrus.Warnf(
-				"Skipping release %s due to invalid PublishedAt: %v",
-				apiRelease.TagName,
-				err,
-			)
-
-			continue
-		}
-
-		assets := make([]release.Asset, 0, len(apiRelease.Assets))
-		for _, aa := range apiRelease.Assets {
-			assets = append(assets, release.NewAsset(aa.Name, aa.BrowserDownloadURL, aa.Size))
-		}
-
-		releases = append(releases, release.New(
-			apiRelease.TagName,
-			apiRelease.Prerelease,
-			apiRelease.CommitHash,
-			publishedAt,
-			assets,
-		))
-	}
-
-	return releases, nil
+	return c.read()
 }
 
 // Set stores releases in cache.
@@ -183,4 +141,61 @@ func (c *Cache) Set(releases []release.Release) error {
 	logrus.Debugf("Cached %d releases to %s", len(releases), c.filePath)
 
 	return nil
+}
+
+// read loads, decodes, and converts the on-disk cache file. It
+// deletes the file if the JSON is corrupted.
+func (c *Cache) read() ([]release.Release, error) {
+	data, err := os.ReadFile(c.filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var apiReleases []apiRelease
+
+	err = json.Unmarshal(data, &apiReleases)
+	if err != nil {
+		// Corrupted cache (truncated write, disk full mid-rename, etc.).
+		// Delete the bad file so future calls don't keep paying the parse
+		// cost and fall through to the network path instead.
+		removeErr := os.Remove(c.filePath)
+		if removeErr != nil && !errors.Is(removeErr, fs.ErrNotExist) {
+			logrus.Warnf(
+				"Failed to remove corrupted cache file %s: %v",
+				c.filePath,
+				removeErr,
+			)
+		}
+
+		return nil, fmt.Errorf("corrupted cache removed: %w", err)
+	}
+
+	releases := make([]release.Release, 0, len(apiReleases))
+	for _, apiRelease := range apiReleases {
+		publishedAt, err := time.Parse(time.RFC3339, apiRelease.PublishedAt)
+		if err != nil {
+			logrus.Warnf(
+				"Skipping release %s due to invalid PublishedAt: %v",
+				apiRelease.TagName,
+				err,
+			)
+
+			continue
+		}
+
+		assets := make([]release.Asset, 0, len(apiRelease.Assets))
+		for _, aa := range apiRelease.Assets {
+			assets = append(assets, release.NewAsset(aa.Name, aa.BrowserDownloadURL, aa.Size))
+		}
+
+		releases = append(releases, release.New(
+			apiRelease.TagName,
+			apiRelease.Prerelease,
+			apiRelease.CommitHash,
+			publishedAt,
+			assets,
+		))
+	}
+
+	return releases, nil
 }

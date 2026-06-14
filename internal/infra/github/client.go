@@ -195,6 +195,10 @@ type apiAsset struct {
 //
 // The force flag bypasses both caches: it forces a fresh network
 // fetch and refreshes both the in-memory and on-disk caches.
+//
+// Resilience: if every fresh source (global cache, GitHub API) fails
+// AND an on-disk cache exists, the stale cache is returned as a
+// last resort so a transient network blip doesn't break the command.
 func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, error) {
 	if !force {
 		if cached := c.memCacheSnapshot(); cached != nil {
@@ -230,10 +234,10 @@ func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, err
 
 		releases, err = c.FetchRemoteVersionsJSON(ctx)
 		if err != nil {
-			logrus.Debugf("Global cache fetch failed: %v", err)
-			// Fall back to GitHub API
-			logrus.Debug("Falling back to fetching fresh releases from GitHub")
-
+			logrus.Warnf(
+				"Global cache fetch failed, falling back to GitHub API: %v",
+				err,
+			)
 			releases, err = c.fetchFromGitHubAPI(ctx)
 		}
 	} else {
@@ -243,13 +247,30 @@ func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, err
 	}
 
 	if err != nil {
+		// All fresh sources failed. As a last resort, fall back to
+		// whatever is on disk regardless of TTL, so a transient
+		// network blip doesn't fail the entire command.
+		var stale []release.Release
+
+		stale, staleErr := c.cache.GetIgnoreStale()
+		if staleErr == nil {
+			logrus.Warnf(
+				"Fresh fetch failed (%v); serving stale cache (%d releases)",
+				err,
+				len(stale),
+			)
+			c.storeMemCache(stale)
+
+			return stale, nil
+		}
+
 		return nil, err
 	}
 
-	// Update cache
-	err = c.cache.Set(releases)
-	if err != nil {
-		logrus.Warnf("Failed to update cache: %v", err)
+	// Update cache (Set is a no-op for empty input)
+	setErr := c.cache.Set(releases)
+	if setErr != nil {
+		logrus.Warnf("Failed to update cache: %v", setErr)
 	}
 
 	c.storeMemCache(releases)
