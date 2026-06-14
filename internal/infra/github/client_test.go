@@ -1,7 +1,6 @@
 package github_test
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -258,7 +257,7 @@ func TestClient_FindStable(t *testing.T) {
 
 	cacheFile := writeCacheFile(t, cacheData)
 	client := github.NewClient(cacheFile, time.Hour, "", "", false)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	stable, err := client.FindStable(ctx)
 	if err != nil {
@@ -297,7 +296,7 @@ func TestClient_FindNightly(t *testing.T) {
 
 	cacheFile := writeCacheFile(t, cacheData)
 	client := github.NewClient(cacheFile, time.Hour, "", "", false)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	nightly, err := client.FindNightly(ctx)
 	if err != nil {
@@ -336,7 +335,7 @@ func TestClient_FindByTag(t *testing.T) {
 
 	cacheFile := writeCacheFile(t, cacheData)
 	client := github.NewClient(cacheFile, time.Hour, "", "", false)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tests := []struct {
 		name    string
@@ -446,7 +445,7 @@ func TestClient_GetAll_InMemoryCache(t *testing.T) {
 	}
 	cacheFile := writeCacheFile(t, originalData)
 	client := github.NewClient(cacheFile, time.Hour, "", "", false)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// First call: should read the disk cache and populate the
 	// in-memory cache.
@@ -524,7 +523,7 @@ func TestClient_GetAll_ForceBypassesMemCache(t *testing.T) {
 	}
 	cacheFile := writeCacheFile(t, originalData)
 	client := github.NewClient(cacheFile, time.Hour, "", "", false)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Prime the in-memory cache.
 	_, primeErr := client.GetAll(ctx, false)

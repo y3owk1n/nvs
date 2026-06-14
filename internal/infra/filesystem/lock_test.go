@@ -17,7 +17,7 @@ func TestFileLock_BasicLockUnlock(t *testing.T) {
 	lock := NewFileLock(lockPath)
 
 	// Lock should succeed
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
 	err := lock.Lock(ctx)
@@ -99,7 +99,7 @@ func TestFileLock_Timeout(t *testing.T) {
 	// Try to acquire the same lock with a short timeout
 	lock2 := NewFileLock(lockPath)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 	defer cancel()
 
 	err = lock2.Lock(ctx)
@@ -124,7 +124,7 @@ func TestFileLock_WithLock(t *testing.T) {
 
 	var executed bool
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
 	err := lock.WithLock(ctx, func() error {
@@ -172,7 +172,7 @@ func TestFileLock_MultipleLocksSameProcess(t *testing.T) {
 	// Try to acquire again (should succeed on Unix with flock)
 	lock2 := NewFileLock(lockPath)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 	defer cancel()
 
 	err = lock2.Lock(ctx)

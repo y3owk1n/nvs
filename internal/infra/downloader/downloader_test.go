@@ -30,7 +30,7 @@ func TestDownloader_Download(t *testing.T) {
 	defer server.Close()
 
 	downloaderInstance := downloader.New()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create temp file
 	tempFile, err := os.CreateTemp(t.TempDir(), "download-test-*")
@@ -87,7 +87,7 @@ func TestDownloader_Download_HTTPError(t *testing.T) {
 	defer server.Close()
 
 	downloaderInstance := downloader.New()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tempFile, err := os.CreateTemp(t.TempDir(), "download-test-*")
 	if err != nil {
@@ -118,7 +118,7 @@ func TestDownloader_Download_ContextCancellation(t *testing.T) {
 	defer server.Close()
 
 	downloaderInstance := downloader.New()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel() // Cancel immediately
 
 	tempFile, err := os.CreateTemp(t.TempDir(), "download-test-*")
@@ -159,7 +159,7 @@ func TestDownloader_VerifyChecksum(t *testing.T) {
 	defer server.Close()
 
 	downloaderInstance := downloader.New()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create temp file with test content
 	tempFile, err := os.CreateTemp(t.TempDir(), "checksum-test-*")
@@ -202,7 +202,7 @@ func TestDownloader_VerifyChecksum_Mismatch(t *testing.T) {
 	defer server.Close()
 
 	downloaderInstance := downloader.New()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tempFile, err := os.CreateTemp(t.TempDir(), "checksum-test-*")
 	if err != nil {
@@ -245,7 +245,7 @@ func TestDownloader_VerifyChecksum_ShasumTxt(t *testing.T) {
 	defer server.Close()
 
 	downloaderInstance := downloader.New()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tempFile, err := os.CreateTemp(t.TempDir(), "checksum-test-*")
 	if err != nil {
@@ -283,7 +283,7 @@ func TestDownloader_VerifyChecksum_EmptyFile(t *testing.T) {
 	defer server.Close()
 
 	downloaderInstance := downloader.New()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tempFile, err := os.CreateTemp(t.TempDir(), "checksum-test-*")
 	if err != nil {
@@ -340,7 +340,7 @@ func TestDownloader_DownloadWithChecksumVerification(t *testing.T) {
 	defer checksumServer.Close()
 
 	downloaderInstance := downloader.New()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tempFile, err := os.CreateTemp(t.TempDir(), "download-checksum-test-*")
 	if err != nil {
@@ -409,7 +409,7 @@ func TestDownloader_DownloadWithChecksumVerification_Mismatch(t *testing.T) {
 	defer checksumServer.Close()
 
 	downloaderInstance := downloader.New()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tempFile, err := os.CreateTemp(t.TempDir(), "download-checksum-test-*")
 	if err != nil {
@@ -457,7 +457,7 @@ func TestDownloader_DownloadWithChecksumVerification_HTTPError(t *testing.T) {
 	defer checksumServer.Close()
 
 	downloaderInstance := downloader.New()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tempFile, err := os.CreateTemp(t.TempDir(), "download-checksum-test-*")
 	if err != nil {
@@ -501,7 +501,7 @@ func TestDownloader_DownloadWithChecksumVerification_ChecksumHTTPError(t *testin
 	defer checksumServer.Close()
 
 	downloaderInstance := downloader.New()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tempFile, err := os.CreateTemp(t.TempDir(), "download-checksum-test-*")
 	if err != nil {
@@ -551,7 +551,7 @@ func TestDownloader_DownloadWithChecksumVerification_ContextCancellation(t *test
 	defer checksumServer.Close()
 
 	downloaderInstance := downloader.New()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
 	tempFile, err := os.CreateTemp(t.TempDir(), "download-checksum-test-*")

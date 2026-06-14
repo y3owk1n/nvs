@@ -181,7 +181,7 @@ func TestRunList(t *testing.T) {
 
 	// Call RunList
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err = cmd.RunList(cobraCmd, []string{})
 	if err != nil {
@@ -203,7 +203,7 @@ func TestRunList_NoVersions(t *testing.T) {
 	// No versions
 
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err := cmd.RunList(cobraCmd, []string{})
 	if err != nil {
@@ -243,7 +243,7 @@ func TestRunCurrent(t *testing.T) {
 	}
 
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err = cmd.RunCurrent(cobraCmd, []string{})
 	if err != nil {
@@ -255,7 +255,7 @@ func TestRunEnv(t *testing.T) {
 	cobraCmd := &cobra.Command{}
 	cobraCmd.Flags().Bool("source", false, "")
 	cobraCmd.Flags().String("shell", "", "")
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err := cmd.RunEnv(cobraCmd, []string{})
 	if err != nil {
@@ -269,7 +269,7 @@ func TestRunEnv_Source(t *testing.T) {
 	cobraCmd.Flags().String("shell", "", "")   // default empty
 	_ = cobraCmd.Flags().Set("source", "true")
 	_ = cobraCmd.Flags().Set("shell", "bash")
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err := cmd.RunEnv(cobraCmd, []string{})
 	if err != nil {
@@ -340,7 +340,7 @@ func TestRunReset(t *testing.T) {
 	}
 
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	// Set env vars to temp
 	t.Setenv("NVS_CONFIG_DIR", tempDir)
@@ -360,7 +360,7 @@ func TestRunReset(t *testing.T) {
 
 func TestRunInstall(t *testing.T) {
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	// Test with invalid version
 	err := cmd.RunInstall(
@@ -405,7 +405,7 @@ func TestRunPath(t *testing.T) {
 	}
 
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err = cmd.RunPath(cobraCmd, []string{})
 	if err != nil {
@@ -415,7 +415,7 @@ func TestRunPath(t *testing.T) {
 
 func TestRunConfig(t *testing.T) {
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	// Test with arg
 	err := cmd.RunConfig(cobraCmd, []string{"testconfig"})
@@ -474,7 +474,7 @@ func TestRunUse(t *testing.T) {
 	}
 
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err = cmd.RunUse(cobraCmd, []string{version})
 	if err != nil {
@@ -565,7 +565,7 @@ func TestRunUse_InstallAndSwitch(t *testing.T) {
 	targetVersion := "stable"
 
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	// This should install stable and switch to it
 	err = cmd.RunUse(cobraCmd, []string{targetVersion})
@@ -599,7 +599,7 @@ func TestFullWorkflow(t *testing.T) {
 	}
 
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	// 1. Test initial state - no versions installed
 	err := cmd.RunList(cobraCmd, []string{})
@@ -795,7 +795,7 @@ func TestRunListRemote(t *testing.T) {
 	cmd.SetVersionServiceForTesting(mockService)
 
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err = cmd.RunListRemote(cobraCmd, []string{})
 	if err != nil {
@@ -850,7 +850,7 @@ func TestRunListRemote_Force(t *testing.T) {
 
 	cobraCmd := &cobra.Command{}
 	cobraCmd.Flags().Bool("force", false, "")
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	// Test with force flag
 	err = cobraCmd.Flags().Set("force", "true")
@@ -912,7 +912,7 @@ func TestRunListRemote_WithInstalledVersions(t *testing.T) {
 	cmd.SetVersionServiceForTesting(mockService)
 
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err = cmd.RunListRemote(cobraCmd, []string{})
 	if err != nil {
@@ -922,7 +922,7 @@ func TestRunListRemote_WithInstalledVersions(t *testing.T) {
 
 func TestRunUpgrade_InvalidTarget(t *testing.T) {
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	// Test with invalid target (not stable or nightly)
 	err := cmd.RunUpgrade(cobraCmd, []string{"invalid-target"})
@@ -978,7 +978,7 @@ func TestRunUpgrade_NotInstalled(t *testing.T) {
 	cmd.SetVersionServiceForTesting(mockService)
 
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	// Should skip (not error) when version not installed
 	err = cmd.RunUpgrade(cobraCmd, []string{"stable"})
@@ -1035,7 +1035,7 @@ func TestRunUpgrade_BothVersions(t *testing.T) {
 	cmd.SetVersionServiceForTesting(mockService)
 
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	// No args = both stable and nightly
 	err = cmd.RunUpgrade(cobraCmd, []string{})
@@ -1061,7 +1061,7 @@ func TestRunEnv_SourceFish(t *testing.T) {
 	cobraCmd.Flags().String("shell", "", "")
 	_ = cobraCmd.Flags().Set("source", "true")
 	_ = cobraCmd.Flags().Set("shell", "fish")
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err := cmd.RunEnv(cobraCmd, []string{})
 	if err != nil {
@@ -1086,7 +1086,7 @@ func TestRunEnv_SourceZsh(t *testing.T) {
 	cobraCmd.Flags().String("shell", "", "")
 	_ = cobraCmd.Flags().Set("source", "true")
 	_ = cobraCmd.Flags().Set("shell", "zsh")
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err := cmd.RunEnv(cobraCmd, []string{})
 	if err != nil {
@@ -1111,7 +1111,7 @@ func TestRunEnv_SourceSh(t *testing.T) {
 	cobraCmd.Flags().String("shell", "", "")
 	_ = cobraCmd.Flags().Set("source", "true")
 	_ = cobraCmd.Flags().Set("shell", "sh")
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err := cmd.RunEnv(cobraCmd, []string{})
 	if err != nil {
@@ -1240,7 +1240,7 @@ func TestRunDoctor(t *testing.T) {
 	}
 
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	// Doctor may fail if some checks don't pass, but shouldn't panic
 	err := cmd.RunDoctor(cobraCmd, []string{})
@@ -1263,7 +1263,7 @@ func TestRunHook(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			cobraCmd := &cobra.Command{}
-			cobraCmd.SetContext(context.Background())
+			cobraCmd.SetContext(t.Context())
 
 			err := cmd.RunHook(cobraCmd, []string{testCase.shell})
 			if testCase.wantErr {
@@ -1315,7 +1315,7 @@ func TestRunPin(t *testing.T) {
 
 	cobraCmd := &cobra.Command{}
 	cobraCmd.Flags().Bool("global", false, "")
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err = cmd.RunPin(cobraCmd, []string{versionName})
 	if err != nil {
@@ -1349,7 +1349,7 @@ func TestRunRollback_NoHistory(t *testing.T) {
 	}
 
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err := cmd.RunRollback(cobraCmd, []string{})
 	// May error or just show empty list
@@ -1371,7 +1371,7 @@ func TestRunRun_VersionNotInstalled(t *testing.T) {
 	}
 
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err := cmd.RunRun(cobraCmd, []string{"nonexistent-version"})
 	if err == nil {
@@ -1396,7 +1396,7 @@ func TestRunEnv_SourceUnsupportedShell(t *testing.T) {
 	cobraCmd.Flags().String("shell", "", "")
 	_ = cobraCmd.Flags().Set("source", "true")
 	_ = cobraCmd.Flags().Set("shell", "unsupported-shell")
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err := cmd.RunEnv(cobraCmd, []string{})
 	if err == nil {
@@ -1417,7 +1417,7 @@ func TestRunUninstall_NotInstalled(t *testing.T) {
 	}
 
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	// Try to uninstall a version that doesn't exist
 	err := cmd.RunUninstall(cobraCmd, []string{"nonexistent-version"})
@@ -1474,7 +1474,7 @@ func TestRunUninstall_CurrentAborted(t *testing.T) {
 	os.Stdin = reader
 
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	// Should not error - just abort
 	err = cmd.RunUninstall(cobraCmd, []string{versionName})
@@ -1502,7 +1502,7 @@ func TestRunCurrent_NoCurrent(t *testing.T) {
 	}
 
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	// No current version set - should return error
 	err := cmd.RunCurrent(cobraCmd, []string{})
@@ -1545,7 +1545,7 @@ func TestRunCurrent_WithStable(t *testing.T) {
 	}
 
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err = cmd.RunCurrent(cobraCmd, []string{})
 	// May error if release fetch fails, but shouldn't crash
@@ -1586,7 +1586,7 @@ func TestRunCurrent_WithNightly(t *testing.T) {
 	}
 
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err = cmd.RunCurrent(cobraCmd, []string{})
 	// May error if release fetch fails, but shouldn't crash
@@ -1627,7 +1627,7 @@ func TestRunCurrent_WithCommitHash(t *testing.T) {
 	}
 
 	cobraCmd := &cobra.Command{}
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err = cmd.RunCurrent(cobraCmd, []string{})
 	if err != nil {
@@ -1718,7 +1718,7 @@ func TestRunList_JSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err = cmd.RunList(cobraCmd, []string{})
 	if err != nil {
@@ -1815,7 +1815,7 @@ func TestRunCurrent_JSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err = cmd.RunCurrent(cobraCmd, []string{})
 	if err != nil {
@@ -1880,7 +1880,7 @@ func TestRunDoctor_JSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	_ = cmd.RunDoctor(cobraCmd, []string{})
 	// Doctor may return error if checks fail, but we check JSON output
@@ -1963,7 +1963,7 @@ func TestRunEnv_JSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	err = cmd.RunEnv(cobraCmd, []string{})
 	if err != nil {
@@ -2069,7 +2069,7 @@ func TestRunUse_Pick(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	// Test with --pick flag - should attempt to show picker but fail in test env
 	err = cmd.RunUse(cobraCmd, []string{})
@@ -2141,7 +2141,7 @@ func TestRunInstall_Pick(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	// Test with --pick flag - should attempt to show picker but fail in test env
 	err = cmd.RunInstall(cobraCmd, []string{})
@@ -2219,7 +2219,7 @@ func TestRunPin_Pick(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	// Test with --pick flag - should attempt to show picker but fail in test env
 	err = cmd.RunPin(cobraCmd, []string{})
@@ -2315,7 +2315,7 @@ func TestRunRun_Pick(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	// Test with --pick flag - should attempt to show picker but fail in test env
 	err = cmd.RunRun(cobraCmd, []string{})
@@ -2391,7 +2391,7 @@ func TestRunUninstall_Pick(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	// Test with --pick flag - should attempt to show picker but fail in test env
 	err = cmd.RunUninstall(cobraCmd, []string{})
@@ -2462,7 +2462,7 @@ func TestRunUpgrade_Pick(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cobraCmd.SetContext(context.Background())
+	cobraCmd.SetContext(t.Context())
 
 	// Test with --pick flag - should succeed since stable is already "up-to-date"
 	err = cmd.RunUpgrade(cobraCmd, []string{})

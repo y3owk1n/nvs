@@ -136,7 +136,7 @@ func TestRunCommandWithSpinnerAndOutput_KillsChildOnCancel(t *testing.T) {
 
 	cmd := newPipedCommander("", "")
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	done := make(chan error, 1)
 

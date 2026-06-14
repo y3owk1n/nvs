@@ -182,7 +182,7 @@ func TestService_Use_Stable(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", newErr)
 	}
 
-	resolvedVersion, err := service.Use(context.Background(), constants.Stable)
+	resolvedVersion, err := service.Use(t.Context(), constants.Stable)
 	if err != nil {
 		t.Fatalf("Use stable failed: %v", err)
 	}
@@ -235,7 +235,7 @@ func TestService_Use_Nightly_NotAvailable(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", newErr)
 	}
 
-	_, err := service.Use(context.Background(), constants.Nightly)
+	_, err := service.Use(t.Context(), constants.Nightly)
 	if err == nil {
 		t.Error("Expected error when nightly release is not available")
 	}
@@ -259,7 +259,7 @@ func TestService_Use_Tag(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	_, err = service.Use(context.Background(), "v0.9.5")
+	_, err = service.Use(t.Context(), "v0.9.5")
 	if err != nil {
 		t.Fatalf("Use v0.9.5 failed: %v", err)
 	}
@@ -286,7 +286,7 @@ func TestService_ListRemote_ForceFalse(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	_, err = service.ListRemote(context.Background(), false)
+	_, err = service.ListRemote(t.Context(), false)
 	if err != nil {
 		t.Fatalf("ListRemote(false) failed: %v", err)
 	}
@@ -309,7 +309,7 @@ func TestService_ListRemote_ForceTrue(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	_, err = service.ListRemote(context.Background(), true)
+	_, err = service.ListRemote(t.Context(), true)
 	if err != nil {
 		t.Fatalf("ListRemote(true) failed: %v", err)
 	}
@@ -333,7 +333,7 @@ func TestService_Use_VersionNotFound(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	_, err = service.Use(context.Background(), constants.Nightly)
+	_, err = service.Use(t.Context(), constants.Nightly)
 	if err == nil {
 		t.Fatalf("Expected error for non-installed version, got nil")
 	}
@@ -360,7 +360,7 @@ func TestService_Install_CommitHash(t *testing.T) {
 
 	commitHash := "abc123def456"
 
-	err = service.Install(context.Background(), commitHash, nil)
+	err = service.Install(t.Context(), commitHash, nil)
 	if err != nil {
 		t.Errorf("Install commit hash failed: %v", err)
 	}
@@ -581,7 +581,7 @@ func TestService_FindStable(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	stable, err := service.FindStable(context.Background())
+	stable, err := service.FindStable(t.Context())
 	if err != nil {
 		t.Fatalf("FindStable failed: %v", err)
 	}
@@ -603,7 +603,7 @@ func TestService_FindNightly(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	nightly, err := service.FindNightly(context.Background())
+	nightly, err := service.FindNightly(t.Context())
 	if err != nil {
 		t.Fatalf("FindNightly failed: %v", err)
 	}
@@ -746,7 +746,7 @@ func TestService_Upgrade_Success(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	err = service.Upgrade(context.Background(), constants.Stable, nil)
+	err = service.Upgrade(t.Context(), constants.Stable, nil)
 	if err != nil {
 		t.Fatalf("Upgrade failed: %v", err)
 	}
@@ -786,7 +786,7 @@ func TestService_Upgrade_InstallFailure(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	err = service.Upgrade(context.Background(), constants.Stable, nil)
+	err = service.Upgrade(t.Context(), constants.Stable, nil)
 	if err == nil {
 		t.Fatal("Expected upgrade to fail")
 	}
@@ -809,7 +809,7 @@ func TestService_Upgrade_NotInstalled(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	err = service.Upgrade(context.Background(), constants.Stable, nil)
+	err = service.Upgrade(t.Context(), constants.Stable, nil)
 	if err == nil {
 		t.Fatal("Expected error when upgrading non-installed version")
 	}
@@ -852,7 +852,7 @@ func TestService_Upgrade_AlreadyUpToDate(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	err = service.Upgrade(context.Background(), constants.Stable, nil)
+	err = service.Upgrade(t.Context(), constants.Stable, nil)
 	if err == nil {
 		t.Fatal("Expected error when already up to date")
 	}
@@ -872,7 +872,7 @@ func TestService_Upgrade_InvalidVersion(t *testing.T) {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	err = service.Upgrade(context.Background(), "v0.10.0", nil)
+	err = service.Upgrade(t.Context(), "v0.10.0", nil)
 	if err == nil {
 		t.Fatal("Expected error when upgrading invalid version")
 	}

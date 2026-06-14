@@ -134,7 +134,7 @@ func TestBuildFromCommit_CloneFailure(t *testing.T) {
 	}
 
 	b := builder.New(mockExec)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, err := b.BuildFromCommit(ctx, "abc1234", t.TempDir(), nil)
 	if err == nil {
@@ -171,7 +171,7 @@ func TestBuildFromCommit_ProgressReporting(t *testing.T) {
 	}
 
 	b := builder.New(mockExec)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// This will fail later, but we check the progress calls up to that point
 	_, _ = b.BuildFromCommit(ctx, "abc1234", t.TempDir(), progressFunc)
@@ -230,7 +230,7 @@ func TestBuildFromCommit_CheckoutFailure(t *testing.T) {
 	}
 
 	b := builder.New(mockExec)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, err := b.BuildFromCommit(ctx, "abc1234", t.TempDir(), nil)
 	if err == nil {
@@ -298,7 +298,7 @@ func TestBuildFromCommit_ContextCancellationDuringRetry(t *testing.T) {
 
 	b := builder.New(mockExec)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 	defer cancel()
 
 	_, err := b.BuildFromCommit(ctx, "abc1234", t.TempDir(), nil)
@@ -353,7 +353,7 @@ func TestBuildFromCommit_ContextCancellationDuringBuild(t *testing.T) {
 
 	b := builder.New(mockExec)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 	defer cancel()
 
 	_, err := b.BuildFromCommit(ctx, "master", t.TempDir(), nil)
@@ -399,7 +399,7 @@ func TestBuildFromCommit_ContextCancellationWithProgress(t *testing.T) {
 
 	b := builder.New(mockExec)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
 	defer cancel()
 
 	_, _ = b.BuildFromCommit(ctx, "master", t.TempDir(), progressFunc)
@@ -468,7 +468,7 @@ func TestBuildFromCommit_ContextNotCancelledBeforeRetrySleep(t *testing.T) {
 
 	b := builder.New(mockExec)
 	// Use a context that will not timeout during first retry sleep
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
 
 	_, _ = b.BuildFromCommit(ctx, "abc1234", t.TempDir(), nil)
@@ -570,7 +570,7 @@ func TestBuildFromCommit_NoTempDirLeakOnContextCancel(t *testing.T) {
 
 	b := builder.New(mockExec)
 
-	_, _ = b.BuildFromCommit(context.Background(), "master", t.TempDir(), nil)
+	_, _ = b.BuildFromCommit(t.Context(), "master", t.TempDir(), nil)
 
 	after := countTempBuildDirs(t)
 

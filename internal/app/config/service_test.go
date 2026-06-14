@@ -1,7 +1,6 @@
 package config_test
 
 import (
-	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -93,7 +92,7 @@ func TestService_Launch_ConfigNotFound(t *testing.T) {
 
 	service := config.New()
 
-	err := service.Launch(context.Background(), "nonexistent-config")
+	err := service.Launch(t.Context(), "nonexistent-config")
 	if err == nil {
 		t.Errorf("expected error for nonexistent config")
 	}
@@ -148,7 +147,7 @@ func TestService_Launch_ConfigExists(t *testing.T) {
 	// The test verifies the setup is correct
 
 	// For this test, we'll just check that it doesn't return ErrConfigNotFound
-	err = service.Launch(context.Background(), "test-config")
+	err = service.Launch(t.Context(), "test-config")
 	// It will fail because nvim exits, but not with config not found
 	if err != nil && err.Error() == "configuration not found: test-config" {
 		t.Errorf("config should have been found")
