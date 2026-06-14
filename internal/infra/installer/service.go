@@ -317,6 +317,14 @@ func (s *Service) installReleaseInternal(
 	}
 
 	// 4. Extract
+	//
+	// The installer emits a single "Extracting" phase event
+	// for the whole extraction step, with the percent value
+	// driven by the extractor's per-entry callback below.
+	// Without that bridge, the spinner would show "Extracting
+	// 0%" for the entire duration of the extraction (the
+	// pre-fix behavior); with it, the bar fills as the
+	// archive is unpacked.
 	if progress != nil {
 		progress("Extracting", 0)
 	}
@@ -341,7 +349,11 @@ func (s *Service) installReleaseInternal(
 		return fmt.Errorf("failed to seek temp file: %w", err)
 	}
 
-	err = s.extractor.Extract(tempFile, installPath)
+	err = s.extractor.Extract(tempFile, installPath, func(percent int) {
+		if progress != nil {
+			progress("Extracting", percent)
+		}
+	})
 	if err != nil {
 		// Clean up partial installation directory on failure
 		cleanupErr := os.RemoveAll(installPath)

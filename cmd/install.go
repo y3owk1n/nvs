@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -128,17 +127,25 @@ func runInstallForAlias(
 
 	logrus.Debugf("Requested version: %s", alias)
 
-	// Create and start a spinner for progress
-	progressSpinner := ui.NewSafeSpinner(
-		spinner.New(spinner.CharSets[14], time.Duration(installSpinnerSpeed)*time.Millisecond),
+	// Create and start a spinner for progress. The spinner
+	// detects non-terminal writers internally and becomes a
+	// no-op when stdout is piped or redirected, so this is
+	// safe in all environments.
+	progressSpinner := ui.NewSpinner(
+		os.Stdout,
+		time.Duration(installSpinnerSpeed)*time.Millisecond,
 	)
 	progressSpinner.SetPrefix(ui.InfoIcon() + " ")
 	progressSpinner.SetSuffix(fmt.Sprintf(" Installing %s...", alias))
 	progressSpinner.Start()
 
-	// Ensure the spinner is always stopped, even on panic, so the
-	// underlying animation goroutine does not keep writing to the
-	// terminal after a panic stack trace.
+	// Ensure the spinner is always stopped, even on panic, so
+	// the underlying animation goroutine does not keep writing
+	// to the terminal after a panic stack trace. Stop blocks
+	// until the animation goroutine has fully exited, so
+	// subsequent writes to stdout (such as the success
+	// message below) are guaranteed to appear after the
+	// spinner line has been cleared.
 	defer progressSpinner.Stop()
 
 	// Use version service to install
@@ -148,6 +155,16 @@ func runInstallForAlias(
 	if err != nil {
 		return err
 	}
+
+	// Stop the spinner explicitly before printing the success
+	// message. The explicit Stop (rather than relying on the
+	// defer above) is intentional: the success message must
+	// land on the cleared spinner line, not on a new line
+	// below it. Stop's line-erase leaves the cursor at column
+	// 0 of the (now-empty) spinner line, so the next write
+	// appears right where the spinner was — producing the
+	// "spinner replaced by result" UX callers expect.
+	progressSpinner.Stop()
 
 	_, err = fmt.Fprintf(
 		os.Stdout,

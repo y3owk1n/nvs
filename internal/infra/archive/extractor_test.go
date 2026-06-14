@@ -61,7 +61,7 @@ func TestExtractor_ExtractTarGz_PathTraversal(t *testing.T) {
 
 	defer func() { _ = file.Close() }()
 
-	err = extractor.Extract(file, destDir)
+	err = extractor.Extract(file, destDir, nil)
 	if err == nil {
 		t.Error("Expected extraction to fail due to path traversal")
 	}
@@ -130,7 +130,7 @@ func TestExtractor_ExtractZip_PathTraversal(t *testing.T) {
 
 	defer func() { _ = file.Close() }()
 
-	err = extractor.Extract(file, destDir)
+	err = extractor.Extract(file, destDir, nil)
 	if err == nil {
 		t.Error("Expected extraction to fail due to path traversal")
 	} else if !strings.Contains(err.Error(), maliciousPath) {
@@ -208,7 +208,7 @@ func TestExtractor_ExtractTarGz_ValidPaths(t *testing.T) {
 
 	defer func() { _ = file.Close() }()
 
-	err = extractor.Extract(file, destDir)
+	err = extractor.Extract(file, destDir, nil)
 	if err != nil {
 		t.Errorf("Expected extraction to succeed, got: %v", err)
 	}
@@ -283,7 +283,7 @@ func TestExtractor_ExtractZip_ValidPaths(t *testing.T) {
 
 	defer func() { _ = file.Close() }()
 
-	err = extractor.Extract(file, destDir)
+	err = extractor.Extract(file, destDir, nil)
 	if err != nil {
 		t.Errorf("Expected extraction to succeed, got: %v", err)
 	}

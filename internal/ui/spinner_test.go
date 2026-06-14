@@ -6,16 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
-func TestSafeSpinnerSetSuffixConcurrent(t *testing.T) {
+func TestSpinnerSetSuffixConcurrent(t *testing.T) {
 	t.Parallel()
 
-	sp := spinner.New(spinner.CharSets[14], 50*time.Millisecond)
-	sp.Writer = &safeWriter{t: t}
-	safe := ui.NewSafeSpinner(sp)
+	safe := ui.NewSpinner(&safeWriter{t: t}, 50*time.Millisecond)
 	safe.Start()
 	t.Cleanup(safe.Stop)
 
@@ -38,12 +35,10 @@ func TestSafeSpinnerSetSuffixConcurrent(t *testing.T) {
 	waitGroup.Wait()
 }
 
-func TestSafeSpinnerSetPrefixConcurrent(t *testing.T) {
+func TestSpinnerSetPrefixConcurrent(t *testing.T) {
 	t.Parallel()
 
-	sp := spinner.New(spinner.CharSets[14], 50*time.Millisecond)
-	sp.Writer = &safeWriter{t: t}
-	safe := ui.NewSafeSpinner(sp)
+	safe := ui.NewSpinner(&safeWriter{t: t}, 50*time.Millisecond)
 	safe.Start()
 	t.Cleanup(safe.Stop)
 
@@ -64,20 +59,28 @@ func TestSafeSpinnerSetPrefixConcurrent(t *testing.T) {
 	waitGroup.Wait()
 }
 
-func TestSafeSpinnerStartStopIdempotent(t *testing.T) {
+func TestSpinnerStartStopIdempotent(t *testing.T) {
 	t.Parallel()
 
-	sp := spinner.New(spinner.CharSets[14], 50*time.Millisecond)
-	sp.Writer = &safeWriter{t: t}
-	safe := ui.NewSafeSpinner(sp)
+	safe := ui.NewSpinner(&safeWriter{t: t}, 20*time.Millisecond)
 
 	safe.Start()
 	safe.Stop()
 	safe.Stop() // double-stop must not panic
 }
 
-// safeWriter discards spinner output during tests so we don't corrupt the
-// real terminal.
+func TestSpinnerStopWithoutStart(t *testing.T) {
+	t.Parallel()
+
+	safe := ui.NewSpinner(&safeWriter{t: t}, 20*time.Millisecond)
+
+	// Stop on a spinner that was never started must be a
+	// no-op, not a panic.
+	safe.Stop()
+}
+
+// safeWriter discards spinner output during tests so we don't
+// corrupt the real terminal. It also satisfies io.Writer.
 type safeWriter struct {
 	t *testing.T
 }

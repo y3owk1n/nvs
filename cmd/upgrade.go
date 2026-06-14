@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -187,11 +186,9 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		// stopped, even on panic, before the loop continues to
 		// the next alias.
 		err := func() error {
-			progressSpinner := ui.NewSafeSpinner(
-				spinner.New(
-					spinner.CharSets[14],
-					constants.SpinnerSpeed*time.Millisecond,
-				),
+			progressSpinner := ui.NewSpinner(
+				os.Stdout,
+				constants.SpinnerSpeed*time.Millisecond,
 			)
 			progressSpinner.SetPrefix(ui.InfoIcon() + " ")
 			progressSpinner.SetSuffix(" Checking for updates...")
