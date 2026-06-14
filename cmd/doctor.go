@@ -220,15 +220,37 @@ func checkPermissions() error {
 			return fmt.Errorf("cannot create/write to %s: %w", dir, err)
 		}
 
-		// Try writing a temp file
-		testFile := filepath.Join(dir, ".perm-test")
-
-		err = os.WriteFile(testFile, []byte("test"), constants.FilePerm)
+		// Probe write permission by creating a uniquely-named
+		// temp file (avoids the previous collision hazard where
+		// a hardcoded ".perm-test" could be clobbered by a
+		// concurrent 'nvs doctor' run, or fail if an attacker
+		// pre-created a read-only file at that path). We write
+		// a small payload via the returned handle to exercise
+		// the full open/write path, not just create.
+		file, err := os.CreateTemp(dir, ".nvs-perm-*.tmp")
 		if err != nil {
-			return fmt.Errorf("cannot write to %s: %w", dir, err)
+			return fmt.Errorf("cannot create/write to %s: %w", dir, err)
 		}
 
-		_ = os.Remove(testFile)
+		testFile := file.Name()
+
+		_, writeErr := file.WriteString("test")
+		closeErr := file.Close()
+
+		defer func() {
+			removeErr := os.Remove(testFile)
+			if removeErr != nil && !os.IsNotExist(removeErr) {
+				logrus.Warnf("Failed to remove temp file %s: %v", testFile, removeErr)
+			}
+		}()
+
+		if writeErr != nil {
+			return fmt.Errorf("cannot write to %s: %w", dir, writeErr)
+		}
+
+		if closeErr != nil {
+			return fmt.Errorf("cannot close temp file in %s: %w", dir, closeErr)
+		}
 	}
 
 	return nil
