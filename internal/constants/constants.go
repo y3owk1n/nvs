@@ -1,7 +1,58 @@
 // Package constants contains all the constants used in the application.
 package constants
 
-import "time"
+import (
+	"embed"
+	"errors"
+	"fmt"
+	"time"
+)
+
+// ErrUnsupportedHookShell is returned by HookScript when called with a
+// shell name that has no embedded hook script.
+var ErrUnsupportedHookShell = errors.New("unsupported shell for hook")
+
+// scriptsFS bundles the shell integration hook scripts so they can be
+// served by `nvs hook <shell>` without any runtime file dependency.
+// The files live in internal/constants/scripts/ as real .sh / .fish
+// files (not Go string literals) so they can be syntax-checked with
+// `bash -n`, `zsh -n`, and `fish -n` from the test suite, preventing
+// the class of bug where a hand-edited multi-line string constant in
+// Go silently gets truncated on save.
+//
+//go:embed scripts
+var scriptsFS embed.FS
+
+// HookScript returns the shell integration hook script for the given
+// shell ("bash", "zsh", or "fish"). The returned string is intended to
+// be eval'd by the shell at startup:
+//
+//	eval "$(nvs hook bash)"      # bash / zsh
+//	nvs hook fish | source       # fish
+//
+// The bash and zsh shells share a single embedded script
+// (scripts/bash.sh) that auto-detects the current shell via
+// BASH_VERSION / ZSH_VERSION.
+func HookScript(shell string) (string, error) {
+	var path string
+
+	switch shell {
+	case ShellBash, ShellZsh:
+		path = "scripts/bash.sh"
+	case ShellFish:
+		path = "scripts/fish.fish"
+	default:
+		return "", fmt.Errorf("%w: %q (supported: %s, %s, %s)",
+			ErrUnsupportedHookShell, shell, ShellBash, ShellZsh, ShellFish)
+	}
+
+	data, err := scriptsFS.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read embedded hook script %q: %w", path, err)
+	}
+
+	return string(data), nil
+}
 
 const (
 	// WindowsOS is the string for Windows OS.
@@ -78,11 +129,6 @@ const (
 	ShellZsh = "zsh"
 	// ShellFish is the fish shell name.
 	ShellFish = "fish"
-
-	// BashZshHook is the hook script for bash and zsh.
-	BashZshHook = "\n_nvs_find_version_file() {\n  local dir=\"$PWD\"\n  while [[ \"$dir\" != \"/\" ]]; do\n    if [[ -f \"$dir/.nvs-version\" ]]; then\n      echo \"$dir/.nvs-version\"\n      return\n    fi\n    dir=\"$(dirname \"$dir\")\"\n  done\n\n  # Check home directory\n  if [[ -f \"$HOME/.nvs-version\" ]]; then\n    echo \"$HOME/.nvs-version\"\n  fi\n}\n\n_nvs_hook() {\n  local nvs_version_file\n  nvs_version_file=\"$(_nvs_find_version_file)\"\n\n  if [[ -n \"$nvs_version_file\" ]]; then\n    local version\n    version=\"$(tr -d '[:space:]' < \"$nvs_version_file\")\"\n\n    # Only switch if version changed\n    if [[ \"$version\" != \"$_NVS_CURRENT_VERSION\" ]]; then\n      if nvs use \"$version\" --force >/dev/null 2>&1; then\n        export _NVS_CURRENT_VERSION=\"$version\"\n      fi\n    }\n\n# Add hook to PROMPT_COMMAND (bash) or directory-change hook (zsh)\nif [[ -n \"$BASH_VERSION\" ]]; then\n  if [[ ! \"$PROMPT_COMMAND\" =~ \"_nvs_hook\" ]]; then\n    PROMPT_COMMAND=\"_nvs_hook${PROMPT_COMMAND:+;$PROMPT_COMMAND}\"\n  fi\nelif [[ -n \"$ZSH_VERSION\" ]]; then\n  autoload -Uz add-zsh-hook\n  chpwd _nvs_hook\n  # Run once on shell start\n  _nvs_hook\nfi"
-	// FishHook is the hook script for fish.
-	FishHook = "\nfunction _nvs_find_version_file\n  set -l dir \"$PWD\"\n  while test \"$dir\" != \"/\"\n    if test -f \"$dir/.nvs-version\"\n      echo \"$dir/.nvs-version\"\n      return\n    end\n    set dir (dirname -- \"$dir\")\n  end\n\n  # Check home directory\n  if test -f \"$HOME/.nvs-version\"\n    echo \"$HOME/.nvs-version\"\n  end\nfunction _nvs_hook --on-variable PWD\n  set -l nvs_version_file (_nvs_find_version_file)\n\n  if test -n \"$nvs_version_file\"\n    set -l nvs_version (string trim < \"$nvs_version_file\")\n\n    # Only switch if version changed\n    if test \"$nvs_version\" != \"$_NVS_CURRENT_VERSION\"\n      if nvs use \"$nvs_version\" --force >/dev/null 2>&1\n        set -g _NVS_CURRENT_VERSION \"$nvs_version\"\n      end\n    # Run once on shell start\n_nvs_hook"
 
 	// TestVersion is the test version.
 	TestVersion = "v1.0.0"

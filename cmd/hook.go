@@ -48,14 +48,8 @@ func RunHook(_ *cobra.Command, args []string) error {
 	shell = strings.ToLower(shell)
 	logrus.Debugf("Generating hook for shell: %s", shell)
 
-	var hookScript string
-
-	switch shell {
-	case constants.ShellBash, constants.ShellZsh:
-		hookScript = constants.BashZshHook
-	case constants.ShellFish:
-		hookScript = constants.FishHook
-	default:
+	hookScript, err := constants.HookScript(shell)
+	if err != nil {
 		return fmt.Errorf(
 			"%w: %s (supported: %s, %s, %s)",
 			ErrUnsupportedShellHook,
@@ -66,7 +60,7 @@ func RunHook(_ *cobra.Command, args []string) error {
 		)
 	}
 
-	_, err := fmt.Fprint(os.Stdout, hookScript)
+	_, err = fmt.Fprint(os.Stdout, hookScript)
 	if err != nil {
 		return fmt.Errorf("failed to write hook: %w", err)
 	}
