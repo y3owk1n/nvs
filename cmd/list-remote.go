@@ -136,20 +136,27 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 	// GetInstalledVersionIdentifier).
 	svc := GetVersionService()
 
-	// Build a set of installed version names once, then test
-	// membership in O(1) inside the loop. The previous code called
-	// svc.IsVersionInstalled(key) per release, which performs an
-	// os.Stat for each call (N+1 syscalls for N releases). With many
-	// remote releases (the GitHub API can return dozens at once) this
-	// adds up to a noticeable sync hit on every list-remote invocation.
+	// Build a set of installed version names AND a map of
+	// installed name -> identifier in a single pass. The previous
+	// code:
+	//   - called svc.IsVersionInstalled(key) per release (os.Stat
+	//     per release);
+	//   - called svc.GetInstalledVersionIdentifier(key) per
+	//     INSTALLED release (os.ReadFile per installed release).
+	// Both were N+1 patterns. The new code issues a single
+	// os.ReadDir (in InstalledVersionIdentifiers -> List) and one
+	// os.ReadFile per installed version — the minimum work to
+	// answer "is this installed" and "what's its identifier".
 	installedSet := make(map[string]struct{})
+	installedIdentifiers := make(map[string]string)
 	{
-		installedNames, listErr := svc.InstalledVersionNames()
+		details, listErr := svc.InstalledVersionIdentifiers()
 		if listErr != nil {
 			logrus.Debugf("failed to enumerate installed versions: %v", listErr)
 		} else {
-			for _, name := range installedNames {
+			for name, identifier := range details {
 				installedSet[name] = struct{}{}
+				installedIdentifiers[name] = identifier
 			}
 		}
 	}
@@ -200,11 +207,9 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 
 		// Check if the release is installed locally.
 		if _, isInstalled := installedSet[key]; isInstalled {
-			// Check for upgrade availability
-			installedIdentifier, err := svc.GetInstalledVersionIdentifier(key)
-			if err != nil {
-				installedIdentifier = ""
-			}
+			// Use the pre-resolved identifier from the bulk
+			// enumeration; no per-release os.ReadFile needed.
+			installedIdentifier := installedIdentifiers[key]
 
 			// Use the same logic as the Upgrade function:
 			// For nightly, compare commit hash. For stable, fetch the actual stable release's tag.

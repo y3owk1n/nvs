@@ -463,6 +463,35 @@ func (s *Service) InstalledVersionNames() ([]string, error) {
 	return names, nil
 }
 
+// InstalledVersionIdentifiers returns a map of installed version
+// name -> commit identifier (the contents of <VersionsDir>/<name>
+// /version.txt) in a single pass. It is intended for callers that
+// loop over the installed set and previously called
+// GetInstalledVersionIdentifier per iteration, issuing one
+// os.ReadFile per version (N+1 syscalls). With this method the
+// cost is one os.ReadDir plus one os.ReadFile per installed
+// version, which is the minimum possible work for the
+// information returned.
+//
+// An entry with an empty value means the version has no
+// version.txt (e.g. a pre-existing install that was not produced
+// by nvs, or a version.txt that failed to read). Callers should
+// treat the empty string the same way they would treat a
+// GetInstalledVersionIdentifier error.
+func (s *Service) InstalledVersionIdentifiers() (map[string]string, error) {
+	versions, err := s.versionManager.List()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list installed versions: %w", err)
+	}
+
+	identifiers := make(map[string]string, len(versions))
+	for _, v := range versions {
+		identifiers[v.Name()] = v.CommitHash()
+	}
+
+	return identifiers, nil
+}
+
 // GetInstalledVersionIdentifier returns the identifier (commit hash) of an installed version.
 func (s *Service) GetInstalledVersionIdentifier(versionName string) (string, error) {
 	normalized := normalizeVersion(versionName)
