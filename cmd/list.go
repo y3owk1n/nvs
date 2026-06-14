@@ -110,14 +110,23 @@ func RunList(cmd *cobra.Command, _ []string) error {
 	)
 	table.Header([]string{"Version", "Status"})
 
+	// Hoist the colorizers out of the loop. The previous code called
+	// color.New(...) (which initializes an *color.Color, parses the
+	// attribute set, and registers it) twice per current-matching
+	// version. For a typical install set of a few dozen versions
+	// with exactly one "current" the cost is small, but on a
+	// per-invocation basis the allocations are pure waste. Reuse
+	// the same instance for the whole loop.
+	currentColor := color.New(color.Bold, color.FgHiGreen)
+
 	// Append each version to the table.
 	for _, version := range versions {
 		var row []string
 		if current.Name() != "" && version.Name() == current.Name() {
 			// Mark the current version with an arrow and use a highlighted green color.
 			row = []string{
-				color.New(color.Bold, color.FgHiGreen).Sprintf("→ %s", version.Name()),
-				color.New(color.Bold, color.FgHiGreen).Sprintf("Current"),
+				currentColor.Sprintf("→ %s", version.Name()),
+				currentColor.Sprintf("Current"),
 			}
 			logrus.Debugf("Marked version %s as current", version.Name())
 		} else {

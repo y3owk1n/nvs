@@ -35,6 +35,17 @@ var listRemoteCmd = &cobra.Command{
 	RunE:    RunListRemote,
 }
 
+// Pre-built *color.Color instances for the row-status switch. The
+// loop in RunListRemote runs once per remote release (potentially
+// dozens) and the original code constructed a fresh color.New for
+// every iteration. Hoisting them out of the loop avoids the
+// allocation and the per-call color-attribute parsing.
+var (
+	listRemoteCurrentColor      = color.New(color.FgGreen)
+	listRemoteInstalledColor    = color.New(color.FgYellow)
+	listRemoteNotInstalledColor = color.New(color.FgWhite)
+)
+
 // RunListRemote executes the list-remote command.
 func RunListRemote(cmd *cobra.Command, _ []string) error {
 	// Check if the user passed --force to bypass the cache.
@@ -261,15 +272,23 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 		} else {
 			row := []string{tag, localStatus, details}
 
-			// Colorize the row based on status.
+			// Colorize the row based on status. The status strings
+			// are produced by this function, so the switch is
+			// exhaustive over a small fixed set of literals; we
+			// look up a pre-built *color.Color for each case to
+			// avoid calling color.New on every iteration of the
+			// outer loop (which is one call per remote release).
+			var rowColor *color.Color
 			switch baseStatus {
 			case "Current":
-				row = ui.ColorizeRow(row, color.New(color.FgGreen))
+				rowColor = listRemoteCurrentColor
 			case "Installed":
-				row = ui.ColorizeRow(row, color.New(color.FgYellow))
+				rowColor = listRemoteInstalledColor
 			default:
-				row = ui.ColorizeRow(row, color.New(color.FgWhite))
+				rowColor = listRemoteNotInstalledColor
 			}
+
+			row = ui.ColorizeRow(row, rowColor)
 
 			err = table.Append(row)
 			if err != nil {
