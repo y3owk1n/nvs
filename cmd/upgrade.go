@@ -133,23 +133,63 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 					"nightly-"+shortHash(oldCommitHash, constants.ShortHashLength),
 				)
 
-				// Only backup if the backup doesn't already exist
-				var statErr error
+				// Atomically claim the backup slot. The previous
+				// implementation did Stat + copyDir, which raced
+				// when two nvs processes upgraded nightly at the
+				// same time: both would observe the backup dir
+				// missing and both would walk the copy, with
+				// partially-overlapping writes producing a
+				// corrupted backup.
+				//
+				// MkdirAll + a sentinel file opened with
+				// O_CREATE|O_EXCL gives us a single, race-free
+				// "did we win the claim?" decision. The winning
+				// process performs the copy; losers treat the
+				// backup as already done and skip the copy.
+				mkdirErr := os.MkdirAll(backupDir, constants.DirPerm)
+				if mkdirErr != nil {
+					logrus.Warnf("Failed to prepare backup directory: %v", mkdirErr)
+				} else {
+					sentinel := filepath.Join(backupDir, ".nvs-backup-owner")
+					sentinelFile, openErr := os.OpenFile(
+						sentinel,
+						os.O_CREATE|os.O_EXCL|os.O_WRONLY,
+						constants.FilePerm,
+					)
 
-				_, statErr = os.Stat(backupDir)
-				if os.IsNotExist(statErr) {
-					var statErr2 error
+					switch {
+					case openErr == nil:
+						// We won the claim; perform the copy below.
+						_ = sentinelFile.Close()
+					case os.IsExist(openErr):
+						// Another process (or a previous run)
+						// already owns the backup. Treat it as
+						// already done.
+						logrus.Debugf(
+							"Backup already claimed at %s; skipping copy",
+							backupDir,
+						)
+					default:
+						logrus.Warnf("Failed to claim backup slot: %v", openErr)
+					}
 
-					_, statErr2 = os.Stat(nightlyDir)
-					if statErr2 == nil {
-						// Copy directory (rename would break the current install)
-						copyErr := copyDir(nightlyDir, backupDir)
-						if copyErr != nil {
-							logrus.Warnf("Failed to backup nightly for rollback: %v", copyErr)
-						} else {
-							logrus.Debugf("Backed up nightly to %s", backupDir)
+					if openErr == nil {
+						_, statErr := os.Stat(nightlyDir)
+						if statErr == nil {
+							// Copy directory (rename would break the
+							// current install, since nightlyDir is
+							// the live nightly).
+							copyErr := copyDir(nightlyDir, backupDir)
+							if copyErr != nil {
+								logrus.Warnf(
+									"Failed to backup nightly for rollback: %v",
+									copyErr,
+								)
+							} else {
+								logrus.Debugf("Backed up nightly to %s", backupDir)
 
-							backupCreated = true
+								backupCreated = true
+							}
 						}
 					}
 				}

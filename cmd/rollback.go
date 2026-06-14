@@ -153,23 +153,40 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 					"nightly-"+shortHash(currentCommit, constants.ShortHashLength),
 				)
 
+				// Atomically claim the backup slot via os.Rename.
+				// The previous code did a Stat on backupDir and
+				// then either renamed (if missing) or removed
+				// (if present), but the Stat + rename pair is a
+				// TOCTOU window: two concurrent rollbacks could
+				// both see the backup missing and both try to
+				// rename the same currentNightly. Whichever
+				// rename ran second would fail.
+				//
+				// os.Rename is itself atomic at the filesystem
+				// level on POSIX, so a single attempt is enough
+				// to decide: success (we created the backup),
+				// or "already exists" (the backup is from a
+				// previous rollback, just drop the current
+				// symlink/dir), or any other error (propagate).
 				var backupErr error
 
-				_, backupErr = os.Stat(backupDir)
-				if os.IsNotExist(backupErr) {
-					// Rename current to backup
-					renameErr := os.Rename(currentNightly, backupDir)
-					if renameErr != nil {
-						return fmt.Errorf("failed to backup current nightly: %w", renameErr)
-					}
-
+				renameErr := os.Rename(currentNightly, backupDir)
+				switch {
+				case renameErr == nil:
 					logrus.Debugf("Backed up current nightly to %s", backupDir)
-				} else {
-					// Backup already exists, safe to remove current
+				case os.IsExist(renameErr):
+					// Backup already exists from a previous run;
+					// safe to remove the current nightly.
 					rmErr := os.RemoveAll(currentNightly)
 					if rmErr != nil {
 						return fmt.Errorf("failed to remove current nightly: %w", rmErr)
 					}
+				default:
+					backupErr = fmt.Errorf("failed to backup current nightly: %w", renameErr)
+				}
+
+				if backupErr != nil {
+					return backupErr
 				}
 			} else {
 				// No commit hash, just remove
