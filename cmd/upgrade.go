@@ -289,9 +289,16 @@ func init() {
 
 // backupNightlyUnderLock copies nightlyDir to backupDir under the
 // per-version lock used by the installer service, so a concurrent
-// use/install/uninstall cannot mutate nightlyDir mid-walk. The
-// sentinel-file claim ensures only one process performs the copy
-// per backup slot.
+// use/install/uninstall cannot mutate nightlyDir mid-walk.
+//
+// The backup is staged in a sibling temp directory together with
+// the sentinel file, then atomically renamed into place. The
+// sentinel lives in the same dir as the copy and is published to
+// backupDir in the same rename that publishes the copy, so there
+// is no window in which backupDir exists with content but no
+// sentinel (the failure mode of the previous MkdirAll-then-rename
+// implementation, where the atomic rename always failed with
+// "file exists" on any backupDir that pre-existed).
 func backupNightlyUnderLock(nightlyDir, backupDir string) error {
 	lockPath := filepath.Join(
 		GetVersionsDir(),
@@ -311,39 +318,90 @@ func backupNightlyUnderLock(nightlyDir, backupDir string) error {
 		}
 	}()
 
-	mkdirErr := os.MkdirAll(backupDir, constants.DirPerm)
-	if mkdirErr != nil {
-		return fmt.Errorf("prepare backup directory: %w", mkdirErr)
-	}
-
+	// The sentinel lives in the temp dir, so it only appears in
+	// backupDir after a successful rename. A completed backup is
+	// therefore always identified by the presence of the sentinel.
 	sentinel := filepath.Join(backupDir, ".nvs-backup-owner")
 
+	_, statErr := os.Stat(sentinel)
+	if statErr == nil {
+		logrus.Debugf("Backup already claimed at %s; skipping copy", backupDir)
+
+		return nil
+	}
+
+	if !errors.Is(statErr, os.ErrNotExist) {
+		return fmt.Errorf("check existing backup: %w", statErr)
+	}
+
+	// Stage the backup in a hidden temp dir next to backupDir. The
+	// dot prefix keeps it out of the way of `nvs list` and similar
+	// commands; the cleanup defer removes it on every exit path
+	// (success, partial copy, panic).
+	tempDir, err := os.MkdirTemp(GetVersionsDir(), ".nightly-backup-")
+	if err != nil {
+		return fmt.Errorf("create temp backup dir: %w", err)
+	}
+
+	defer func() {
+		removeErr := os.RemoveAll(tempDir)
+		if removeErr != nil {
+			logrus.Warnf("Failed to clean up temp backup dir %s: %v", tempDir, removeErr)
+		}
+	}()
+
+	// Claim the slot by writing the sentinel into the temp dir.
+	// After the rename, the sentinel lives in backupDir where it
+	// signals to future invocations that the backup is finalized.
+	// O_EXCL is a defense-in-depth check against a collision with
+	// another concurrent backup attempt; the per-version lock
+	// already prevents this, but a second layer of safety is cheap.
+	tempSentinel := filepath.Join(tempDir, ".nvs-backup-owner")
+
 	sentinelFile, openErr := os.OpenFile(
-		sentinel,
+		tempSentinel,
 		os.O_CREATE|os.O_EXCL|os.O_WRONLY,
 		constants.FilePerm,
 	)
 	if openErr != nil {
-		if errors.Is(openErr, os.ErrExist) {
-			logrus.Debugf(
-				"Backup already claimed at %s; skipping copy",
-				backupDir,
-			)
-
-			return nil
-		}
-
 		return fmt.Errorf("claim backup slot: %w", openErr)
 	}
 
 	_ = sentinelFile.Close()
 
-	_, statErr := os.Stat(nightlyDir)
-	if statErr != nil {
-		return fmt.Errorf("stat nightly dir: %w", statErr)
+	// Match the source dir's mode. MkdirTemp creates with 0700;
+	// the rename at the end preserves whatever mode we set here.
+	srcInfo, err := os.Stat(nightlyDir)
+	if err != nil {
+		return fmt.Errorf("stat nightly dir: %w", err)
 	}
 
-	// Copy directory (rename would break the current install, since
-	// nightlyDir is the live nightly).
-	return copyDir(nightlyDir, backupDir)
+	err = os.Chmod(tempDir, srcInfo.Mode())
+	if err != nil {
+		logrus.Debugf("Failed to set temp backup dir mode: %v", err)
+	}
+
+	err = copyDirContents(nightlyDir, tempDir)
+	if err != nil {
+		return fmt.Errorf("copy nightly: %w", err)
+	}
+
+	// Atomic publish. If backupDir exists (stale from a previous
+	// interrupted run that left a partial dir but no sentinel),
+	// remove it first; the rename then moves the fully-formed
+	// backup (copy + sentinel) into backupDir in one step.
+	_, err = os.Stat(backupDir)
+	if err == nil {
+		err = os.RemoveAll(backupDir)
+		if err != nil {
+			return fmt.Errorf("remove stale backup: %w", err)
+		}
+	}
+
+	err = os.Rename(tempDir, backupDir)
+	if err != nil {
+		return fmt.Errorf("finalize backup: %w", err)
+	}
+
+	return nil
 }

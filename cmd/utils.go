@@ -47,6 +47,26 @@ func copyDir(src, dst string) error {
 		return err
 	}
 
+	err = copyDirContents(src, tempDst)
+	if err != nil {
+		return err
+	}
+
+	// Atomic rename on success
+	return os.Rename(tempDst, dst)
+}
+
+// copyDirContents copies the immediate entries of src into the
+// existing directory dst. It is the non-atomic core of copyDir:
+// the caller is responsible for staging the destination (for
+// example, by atomically renaming a temp directory into place
+// afterward).
+//
+// Like copyDir, this preserves the symlink-rewrite logic for
+// relative symlinks whose targets fall outside src, and falls
+// back to copying symlink target content on Windows when the
+// caller lacks SeCreateSymbolicLinkPrivilege.
+func copyDirContents(src, dst string) error {
 	entries, err := os.ReadDir(src)
 	if err != nil {
 		return err
@@ -54,7 +74,7 @@ func copyDir(src, dst string) error {
 
 	for _, entry := range entries {
 		srcPath := filepath.Join(src, entry.Name())
-		dstPath := filepath.Join(tempDst, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
 
 		// Handle symlinks
 		// For relative symlinks pointing outside src tree, adjust the target path
@@ -160,8 +180,7 @@ func copyDir(src, dst string) error {
 		}
 	}
 
-	// Atomic rename on success
-	return os.Rename(tempDst, dst)
+	return nil
 }
 
 // copyFile copies a single file from src to dst.
