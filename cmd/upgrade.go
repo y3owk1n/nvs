@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/app/versionsvc"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/infra/filesystem"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -122,7 +123,19 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 		)
 
 		if alias == constants.Nightly {
-			oldCommitHash, _ = GetVersionService().GetInstalledVersionIdentifier(constants.Nightly)
+			var identifierErr error
+
+			oldCommitHash, identifierErr = GetVersionService().GetInstalledVersionIdentifier(constants.Nightly)
+			if identifierErr != nil {
+				// Don't silently lose rollback safety: warn loudly so
+				// the user knows the upgrade will proceed without a
+				// backup.
+				logrus.Warnf(
+					"Could not read current nightly identifier; rollback backup will be skipped: %v",
+					identifierErr,
+				)
+			}
+
 			logrus.Debugf("Current nightly commit: %s", oldCommitHash)
 
 			// Backup current nightly for rollback support
@@ -146,52 +159,24 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 				// "did we win the claim?" decision. The winning
 				// process performs the copy; losers treat the
 				// backup as already done and skip the copy.
-				mkdirErr := os.MkdirAll(backupDir, constants.DirPerm)
-				if mkdirErr != nil {
-					logrus.Warnf("Failed to prepare backup directory: %v", mkdirErr)
-				} else {
-					sentinel := filepath.Join(backupDir, ".nvs-backup-owner")
-					sentinelFile, openErr := os.OpenFile(
-						sentinel,
-						os.O_CREATE|os.O_EXCL|os.O_WRONLY,
-						constants.FilePerm,
+				//
+				// The copy itself runs under the same per-version
+				// lock that the installer uses, so a concurrent
+				// use/uninstall/reinstall of nightly cannot mutate
+				// nightlyDir mid-walk.
+				backupErr := backupNightlyUnderLock(
+					nightlyDir,
+					backupDir,
+				)
+				if backupErr != nil {
+					logrus.Warnf(
+						"Failed to backup nightly for rollback: %v",
+						backupErr,
 					)
+				} else {
+					logrus.Debugf("Backed up nightly to %s", backupDir)
 
-					switch {
-					case openErr == nil:
-						// We won the claim; perform the copy below.
-						_ = sentinelFile.Close()
-					case os.IsExist(openErr):
-						// Another process (or a previous run)
-						// already owns the backup. Treat it as
-						// already done.
-						logrus.Debugf(
-							"Backup already claimed at %s; skipping copy",
-							backupDir,
-						)
-					default:
-						logrus.Warnf("Failed to claim backup slot: %v", openErr)
-					}
-
-					if openErr == nil {
-						_, statErr := os.Stat(nightlyDir)
-						if statErr == nil {
-							// Copy directory (rename would break the
-							// current install, since nightlyDir is
-							// the live nightly).
-							copyErr := copyDir(nightlyDir, backupDir)
-							if copyErr != nil {
-								logrus.Warnf(
-									"Failed to backup nightly for rollback: %v",
-									copyErr,
-								)
-							} else {
-								logrus.Debugf("Backed up nightly to %s", backupDir)
-
-								backupCreated = true
-							}
-						}
-					}
+					backupCreated = true
 				}
 			}
 		}
@@ -303,4 +288,65 @@ func init() {
 	rootCmd.AddCommand(upgradeCmd)
 	upgradeCmd.Flags().
 		BoolP("pick", "p", false, "Launch interactive picker to select versions to upgrade")
+}
+
+// backupNightlyUnderLock copies nightlyDir to backupDir under the
+// per-version lock used by the installer service, so a concurrent
+// use/install/uninstall cannot mutate nightlyDir mid-walk. The
+// sentinel-file claim ensures only one process performs the copy
+// per backup slot.
+func backupNightlyUnderLock(nightlyDir, backupDir string) error {
+	lockPath := filepath.Join(
+		GetVersionsDir(),
+		fmt.Sprintf(".nvs-version-%s.lock", constants.Nightly),
+	)
+	lock := filesystem.NewFileLock(lockPath)
+
+	err := lock.LockWithDefaultTimeout()
+	if err != nil {
+		return fmt.Errorf("acquire nightly lock: %w", err)
+	}
+
+	defer func() {
+		unlockErr := lock.Unlock()
+		if unlockErr != nil {
+			logrus.Warnf("Failed to unlock nightly lock: %v", unlockErr)
+		}
+	}()
+
+	mkdirErr := os.MkdirAll(backupDir, constants.DirPerm)
+	if mkdirErr != nil {
+		return fmt.Errorf("prepare backup directory: %w", mkdirErr)
+	}
+
+	sentinel := filepath.Join(backupDir, ".nvs-backup-owner")
+
+	sentinelFile, openErr := os.OpenFile(
+		sentinel,
+		os.O_CREATE|os.O_EXCL|os.O_WRONLY,
+		constants.FilePerm,
+	)
+	if openErr != nil {
+		if errors.Is(openErr, os.ErrExist) {
+			logrus.Debugf(
+				"Backup already claimed at %s; skipping copy",
+				backupDir,
+			)
+
+			return nil
+		}
+
+		return fmt.Errorf("claim backup slot: %w", openErr)
+	}
+
+	_ = sentinelFile.Close()
+
+	_, statErr := os.Stat(nightlyDir)
+	if statErr != nil {
+		return fmt.Errorf("stat nightly dir: %w", statErr)
+	}
+
+	// Copy directory (rename would break the current install, since
+	// nightlyDir is the live nightly).
+	return copyDir(nightlyDir, backupDir)
 }
