@@ -171,11 +171,16 @@ func RunUse(cmd *cobra.Command, args []string) error {
 		// If version not found, install it first, then try to use again
 		if errors.Is(err, vtypes.ErrVersionNotFound) {
 			logrus.Infof("Version %s not found. Installing...", alias)
-			// Install the version
-			err = RunInstall(cmd, []string{alias})
-			if err != nil {
-				return err
+			// Install the version using the shared install path. We
+			// must NOT call RunInstall(cmd, ...) here: it would
+			// re-read the --pick flag from this (use) command and
+			// launch a second picker, even though the user has
+			// already selected a version via 'use --pick'.
+			installErr := runInstallForAlias(ctx, cmd, alias)
+			if installErr != nil {
+				return installErr
 			}
+
 			// Now try to use it (single retry, no recursion)
 			resolvedVersion, err = GetVersionService().Use(ctx, alias)
 			if err != nil {

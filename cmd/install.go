@@ -15,6 +15,10 @@ import (
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
+// installSpinnerSpeed is the spinner animation interval in
+// milliseconds, shared between RunInstall and runInstallForAlias.
+const installSpinnerSpeed = 100
+
 // installCmd represents the "install" command.
 // It installs a specified version of Neovim. The command accepts a single argument which may be:
 //   - A version alias ("stable", "nightly", or "master")
@@ -43,8 +47,6 @@ var installCmd = &cobra.Command{
 
 // RunInstall executes the install command.
 func RunInstall(cmd *cobra.Command, args []string) error {
-	const SpinnerSpeed = 100
-
 	logrus.Debug("Starting installation command")
 
 	// Create a context with a timeout to prevent hanging installations.
@@ -104,11 +106,31 @@ func RunInstall(cmd *cobra.Command, args []string) error {
 		alias = args[0]
 	}
 
+	return runInstallForAlias(ctx, cmd, alias)
+}
+
+// runInstallForAlias performs the spinner-driven install of a single
+// already-resolved alias. Split out of RunInstall so that callers
+// that have already resolved the alias (notably 'use --pick' falling
+// through after a version-not-found error) can reuse the install
+// path without re-invoking the picker.
+//
+// context.Context is the first parameter per the revive
+// 'context-as-argument' rule; cmd is kept as a positional argument
+// only to preserve a future use of cmd-derived values (e.g. IO
+// streams), but is currently unused.
+func runInstallForAlias(
+	ctx context.Context,
+	cmd *cobra.Command,
+	alias string,
+) error {
+	_ = cmd
+
 	logrus.Debugf("Requested version: %s", alias)
 
 	// Create and start a spinner for progress
 	progressSpinner := ui.NewSafeSpinner(
-		spinner.New(spinner.CharSets[14], SpinnerSpeed*time.Millisecond),
+		spinner.New(spinner.CharSets[14], time.Duration(installSpinnerSpeed)*time.Millisecond),
 	)
 	progressSpinner.SetPrefix(ui.InfoIcon() + " ")
 	progressSpinner.SetSuffix(fmt.Sprintf(" Installing %s...", alias))
