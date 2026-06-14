@@ -1,11 +1,29 @@
 package cmd
 
 import (
+	"os"
 	"testing"
 )
 
+// pathListSep is the platform's PATH separator (':' on Unix,
+// ';' on Windows). Using it here instead of a hard-coded
+// literal makes the same test data meaningful on every OS —
+// without this, the tests pass on macOS/Linux but fail on
+// Windows because strings.Split("/foo:/bar:/baz", ";")
+// returns a single-element slice.
+const pathListSep = string(os.PathListSeparator)
+
 func TestPathListContains(t *testing.T) {
 	t.Parallel()
+
+	// Build a few well-known multi-entry PATH-style lists
+	// using the platform separator so the same test data
+	// works on Unix ('/foo:/bar:/baz') and Windows
+	// ('C:/foo;C:/bar;C:/baz').
+	manyItems := "/foo" + pathListSep + "/bar" + pathListSep + "/baz"
+	manyItemsWithSubstring := "/foo-extra" + pathListSep + "/bar"
+	manyItemsWithPrefix := "/foobar" + pathListSep + "/baz"
+	trailingEmpty := "/foo" + pathListSep + "/bar" + pathListSep
 
 	tests := []struct {
 		name string
@@ -33,25 +51,25 @@ func TestPathListContains(t *testing.T) {
 		},
 		{
 			name: "first of many",
-			list: "/foo:/bar:/baz",
+			list: manyItems,
 			item: "/foo",
 			want: true,
 		},
 		{
 			name: "middle of many",
-			list: "/foo:/bar:/baz",
+			list: manyItems,
 			item: "/bar",
 			want: true,
 		},
 		{
 			name: "last of many",
-			list: "/foo:/bar:/baz",
+			list: manyItems,
 			item: "/baz",
 			want: true,
 		},
 		{
 			name: "missing",
-			list: "/foo:/bar:/baz",
+			list: manyItems,
 			item: "/qux",
 			want: false,
 		},
@@ -60,7 +78,7 @@ func TestPathListContains(t *testing.T) {
 			// strings.Contains on the raw PATH would have
 			// reported as a hit).
 			name: "substring does not match",
-			list: "/foo-extra:/bar",
+			list: manyItemsWithSubstring,
 			item: "/foo",
 			want: false,
 		},
@@ -68,16 +86,16 @@ func TestPathListContains(t *testing.T) {
 			// Item is a prefix of an existing entry but not
 			// equal to it.
 			name: "prefix does not match",
-			list: "/foobar:/baz",
+			list: manyItemsWithPrefix,
 			item: "/foo",
 			want: false,
 		},
 		{
-			// Windows-style separator. The test asserts that
-			// we use the platform separator correctly; on
-			// non-Windows this is treated as one big entry.
+			// Trailing separator produces a trailing empty
+			// entry. The split should still find the real
+			// entries.
 			name: "trailing empty entry",
-			list: "/foo:/bar:",
+			list: trailingEmpty,
 			item: "/bar",
 			want: true,
 		},
