@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Masterminds/semver"
@@ -25,6 +26,16 @@ type Client struct {
 	minVersion     string
 	mirrorURL      string // Optional mirror URL for GitHub (e.g., https://mirror.ghproxy.com)
 	useGlobalCache bool   // Whether to use global cache
+
+	// memCacheMu guards memCacheReleases and memCacheLoaded. The
+	// in-memory cache mirrors the disk cache (see Cache below) so
+	// that repeated GetAll calls in the same process do not
+	// re-stat, re-read, and re-decode the on-disk JSON. The disk
+	// cache is the source of truth across processes; the in-memory
+	// cache is reset on every process restart.
+	memCacheMu       sync.RWMutex
+	memCacheReleases []release.Release
+	memCacheLoaded   bool
 }
 
 // NewClient creates a new GitHub client with caching.
@@ -167,12 +178,37 @@ type apiAsset struct {
 }
 
 // GetAll fetches all available releases from GitHub.
+//
+// Results are cached in two layers:
+//
+//  1. In-memory (per process). The first successful call populates
+//     memCacheReleases; subsequent calls with force=false return the
+//     cached slice without touching the disk or the network. This
+//     avoids re-decoding the JSON cache for every call site that
+//     resolves a release (FindStable, FindNightly, FindByTag, etc.),
+//     which together can call GetAll three or more times in a single
+//     command invocation.
+//
+//  2. On disk (across processes). See Cache. The disk cache is
+//     consulted only when the in-memory cache is empty or force=true.
+//
+// The force flag bypasses both caches: it forces a fresh network
+// fetch and refreshes both the in-memory and on-disk caches.
 func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, error) {
-	// Try local cache first unless force is true
+	if !force {
+		if cached := c.memCacheSnapshot(); cached != nil {
+			logrus.Debug("Using in-memory cached releases")
+
+			return cached, nil
+		}
+	}
+
+	// Try local disk cache first unless force is true
 	if !force {
 		cached, err := c.cache.Get()
 		if err == nil {
-			logrus.Debug("Using cached releases")
+			logrus.Debug("Using on-disk cached releases")
+			c.storeMemCache(cached)
 
 			return cached, nil
 		}
@@ -214,6 +250,8 @@ func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, err
 	if err != nil {
 		logrus.Warnf("Failed to update cache: %v", err)
 	}
+
+	c.storeMemCache(releases)
 
 	return releases, nil
 }
@@ -486,4 +524,29 @@ func GetChecksumURL(rel release.Release, assetPattern string) (string, error) {
 	}
 
 	return "", fmt.Errorf("%w for pattern: %s", ErrChecksumNotFound, assetPattern)
+}
+
+// memCacheSnapshot returns the cached release slice, or nil if the
+// in-memory cache has not been populated yet. Callers must treat the
+// returned slice as read-only.
+func (c *Client) memCacheSnapshot() []release.Release {
+	c.memCacheMu.RLock()
+	defer c.memCacheMu.RUnlock()
+
+	if !c.memCacheLoaded {
+		return nil
+	}
+
+	return c.memCacheReleases
+}
+
+// storeMemCache replaces the in-memory cache with releases. The slice
+// is stored by reference; callers must not mutate it after handing it
+// over.
+func (c *Client) storeMemCache(releases []release.Release) {
+	c.memCacheMu.Lock()
+	defer c.memCacheMu.Unlock()
+
+	c.memCacheReleases = releases
+	c.memCacheLoaded = true
 }

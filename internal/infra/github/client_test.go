@@ -418,3 +418,155 @@ func TestClient_ApplyMirror(t *testing.T) {
 		t.Errorf("ApplyMirror() = %v, want %v", got, want)
 	}
 }
+
+// TestClient_GetAll_InMemoryCache pins the in-memory caching behavior
+// of Client.GetAll. The first call with force=false populates both
+// the disk cache and the in-memory cache from whatever the disk cache
+// already contains. Subsequent calls (within the same process) must
+// return the in-memory result without re-reading the disk cache, so
+// a freshly rewritten disk file is ignored until the process exits.
+//
+// Without the in-memory cache, the second call below would re-read
+// the modified disk cache and return "v9.9.9" instead of the original
+// cached tag.
+func TestClient_GetAll_InMemoryCache(t *testing.T) {
+	const (
+		memCacheTag = "v0.10.0"
+		modifiedTag = "v9.9.9"
+	)
+
+	originalData := []map[string]any{
+		{
+			"tag_name":         memCacheTag,
+			"prerelease":       false,
+			"target_commitish": "abc123",
+			"published_at":     "2024-12-01T10:00:00Z",
+			"assets":           []map[string]any{},
+		},
+	}
+	cacheFile := writeCacheFile(t, originalData)
+	client := github.NewClient(cacheFile, time.Hour, "", "", false)
+	ctx := context.Background()
+
+	// First call: should read the disk cache and populate the
+	// in-memory cache.
+	first, err := client.GetAll(ctx, false)
+	if err != nil {
+		t.Fatalf("first GetAll: %v", err)
+	}
+
+	if len(first) != 1 || first[0].TagName() != memCacheTag {
+		t.Fatalf(
+			"first GetAll returned %v, want one release tagged %s",
+			first,
+			memCacheTag,
+		)
+	}
+
+	// Overwrite the on-disk cache with a different release. A naive
+	// implementation that re-reads the disk cache on every call would
+	// surface this in the second call.
+	modifiedData := []map[string]any{
+		{
+			"tag_name":         modifiedTag,
+			"prerelease":       false,
+			"target_commitish": "fff999",
+			"published_at":     "2025-01-01T10:00:00Z",
+			"assets":           []map[string]any{},
+		},
+	}
+
+	modified, err := json.Marshal(modifiedData)
+	if err != nil {
+		t.Fatalf("marshal modified data: %v", err)
+	}
+
+	writeErr := os.WriteFile(cacheFile, modified, 0o644)
+	if writeErr != nil {
+		t.Fatalf("rewrite cache file: %v", writeErr)
+	}
+
+	// Second call: must return the in-memory cached result, NOT the
+	// newly written disk file.
+	second, err := client.GetAll(ctx, false)
+	if err != nil {
+		t.Fatalf("second GetAll: %v", err)
+	}
+
+	if len(second) != 1 || second[0].TagName() != memCacheTag {
+		t.Errorf(
+			"second GetAll returned %v, want in-memory cached %s (disk cache was rewritten to %s)",
+			second,
+			memCacheTag,
+			modifiedTag,
+		)
+	}
+}
+
+// TestClient_GetAll_ForceBypassesMemCache verifies that force=true
+// skips the in-memory cache and consults the disk cache instead. This
+// preserves the pre-existing --force semantics, where users expect a
+// fresh read after a manual cache rebuild.
+func TestClient_GetAll_ForceBypassesMemCache(t *testing.T) {
+	const (
+		memCacheTag = "v0.10.0"
+		modifiedTag = "v9.9.9"
+	)
+
+	originalData := []map[string]any{
+		{
+			"tag_name":         memCacheTag,
+			"prerelease":       false,
+			"target_commitish": "abc123",
+			"published_at":     "2024-12-01T10:00:00Z",
+			"assets":           []map[string]any{},
+		},
+	}
+	cacheFile := writeCacheFile(t, originalData)
+	client := github.NewClient(cacheFile, time.Hour, "", "", false)
+	ctx := context.Background()
+
+	// Prime the in-memory cache.
+	_, primeErr := client.GetAll(ctx, false)
+	if primeErr != nil {
+		t.Fatalf("prime GetAll: %v", primeErr)
+	}
+
+	// Overwrite the disk cache.
+	modifiedData := []map[string]any{
+		{
+			"tag_name":         modifiedTag,
+			"prerelease":       false,
+			"target_commitish": "fff999",
+			"published_at":     "2025-01-01T10:00:00Z",
+			"assets":           []map[string]any{},
+		},
+	}
+
+	modified, err := json.Marshal(modifiedData)
+	if err != nil {
+		t.Fatalf("marshal modified data: %v", err)
+	}
+
+	writeErr := os.WriteFile(cacheFile, modified, 0o644)
+	if writeErr != nil {
+		t.Fatalf("rewrite cache file: %v", writeErr)
+	}
+
+	// force=true must skip the in-memory cache and pick up the new
+	// disk contents.
+	forced, err := client.GetAll(ctx, true)
+	if err != nil {
+		// An offline test will fail at the network step. That is
+		// acceptable here: what matters is that force=true did NOT
+		// silently return the stale in-memory value.
+		return
+	}
+
+	if len(forced) == 1 && forced[0].TagName() == memCacheTag {
+		t.Errorf(
+			"forced GetAll returned stale in-memory %s; force=true must skip the in-memory cache",
+			memCacheTag,
+		)
+	}
+}
