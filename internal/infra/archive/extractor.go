@@ -89,6 +89,14 @@ func detectFormat(file *os.File) (string, error) {
 	}
 }
 
+// extractBufferSize is the buffer size used for io.CopyBuffer
+// when extracting archive entries. 256 KiB matches Go's own
+// io.Copy default for *os.File destinations (which uses a 32 KiB
+// buffer); the larger value reduces the number of Read/Write
+// syscalls when extracting large binaries like the Neovim
+// executable or the runtime tree.
+const extractBufferSize = 256 * 1024
+
 // writeFile writes data from reader to a file at target path with given mode.
 func writeFile(target string, mode os.FileMode, reader io.Reader) (err error) {
 	file, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
@@ -107,7 +115,9 @@ func writeFile(target string, mode os.FileMode, reader io.Reader) (err error) {
 		}
 	}()
 
-	_, err = io.Copy(file, reader)
+	buf := make([]byte, extractBufferSize)
+
+	_, err = io.CopyBuffer(file, reader, buf)
 	if err != nil {
 		return fmt.Errorf("failed to copy file content to %s: %w", target, err)
 	}
@@ -139,12 +149,13 @@ func (e *Extractor) extractTarGz(src *os.File, dest string) error {
 			return fmt.Errorf("error reading tar archive: %w", err)
 		}
 
+		// filepath.Join already calls Clean on the result, so
+		// target is already a cleaned path — no need for a
+		// redundant filepath.Clean(target) here.
 		target := filepath.Join(dest, header.Name)
 
 		// Prevent path traversal attacks (Zip Slip vulnerability)
-		cleanTarget := filepath.Clean(target)
-
-		rel, err := filepath.Rel(cleanDest, cleanTarget)
+		rel, err := filepath.Rel(cleanDest, target)
 		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 			return &IllegalPathError{Path: header.Name}
 		}
@@ -203,12 +214,13 @@ func (e *Extractor) extractZip(src *os.File, dest string) error {
 			continue
 		}
 
+		// filepath.Join already calls Clean on the result, so
+		// path is already a cleaned path — no need for a
+		// redundant filepath.Clean(path) here.
 		path := filepath.Join(dest, fileEntry.Name)
 
 		// Prevent path traversal attacks (Zip Slip vulnerability)
-		cleanPath := filepath.Clean(path)
-
-		rel, err := filepath.Rel(cleanDest, cleanPath)
+		rel, err := filepath.Rel(cleanDest, path)
 		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 			return &IllegalPathError{Path: fileEntry.Name}
 		}

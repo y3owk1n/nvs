@@ -139,9 +139,18 @@ func (b *SourceBuilder) BuildFromCommit(
 		if attempt < constants.MaxAttempts {
 			logrus.Info("Retrying build with clean directory...")
 
+			// Use time.NewTimer + Stop instead of time.After so
+			// the timer can be released immediately when ctx
+			// fires first. With time.After, the timer keeps
+			// running in the background until it expires, even
+			// though the select already chose the ctx branch.
+			retryTimer := time.NewTimer(1 * time.Second)
+
 			select {
-			case <-time.After(1 * time.Second):
+			case <-retryTimer.C:
 			case <-ctx.Done():
+				retryTimer.Stop()
+
 				return "", ctx.Err()
 			}
 		}
@@ -350,8 +359,16 @@ func (b *SourceBuilder) cleanupTempDirectories() {
 		return
 	}
 
+	// Single pass over the entries: directories get the lock-file /
+	// age check, lock files get the PID liveness check. The previous
+	// code ran two separate loops over the same ReadDir result.
 	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), "neovim-src-") && entry.IsDir() {
+		if !strings.HasPrefix(entry.Name(), "neovim-src-") {
+			continue
+		}
+
+		switch {
+		case entry.IsDir():
 			dirPath := filepath.Join(tempDir, entry.Name())
 
 			// Check for lock file to skip directories from active builds
@@ -398,14 +415,7 @@ func (b *SourceBuilder) cleanupTempDirectories() {
 			} else {
 				logrus.Debugf("Cleaned up leftover temp directory: %s", dirPath)
 			}
-		}
-	}
-
-	// Clean up orphaned lock files
-	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), "neovim-src-") &&
-			strings.HasSuffix(entry.Name(), ".lock") &&
-			!entry.IsDir() {
+		case strings.HasSuffix(entry.Name(), ".lock"):
 			lockFilePath := filepath.Join(tempDir, entry.Name())
 
 			info, err := entry.Info()
@@ -424,9 +434,11 @@ func (b *SourceBuilder) cleanupTempDirectories() {
 			// Read PID from lock file to check if process is still running
 			pidData, readErr := os.ReadFile(lockFilePath)
 			if readErr == nil {
-				var pid int
-
-				_, err = fmt.Sscanf(string(pidData), "%d", &pid)
+				// strconv.Atoi is the idiomatic, allocation-free
+				// way to parse a single integer. fmt.Sscanf
+				// formats, scans, and reflects its way to the
+				// same result at several times the cost.
+				pid, err := strconv.Atoi(strings.TrimSpace(string(pidData)))
 				if err == nil {
 					if isProcessAlive(pid) {
 						logrus.Debugf(

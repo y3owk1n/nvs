@@ -270,6 +270,13 @@ type progressReader struct {
 	total    int64
 	read     int64
 	callback ProgressFunc
+	// lastPercent tracks the last percentage we reported to the
+	// callback. io.Copy invokes Read in chunks that are often much
+	// smaller than 1% of the total, so reporting on every Read
+	// would invoke the callback dozens to thousands of times for a
+	// single percent change. Caching the last value collapses
+	// those into a single call per integer percent.
+	lastPercent int
 }
 
 func (pr *progressReader) Read(p []byte) (int, error) {
@@ -278,7 +285,10 @@ func (pr *progressReader) Read(p []byte) (int, error) {
 	pr.read += int64(bytesRead)
 	if pr.callback != nil && pr.total > 0 {
 		percent := int((pr.read * 100) / pr.total) //nolint:mnd // 100 for percentage calculation
-		pr.callback(percent)
+		if percent != pr.lastPercent {
+			pr.lastPercent = percent
+			pr.callback(percent)
+		}
 	}
 
 	return bytesRead, err
