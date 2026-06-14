@@ -73,6 +73,18 @@ func Execute() error {
 		return InitConfig()
 	}
 
+	// Always cancel the global context when Execute returns, so
+	// the signal-handler goroutine started by InitConfig (which
+	// is still blocked on <-sigCh) is unblocked and can exit
+	// cleanly. Without this defer, 'nvs <subcommand>' that
+	// completes without receiving SIGINT would leak the
+	// goroutine and the channel until the process exits —
+	// technically harmless because the OS reaps everything on
+	// exit, but visible to -race, to pprof, and to any future
+	// 'nvs <subcommand>' that wants to fork/exec a child and
+	// needs the parent state to be clean.
+	defer cancel()
+
 	// Execute the root command with the global context.
 	err := rootCmd.ExecuteContext(ctx)
 	if err != nil {
