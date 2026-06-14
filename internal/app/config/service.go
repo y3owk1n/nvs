@@ -36,7 +36,11 @@ func (s *Service) List() ([]string, error) {
 		return nil, fmt.Errorf("failed to read config directory: %w", err)
 	}
 
-	var configs []string
+	// Pre-allocate to len(entries) (the maximum possible size of
+	// the result). Configs are filtered down from the full
+	// directory listing, but len(entries) is an upper bound that
+	// saves the typical 2x growth-and-copy dance.
+	configs := make([]string, 0, len(entries))
 
 	for _, entry := range entries {
 		entryPath := filepath.Join(configDir, entry.Name())
