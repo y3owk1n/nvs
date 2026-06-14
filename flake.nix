@@ -1,7 +1,7 @@
 {
   description = "Easily install, switch, and manage multiple versions (including commit hashes) and config of Neovim like a boss";
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/b976292fb39a449bcf410219e4cf0aa05a8b4d04?narHash=sha256-NmiCO/7hKv3TVIXXtEAkpGHiJzQc/5z8PT8tO+SKPZA=";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
   outputs =
     { self, nixpkgs, ... }:
