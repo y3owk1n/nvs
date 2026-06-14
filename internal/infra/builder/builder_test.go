@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -474,5 +476,109 @@ func TestBuildFromCommit_ContextNotCancelledBeforeRetrySleep(t *testing.T) {
 	// Should have made multiple clone attempts (up to MaxAttempts)
 	if cloneAttemptCount < 2 {
 		t.Errorf("Expected at least 2 clone attempts, got %d", cloneAttemptCount)
+	}
+}
+
+// countTempBuildDirs reports how many directories matching the
+// BuildFromCommit temp-dir pattern exist under os.TempDir(). It is used
+// to assert that BuildFromCommit cleans up its scratch space on every
+// exit path (success, error, context cancel).
+func countTempBuildDirs(t *testing.T) int {
+	t.Helper()
+
+	entries, err := os.ReadDir(os.TempDir())
+	if err != nil {
+		t.Fatalf("failed to read temp dir: %v", err)
+	}
+
+	count := 0
+
+	for _, entry := range entries {
+		name := entry.Name()
+		if !entry.IsDir() {
+			continue
+		}
+
+		// Match both the locked and unlocked patterns used by
+		// BuildFromCommit: "neovim-src-<buildID>-<attempt>" and
+		// the lock file is not a directory so the IsDir() filter
+		// above already excludes it.
+		if strings.HasPrefix(name, "neovim-src-") {
+			count++
+		}
+	}
+
+	return count
+}
+
+// TestBuildFromCommit_NoTempDirLeakOnContextCancel is a regression test
+// for the temp-dir leak. Previously, when buildFromCommitInternal
+// returned context.Canceled (or context.DeadlineExceeded), the outer
+// BuildFromCommit returned immediately without removing the per-attempt
+// neovim-src-<buildID>-<attempt> directory. The cleanup on the next
+// run is gated to dirs older than 5 minutes, so a canceled build
+// would leave hundreds of MB in os.TempDir() for at least that long.
+//
+// The fix wraps each attempt in a closure that defers
+// os.RemoveAll(localPath), so the cleanup fires on every exit path.
+//
+// The test mocks 'git clone' to actually create a real directory on
+// disk at the path git was asked to clone into, and 'make' to return
+// context.Canceled. Without the fix, the directory is left behind and
+// the test fails.
+func TestBuildFromCommit_NoTempDirLeakOnContextCancel(t *testing.T) {
+	// Snapshot the temp-dir state before, since other tests in this
+	// package may have left neovim-src-* directories behind.
+	before := countTempBuildDirs(t)
+
+	mockExec := func(ctx context.Context, name string, args ...string) builder.Commander {
+		// Mock successful tool checks
+		if name == whichCmd &&
+			(args[0] == gitTool || args[0] == makeTool || args[0] == cmakeTool || args[0] == gettextTool || args[0] == ninjaTool || args[0] == curlTool) {
+			return &mockCommand{}
+		}
+
+		// Simulate git clone by creating a real directory at the
+		// last argument's path. This is what a real `git clone`
+		// would do, and it's the prerequisite for the leak: the
+		// leak only happens if a directory actually exists on disk.
+		if name == gitCmd && len(args) > 0 && args[0] == gitClone {
+			cloneTarget := args[len(args)-1]
+
+			mkdirErr := os.MkdirAll(cloneTarget, 0o755)
+			if mkdirErr != nil {
+				t.Errorf("mock clone failed to create dir: %v", mkdirErr)
+			}
+
+			return &mockCommand{}
+		}
+
+		// Simulate git rev-parse to return a valid commit hash so
+		// the build proceeds past the checkout step.
+		if name == gitCmd && len(args) > 0 && args[0] == gitRevParse {
+			return &mockCommand{stdoutStr: "abc1234567890"}
+		}
+
+		// Make returns context.Canceled to trigger the leak path
+		// in the (old) pre-fix code.
+		if name == "make" {
+			return &mockCommand{runErr: context.Canceled}
+		}
+
+		return &mockCommand{}
+	}
+
+	b := builder.New(mockExec)
+
+	_, _ = b.BuildFromCommit(context.Background(), "master", t.TempDir(), nil)
+
+	after := countTempBuildDirs(t)
+
+	if leaked := after - before; leaked > 0 {
+		t.Errorf(
+			"BuildFromCommit leaked %d temp dir(s) in %s on context cancel",
+			leaked,
+			filepath.Join(os.TempDir(), "neovim-src-*"),
+		)
 	}
 }

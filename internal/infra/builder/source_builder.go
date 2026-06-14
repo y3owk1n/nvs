@@ -88,28 +88,43 @@ func (b *SourceBuilder) BuildFromCommit(
 		err          error
 	)
 	for attempt := 1; attempt <= constants.MaxAttempts; attempt++ {
-		// Check for required build tools on each attempt
-		err = b.checkRequiredTools(ctx)
-		if err != nil {
-			// Don't retry if build requirements are not met
-			if errors.Is(err, ErrBuildRequirementsNotMet) {
-				return "", fmt.Errorf("build requirements not met: %w", err)
+		// Wrap this attempt in a closure so the temp-dir cleanup
+		// is scoped to a single iteration. The defer fires on
+		// every exit path: success, context cancel, error,
+		// panic, or fall-through after the final attempt.
+		resolvedHash, err = func() (string, error) {
+			// Check for required build tools on each attempt
+			checkErr := b.checkRequiredTools(ctx)
+			if checkErr != nil {
+				// Don't retry if build requirements are not met
+				if errors.Is(checkErr, ErrBuildRequirementsNotMet) {
+					return "", fmt.Errorf("build requirements not met: %w", checkErr)
+				}
+				// Return immediately on context cancellation/timeout
+				return "", fmt.Errorf("build requirements check failed: %w", checkErr)
 			}
-			// Return immediately on context cancellation/timeout
-			return "", fmt.Errorf("build requirements check failed: %w", err)
-		}
 
-		localPath := filepath.Join(os.TempDir(), fmt.Sprintf("neovim-src-%s-%d", buildID, attempt))
-		logrus.Debugf("Temporary Neovim source directory: %s", localPath)
+			localPath := filepath.Join(
+				os.TempDir(),
+				fmt.Sprintf("neovim-src-%s-%d", buildID, attempt),
+			)
+			logrus.Debugf("Temporary Neovim source directory: %s", localPath)
 
-		resolvedHash, err = b.buildFromCommitInternal(ctx, commit, dest, localPath, progress)
+			// Ensure the temp dir is removed on every exit path,
+			// including context cancellation and panic. The
+			// closure's defer runs before the function returns
+			// the (hash, err) tuple, so a successful build still
+			// sees the dir removed, but so does a canceled one.
+			defer func() {
+				removeErr := os.RemoveAll(localPath)
+				if removeErr != nil && !os.IsNotExist(removeErr) {
+					logrus.Warnf("Failed to remove temporary directory: %v", removeErr)
+				}
+			}()
+
+			return b.buildFromCommitInternal(ctx, commit, dest, localPath, progress)
+		}()
 		if err == nil {
-			// Clean up temp directory on successful build
-			removeErr := os.RemoveAll(localPath)
-			if removeErr != nil {
-				logrus.Warnf("Failed to remove temporary directory: %v", removeErr)
-			}
-
 			return resolvedHash, nil
 		}
 
@@ -118,12 +133,6 @@ func (b *SourceBuilder) BuildFromCommit(
 		// Check for context cancellation - return immediately without retrying
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return "", err
-		}
-
-		// Clean up for retry (though not strictly necessary with unique paths)
-		removeErr := os.RemoveAll(localPath)
-		if removeErr != nil {
-			logrus.Warnf("Failed to remove temporary directory: %v", removeErr)
 		}
 
 		if attempt < constants.MaxAttempts {
