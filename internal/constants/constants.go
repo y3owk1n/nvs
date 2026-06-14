@@ -136,6 +136,11 @@ const (
 	NumReaders = 2
 	// BufferSize is the buffer size for reading.
 	BufferSize = 4096
+	// ScannerMaxLine is the maximum line length accepted by
+	// bufio.Scanner when streaming build output. The default 64KiB
+	// cap is too small for long cmake/linker error lines; 1MiB is
+	// large enough to capture them while still bounded.
+	ScannerMaxLine = 1 << 20
 	// Sha256HashLen is the length of SHA256 hash.
 	Sha256HashLen = 64
 	// DefaultTimeout is the default timeout for downloads.

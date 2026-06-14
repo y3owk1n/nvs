@@ -2,6 +2,7 @@
 package builder
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -608,47 +609,33 @@ func runCommandWithSpinnerAndOutput(
 		errChan <- cmd.Run()
 	}()
 
-	// Read from both pipes concurrently
+	// Read stdout and stderr line-by-line. The previous byte-slice
+	// loops (`buf := make([]byte, 4096); for { n, _ := r.Read(buf); ... }`)
+	// had two problems: (1) a single Read could return a partial
+	// line, a complete line, or multiple lines, all of which were
+	// TrimSpace'd and fed to the callback as if they were a single
+	// line, so the output callback could be invoked with a fragment
+	// ("-- Looking for") or with multiple lines glued together; and
+	// (2) the output buffer was always a fresh allocation, so long
+	// cmake error lines (>64KB, the default bufio.Scanner cap)
+	// would be silently dropped.
+	//
+	// bufio.Scanner with an explicit max buffer handles partial
+	// reads and long lines correctly.
 	go func() {
 		defer waitGroup.Done()
 
-		buf := make([]byte, constants.BufferSize)
-		for {
-			n, err := stdoutReader.Read(buf)
-			if n > 0 {
-				line := strings.TrimSpace(string(buf[:n]))
-				if line != "" {
-					logrus.Debugf("Build output: %s", line)
-
-					if outputCallback != nil {
-						outputCallback(line)
-					}
-				}
+		streamLines(stdoutReader, "Build output", func(line string) {
+			if outputCallback != nil {
+				outputCallback(line)
 			}
-
-			if err != nil {
-				break
-			}
-		}
+		})
 	}()
 
 	go func() {
 		defer waitGroup.Done()
 
-		buf := make([]byte, constants.BufferSize)
-		for {
-			n, err := stderrReader.Read(buf)
-			if n > 0 {
-				line := strings.TrimSpace(string(buf[:n]))
-				if line != "" {
-					logrus.Debugf("Build error: %s", line)
-				}
-			}
-
-			if err != nil {
-				break
-			}
-		}
+		streamLines(stderrReader, "Build error", nil)
 	}()
 
 	// Wait for command to complete
@@ -683,4 +670,40 @@ func runCommandWithSpinnerAndOutput(
 	waitGroup.Wait()
 
 	return err
+}
+
+// streamLines reads r line-by-line and invokes onLine for each
+// non-empty trimmed line. The label is used in debug logs so the
+// caller can distinguish stdout from stderr.
+//
+// The previous implementation used a 4KB byte buffer and treated each
+// Read as a single "line", which silently corrupted output when a
+// Read returned a partial line or multiple lines at once. bufio.Scanner
+// handles both cases correctly: it buffers partial reads internally
+// and emits exactly one Scan() per line. We bump the max buffer size
+// from the 64KB default to 1MB so long cmake/linker error lines are
+// not silently dropped.
+//
+// onLine may be nil; in that case lines are only logged.
+func streamLines(r io.Reader, label string, onLine func(string)) {
+	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 0, constants.BufferSize), constants.ScannerMaxLine)
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+
+		logrus.Debugf("%s: %s", label, line)
+
+		if onLine != nil {
+			onLine(line)
+		}
+	}
+
+	scanErr := scanner.Err()
+	if scanErr != nil {
+		logrus.Debugf("%s scanner error: %v", label, scanErr)
+	}
 }

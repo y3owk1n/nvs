@@ -3,6 +3,7 @@ package builder
 
 import (
 	"context"
+	"io"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -166,6 +167,114 @@ func TestRunCommandWithSpinnerAndOutput_KillsChildOnCancel(t *testing.T) {
 		t.Errorf("expected Kill to be called exactly once, got %d", got)
 	}
 }
+
+// TestStreamLines_PartialReads exercises streamLines with an
+// io.Reader that returns one byte at a time, forcing bufio.Scanner to
+// re-buffer across many Read() calls. The old byte-slice loop in
+// runCommandWithSpinnerAndOutput treated each Read as a "line" and
+// would call the output callback once per Read with a single byte at
+// a time. The new streamLines helper uses bufio.Scanner, which
+// accumulates partial reads internally and only invokes the callback
+// once per complete (newline-terminated) line.
+//
+// This test pins the new behavior: a 30-byte output with three lines
+// ("alpha\nbeta\ngamma\n") must produce exactly three callback
+// invocations, each receiving the correct line. Pre-fix code would
+// produce 30 invocations of one-byte fragments.
+func TestStreamLines_PartialReads(t *testing.T) {
+	t.Parallel()
+
+	input := "alpha\nbeta\ngamma\n"
+	reader := &oneByteReader{src: []byte(input)}
+
+	linesChan := make(chan string, 3)
+
+	streamLines(reader, "test", func(line string) {
+		linesChan <- line
+	})
+
+	close(linesChan)
+
+	var got []string
+
+	for line := range linesChan {
+		got = append(got, line)
+	}
+
+	want := []string{"alpha", "beta", "gamma"}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d lines, got %d: %v", len(want), len(got), got)
+	}
+
+	for lineIdx := range want {
+		if got[lineIdx] != want[lineIdx] {
+			t.Errorf(
+				"line %d: expected %q, got %q",
+				lineIdx,
+				want[lineIdx],
+				got[lineIdx],
+			)
+		}
+	}
+}
+
+// TestStreamLines_LongLineAbove64KiB verifies that lines longer than
+// bufio.Scanner's 64KiB default are accepted (we bump the cap to 1MiB
+// via constants.ScannerMaxLine) and passed to the callback intact.
+func TestStreamLines_LongLineAbove64KiB(t *testing.T) {
+	t.Parallel()
+
+	const longLen = 100 * 1024 // 100 KiB, well above the 64 KiB default
+
+	longLine := make([]byte, longLen+1)
+	for byteIdx := range longLine[:longLen] {
+		longLine[byteIdx] = 'x'
+	}
+
+	longLine[longLen] = '\n'
+
+	reader := &oneByteReader{src: longLine}
+
+	var got string
+
+	var gotMu sync.Mutex
+
+	streamLines(reader, "test", func(line string) {
+		gotMu.Lock()
+		got = line
+		gotMu.Unlock()
+	})
+
+	gotMu.Lock()
+	defer gotMu.Unlock()
+
+	if len(got) != longLen {
+		t.Errorf("expected long line of %d bytes, got %d", longLen, len(got))
+	}
+}
+
+// oneByteReader returns its source one byte at a time, simulating a
+// pipe that the writer flushes after every byte. bufio.Scanner must
+// re-buffer across many Read() calls to reconstruct each line.
+type oneByteReader struct {
+	src   []byte
+	index int
+}
+
+func (r *oneByteReader) Read(buffer []byte) (int, error) {
+	if r.index >= len(r.src) {
+		return 0, errEOF
+	}
+
+	buffer[0] = r.src[r.index]
+	r.index++
+
+	return 1, nil
+}
+
+// errEOF is the io.EOF sentinel used by oneByteReader.
+var errEOF = io.EOF
 
 // itoa converts a non-negative int to its base-10 string representation
 // without depending on strconv (avoids an extra import in this file).
