@@ -2,9 +2,11 @@
 package filesystem
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -296,12 +298,26 @@ func updateSymlink(target, link string, isDir bool) error {
 		cmd = exec.CommandContext(context.Background(), "cmd", "/C", "mklink", "/H", link, target)
 	}
 
+	// Stream mklink's stdout to the terminal so the user sees the
+	// "Junction created" / "symbolic link created" line in real
+	// time, but capture stderr into a buffer so we can include the
+	// actual reason (e.g. "Access is denied.", "The system cannot
+	// find the path specified.") in the returned error when the
+	// command fails. Without this capture, the caller only sees a
+	// bare "exit status N" and the user has no clue why their
+	// symlink could not be created.
+	var stderrBuf bytes.Buffer
+
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
 
 	err = cmd.Run()
 	if err != nil {
-		return fmt.Errorf("failed to create Windows link: %w", err)
+		return fmt.Errorf(
+			"failed to create Windows link (mklink output: %s): %w",
+			stderrBuf.String(),
+			err,
+		)
 	}
 
 	return nil
