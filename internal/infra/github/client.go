@@ -306,11 +306,8 @@ func (c *Client) FindStable(ctx context.Context) (release.Release, error) {
 		return release.Release{}, err
 	}
 
-	// Sort releases by published date descending (newest first)
-	slices.SortFunc(releases, func(a, b release.Release) int {
-		return b.PublishedAt().Compare(a.PublishedAt())
-	})
-
+	// Releases are pre-sorted (newest first) by GetAll/convertReleases,
+	// so the first non-prerelease entry is the latest stable.
 	for _, r := range releases {
 		if !r.Prerelease() {
 			return r, nil
@@ -327,11 +324,8 @@ func (c *Client) FindNightly(ctx context.Context) (release.Release, error) {
 		return release.Release{}, err
 	}
 
-	// Sort releases by published date descending (newest first)
-	slices.SortFunc(releases, func(a, b release.Release) int {
-		return b.PublishedAt().Compare(a.PublishedAt())
-	})
-
+	// Releases are pre-sorted (newest first) by GetAll/convertReleases,
+	// so the first nightly pre-release is the latest nightly.
 	for _, r := range releases {
 		if r.Prerelease() && strings.HasPrefix(strings.ToLower(r.TagName()), "nightly") {
 			return r, nil
@@ -348,10 +342,21 @@ func (c *Client) FindByTag(ctx context.Context, tag string) (release.Release, er
 		return release.Release{}, err
 	}
 
-	for _, r := range releases {
-		if r.TagName() == tag {
-			return r, nil
-		}
+	// Build a per-call tag -> index map. The previous code did a
+	// linear scan for every lookup; with N releases and a few
+	// hundred calls per upgrade flow, this adds up. The map is
+	// O(N) memory and O(N) time to build, then O(1) per lookup.
+	// The map and the value Release are both short-lived (the
+	// FindByTag caller typically just reads a few fields), so
+	// the allocation cost is negligible compared to the linear
+	// scan.
+	tagIndex := make(map[string]int, len(releases))
+	for i, r := range releases {
+		tagIndex[r.TagName()] = i
+	}
+
+	if idx, ok := tagIndex[tag]; ok {
+		return releases[idx], nil
 	}
 
 	return release.Release{}, fmt.Errorf("%w: %s", release.ErrReleaseNotFound, tag)
@@ -440,6 +445,13 @@ func (c *Client) fetchGitHubAPIPage(
 }
 
 // convertReleases converts API releases to domain releases.
+//
+// The result is sorted by published date descending (newest first)
+// so that FindStable, FindNightly, and any other consumer that wants
+// "the latest" can stop at the first match without re-sorting. The
+// sort lives at the API/domain boundary so the in-memory cache, the
+// on-disk cache, and any direct caller of GetAll all see consistent
+// ordering.
 func (c *Client) convertReleases(apiReleases []apiRelease) []release.Release {
 	releases := make([]release.Release, 0, len(apiReleases))
 
@@ -462,6 +474,10 @@ func (c *Client) convertReleases(apiReleases []apiRelease) []release.Release {
 			assets,
 		))
 	}
+
+	slices.SortFunc(releases, func(a, b release.Release) int {
+		return b.PublishedAt().Compare(a.PublishedAt())
+	})
 
 	return releases
 }
