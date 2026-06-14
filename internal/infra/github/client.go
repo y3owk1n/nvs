@@ -37,6 +37,14 @@ type Client struct {
 	memCacheMu       sync.RWMutex
 	memCacheReleases []release.Release
 	memCacheLoaded   bool
+
+	// fetchMu serializes the slow path (disk read + network fetch) so
+	// that concurrent GetAll callers with no in-memory cache share
+	// one fetch instead of all racing to disk and the network.
+	// Callers always check the in-memory cache (read-locked) before
+	// taking fetchMu, so the lock is only contended on the very
+	// first concurrent call in a process.
+	fetchMu sync.Mutex
 }
 
 // NewClient creates a new GitHub client with caching.
@@ -196,10 +204,30 @@ type apiAsset struct {
 // The force flag bypasses both caches: it forces a fresh network
 // fetch and refreshes both the in-memory and on-disk caches.
 //
+// Concurrency: the slow path (disk read + network fetch) is
+// serialized via fetchMu, so concurrent callers with a cold
+// in-memory cache share one fetch instead of N parallel disk reads
+// and N parallel network requests.
+//
 // Resilience: if every fresh source (global cache, GitHub API) fails
 // AND an on-disk cache exists, the stale cache is returned as a
 // last resort so a transient network blip doesn't break the command.
 func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, error) {
+	// Fast path: read in-memory cache without taking the fetch lock.
+	if !force {
+		if cached := c.memCacheSnapshot(); cached != nil {
+			logrus.Debug("Using in-memory cached releases")
+
+			return cached, nil
+		}
+	}
+
+	// Slow path: serialize so concurrent callers share one fetch.
+	// On contention, callers re-check the in-memory cache; the
+	// first one populates it and the rest return early.
+	c.fetchMu.Lock()
+	defer c.fetchMu.Unlock()
+
 	if !force {
 		if cached := c.memCacheSnapshot(); cached != nil {
 			logrus.Debug("Using in-memory cached releases")
@@ -548,9 +576,11 @@ func GetChecksumURL(rel release.Release, assetPattern string) (string, error) {
 	return "", fmt.Errorf("%w for pattern: %s", ErrChecksumNotFound, assetPattern)
 }
 
-// memCacheSnapshot returns the cached release slice, or nil if the
-// in-memory cache has not been populated yet. Callers must treat the
-// returned slice as read-only.
+// memCacheSnapshot returns a copy of the cached release slice, or
+// nil if the in-memory cache has not been populated yet. The slice
+// is always cloned so that concurrent callers may freely sort,
+// iterate, or otherwise transform their copy without disturbing the
+// shared cache.
 func (c *Client) memCacheSnapshot() []release.Release {
 	c.memCacheMu.RLock()
 	defer c.memCacheMu.RUnlock()
@@ -559,7 +589,7 @@ func (c *Client) memCacheSnapshot() []release.Release {
 		return nil
 	}
 
-	return c.memCacheReleases
+	return slices.Clone(c.memCacheReleases)
 }
 
 // storeMemCache replaces the in-memory cache with releases. The slice

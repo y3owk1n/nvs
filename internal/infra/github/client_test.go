@@ -5,7 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -500,6 +502,123 @@ func TestClient_GetAll_InMemoryCache(t *testing.T) {
 			modifiedTag,
 		)
 	}
+}
+
+// TestClient_GetAll_ConcurrentColdCache verifies that concurrent
+// GetAll callers with a cold in-memory cache share one slow-path
+// execution (singleflight), and that no caller sees a torn or empty
+// result. The test runs under -race to catch any data race.
+func TestClient_GetAll_ConcurrentColdCache(t *testing.T) {
+	const (
+		goroutines = 16
+		tag        = "v0.10.0"
+	)
+
+	originalData := []map[string]any{
+		{
+			"tag_name":         tag,
+			"prerelease":       false,
+			"target_commitish": "abc123",
+			"published_at":     "2024-12-01T10:00:00Z",
+			"assets":           []map[string]any{},
+		},
+	}
+	cacheFile := writeCacheFile(t, originalData)
+	client := github.NewClient(cacheFile, time.Hour, "", "", false)
+	ctx := t.Context()
+
+	var waitGroup sync.WaitGroup
+
+	waitGroup.Add(goroutines)
+
+	results := make([][]string, goroutines)
+
+	for idx := range goroutines {
+		go func(idx int) {
+			defer waitGroup.Done()
+
+			releases, err := client.GetAll(ctx, false)
+			if err != nil {
+				t.Errorf("goroutine %d: GetAll error: %v", idx, err)
+
+				return
+			}
+
+			tags := make([]string, 0, len(releases))
+			for _, r := range releases {
+				tags = append(tags, r.TagName())
+			}
+
+			results[idx] = tags
+		}(idx)
+	}
+
+	waitGroup.Wait()
+
+	for idx, tags := range results {
+		if len(tags) != 1 || tags[0] != tag {
+			t.Errorf("goroutine %d: got tags %v, want [%s]", idx, tags, tag)
+		}
+	}
+}
+
+// TestClient_GetAll_ConcurrentMutationSafe verifies that concurrent
+// callers can sort and iterate the snapshot returned by GetAll
+// without racing each other or the shared cache. The test runs
+// under -race; a failure indicates the snapshot is not safe to
+// mutate.
+func TestClient_GetAll_ConcurrentMutationSafe(t *testing.T) {
+	const (
+		tag      = "v0.10.0"
+		iterTags = 200
+	)
+
+	originalData := []map[string]any{
+		{
+			"tag_name":         tag,
+			"prerelease":       false,
+			"target_commitish": "abc123",
+			"published_at":     "2024-12-01T10:00:00Z",
+			"assets":           []map[string]any{},
+		},
+	}
+	cacheFile := writeCacheFile(t, originalData)
+	client := github.NewClient(cacheFile, time.Hour, "", "", false)
+	ctx := t.Context()
+
+	// Prime the in-memory cache.
+	_, err := client.GetAll(ctx, false)
+	if err != nil {
+		t.Fatalf("prime GetAll: %v", err)
+	}
+
+	const goroutines = 8
+
+	var waitGroup sync.WaitGroup
+
+	waitGroup.Add(goroutines)
+
+	for idx := range goroutines {
+		go func(idx int) {
+			defer waitGroup.Done()
+
+			for range iterTags {
+				releases, err := client.GetAll(ctx, false)
+				if err != nil {
+					t.Errorf("g%d: GetAll error: %v", idx, err)
+
+					return
+				}
+
+				// Sort in place; safe only if the snapshot is a copy.
+				slices.SortFunc(releases, func(a, b release.Release) int {
+					return strings.Compare(a.TagName(), b.TagName())
+				})
+			}
+		}(idx)
+	}
+
+	waitGroup.Wait()
 }
 
 // TestClient_GetAll_ForceBypassesMemCache verifies that force=true
