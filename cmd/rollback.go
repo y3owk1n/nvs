@@ -296,16 +296,16 @@ func AddNightlyToHistory(commitHash, tagName string) error {
 		}
 	}
 
-	// Remove any existing entry with the same commit hash (to avoid duplicates)
+	// Remove any existing entry with the same commit hash (to avoid
+	// duplicates). Compare on the full commit hash: shortHash() (the
+	// first ShortHashLength hex chars) has a ~1-in-16M collision
+	// probability and would silently drop the wrong entry if two
+	// distinct commits ever shared their leading 7 chars. Callers
+	// have already passed the trimmed full hash, so a direct
+	// string compare is sufficient.
 	dedupedEntries := make([]NightlyHistoryEntry, 0, len(history.Entries))
 	for _, entry := range history.Entries {
-		if shortHash(
-			entry.CommitHash,
-			constants.ShortHashLength,
-		) != shortHash(
-			commitHash,
-			constants.ShortHashLength,
-		) {
+		if entry.CommitHash != commitHash {
 			dedupedEntries = append(dedupedEntries, entry)
 		}
 	}
@@ -386,7 +386,9 @@ func saveNightlyHistory(history *NightlyHistory) error {
 		return err
 	}
 
-	// Write to temp file first for atomicity
+	// Write to temp file first for atomicity. Using a sibling
+	// .tmp file ensures os.Rename is atomic on POSIX (no
+	// cross-filesystem move required).
 	tempPath := historyPath + ".tmp"
 
 	err = os.WriteFile(tempPath, data, constants.FilePerm)
@@ -394,8 +396,37 @@ func saveNightlyHistory(history *NightlyHistory) error {
 		return err
 	}
 
-	// Atomic rename
-	return os.Rename(tempPath, historyPath)
+	// Best-effort cleanup of the temp file on any failure from
+	// here on. The os.Stat guard avoids an error log when the
+	// rename has already succeeded (the .tmp file no longer
+	// exists at that path).
+	defer func() {
+		_, statErr := os.Stat(tempPath)
+		if statErr == nil {
+			_ = os.Remove(tempPath)
+		}
+	}()
+
+	// fsync before rename so a power loss between WriteFile
+	// returning and the rename completing cannot leave the
+	// renamed file with zero bytes (or unflushed data) on disk.
+	tempFile, openErr := os.OpenFile(tempPath, os.O_RDWR, constants.FilePerm)
+	if openErr == nil {
+		syncErr := tempFile.Sync()
+		if syncErr != nil {
+			logrus.Warnf("Failed to fsync temp history file: %v", syncErr)
+		}
+
+		_ = tempFile.Close()
+	}
+
+	// Atomic rename.
+	renameErr := os.Rename(tempPath, historyPath)
+	if renameErr != nil {
+		return fmt.Errorf("rename temp history file: %w", renameErr)
+	}
+
+	return nil
 }
 
 func init() {
