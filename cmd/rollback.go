@@ -146,54 +146,50 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 				logrus.Warnf("Failed to remove symlink: %v", err)
 			}
 		} else if info.IsDir() {
-			// It's a real directory - back it up if we have a commit hash
-			if currentCommit != "" {
-				backupDir := filepath.Join(
-					GetVersionsDir(),
-					"nightly-"+shortHash(currentCommit, constants.ShortHashLength),
-				)
+			// It's a real directory - back it up so the user can
+			// recover if rollback turns out to be the wrong move.
+			//
+			// If we have a commit hash, name the backup after it
+			// (matches the upgrade-time layout). If we don't (e.g.
+			// the version.txt read failed), fall back to a
+			// timestamped name so we still preserve the directory
+			// rather than silently destroying it.
+			backupDir := resolveNightlyBackupDir(currentCommit)
 
-				// Atomically claim the backup slot via os.Rename.
-				// The previous code did a Stat on backupDir and
-				// then either renamed (if missing) or removed
-				// (if present), but the Stat + rename pair is a
-				// TOCTOU window: two concurrent rollbacks could
-				// both see the backup missing and both try to
-				// rename the same currentNightly. Whichever
-				// rename ran second would fail.
-				//
-				// os.Rename is itself atomic at the filesystem
-				// level on POSIX, so a single attempt is enough
-				// to decide: success (we created the backup),
-				// or "already exists" (the backup is from a
-				// previous rollback, just drop the current
-				// symlink/dir), or any other error (propagate).
-				var backupErr error
+			// Atomically claim the backup slot via os.Rename.
+			// The previous code did a Stat on backupDir and
+			// then either renamed (if missing) or removed
+			// (if present), but the Stat + rename pair is a
+			// TOCTOU window: two concurrent rollbacks could
+			// both see the backup missing and both try to
+			// rename the same currentNightly. Whichever
+			// rename ran second would fail.
+			//
+			// os.Rename is itself atomic at the filesystem
+			// level on POSIX, so a single attempt is enough
+			// to decide: success (we created the backup),
+			// or "already exists" (the backup is from a
+			// previous rollback, just drop the current
+			// symlink/dir), or any other error (propagate).
+			var backupErr error
 
-				renameErr := os.Rename(currentNightly, backupDir)
-				switch {
-				case renameErr == nil:
-					logrus.Debugf("Backed up current nightly to %s", backupDir)
-				case os.IsExist(renameErr):
-					// Backup already exists from a previous run;
-					// safe to remove the current nightly.
-					rmErr := os.RemoveAll(currentNightly)
-					if rmErr != nil {
-						return fmt.Errorf("failed to remove current nightly: %w", rmErr)
-					}
-				default:
-					backupErr = fmt.Errorf("failed to backup current nightly: %w", renameErr)
-				}
-
-				if backupErr != nil {
-					return backupErr
-				}
-			} else {
-				// No commit hash, just remove
+			renameErr := os.Rename(currentNightly, backupDir)
+			switch {
+			case renameErr == nil:
+				logrus.Debugf("Backed up current nightly to %s", backupDir)
+			case os.IsExist(renameErr):
+				// Backup already exists from a previous run;
+				// safe to remove the current nightly.
 				rmErr := os.RemoveAll(currentNightly)
 				if rmErr != nil {
 					return fmt.Errorf("failed to remove current nightly: %w", rmErr)
 				}
+			default:
+				backupErr = fmt.Errorf("failed to backup current nightly: %w", renameErr)
+			}
+
+			if backupErr != nil {
+				return backupErr
 			}
 		}
 	}
@@ -404,4 +400,30 @@ func saveNightlyHistory(history *NightlyHistory) error {
 
 func init() {
 	rootCmd.AddCommand(rollbackCmd)
+}
+
+// resolveNightlyBackupDir returns the path that should be used as the
+// backup slot for the current nightly. When a commit hash is known,
+// the path is the upgrade-time layout (nightly-{shortHash}); when the
+// hash can't be read, the path is timestamped so the user still has
+// something to recover from rather than losing the directory entirely.
+func resolveNightlyBackupDir(currentCommit string) string {
+	if currentCommit != "" {
+		return filepath.Join(
+			GetVersionsDir(),
+			"nightly-"+shortHash(currentCommit, constants.ShortHashLength),
+		)
+	}
+
+	timestamped := filepath.Join(
+		GetVersionsDir(),
+		"nightly-"+time.Now().UTC().Format("20060102-150405"),
+	)
+
+	logrus.Warnf(
+		"Current nightly has no readable identifier; backing up to timestamped directory %s",
+		timestamped,
+	)
+
+	return timestamped
 }
