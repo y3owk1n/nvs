@@ -54,8 +54,6 @@ func (s *SafeSpinner) SetPrefix(prefix string) {
 // RunCommandWithSpinner executes the provided command with an active spinner that updates its suffix
 // based on the command's output. It captures both stdout and stderr and returns an error if the command fails.
 func RunCommandWithSpinner(ctx context.Context, spinner *spinner.Spinner, cmd *exec.Cmd) error {
-	const goroutineNum = 2
-
 	var err error
 
 	stdoutPipe, err := cmd.StdoutPipe()
@@ -71,9 +69,7 @@ func RunCommandWithSpinner(ctx context.Context, spinner *spinner.Spinner, cmd *e
 	var suffixMutex sync.Mutex
 
 	// updateSpinner reads from the given pipe and updates the spinner's suffix based on the output.
-	updateSpinner := func(pipeOutput io.Reader, waitGroup *sync.WaitGroup) {
-		defer waitGroup.Done()
-
+	updateSpinner := func(pipeOutput io.Reader) {
 		scanner := bufio.NewScanner(pipeOutput)
 		for scanner.Scan() {
 			line := strings.TrimSpace(scanner.Text())
@@ -98,10 +94,13 @@ func RunCommandWithSpinner(ctx context.Context, spinner *spinner.Spinner, cmd *e
 	}
 
 	var waitGroup sync.WaitGroup
-	waitGroup.Add(goroutineNum)
 
-	go updateSpinner(stdoutPipe, &waitGroup)
-	go updateSpinner(stderrPipe, &waitGroup)
+	waitGroup.Go(func() {
+		updateSpinner(stdoutPipe)
+	})
+	waitGroup.Go(func() {
+		updateSpinner(stderrPipe)
+	})
 
 	// Channel to capture command completion.
 	cmdErrChan := make(chan error, 1)

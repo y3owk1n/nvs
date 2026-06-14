@@ -132,8 +132,6 @@ const (
 	TickerInterval = 10
 	// OutputChanSize is the output channel size.
 	OutputChanSize = 10
-	// NumReaders is the number of readers.
-	NumReaders = 2
 	// BufferSize is the buffer size for reading.
 	BufferSize = 4096
 	// ScannerMaxLine is the maximum line length accepted by

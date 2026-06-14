@@ -601,13 +601,10 @@ func runCommandWithSpinnerAndOutput(
 
 	// Wait for all goroutines to complete
 	var waitGroup sync.WaitGroup
-	waitGroup.Add(constants.NumReaders + 1)
 
-	go func() {
-		defer waitGroup.Done()
-
+	waitGroup.Go(func() {
 		errChan <- cmd.Run()
-	}()
+	})
 
 	// Read stdout and stderr line-by-line. The previous byte-slice
 	// loops (`buf := make([]byte, 4096); for { n, _ := r.Read(buf); ... }`)
@@ -622,21 +619,17 @@ func runCommandWithSpinnerAndOutput(
 	//
 	// bufio.Scanner with an explicit max buffer handles partial
 	// reads and long lines correctly.
-	go func() {
-		defer waitGroup.Done()
-
+	waitGroup.Go(func() {
 		streamLines(stdoutReader, "Build output", func(line string) {
 			if outputCallback != nil {
 				outputCallback(line)
 			}
 		})
-	}()
+	})
 
-	go func() {
-		defer waitGroup.Done()
-
+	waitGroup.Go(func() {
 		streamLines(stderrReader, "Build error", nil)
-	}()
+	})
 
 	// Wait for command to complete
 	select {

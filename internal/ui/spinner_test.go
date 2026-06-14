@@ -24,18 +24,15 @@ func TestSafeSpinnerSetSuffixConcurrent(t *testing.T) {
 	const iters = 200
 
 	var waitGroup sync.WaitGroup
-	waitGroup.Add(writers)
 
 	for idx := range writers {
-		go func(workerIdx int) {
-			defer waitGroup.Done()
-
+		waitGroup.Go(func() {
 			for tick := range iters {
 				safe.SetSuffix(
-					" writer=" + string(rune('A'+workerIdx)) + " iter=" + strconv.Itoa(tick),
+					" writer=" + string(rune('A'+idx)) + " iter=" + strconv.Itoa(tick),
 				)
 			}
-		}(idx)
+		})
 	}
 
 	waitGroup.Wait()
@@ -55,16 +52,13 @@ func TestSafeSpinnerSetPrefixConcurrent(t *testing.T) {
 	const iters = 100
 
 	var waitGroup sync.WaitGroup
-	waitGroup.Add(writers)
 
 	for idx := range writers {
-		go func(workerIdx int) {
-			defer waitGroup.Done()
-
+		waitGroup.Go(func() {
 			for tick := range iters {
-				safe.SetPrefix(" P" + strconv.Itoa(workerIdx) + "-" + strconv.Itoa(tick))
+				safe.SetPrefix(" P" + strconv.Itoa(idx) + "-" + strconv.Itoa(tick))
 			}
-		}(idx)
+		})
 	}
 
 	waitGroup.Wait()

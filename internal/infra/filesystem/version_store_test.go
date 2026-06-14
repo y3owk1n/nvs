@@ -342,22 +342,18 @@ func TestVersionStore_Switch_Concurrent(t *testing.T) {
 	numSwitches := 10
 
 	for switchIndex := range numSwitches {
-		waitGroup.Add(1)
-
-		go func(index int) {
-			defer waitGroup.Done()
-
-			versionName := versions[index%2]
+		waitGroup.Go(func() {
+			versionName := versions[switchIndex%2]
 			v := vtypes.New(versionName, vtypes.TypeTag, versionName, "")
 
 			// Small delay to increase chance of race conditions
-			time.Sleep(time.Duration(index) * time.Millisecond)
+			time.Sleep(time.Duration(switchIndex) * time.Millisecond)
 
 			err := store.Switch(v)
 			if err != nil {
 				t.Errorf("Switch failed: %v", err)
 			}
-		}(switchIndex)
+		})
 	}
 
 	waitGroup.Wait()
@@ -409,18 +405,14 @@ func TestVersionStore_Uninstall_Concurrent(t *testing.T) {
 	var waitGroup sync.WaitGroup
 
 	for _, versionName := range versions {
-		waitGroup.Add(1)
-
-		go func(name string) {
-			defer waitGroup.Done()
-
-			v := vtypes.New(name, vtypes.TypeTag, name, "")
+		waitGroup.Go(func() {
+			v := vtypes.New(versionName, vtypes.TypeTag, versionName, "")
 
 			err := store.Uninstall(v, true)
 			if err != nil {
-				t.Errorf("Uninstall failed for %s: %v", name, err)
+				t.Errorf("Uninstall failed for %s: %v", versionName, err)
 			}
-		}(versionName)
+		})
 	}
 
 	waitGroup.Wait()
