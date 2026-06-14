@@ -156,23 +156,29 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		// Create and start a spinner to show progress.
-		progressSpinner := ui.NewSafeSpinner(
-			spinner.New(
-				spinner.CharSets[14],
-				constants.SpinnerSpeed*time.Millisecond,
-			),
-		)
-		progressSpinner.SetPrefix(ui.InfoIcon() + " ")
-		progressSpinner.SetSuffix(" Checking for updates...")
-		progressSpinner.Start()
+		// Run the upgrade inside a closure so that a
+		// `defer progressSpinner.Stop()` is scoped to this
+		// iteration only. This ensures the spinner is always
+		// stopped, even on panic, before the loop continues to
+		// the next alias.
+		err := func() error {
+			progressSpinner := ui.NewSafeSpinner(
+				spinner.New(
+					spinner.CharSets[14],
+					constants.SpinnerSpeed*time.Millisecond,
+				),
+			)
+			progressSpinner.SetPrefix(ui.InfoIcon() + " ")
+			progressSpinner.SetSuffix(" Checking for updates...")
+			progressSpinner.Start()
 
-		err := GetVersionService().Upgrade(ctx, alias, func(phase string, progress int) {
-			progressSpinner.SetSuffix(" " + ui.FormatPhaseProgress(phase, progress))
-		})
+			defer progressSpinner.Stop()
+
+			return GetVersionService().Upgrade(ctx, alias, func(phase string, progress int) {
+				progressSpinner.SetSuffix(" " + ui.FormatPhaseProgress(phase, progress))
+			})
+		}()
 		if err != nil {
-			progressSpinner.Stop()
-
 			if errors.Is(err, versionsvc.ErrNotInstalled) {
 				logrus.Debugf("'%s' is not installed. Skipping upgrade.", alias)
 
@@ -217,8 +223,6 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 
 			return fmt.Errorf("upgrade failed for %s: %w", alias, err)
 		}
-
-		progressSpinner.Stop()
 
 		// For nightly upgrades, add OLD version to history for rollback support
 		if alias == constants.Nightly && oldCommitHash != "" {

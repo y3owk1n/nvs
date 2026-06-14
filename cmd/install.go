@@ -114,17 +114,18 @@ func RunInstall(cmd *cobra.Command, args []string) error {
 	progressSpinner.SetSuffix(fmt.Sprintf(" Installing %s...", alias))
 	progressSpinner.Start()
 
+	// Ensure the spinner is always stopped, even on panic, so the
+	// underlying animation goroutine does not keep writing to the
+	// terminal after a panic stack trace.
+	defer progressSpinner.Stop()
+
 	// Use version service to install
 	err := GetVersionService().Install(ctx, alias, func(phase string, progress int) {
 		progressSpinner.SetSuffix(" " + ui.FormatPhaseProgress(phase, progress))
 	})
 	if err != nil {
-		progressSpinner.Stop()
-
 		return err
 	}
-
-	progressSpinner.Stop()
 
 	_, err = fmt.Fprintf(
 		os.Stdout,
