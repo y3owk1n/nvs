@@ -2,7 +2,6 @@ package platform
 
 import (
 	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -32,7 +31,7 @@ func FindNvimBinary(dir string) string {
 					// Go two levels up: ../../nvim-win64
 					binaryPath = filepath.Dir(filepath.Dir(path))
 
-					return io.EOF // break early
+					return filepath.SkipAll
 				}
 			} else {
 				if name == "nvim" || strings.HasPrefix(name, "nvim-") {
@@ -40,7 +39,7 @@ func FindNvimBinary(dir string) string {
 					if err == nil && info.Mode()&0o111 != 0 {
 						binaryPath = path
 
-						return io.EOF // break early
+						return filepath.SkipAll
 					}
 				}
 			}
@@ -48,7 +47,7 @@ func FindNvimBinary(dir string) string {
 
 		return nil
 	})
-	if err != nil && !errors.Is(err, io.EOF) {
+	if err != nil && !errors.Is(err, filepath.SkipAll) {
 		logrus.Warnf("Failed to walk through nvim directory: %v", err)
 	}
 
