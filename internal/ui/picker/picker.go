@@ -2,16 +2,12 @@
 // that gives nvs commands a single, consistent way to ask the
 // user a question.
 //
-// The current nvs code uses manifoldco/promptui directly, which
-// is plain and visually dated. huh is the modern replacement:
-// it ships a polished theme, accessible default keybindings,
-// and graceful Ctrl-C handling.
-//
-// The wrapper exposes just the two operations nvs actually
-// uses: a single-select list (Picker.Select) and a yes/no
-// confirmation (Picker.Confirm). The wrapper also handles the
-// "non-TTY" case by returning a typed error the caller can
-// detect and translate into a clean "Selection canceled."
+// It exposes just the three operations nvs actually uses: a
+// single-select list (Picker.Select), a yes/no confirmation
+// (Picker.Confirm), and a TTY-aware confirmation that also
+// handles piped input (Picker.ConfirmScriptable). The wrapper
+// translates the "non-TTY" case into a typed error the caller
+// can detect and turn into a clean "Selection canceled."
 // message, matching the existing nvs UX.
 package picker
 

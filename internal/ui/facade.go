@@ -7,12 +7,12 @@
 //
 // without having to import five sub-packages.
 //
-// The package deliberately keeps the original fatih/color
-// helpers (CyanText, GreenText, …) and the existing icon
-// helpers (InfoIcon, SuccessIcon, …) for backward compatibility
-// with the legacy code paths. New code should prefer the new
-// primitives (Message, Panel, Banner, Picker) — they share a
-// single design system and a single source of truth (style).
+// All human-readable output flows through the new primitives
+// (Message, Panel, Banner, Picker, Table) which share a single
+// design system and a single source of truth (style). The
+// previous fatih/color-based icon and text helpers have been
+// removed; if a future call site needs styled text, route it
+// through ui.Message.
 package ui
 
 import (
@@ -95,12 +95,6 @@ type styleAPI struct{}
 // Palette returns the current nvs palette. The returned value
 // is a copy; mutating it does not affect the global theme.
 func (styleAPI) Palette() style.Palette { return style.Default() }
-
-// Type returns the current nvs typographic scale. The returned
-// value is a value type, not a pointer, but the underlying
-// *lipgloss.Style fields are themselves pointers and should
-// be treated as read-only.
-func (styleAPI) Type() style.Type { return style.Types(style.Default()) }
 
 // ColorEnabled reports whether ANSI color escapes should be
 // emitted. It honors NO_COLOR and FORCE_COLOR.
