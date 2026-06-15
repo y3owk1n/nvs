@@ -13,7 +13,7 @@
         "x86_64-linux"
       ];
       # Update this to your latest release version
-      latestVersion = "1.13.1";
+      latestVersion = "1.13.2";
       # Function to build package with specific version
       makeNvsPackage =
         pkgs: version: usePrebuilt: commitHash:
