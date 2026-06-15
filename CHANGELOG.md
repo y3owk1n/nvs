@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.14.0](https://github.com/y3owk1n/nvs/compare/v1.13.2...v1.14.0) (2026-06-15)
+
+
+### Features
+
+* **env:** add full theming + validation for every NVS_* env var ([#224](https://github.com/y3owk1n/nvs/issues/224)) ([9ee8236](https://github.com/y3owk1n/nvs/commit/9ee8236c5600fbe8c6a262738c8a2a9c88803a02))
+* **log:** migrate from logrus to charmbracelet/log ([#223](https://github.com/y3owk1n/nvs/issues/223)) ([2f516cd](https://github.com/y3owk1n/nvs/commit/2f516cd4ec0ff2444606ef249798432841dd3671))
+* **ui:** revamp UI with charm ([#221](https://github.com/y3owk1n/nvs/issues/221)) ([dea35c1](https://github.com/y3owk1n/nvs/commit/dea35c1686c4e84911728e6215028139dfb50817))
+
+
+### Bug Fixes
+
+* **progress:** ensure theme coherent with progress bar ([#225](https://github.com/y3owk1n/nvs/issues/225)) ([07bf1a5](https://github.com/y3owk1n/nvs/commit/07bf1a54c4d60a676612e5ce4737684c1ff814b3))
+
 ## [1.13.2](https://github.com/y3owk1n/nvs/compare/v1.13.1...v1.13.2) (2026-06-14)
 
 
