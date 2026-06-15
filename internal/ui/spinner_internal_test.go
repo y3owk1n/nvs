@@ -153,6 +153,46 @@ func TestSpinnerRendersExpectedFrame(t *testing.T) {
 	}
 }
 
+// TestSpinnerStartWritesFirstFrameSynchronously verifies that
+// the very first frame is written to the writer BEFORE Start
+// returns, without waiting for the first animation tick. This
+// is what makes short-lived operations (a cache-hit fetch, a
+// fast local read, ...) leave a visible loading line behind,
+// instead of a Stop-time `\r\033[K` clearing a never-rendered
+// line.
+//
+// The buffer is checked between Start and any sleep: the
+// animation goroutine cannot have ticked yet at that point, so
+// the only way the buffer is non-empty is if Start wrote the
+// frame itself.
+func TestSpinnerStartWritesFirstFrameSynchronously(t *testing.T) {
+	t.Parallel()
+
+	buf := &bytes.Buffer{}
+	safe := NewSpinner(buf, 50*time.Millisecond)
+	safe.isTerminal = true //nolint:exposed // test-only override
+	safe.SetPrefix("INFO ")
+	safe.SetSuffix("working")
+
+	safe.Start()
+	// Intentionally do NOT call time.Sleep. The first
+	// animation tick is at t=50ms; if we observe a frame in
+	// the buffer at this point, it must have been written
+	// synchronously by Start.
+	if buf.Len() == 0 {
+		safe.Stop()
+		t.Fatal("Start returned without writing the first frame")
+	}
+
+	snapshot := buf.String()
+	if !strings.HasPrefix(snapshot, "\r\x1b[KINFO ⠋ working") {
+		safe.Stop()
+		t.Errorf("first frame prefix = %q, want %q", snapshot, "\r\x1b[KINFO ⠋ working")
+	}
+
+	safe.Stop()
+}
+
 // tail returns the last n bytes of s as a string. If s is
 // shorter than n, the whole string is returned.
 func tail(s string, n int) string {

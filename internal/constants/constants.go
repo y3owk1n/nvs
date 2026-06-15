@@ -140,12 +140,6 @@ const (
 	// NvimBinaryNameWindows is the name of the nvim binary on Windows.
 	NvimBinaryNameWindows = "nvim.exe"
 
-	// ProgressBarWidth is the default width of the progress bar.
-	ProgressBarWidth = 20
-	// ProgressFilled is the character for filled portion of the bar.
-	ProgressFilled = "█"
-	// ProgressEmpty is the character for empty portion of the bar.
-	ProgressEmpty = "░"
 	// ProgressMax is the maximum percentage value.
 	ProgressMax = 100
 	// GoroutineNum is the number of goroutines for spinner updates.

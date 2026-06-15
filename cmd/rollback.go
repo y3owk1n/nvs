@@ -9,9 +9,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/olekukonko/tablewriter"
-	"github.com/olekukonko/tablewriter/renderer"
-	"github.com/olekukonko/tablewriter/tw"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
@@ -27,6 +24,13 @@ type NightlyHistoryEntry struct {
 	InstalledAt time.Time `json:"installed_at"`
 	TagName     string    `json:"tag_name"`
 }
+
+// noRollbackCurrentRow is the sentinel passed to ui.Table.Current()
+// when no nightly history entry is the live nightly. The internal
+// table sentinel lives in package ui/table and is unexported, so we
+// mirror it here rather than reach inside. -1 is the same value the
+// table uses internally.
+const noRollbackCurrentRow = -1
 
 // NightlyHistory holds the history of nightly versions.
 type NightlyHistory struct {
@@ -82,16 +86,8 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(history.Entries) == 0 {
-		_, printErr := fmt.Fprintf(os.Stdout, "%s No nightly history available.\n", ui.InfoIcon())
-		if printErr != nil {
-			logrus.Warnf("Failed to write to stdout: %v", printErr)
-		}
-
-		_, _ = fmt.Fprintf(
-			os.Stdout,
-			"%s Run 'nvs upgrade nightly' to start tracking versions.\n",
-			ui.InfoIcon(),
-		)
+		ui.Message.Infof("No nightly history available.")
+		ui.Message.Infof("Run 'nvs upgrade nightly' to start tracking versions.")
 
 		return nil
 	}
@@ -208,16 +204,11 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	_, printErr := fmt.Fprintf(
-		os.Stdout,
-		"%s Rolled back to nightly %s (from %s)\n",
-		ui.SuccessIcon(),
+	ui.Message.Successf(
+		"Rolled back to nightly %s (from %s)",
 		shortHash(entry.CommitHash, constants.ShortHashLength),
 		entry.InstalledAt.Format("2006-01-02 15:04"),
 	)
-	if printErr != nil {
-		logrus.Warnf("Failed to write to stdout: %v", printErr)
-	}
 
 	return nil
 }
@@ -226,60 +217,44 @@ func listNightlyHistory(history *NightlyHistory) error {
 	// Get current nightly commit to show indicator
 	currentCommit, _ := GetVersionService().GetInstalledVersionIdentifier("nightly")
 
-	table := tablewriter.NewTable(os.Stdout,
-		tablewriter.WithRenderer(renderer.NewBlueprint(tw.Rendition{
-			Borders:  tw.BorderNone,
-			Settings: tw.Settings{Separators: tw.Separators{BetweenRows: tw.Off}},
-		})),
-		tablewriter.WithConfig(tablewriter.Config{
-			Header: tw.CellConfig{
-				Alignment: tw.CellAlignment{Global: tw.AlignLeft},
-			},
-			Row: tw.CellConfig{
-				Alignment: tw.CellAlignment{Global: tw.AlignLeft},
-			},
-		}),
-	)
-	table.Header([]string{"Index", "Commit", "Installed At", "Status"})
+	tbl := ui.Table.New("Index", "Commit", "Installed At", "Status")
 
-	var err error
+	currentRowIdx := noRollbackCurrentRow
+
 	for index, entry := range history.Entries {
-		status := ""
-		if shortHash(
-			currentCommit,
-			constants.ShortHashLength,
-		) == shortHash(
-			entry.CommitHash,
-			constants.ShortHashLength,
-		) {
-			status = "← current"
+		short := shortHash(entry.CommitHash, constants.ShortHashLength)
+
+		isCurrent := currentCommit != "" &&
+			shortHash(currentCommit, constants.ShortHashLength) == short
+
+		indexCell := ui.Message.Text(strconv.Itoa(index))
+		statusCell := ""
+
+		if isCurrent {
+			indexCell = ui.Message.Highlight("→ " + strconv.Itoa(index))
+			statusCell = ui.Message.Highlight("← current")
+			// ui.Table.Current() can only highlight one row at a time, so
+			// record the last current match (in practice the newest
+			// history entry is the live nightly, so a single match is
+			// the norm; the design still tolerates duplicates by
+			// per-cell highlighting the older ones).
+			currentRowIdx = index
 		}
 
-		err = table.Append([]string{
-			strconv.Itoa(index),
-			shortHash(entry.CommitHash, constants.ShortHashLength),
-			entry.InstalledAt.Format("2006-01-02 15:04"),
-			status,
-		})
-		if err != nil {
-			return err
-		}
+		tbl.Row(indexCell, short, entry.InstalledAt.Format("2006-01-02 15:04"), statusCell)
 	}
 
-	err = table.Render()
-	if err != nil {
-		return err
+	if currentRowIdx != noRollbackCurrentRow {
+		tbl.Current(currentRowIdx)
 	}
 
-	var printErr error
+	_, _ = fmt.Fprint(os.Stdout, ui.Banner.Logo())
+	_, _ = fmt.Fprintln(os.Stdout)
+	_, _ = fmt.Fprint(os.Stdout, tbl.Render(ui.Style.Palette()))
 
-	_, printErr = fmt.Fprintln(
-		os.Stdout,
-		"\nUse 'nvs rollback <index>' to rollback to a specific version.",
-	)
-	if printErr != nil {
-		logrus.Warnf("Failed to write to stdout: %v", printErr)
-	}
+	_, _ = fmt.Fprintln(os.Stdout)
+
+	ui.Message.Mutedf("Use 'nvs rollback <index>' to rollback to a specific version.")
 
 	return nil
 }

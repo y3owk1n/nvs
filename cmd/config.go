@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/ui"
@@ -44,18 +43,12 @@ func RunConfig(cmd *cobra.Command, args []string) error {
 	if len(args) == 1 {
 		logrus.Debugf("Launching Neovim with provided configuration: %s", args[0])
 
-		_, err := fmt.Fprintf(os.Stdout,
-			"%s %s\n",
-			ui.InfoIcon(),
-			ui.WhiteText(
-				"Launching Neovim with configuration: "+ui.CyanText(args[0]),
-			),
+		ui.Message.Infof(
+			"Launching Neovim with configuration: %s",
+			ui.Message.Accent(args[0]),
 		)
-		if err != nil {
-			logrus.Warnf("Failed to write to stdout: %v", err)
-		}
 
-		err = GetConfigService().Launch(cmd.Context(), args[0])
+		err := GetConfigService().Launch(cmd.Context(), args[0])
 		if err != nil {
 			return err
 		}
@@ -72,61 +65,56 @@ func RunConfig(cmd *cobra.Command, args []string) error {
 	if len(configs) == 0 {
 		logrus.Debug("No Neovim configurations found")
 
-		_, err := fmt.Fprintf(os.Stdout,
-			"%s %s\n",
-			ui.WarningIcon(),
-			ui.WhiteText(
-				"No Neovim configurations found",
-			),
-		)
-		if err != nil {
-			logrus.Warnf("Failed to write to stdout: %v", err)
-		}
+		ui.Message.Warnf("No Neovim configurations found")
 
 		return nil
 	}
 
 	logrus.Debugf("Available Neovim configurations: %v", configs)
-	prompt := promptui.Select{
-		Label: "Select Neovim configuration",
-		Items: configs,
+
+	// Build the picker items from the configs slice. The
+	// picker façade handles the TTY / non-TTY split — it
+	// returns ErrNoTTY for non-interactive input, which the
+	// caller treats as a graceful "selection canceled" exit
+	// (matching the previous promptui.ErrInterrupt behavior).
+	items := make([]ui.SelectItem, 0, len(configs))
+	for _, configName := range configs {
+		items = append(items, ui.SelectItem{Label: configName})
 	}
 
-	logrus.Debug("Displaying selection prompt")
-
-	_, selectedConfig, err := prompt.Run()
+	selectedConfig, err := ui.Picker.NewPicker(os.Stdin, os.Stdout).
+		Select("Select Neovim configuration", items)
 	if err != nil {
-		if errors.Is(err, promptui.ErrInterrupt) {
-			logrus.Debug("User canceled selection")
-
-			_, err := fmt.Fprintf(
-				os.Stdout,
-				"%s %s\n",
-				ui.WarningIcon(),
-				ui.WhiteText("Selection canceled."),
+		if ui.Picker.IsNoTTY(err) {
+			// Non-TTY: tell the user the command needs an
+			// interactive terminal. Returning an error here
+			// (rather than silently aborting) is the right
+			// answer for `nvs config` because there is no
+			// scriptable alternative — the only inputs are
+			// the config name (which goes via args[0] and
+			// was just handled above) and the picker.
+			ui.Message.Warnf(
+				"Selection canceled: stdin is not a TTY. Pass a config name as an argument (e.g. 'nvs config myconfig').",
 			)
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
-			}
 
 			return nil
 		}
 
-		return fmt.Errorf("prompt failed: %w", err)
+		if errors.Is(err, ui.Picker.ErrCanceled()) {
+			ui.Message.Warnf("Selection canceled.")
+
+			return nil
+		}
+
+		return fmt.Errorf("picker: %w", err)
 	}
 
 	logrus.Debugf("User selected configuration: %s", selectedConfig)
 
-	_, err = fmt.Fprintf(os.Stdout,
-		"%s %s\n",
-		ui.InfoIcon(),
-		ui.WhiteText(
-			"Launching Neovim with configuration: "+ui.CyanText(selectedConfig),
-		),
+	ui.Message.Infof(
+		"Launching Neovim with configuration: %s",
+		ui.Message.Accent(selectedConfig),
 	)
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
 
 	err = GetConfigService().Launch(cmd.Context(), selectedConfig)
 	if err != nil {

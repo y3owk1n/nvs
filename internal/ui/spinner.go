@@ -7,7 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/term"
+	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/term"
 )
 
 // defaultSpinnerSpeed is the animation tick used when the caller
@@ -16,35 +18,26 @@ import (
 // to avoid busy-waiting on a log file.
 const defaultSpinnerSpeed = 100 * time.Millisecond
 
-// SpinnerChars is the default set of spinner characters. The
-// braille-dot frames are a popular choice for terminal
-// spinners: they animate smoothly and occupy a single terminal
-// cell, so the spinner column stays put across frames.
-var SpinnerChars = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-
-// Spinner is a minimal terminal spinner that rewrites a single
-// line in place as its frame ticks. It is a drop-in replacement
-// for the briandowns/spinner library used previously; the
-// implementation is small enough to audit and avoids the
-// library's lastOutputPlain race (where the animation goroutine
-// can write a new frame after Stop's erase, leaving stale text
-// on the line).
+// Spinner is a thin wrapper around bubbles/spinner that
+// keeps the SetPrefix/SetSuffix/Start/Stop API nvs commands
+// rely on, and adds the two non-bubbles behaviors the old
+// self-rolled spinner had:
 //
-// Concurrency: SetPrefix and SetSuffix are safe to call from
-// any goroutine, even while the animation loop is running. Start
-// and Stop coordinate via the internal mutex; once Stop returns,
-// the animation goroutine has fully exited and no further writes
-// will be issued to the configured writer.
+//  1. Non-terminal writers (piped, redirected, non-*os.File)
+//     are a no-op. The animation goroutine never starts and
+//     no ANSI clear sequences are written, so a log file or
+//     a pipe is never polluted with `\r\033[K` junk.
 //
-// Non-terminal writers: when the writer is not an *os.File
-// referring to a terminal (for example, stdout is piped to a
-// file), the spinner is a complete no-op. Start does nothing and
-// Stop returns immediately. The caller does not need to special-
-// case this — the install/upgrade code paths can always call
-// Start/Stop regardless of whether the output is being captured.
+//  2. Stop blocks until the animation goroutine has fully
+//     exited, so the line-erase that Stop emits is
+//     guaranteed to be the last write the spinner makes.
+//     This is the same correctness fix that used to live
+//     in the self-rolled version; bubbles alone does not
+//     give you this guarantee because in a real tea.Program
+//     the loop is tea-driven, but here we drive it manually.
 type Spinner struct {
 	writer     io.Writer
-	chars      []string
+	model      spinner.Model
 	speed      time.Duration
 	isTerminal bool
 
@@ -75,24 +68,42 @@ func NewSpinner(writer io.Writer, speed time.Duration) *Spinner {
 		speed = defaultSpinnerSpeed
 	}
 
-	spinner := &Spinner{
+	model := spinner.New(
+		// MiniDot is the same braille set the previous
+		// self-rolled spinner used (no trailing space, so
+		// we own the spacing between the spinner char and
+		// the suffix). Dot would also work but it bakes a
+		// trailing space into each frame, which would
+		// double the gap.
+		spinner.WithSpinner(spinner.MiniDot),
+		// The model is rendered with a neutral style; the
+		// caller is expected to have already colored any
+		// prefix or suffix it sets via ui.Message helpers.
+		// We deliberately do NOT inherit the lipgloss
+		// color profile here, because the spinner's
+		// frame must remain visible regardless of the
+		// terminal's color detection.
+		spinner.WithStyle(lipgloss.NewStyle()),
+	)
+
+	newSpinner := &Spinner{
 		writer: writer,
-		chars:  SpinnerChars,
+		model:  model,
 		speed:  speed,
 	}
 
 	if file, ok := writer.(*os.File); ok {
-		spinner.isTerminal = term.IsTerminal(int(file.Fd()))
+		newSpinner.isTerminal = term.IsTerminal(file.Fd())
 	}
 
-	return spinner
+	return newSpinner
 }
 
 // SetPrefix sets the text shown before the spinner character
 // on every frame. Safe to call from any goroutine, including
 // the one driving SetSuffix. The prefix is read under the
-// spinner's mutex on each tick, so updates take effect on the
-// next frame.
+// spinner's mutex on each tick, so updates take effect on
+// the next frame.
 func (s *Spinner) SetPrefix(prefix string) {
 	s.mu.Lock()
 	s.prefix = prefix
@@ -114,7 +125,19 @@ func (s *Spinner) SetSuffix(suffix string) {
 // Start begins the spinner animation. If the spinner is
 // already running, or the writer is not a terminal, Start is a
 // no-op. Start does not block: the animation runs on a
-// background goroutine.
+// background goroutine, but the very first frame is written
+// synchronously before Start returns.
+//
+// Synchronously writing frame 0 is what makes the "loading"
+// line visible from t=0. Without it, the first frame would
+// only land at t=speed (e.g. 100ms), so any operation that
+// completes faster than the first tick — typical for a
+// cache-hit `list-remote`, a fast local read, etc. — would
+// finish with the user never having seen the spinner line at
+// all. The line-erase that Stop emits would then clear an
+// empty line, leaving no visible loading state behind for
+// the user to recognize. Painting frame 0 before spawning
+// the goroutine eliminates that race.
 func (s *Spinner) Start() {
 	if !s.isTerminal {
 		return
@@ -130,6 +153,8 @@ func (s *Spinner) Start() {
 	s.started = true
 	s.done = make(chan struct{})
 	s.mu.Unlock()
+
+	s.writeFrame()
 
 	s.wg.Add(1)
 
@@ -184,44 +209,92 @@ func (s *Spinner) Stop() {
 // run is the animation loop. It runs until the done channel is
 // closed, ticking at the configured speed and rewriting the
 // spinner line on every tick.
+//
+// We drive bubbles' spinner manually (Update(TickMsg) +
+// View() on each tick) rather than spawning a tea.Program:
+// the install/upgrade commands are not interactive Bubble
+// Tea apps, and adding a tea program just to drive one
+// spinner would be a heavyweight misfit. Driving the model
+// directly keeps the public API (Start/Stop/SetPrefix/
+// SetSuffix) intact and the non-TTY no-op behavior local.
 func (s *Spinner) run() {
 	defer s.wg.Done()
 
 	ticker := time.NewTicker(s.speed)
 	defer ticker.Stop()
 
-	frame := 0
-
 	for {
 		select {
 		case <-s.done:
 			return
 		case <-ticker.C:
-			s.mu.Lock()
-			prefix := s.prefix
-			suffix := s.suffix
-			s.mu.Unlock()
-
-			// Clear the current line and write the new
-			// content. The same erase sequence is used on
-			// every frame, so the visible window stays a
-			// single line even if the suffix changes length
-			// between ticks (for example, the progress bar
-			// growing from 0% to 100%).
-			//
-			// As in Stop, we swallow the write error: a
-			// closed pipe at this point just means the
-			// user is no longer watching, and the spinner
-			// will exit on the next tick.
-			//nolint:errcheck
-			fmt.Fprintf(
-				s.writer,
-				"\r\033[K%s%s %s",
-				prefix,
-				s.chars[frame],
-				suffix,
-			)
-			frame = (frame + 1) % len(s.chars)
+			s.writeFrame()
 		}
 	}
+}
+
+// writeFrame paints one spinner frame to the writer. It reads
+// the current prefix/suffix, renders the current bubbles model
+// frame, advances the model by one tick, and writes the whole
+// thing to writer prefixed with the line-erase sequence.
+//
+// Called from run() on every animation tick, and from Start()
+// once before the goroutine spawns, so the very first frame
+// reaches the terminal synchronously — see the Start doc
+// comment for why this matters.
+func (s *Spinner) writeFrame() {
+	s.mu.Lock()
+	prefix := s.prefix
+	suffix := s.suffix
+	s.mu.Unlock()
+
+	// Render the current frame first, THEN advance.
+	// This keeps the first frame written (at the
+	// start of a Start/Stop cycle) at frame 0 of
+	// the chosen set, matching the contract the
+	// self-rolled spinner exposed. (The
+	// alternative — Update first, then render —
+	// would skip frame 0 on the very first tick,
+	// which the public format contract pins down.)
+	frame := s.model.View()
+
+	// Advance the bubbles model one frame. The
+	// returned tea.Cmd is the next tick, which we
+	// deliberately ignore — our own time.Ticker
+	// owns the animation cadence so we keep the
+	// "speed" parameter meaningful (bubbles'
+	// spinner.Spinner.FPS would otherwise lock us
+	// to its hard-coded FPS).
+	updated, _ := s.model.Update(spinner.TickMsg{
+		Time: time.Now(),
+		ID:   s.model.ID(),
+	})
+	s.model = updated
+
+	// Clear the current line and write the new
+	// content. The same erase sequence is used on
+	// every frame, so the visible window stays a
+	// single line even if the suffix changes length
+	// between ticks (for example, the progress bar
+	// growing from 0% to 100%).
+	//
+	// As in Stop, we swallow the write error: a
+	// closed pipe at this point just means the
+	// user is no longer watching, and the spinner
+	// will exit on the next tick.
+	//
+	// The frame format is:
+	//   "\r\033[K" + prefix + spinner-char + " " + suffix
+	// which matches the previous self-rolled
+	// contract: prefix immediately after the line
+	// erase, the spinner char in its own column, a
+	// single space, then the suffix.
+	//nolint:errcheck
+	fmt.Fprintf(
+		s.writer,
+		"\r\033[K%s%s %s",
+		prefix,
+		frame,
+		suffix,
+	)
 }

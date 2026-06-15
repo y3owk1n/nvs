@@ -27,6 +27,19 @@ type CheckResult struct {
 	Status string `json:"status"`
 }
 
+// checkOutcome is the in-memory representation of a check
+// after it has run. The Status field mirrors what is emitted
+// in --json mode (so the public JSON contract is preserved),
+// and the Error and Warning fields drive the text rendering
+// (a row's icon is Error-driven; a sub-line is Warning- or
+// Error-driven).
+type checkOutcome struct {
+	Name    string
+	Status  string
+	Error   error
+	Warning string
+}
+
 // RunDoctor executes the doctor command.
 func RunDoctor(cmd *cobra.Command, _ []string) error {
 	jsonOutput, err := cmd.Flags().GetBool("json")
@@ -36,7 +49,7 @@ func RunDoctor(cmd *cobra.Command, _ []string) error {
 
 	checks := []struct {
 		name  string
-		check func() error
+		check func() (string, error)
 	}{
 		{"Shell", checkShell},
 		{"Environment variables", checkEnvVars},
@@ -45,89 +58,153 @@ func RunDoctor(cmd *cobra.Command, _ []string) error {
 		{"Permissions", checkPermissions},
 	}
 
-	var (
-		issues  []string
-		results = make([]CheckResult, 0, len(checks))
-	)
-
+	outcomes := make([]checkOutcome, 0, len(checks))
 	for _, check := range checks {
-		if !jsonOutput {
-			_, _ = fmt.Fprintf(os.Stdout, "Checking %s... ", check.name)
+		logrus.Debugf("Running doctor check: %s", check.name)
+
+		warning, checkErr := check.check()
+
+		outcome := checkOutcome{Name: check.name}
+		if checkErr != nil {
+			outcome.Status = "error"
+			outcome.Error = checkErr
+		} else {
+			outcome.Status = "ok"
 		}
 
-		err := check.check()
+		outcome.Warning = warning
 
-		status := "ok"
-		if err != nil {
-			status = "error"
-
-			issues = append(issues, fmt.Sprintf("%s: %v", check.name, err))
-		}
-
-		results = append(results, CheckResult{Name: check.name, Status: status})
-
-		if !jsonOutput {
-			if err != nil {
-				_, _ = fmt.Fprintf(os.Stdout, "%s\n", ui.ErrorIcon())
-			} else {
-				_, _ = fmt.Fprintf(os.Stdout, "%s\n", ui.SuccessIcon())
-			}
-		}
+		outcomes = append(outcomes, outcome)
 	}
 
 	if jsonOutput {
-		data := map[string]any{"checks": results, "issues": issues}
+		return renderDoctorJSON(outcomes)
+	}
 
-		err := outputJSON(data)
-		if err != nil {
-			return err
+	return renderDoctorText(outcomes)
+}
+
+// renderDoctorJSON emits the --json contract: an object with
+// "checks" (one CheckResult per outcome) and "issues" (a list
+// of "name: error" strings, one per failed check). It is
+// preserved byte-for-byte from the pre-refactor implementation.
+func renderDoctorJSON(outcomes []checkOutcome) error {
+	results := make([]CheckResult, 0, len(outcomes))
+	issues := make([]string, 0, len(outcomes))
+
+	for _, outcome := range outcomes {
+		results = append(results, CheckResult{
+			Name:   outcome.Name,
+			Status: outcome.Status,
+		})
+
+		if outcome.Error != nil {
+			issues = append(issues, fmt.Sprintf("%s: %v", outcome.Name, outcome.Error))
 		}
+	}
 
-		if len(issues) > 0 {
-			return fmt.Errorf("%w: %d issue(s)", ErrIssuesFound, len(issues))
-		}
+	jsonErr := outputJSON(map[string]any{"checks": results, "issues": issues})
+	if jsonErr != nil {
+		return jsonErr
+	}
 
-		return nil
-	} else {
-		if len(issues) > 0 {
-			_, _ = fmt.Fprintf(os.Stdout, "%s\n", ui.RedText("Issues found:"))
-
-			for _, issue := range issues {
-				_, _ = fmt.Fprintf(os.Stdout, "  - %s\n", issue)
-			}
-
-			return fmt.Errorf("%w: %d issue(s)", ErrIssuesFound, len(issues))
-		}
-
-		_, _ = fmt.Fprintf(os.Stdout,
-			"%s\n", ui.GreenText("No issues found! You are ready to go."))
+	if len(issues) > 0 {
+		return fmt.Errorf("%w: %d issue(s)", ErrIssuesFound, len(issues))
 	}
 
 	return nil
 }
 
-func checkShell() error {
+// renderDoctorText renders the human-readable doctor view:
+// a banner, a single section panel listing each check as a
+// status row with optional indented sub-line, and a summary
+// line (success or "N issues found:" + bullet list).
+//
+// The summary line writes to stdout and the function returns a
+// non-nil error to signal the non-zero exit code (matching the
+// pre-refactor behavior).
+func renderDoctorText(outcomes []checkOutcome) error {
+	_, _ = fmt.Fprint(os.Stdout, ui.Banner.Logo())
+	_, _ = fmt.Fprint(os.Stdout, ui.Panel.Section("System health", renderDoctorBody(outcomes)))
+
+	issues := collectDoctorIssues(outcomes)
+	if len(issues) > 0 {
+		ui.Message.Warnf("%d issue(s) found:", len(issues))
+
+		for _, issue := range issues {
+			ui.Message.Bulletf("%s", issue)
+		}
+
+		return fmt.Errorf("%w: %d issue(s)", ErrIssuesFound, len(issues))
+	}
+
+	ui.Message.Successf("No issues found. You are ready to go.")
+
+	return nil
+}
+
+// renderDoctorBody builds the multi-line panel body for the
+// system-health section. The icon for each row is driven by
+// the outcome (Error beats Warning beats none) and the
+// optional sub-line is rendered as a 4-space-indented muted
+// line under the row.
+func renderDoctorBody(outcomes []checkOutcome) string {
+	var body strings.Builder
+
+	for _, outcome := range outcomes {
+		switch {
+		case outcome.Error != nil:
+			body.WriteString(ui.Message.ErrorRow(outcome.Name))
+			body.WriteString(ui.Message.Detail(outcome.Error.Error()))
+		case outcome.Warning != "":
+			body.WriteString(ui.Message.WarnRow(outcome.Name))
+			body.WriteString(ui.Message.Detail(outcome.Warning))
+		default:
+			body.WriteString(ui.Message.SuccessRow(outcome.Name))
+		}
+	}
+
+	return body.String()
+}
+
+// collectDoctorIssues returns the "name: error" strings for
+// every failed check, in check order. It is shared between the
+// text and JSON paths so the issue list is identical across
+// both modes.
+func collectDoctorIssues(outcomes []checkOutcome) []string {
+	issues := make([]string, 0, len(outcomes))
+
+	for _, outcome := range outcomes {
+		if outcome.Error != nil {
+			issues = append(issues, fmt.Sprintf("%s: %v", outcome.Name, outcome.Error))
+		}
+	}
+
+	return issues
+}
+
+func checkShell() (string, error) {
 	shell := DetectShell()
 	if shell == "" {
-		return ErrCouldNotDetectShell
+		return "", ErrCouldNotDetectShell
 	}
 
-	return nil
+	return "", nil
 }
 
-func checkEnvVars() error {
+func checkEnvVars() (string, error) {
 	// Just check if we can resolve them, RunEnv logic handles defaults
 	if GetVersionsDir() == "" {
-		return ErrCouldNotResolveVersionsDir
+		return "", ErrCouldNotResolveVersionsDir
 	}
 
-	return nil
+	return "", nil
 }
 
-func checkPath() error {
+func checkPath() (string, error) {
 	binDir := GetGlobalBinDir()
 	if binDir == "" {
-		return fmt.Errorf("%w: empty global bin dir", ErrBinDirNotInPath)
+		return "", fmt.Errorf("%w: empty global bin dir", ErrBinDirNotInPath)
 	}
 
 	path := os.Getenv("PATH")
@@ -137,17 +214,17 @@ func checkPath() error {
 		pClean := filepath.Clean(p)
 		if runtime.GOOS == constants.WindowsOS {
 			if strings.EqualFold(pClean, binClean) {
-				return nil
+				return "", nil
 			}
 		} else if pClean == binClean {
-			return nil
+			return "", nil
 		}
 	}
 
-	return fmt.Errorf("%w: %s", ErrBinDirNotInPath, binDir)
+	return "", fmt.Errorf("%w: %s", ErrBinDirNotInPath, binDir)
 }
 
-func checkDependencies() error {
+func checkDependencies() (string, error) {
 	// Base dependencies needed for general nvs operation
 	baseDeps := []string{"git", "curl", "tar"}
 	if runtime.GOOS == constants.WindowsOS {
@@ -181,7 +258,7 @@ func checkDependencies() error {
 
 	// Report missing base dependencies as errors
 	if len(missingBase) > 0 {
-		return fmt.Errorf(
+		return "", fmt.Errorf(
 			"%w: Missing base dependencies: %s",
 			ErrMissingDependency,
 			strings.Join(missingBase, ", "),
@@ -190,19 +267,20 @@ func checkDependencies() error {
 
 	// Report missing build dependencies as warnings (don't fail the check)
 	if len(missingBuild) > 0 {
-		message := "Missing build dependencies (needed for building from source): " +
+		warning := "Missing build dependencies (needed for building from source): " +
 			strings.Join(missingBuild, ", ")
-		_, _ = fmt.Fprintf(os.Stdout, "%s %s\n", ui.WarningIcon(), ui.YellowText(message))
+
+		return warning, nil
 	}
 
-	return nil
+	return "", nil
 }
 
-func checkPermissions() error {
+func checkPermissions() (string, error) {
 	versionsDir := GetVersionsDir()
 	if versionsDir == "" {
 		// Env resolution check already reports this; avoid probing CWD here.
-		return ErrCouldNotResolveVersionsDir
+		return "", ErrCouldNotResolveVersionsDir
 	}
 
 	dirs := []string{
@@ -217,7 +295,7 @@ func checkPermissions() error {
 
 		err := os.MkdirAll(dir, constants.DirPerm)
 		if err != nil {
-			return fmt.Errorf("cannot create/write to %s: %w", dir, err)
+			return "", fmt.Errorf("cannot create/write to %s: %w", dir, err)
 		}
 
 		// Probe write permission by creating a uniquely-named
@@ -229,7 +307,7 @@ func checkPermissions() error {
 		// the full open/write path, not just create.
 		file, err := os.CreateTemp(dir, ".nvs-perm-*.tmp")
 		if err != nil {
-			return fmt.Errorf("cannot create/write to %s: %w", dir, err)
+			return "", fmt.Errorf("cannot create/write to %s: %w", dir, err)
 		}
 
 		testFile := file.Name()
@@ -245,15 +323,15 @@ func checkPermissions() error {
 		}()
 
 		if writeErr != nil {
-			return fmt.Errorf("cannot write to %s: %w", dir, writeErr)
+			return "", fmt.Errorf("cannot write to %s: %w", dir, writeErr)
 		}
 
 		if closeErr != nil {
-			return fmt.Errorf("cannot close temp file in %s: %w", dir, closeErr)
+			return "", fmt.Errorf("cannot close temp file in %s: %w", dir, closeErr)
 		}
 	}
 
-	return nil
+	return "", nil
 }
 
 func init() {

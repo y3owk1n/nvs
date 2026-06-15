@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/vtypes"
 	"github.com/y3owk1n/nvs/internal/ui"
+	"github.com/y3owk1n/nvs/internal/ui/picker"
 )
 
 // pinCmd represents the "pin" command.
@@ -51,28 +51,21 @@ func RunPin(cmd *cobra.Command, args []string) error {
 			availableVersions = append(availableVersions, v.Name())
 		}
 
-		prompt := promptui.Select{
-			Label: "Select version to pin",
-			Items: availableVersions,
+		items := make([]picker.SelectItem, 0, len(availableVersions))
+		for _, name := range availableVersions {
+			items = append(items, picker.SelectItem{Label: name})
 		}
 
-		_, selectedVersion, err := prompt.Run()
+		selectedVersion, err := ui.Picker.NewPicker(nil, nil).
+			Select("Select version to pin", items)
 		if err != nil {
-			if errors.Is(err, promptui.ErrInterrupt) {
-				_, printErr := fmt.Fprintf(
-					os.Stdout,
-					"%s %s\n",
-					ui.WarningIcon(),
-					ui.WhiteText("Selection canceled."),
-				)
-				if printErr != nil {
-					logrus.Warnf("Failed to write to stdout: %v", printErr)
-				}
+			if errors.Is(err, picker.ErrCanceled) {
+				ui.Message.Warnf("Selection canceled.")
 
 				return nil
 			}
 
-			return fmt.Errorf("prompt failed: %w", err)
+			return fmt.Errorf("picker failed: %w", err)
 		}
 
 		versionToPin = selectedVersion
@@ -127,15 +120,7 @@ func RunPin(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to write version file: %w", err)
 	}
 
-	_, err = fmt.Fprintf(
-		os.Stdout,
-		"%s %s\n",
-		ui.SuccessIcon(),
-		ui.WhiteText(fmt.Sprintf("Pinned version %s to %s", versionToPin, versionFile)),
-	)
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
+	ui.Message.Successf("Pinned %s to %s", versionToPin, versionFile)
 
 	return nil
 }

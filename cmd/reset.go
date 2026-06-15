@@ -1,13 +1,11 @@
 package cmd
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -49,78 +47,38 @@ func RunReset(_ *cobra.Command, _ []string) error {
 	logrus.Debugf("Resolved binDir: %s", baseBinDir)
 
 	// Display a warning about the destructive nature of this command.
-	_, err = fmt.Fprintf(
-		os.Stdout,
-		"%s %s\n",
-		ui.WarningIcon(),
-		ui.RedText(
-			"WARNING: This will remove all NVS data, including downloaded versions and cache.",
-		),
+	ui.Message.Warnf(
+		"WARNING: This will remove all NVS data, including downloaded versions and cache.",
 	)
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
 
-	_, err = fmt.Fprintf(
-		os.Stdout,
-		"%s %s\n",
-		ui.InfoIcon(),
-		ui.WhiteText("Directories to be removed:"),
-	)
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
+	ui.Message.Infof("Directories to be removed:")
 
-	_, err = fmt.Fprintf(os.Stdout, "  - %s\n", ui.CyanText(baseConfigDir))
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
-
-	_, err = fmt.Fprintf(os.Stdout, "  - %s\n", ui.CyanText(baseCacheDir))
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
-
-	_, err = fmt.Fprintf(
-		os.Stdout,
-		"  - %s (if it exists)\n",
-		ui.CyanText(filepath.Join(baseBinDir, "nvim")),
-	)
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
+	// One Bulletf per directory to be removed. Bulletf renders
+	// "  • <text>" with the muted palette, which gives the
+	// three paths a consistent, scannable block.
+	ui.Message.Bulletf("%s", baseConfigDir)
+	ui.Message.Bulletf("%s", baseCacheDir)
+	ui.Message.Bulletf("%s (if it exists)", filepath.Join(baseBinDir, "nvim"))
 
 	// Prompt the user for confirmation.
-	_, err = fmt.Fprintf(
-		os.Stdout,
-		"\n%s %s ",
-		ui.PromptIcon(),
-		"Are you sure you want to proceed? (y/N): ",
+	//
+	// ConfirmScriptable auto-detects TTY vs piped input:
+	//   - TTY: full huh Yes/No toggle (arrow keys, Y/N, Ctrl-C,
+	//     the picker theme).
+	//   - Pipe: a one-line "[y/N]: " prompt, accepting "y" or
+	//     "yes" (case-insensitive) as a positive answer.
+	// Either way the user can cancel cleanly, and scripts like
+	// `echo y | nvs reset` keep working — the same reason we
+	// avoid ui.Picker.Confirm alone.
+	confirmed, err := ui.Picker.ConfirmScriptable(
+		"Are you sure you want to proceed?",
 	)
 	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
+		return fmt.Errorf("failed to read confirmation: %w", err)
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		return fmt.Errorf("failed to read input: %w", err)
-	}
-
-	input = strings.TrimSpace(strings.ToLower(input))
-	logrus.Debugf("User input: %q", input)
-
-	if input != "y" {
-		_, err = fmt.Fprintf(
-			os.Stdout,
-			"%s %s\n",
-			ui.InfoIcon(),
-			ui.WhiteText("Aborted by user."),
-		)
-		if err != nil {
-			logrus.Warnf("Failed to write to stdout: %v", err)
-		}
+	if !confirmed {
+		ui.Message.Infof("Aborted by user.")
 
 		return nil
 	}
@@ -171,15 +129,7 @@ func RunReset(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("failed to remove nvim symlink: %w", err)
 	}
 
-	_, err = fmt.Fprintf(
-		os.Stdout,
-		"%s %s\n",
-		ui.SuccessIcon(),
-		ui.WhiteText("Reset complete. All NVS data has been removed."),
-	)
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
+	ui.Message.Successf("Reset complete. All NVS data has been removed.")
 
 	return nil
 }

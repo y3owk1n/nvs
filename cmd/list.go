@@ -4,12 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fatih/color"
-	"github.com/olekukonko/tablewriter"
-	"github.com/olekukonko/tablewriter/renderer"
-	"github.com/olekukonko/tablewriter/tw"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/internal/domain/vtypes"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -28,6 +25,16 @@ var listCmd = &cobra.Command{
 	RunE:    RunList,
 }
 
+// versionInfo is the structured result of RunList. The shape
+// is the public JSON contract (TestRunList_JSON asserts on
+// it), so the struct fields and their JSON tags must not
+// change shape.
+type versionInfo struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	Type   string `json:"type"`
+}
+
 // RunList executes the list command.
 func RunList(cmd *cobra.Command, _ []string) error {
 	logrus.Debug("Executing list command")
@@ -42,15 +49,7 @@ func RunList(cmd *cobra.Command, _ []string) error {
 
 	// If no versions are installed, display a message and exit.
 	if len(versions) == 0 {
-		_, err = fmt.Fprintf(
-			os.Stdout,
-			"%s %s\n",
-			ui.InfoIcon(),
-			ui.WhiteText("No installed versions..."),
-		)
-		if err != nil {
-			logrus.Warnf("Failed to write to stdout: %v", err)
-		}
+		ui.Message.Infof("No installed versions.")
 
 		logrus.Debug("No installed versions found")
 
@@ -67,83 +66,63 @@ func RunList(cmd *cobra.Command, _ []string) error {
 
 	jsonOutput, _ := cmd.Flags().GetBool("json")
 	if jsonOutput {
-		// Output in JSON format
-		type VersionInfo struct {
-			Name   string `json:"name"`
-			Status string `json:"status"`
-			Type   string `json:"type"`
-		}
-
-		var infos []VersionInfo
-		for _, version := range versions {
-			status := "installed"
-			if current.Name() != "" && version.Name() == current.Name() {
-				status = "current"
-			}
-
-			infos = append(infos, VersionInfo{
-				Name:   version.Name(),
-				Status: status,
-				Type:   version.Type().String(),
-			})
-		}
-
-		data := map[string]any{"versions": infos}
-
-		return outputJSON(data)
+		return renderListJSON(versions, current)
 	}
 
-	// Set up a table for displaying versions and their status.
-	table := tablewriter.NewTable(os.Stdout,
-		tablewriter.WithRenderer(renderer.NewBlueprint(tw.Rendition{
-			Borders:  tw.BorderNone,
-			Settings: tw.Settings{Separators: tw.Separators{BetweenRows: tw.Off}},
-		})),
-		tablewriter.WithConfig(tablewriter.Config{
-			Header: tw.CellConfig{
-				Alignment: tw.CellAlignment{Global: tw.AlignLeft},
-			},
-			Row: tw.CellConfig{
-				Alignment: tw.CellAlignment{Global: tw.AlignLeft},
-			},
-		}),
-	)
-	table.Header([]string{"Version", "Status"})
+	return renderListText(versions, current)
+}
 
-	// Hoist the colorizers out of the loop. The previous code called
-	// color.New(...) (which initializes an *color.Color, parses the
-	// attribute set, and registers it) twice per current-matching
-	// version. For a typical install set of a few dozen versions
-	// with exactly one "current" the cost is small, but on a
-	// per-invocation basis the allocations are pure waste. Reuse
-	// the same instance for the whole loop.
-	currentColor := color.New(color.Bold, color.FgHiGreen)
-
-	// Append each version to the table.
+// renderListJSON emits the --json contract: an object with
+// "versions" (one VersionInfo per installed version, with
+// "status" set to "current" or "installed"). It is preserved
+// byte-for-byte from the pre-refactor implementation.
+func renderListJSON(versions []vtypes.Version, current vtypes.Version) error {
+	infos := make([]versionInfo, 0, len(versions))
 	for _, version := range versions {
-		var row []string
+		status := "installed"
 		if current.Name() != "" && version.Name() == current.Name() {
-			// Mark the current version with an arrow and use a highlighted green color.
-			row = []string{
-				currentColor.Sprintf("→ %s", version.Name()),
-				currentColor.Sprintf("Current"),
-			}
-			logrus.Debugf("Marked version %s as current", version.Name())
+			status = "current"
+		}
+
+		infos = append(infos, versionInfo{
+			Name:   version.Name(),
+			Status: status,
+			Type:   version.Type().String(),
+		})
+	}
+
+	return outputJSON(map[string]any{"versions": infos})
+}
+
+// renderListText renders the human-readable list view: a
+// banner, a one-line summary, and a data table with one row
+// per installed version. The current version is rendered
+// with an "→ " prefix and the primary color so the user
+// can spot it at a glance.
+func renderListText(versions []vtypes.Version, current vtypes.Version) error {
+	currentName := current.Name()
+
+	tbl := ui.Table.New("VERSION", "STATUS")
+
+	for _, version := range versions {
+		isCurrent := currentName != "" && version.Name() == currentName
+
+		if isCurrent {
+			tbl.Row(
+				ui.Message.Highlight("→ "+version.Name()),
+				ui.Message.Highlight("Current"),
+			)
 		} else {
-			row = []string{version.Name(), "Installed"}
-		}
-
-		err := table.Append(row)
-		if err != nil {
-			return err
+			tbl.Row(
+				ui.Message.Text(version.Name()),
+				ui.Message.Text("Installed"),
+			)
 		}
 	}
 
-	// Render the table to the standard output.
-	err = table.Render()
-	if err != nil {
-		return err
-	}
+	_, _ = fmt.Fprint(os.Stdout, ui.Banner.Logo())
+	_, _ = fmt.Fprintln(os.Stdout)
+	_, _ = fmt.Fprint(os.Stdout, tbl.Render(ui.Style.Palette()))
 
 	return nil
 }

@@ -1,13 +1,11 @@
 package cmd
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"os"
 	"strings"
 
-	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/domain/vtypes"
@@ -36,8 +34,6 @@ var uninstallCmd = &cobra.Command{
 
 // RunUninstall executes the uninstall command.
 func RunUninstall(cmd *cobra.Command, args []string) error {
-	var err error
-
 	logrus.Debug("Running uninstall command")
 
 	var versionArg string
@@ -45,46 +41,12 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 	// Check if --pick flag is set
 	pick, _ := cmd.Flags().GetBool("pick")
 	if pick {
-		// Launch picker for installed versions
-		versions, err := GetVersionService().List()
+		selected, err := pickUninstallVersion()
 		if err != nil {
-			return fmt.Errorf("error listing versions: %w", err)
+			return err
 		}
 
-		if len(versions) == 0 {
-			return fmt.Errorf("%w for selection", ErrNoVersionsAvailable)
-		}
-
-		availableVersions := make([]string, 0, len(versions))
-		for _, v := range versions {
-			availableVersions = append(availableVersions, v.Name())
-		}
-
-		prompt := promptui.Select{
-			Label: "Select version to uninstall",
-			Items: availableVersions,
-		}
-
-		_, selectedVersion, err := prompt.Run()
-		if err != nil {
-			if errors.Is(err, promptui.ErrInterrupt) {
-				_, printErr := fmt.Fprintf(
-					os.Stdout,
-					"%s %s\n",
-					ui.WarningIcon(),
-					ui.WhiteText("Selection canceled."),
-				)
-				if printErr != nil {
-					logrus.Warnf("Failed to write to stdout: %v", printErr)
-				}
-
-				return nil
-			}
-
-			return fmt.Errorf("prompt failed: %w", err)
-		}
-
-		versionArg = selectedVersion
+		versionArg = selected
 	} else {
 		if len(args) == 0 {
 			return fmt.Errorf("%w", ErrVersionArgRequired)
@@ -93,7 +55,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 		versionArg = args[0]
 	}
 
-	logrus.Debug("Requested version: ", versionArg)
+	logrus.Debugf("Requested version: %s", versionArg)
 
 	// Check if the version to uninstall is currently active.
 	//
@@ -142,36 +104,29 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 	}
 
 	// If the version is currently active, prompt for confirmation.
+	//
+	// ConfirmScriptable auto-detects TTY vs piped input:
+	//   - TTY: full huh Yes/No toggle (arrow keys, Y/N, Ctrl-C,
+	//     the picker theme).
+	//   - Pipe: a one-line "[y/N]: " prompt, accepting "y" or
+	//     "yes" (case-insensitive) as a positive answer.
+	// Either way the user can cancel cleanly, and scripts like
+	// `echo y | nvs uninstall v0.6.0` keep working.
 	if isCurrent {
-		_, printErr := fmt.Fprintf(
-			os.Stdout,
-			"%s The version %s is currently in use. Do you really want to uninstall it? (y/N): ",
-			ui.WarningIcon(),
-			ui.CyanText(versionArg),
+		ui.Message.Warnf(
+			"The version %s is currently in use.",
+			ui.Message.Accent(versionArg),
 		)
-		if printErr != nil {
-			logrus.Warnf("Failed to write to stdout: %v", printErr)
+
+		confirmed, confirmErr := ui.Picker.ConfirmScriptable(
+			"Do you really want to uninstall it?",
+		)
+		if confirmErr != nil {
+			return fmt.Errorf("failed to read confirmation: %w", confirmErr)
 		}
 
-		reader := bufio.NewReader(os.Stdin)
-
-		var input string
-
-		input, err = reader.ReadString('\n')
-		if err != nil {
-			return fmt.Errorf("failed to read input: %w", err)
-		}
-
-		input = strings.TrimSpace(input)
-		if strings.ToLower(input) != "y" {
-			_, printErr := fmt.Fprintln(
-				os.Stdout,
-				ui.InfoIcon(),
-				ui.WhiteText("Aborted uninstall."),
-			)
-			if printErr != nil {
-				logrus.Warnf("Failed to write to stdout: %v", printErr)
-			}
+		if !confirmed {
+			ui.Message.Infof("Aborted uninstall.")
 
 			logrus.Debug("Uninstall canceled by user")
 
@@ -192,84 +147,90 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to uninstall version %s: %w", versionArg, err)
 	}
 
-	successMsg := "Uninstalled version: " + ui.CyanText(versionArg)
-	logrus.Debug(successMsg)
+	logrus.Debugf("Uninstalled version: %s", versionArg)
 
-	_, printErr := fmt.Fprintf(
-		os.Stdout,
-		"%s %s\n",
-		ui.SuccessIcon(),
-		ui.WhiteText(successMsg),
-	)
-	if printErr != nil {
-		logrus.Warnf("Failed to write to stdout: %v", printErr)
-	}
+	ui.Message.Successf("Uninstalled version: %s", ui.Message.Accent(versionArg))
 
 	// If the uninstalled version was the current version,
 	// prompt the user to switch to a different installed version.
 	if isCurrent {
-		versions, err := GetVersionService().List()
-		if err != nil {
-			return fmt.Errorf("error listing versions: %w", err)
-		}
-
-		if len(versions) == 0 {
-			_, printErr := fmt.Fprintf(os.Stdout,
-				"%s %s\n",
-				ui.WarningIcon(),
-				ui.WhiteText(
-					"No other versions available. Your current version has been unset.",
-				),
-			)
-			if printErr != nil {
-				logrus.Warnf("Failed to write to stdout: %v", printErr)
-			}
-		} else {
-			availableVersions := make([]string, 0, len(versions))
-			for _, v := range versions {
-				availableVersions = append(availableVersions, v.Name())
-			}
-
-			logrus.Debugf("Switchable Installed Neovim Versions: %v", availableVersions)
-			prompt := promptui.Select{
-				Label: "Switchable Installed Neovim Versions",
-				Items: availableVersions,
-			}
-
-			logrus.Debug("Displaying selection prompt")
-
-			var selectedVersion string
-
-			_, selectedVersion, err = prompt.Run()
-			if err != nil {
-				if errors.Is(err, promptui.ErrInterrupt) {
-					logrus.Debug("User canceled selection")
-
-					_, printErr := fmt.Fprintf(
-						os.Stdout,
-						"%s %s\n",
-						ui.WarningIcon(),
-						ui.WhiteText("Selection canceled."),
-					)
-					if printErr != nil {
-						logrus.Warnf("Failed to write to stdout: %v", printErr)
-					}
-
-					return nil
-				}
-
-				return fmt.Errorf("prompt failed: %w", err)
-			}
-
-			// Use the selected version as the new current version.
-			_, err = GetVersionService().Use(cmd.Context(), selectedVersion)
-			if err != nil {
-				return err
-			}
-		}
+		return promptSwitchAfterUninstall(cmd)
 	}
 
 	return nil
+}
+
+// pickUninstallVersion shows the installed-versions picker
+// and returns the version name the user chose.
+func pickUninstallVersion() (string, error) {
+	versions, err := GetVersionService().List()
+	if err != nil {
+		return "", fmt.Errorf("error listing versions: %w", err)
+	}
+
+	if len(versions) == 0 {
+		return "", fmt.Errorf("%w for selection", ErrNoVersionsAvailable)
+	}
+
+	items := make([]ui.SelectItem, 0, len(versions))
+	for _, v := range versions {
+		items = append(items, ui.SelectItem{Label: v.Name()})
+	}
+
+	selected, err := ui.Picker.NewPicker(nil, nil).Select("Select version to uninstall", items)
+	if err != nil {
+		if errors.Is(err, ui.Picker.ErrCanceled()) {
+			ui.Message.Warnf("Selection canceled.")
+
+			return "", nil
+		}
+
+		return "", fmt.Errorf("prompt failed: %w", err)
+	}
+
+	return selected, nil
+}
+
+// promptSwitchAfterUninstall runs the "pick a new current
+// version" sub-flow that follows an uninstall-of-current.
+// It is split out so RunUninstall's control flow stays
+// readable; the sub-flow is only entered when isCurrent is
+// true.
+func promptSwitchAfterUninstall(cmd *cobra.Command) error {
+	versions, err := GetVersionService().List()
+	if err != nil {
+		return fmt.Errorf("error listing versions: %w", err)
+	}
+
+	if len(versions) == 0 {
+		ui.Message.Warnf("No other versions available. Your current version has been unset.")
+
+		return nil
+	}
+
+	items := make([]ui.SelectItem, 0, len(versions))
+	for _, v := range versions {
+		items = append(items, ui.SelectItem{Label: v.Name()})
+	}
+
+	logrus.Debugf("Switchable installed Neovim versions: %d", len(items))
+
+	selected, err := ui.Picker.NewPicker(nil, nil).
+		Select("Switchable Installed Neovim Versions", items)
+	if err != nil {
+		if errors.Is(err, ui.Picker.ErrCanceled()) {
+			ui.Message.Warnf("Selection canceled.")
+
+			return nil
+		}
+
+		return fmt.Errorf("prompt failed: %w", err)
+	}
+
+	// Use the selected version as the new current version.
+	_, err = GetVersionService().Use(cmd.Context(), selected)
+
+	return err
 }
 
 // init registers the uninstallCmd with the root command.

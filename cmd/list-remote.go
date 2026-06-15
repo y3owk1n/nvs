@@ -7,15 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fatih/color"
-	"github.com/olekukonko/tablewriter"
-	"github.com/olekukonko/tablewriter/renderer"
-	"github.com/olekukonko/tablewriter/tw"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/release"
 	"github.com/y3owk1n/nvs/internal/ui"
+	"github.com/y3owk1n/nvs/internal/ui/table"
 )
 
 // listRemoteCmd represents the "list-remote" command (aliases: ls-remote).
@@ -35,17 +32,6 @@ var listRemoteCmd = &cobra.Command{
 	RunE:    RunListRemote,
 }
 
-// Pre-built *color.Color instances for the row-status switch. The
-// loop in RunListRemote runs once per remote release (potentially
-// dozens) and the original code constructed a fresh color.New for
-// every iteration. Hoisting them out of the loop avoids the
-// allocation and the per-call color-attribute parsing.
-var (
-	listRemoteCurrentColor      = color.New(color.FgGreen)
-	listRemoteInstalledColor    = color.New(color.FgYellow)
-	listRemoteNotInstalledColor = color.New(color.FgWhite)
-)
-
 // RunListRemote executes the list-remote command.
 func RunListRemote(cmd *cobra.Command, _ []string) error {
 	// Check if the user passed --force to bypass the cache.
@@ -53,18 +39,28 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 
 	logrus.Debug("Fetching available versions...")
 
-	_, err := fmt.Fprintf(
+	// Use a spinner during the fetch so the "Fetching
+	// available versions..." line gets cleared and the
+	// banner+table below takes its place — matching the UX
+	// of `nvs install` / `nvs upgrade`, where the loading
+	// state is replaced by the result on the same line.
+	//
+	// The closure scopes `defer fetchSpinner.Stop()` so the
+	// line-erase runs before the function returns the
+	// result, regardless of whether ListRemote errored.
+	fetchSpinner := ui.NewSpinner(
 		os.Stdout,
-		"%s %s\n",
-		ui.InfoIcon(),
-		ui.WhiteText("Fetching available versions..."),
+		time.Duration(constants.SpinnerSpeed)*time.Millisecond,
 	)
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
+	fetchSpinner.SetPrefix(ui.Message.Icons().Info + " ")
+	fetchSpinner.SetSuffix(" Fetching available versions...")
+	fetchSpinner.Start()
 
-	// Retrieve the remote releases via version service
-	releasesResult, err := GetVersionService().ListRemote(cmd.Context(), force)
+	releasesResult, err := func() ([]release.Release, error) {
+		defer fetchSpinner.Stop()
+
+		return GetVersionService().ListRemote(cmd.Context(), force)
+	}()
 	if err != nil {
 		return fmt.Errorf("error fetching releases: %w", err)
 	}
@@ -73,14 +69,14 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 
 	// Group releases into nightly, stable, and Others.
 	var groupNightly, groupStable, groupOthers []release.Release
-	for _, release := range releasesResult {
+	for _, rel := range releasesResult {
 		switch {
-		case release.Prerelease() && strings.HasPrefix(strings.ToLower(release.TagName()), "nightly"):
-			groupNightly = append(groupNightly, release)
-		case release.TagName() == constants.Stable:
-			groupStable = append(groupStable, release)
+		case rel.Prerelease() && strings.HasPrefix(strings.ToLower(rel.TagName()), "nightly"):
+			groupNightly = append(groupNightly, rel)
+		case rel.TagName() == constants.Stable:
+			groupStable = append(groupStable, rel)
 		default:
-			groupOthers = append(groupOthers, release)
+			groupOthers = append(groupOthers, rel)
 		}
 	}
 
@@ -109,37 +105,6 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 	jsonOutput, err := cmd.Flags().GetBool("json")
 	if err != nil {
 		logrus.Warnf("Failed to read json flag: %v", err)
-	}
-
-	type ReleaseInfo struct {
-		Tag        string `json:"tag"`
-		Status     string `json:"status"`
-		Details    string `json:"details"`
-		Prerelease bool   `json:"prerelease"`
-	}
-
-	var (
-		infos []ReleaseInfo
-		table *tablewriter.Table
-	)
-
-	if !jsonOutput {
-		// Prepare a table for displaying the remote releases and their status.
-		table = tablewriter.NewTable(os.Stdout,
-			tablewriter.WithRenderer(renderer.NewBlueprint(tw.Rendition{
-				Borders:  tw.BorderNone,
-				Settings: tw.Settings{Separators: tw.Separators{BetweenRows: tw.Off}},
-			})),
-			tablewriter.WithConfig(tablewriter.Config{
-				Header: tw.CellConfig{
-					Alignment: tw.CellAlignment{Global: tw.AlignLeft},
-				},
-				Row: tw.CellConfig{
-					Alignment: tw.CellAlignment{Global: tw.AlignLeft},
-				},
-			}),
-		)
-		table.Header([]string{"Tag", "Status", "Details"})
 	}
 
 	// Get the version service once. The rest of this function uses
@@ -183,133 +148,181 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 		stableReleaseTag = stableRelease.TagName()
 	}
 
+	// releaseInfo is the row schema for --json. The struct is kept
+	// local to RunListRemote (where it is built) and the table path
+	// below inlines its fields into the table cell, since
+	// ui.Table consumes plain strings, not structs.
+	type releaseInfo struct {
+		Tag        string `json:"tag"`
+		Status     string `json:"status"`
+		Details    string `json:"details"`
+		Prerelease bool   `json:"prerelease"`
+	}
+
+	var (
+		infos []releaseInfo
+		tbl   *table.Table
+	)
+
+	if !jsonOutput {
+		tbl = ui.Table.New("Tag", "Status", "Details")
+	}
+
 	// Iterate over the releases and build table rows with appropriate details and color-coding.
-	for _, release := range combined {
-		var details string
+	for _, rel := range combined {
+		details := buildReleaseDetails(rel, stableReleaseTag)
 
-		// For nightly releases, display published date and commit hash.
-		if release.Prerelease() {
-			if strings.HasPrefix(strings.ToLower(release.TagName()), "nightly") {
-				shortCommit := release.CommitHash()
-				if len(shortCommit) > constants.ShortCommitLen {
-					shortCommit = shortCommit[:constants.ShortCommitLen]
-				}
+		key := rel.TagName()
 
-				details = fmt.Sprintf(
-					"Published: %s, Commit: %s",
-					ui.TimeFormat(release.PublishedAt().Format(time.RFC3339)),
-					shortCommit,
-				)
-			}
-		} else if release.TagName() == "stable" {
-			// For stable releases, show the actual version tag.
-			if stableReleaseTag != "" {
-				details = "stable version: " + stableReleaseTag
-			} else {
-				details = "stable version: " + constants.Stable
-			}
-		}
-
-		key := release.TagName()
-
-		var baseStatus string
-
-		upgradeIndicator := ""
-
-		// Check if the release is installed locally.
-		if _, isInstalled := installedSet[key]; isInstalled {
-			// Use the pre-resolved identifier from the bulk
-			// enumeration; no per-release os.ReadFile needed.
-			installedIdentifier := installedIdentifiers[key]
-
-			// Use the same logic as the Upgrade function:
-			// For nightly, compare commit hash. For stable, fetch the actual stable release's tag.
-			var remoteIdentifier string
-			switch {
-			case release.Prerelease() &&
-				strings.HasPrefix(strings.ToLower(release.TagName()), "nightly"):
-				remoteIdentifier = release.CommitHash()
-			case release.TagName() == constants.Stable:
-				// For the "stable" tag, use the cached real
-				// version tag we resolved before the loop.
-				remoteIdentifier = stableReleaseTag
-			default:
-				remoteIdentifier = release.TagName()
-			}
-
-			// If the installed version is different from the remote, indicate an upgrade is available.
-			if installedIdentifier != "" && remoteIdentifier != "" &&
-				installedIdentifier != remoteIdentifier {
-				upgradeIndicator = " (" + constants.Upgrade + ")"
-			}
-
-			if key == currentName {
-				baseStatus = "Current"
-			} else {
-				baseStatus = "Installed"
-			}
-		} else {
-			baseStatus = "Not Installed"
-		}
+		baseStatus, upgradeIndicator := classifyReleaseStatus(
+			rel, key, currentName, installedSet, installedIdentifiers, stableReleaseTag,
+		)
 
 		localStatus := baseStatus + upgradeIndicator
 
 		logrus.Debugf("Version: %s, Status: %s", key, localStatus)
 
-		// Build the row for the table.
-		tag := release.TagName()
+		tag := rel.TagName()
 		if tag == "" {
 			tag = "(no tag)"
 		}
 
 		if jsonOutput {
-			infos = append(infos, ReleaseInfo{
+			infos = append(infos, releaseInfo{
 				Tag:        tag,
 				Status:     localStatus,
 				Details:    details,
-				Prerelease: release.Prerelease(),
+				Prerelease: rel.Prerelease(),
 			})
 		} else {
-			row := []string{tag, localStatus, details}
-
-			// Colorize the row based on status. The status strings
-			// are produced by this function, so the switch is
-			// exhaustive over a small fixed set of literals; we
-			// look up a pre-built *color.Color for each case to
-			// avoid calling color.New on every iteration of the
-			// outer loop (which is one call per remote release).
-			var rowColor *color.Color
-			switch baseStatus {
-			case "Current":
-				rowColor = listRemoteCurrentColor
-			case "Installed":
-				rowColor = listRemoteInstalledColor
-			default:
-				rowColor = listRemoteNotInstalledColor
-			}
-
-			row = ui.ColorizeRow(row, rowColor)
-
-			err = table.Append(row)
-			if err != nil {
-				return err
-			}
+			tbl.Row(styleReleaseRow(tag, baseStatus, localStatus, details)...)
 		}
 	}
 
 	if jsonOutput {
-		data := map[string]any{"releases": infos}
-
-		return outputJSON(data)
-	} else {
-		// Render the table to standard output.
-		err = table.Render()
-		if err != nil {
-			return err
-		}
+		return outputJSON(map[string]any{"releases": infos})
 	}
 
+	_, _ = fmt.Fprint(os.Stdout, ui.Banner.Logo())
+	_, _ = fmt.Fprintln(os.Stdout)
+	_, _ = fmt.Fprint(os.Stdout, tbl.Render(ui.Style.Palette()))
+
 	return nil
+}
+
+// buildReleaseDetails produces the "Details" cell string for a
+// given release. For nightlies it surfaces the publish date and
+// a short commit hash; for the "stable" alias it surfaces the
+// real stable tag. All other releases get an empty details
+// string.
+func buildReleaseDetails(rel release.Release, stableReleaseTag string) string {
+	switch {
+	case rel.Prerelease() && strings.HasPrefix(strings.ToLower(rel.TagName()), "nightly"):
+		shortCommit := rel.CommitHash()
+		if len(shortCommit) > constants.ShortCommitLen {
+			shortCommit = shortCommit[:constants.ShortCommitLen]
+		}
+
+		return fmt.Sprintf(
+			"Published: %s, Commit: %s",
+			ui.TimeFormat(rel.PublishedAt().Format(time.RFC3339)),
+			shortCommit,
+		)
+	case rel.TagName() == "stable":
+		if stableReleaseTag != "" {
+			return "stable version: " + stableReleaseTag
+		}
+
+		return "stable version: " + constants.Stable
+	default:
+		return ""
+	}
+}
+
+// classifyReleaseStatus returns the human-readable base status
+// for a release (Current / Installed / Not Installed) and, if
+// an upgrade is available, a parenthesized " (upgrade)" suffix
+// appended to the base status. The combination is the
+// user-facing "Status" cell.
+//
+// The pre-loop arguments (currentName, installedSet,
+// installedIdentifiers, stableReleaseTag) are hoisted so we
+// don't re-fetch them per iteration.
+func classifyReleaseStatus(
+	rel release.Release,
+	key string,
+	currentName string,
+	installedSet map[string]struct{},
+	installedIdentifiers map[string]string,
+	stableReleaseTag string,
+) (string, string) {
+	if _, isInstalled := installedSet[key]; !isInstalled {
+		return "Not Installed", ""
+	}
+
+	// Resolve the "remote identifier" we compare against the
+	// installed one. Nightlies compare commit hashes; the
+	// "stable" alias compares against the real stable tag;
+	// everything else uses the release's own tag.
+	var remoteIdentifier string
+	switch {
+	case rel.Prerelease() && strings.HasPrefix(strings.ToLower(rel.TagName()), "nightly"):
+		remoteIdentifier = rel.CommitHash()
+	case rel.TagName() == constants.Stable:
+		remoteIdentifier = stableReleaseTag
+	default:
+		remoteIdentifier = rel.TagName()
+	}
+
+	upgradeIndicator := ""
+
+	installedIdentifier := installedIdentifiers[key]
+	if installedIdentifier != "" && remoteIdentifier != "" &&
+		installedIdentifier != remoteIdentifier {
+		upgradeIndicator = " (" + constants.Upgrade + ")"
+	}
+
+	if key == currentName {
+		return "Current", upgradeIndicator
+	}
+
+	return "Installed", upgradeIndicator
+}
+
+// styleReleaseRow applies the per-cell lipgloss styling for a
+// non-JSON list-remote row. The status determines the color of
+// the status cell and the tag cell (a "Current" row gets the
+// highlight color; an "Installed" row with an upgrade
+// available gets the warn color; everything else is muted).
+// The details cell is always muted to keep noise low.
+func styleReleaseRow(tag, baseStatus, fullStatus, details string) []string {
+	styledTag, styledStatus := styledReleaseCells(tag, baseStatus, fullStatus)
+
+	styledDetails := ui.Message.Muted(details)
+
+	return []string{styledTag, styledStatus, styledDetails}
+}
+
+// styledReleaseCells returns the styled (tag, status) cells
+// for a list-remote row, picking colors from the palette
+// based on the release's status:
+//
+//	Current       → Highlight (primary + bold)
+//	Installed     → Success (green) if no upgrade, Warn (yellow) if an upgrade is available
+//	Not Installed → Muted (subtle)
+func styledReleaseCells(tag, baseStatus, fullStatus string) (string, string) {
+	switch baseStatus {
+	case "Current":
+		return ui.Message.Highlight(tag), ui.Message.Highlight(fullStatus)
+	case "Installed":
+		if strings.Contains(fullStatus, "("+constants.Upgrade+")") {
+			return ui.Message.Warn(tag), ui.Message.Warn(fullStatus)
+		}
+
+		return ui.Message.Success(tag), ui.Message.Success(fullStatus)
+	default:
+		return ui.Message.Muted(tag), ui.Message.Muted(fullStatus)
+	}
 }
 
 // init registers the listRemoteCmd with the root command.

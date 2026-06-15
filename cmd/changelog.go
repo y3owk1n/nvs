@@ -138,31 +138,26 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 		return nil
 	}
 
-	// Display changelog header
-	var printErr error
+	ui.Message.Mutedf("")
 
-	_, printErr = fmt.Fprintf(
-		os.Stdout,
-		"\n%s Changelog (%d commits):\n",
-		ui.InfoIcon(),
-		compareResp.TotalCommits,
-	)
-	if printErr != nil {
-		logrus.Warnf("Failed to write to stdout: %v", printErr)
-	}
+	ui.Message.Infof("Changelog (%d commits)", compareResp.TotalCommits)
 
-	_, printErr = fmt.Fprintln(os.Stdout, "─────────────────────────────────────────")
-	if printErr != nil {
-		logrus.Warnf("Failed to write to stdout: %v", printErr)
-	}
+	ui.Message.Mutedf("")
 
-	// Show recent commits (limited)
+	// Show recent commits (limited) in a table so the hash
+	// column lines up exactly the way it does in
+	// `nvs list` / `nvs list-remote`. The message column is
+	// pre-truncated to constants.MessageTruncateLimit so the
+	// table does not need to wrap.
+	tbl := ui.Table.New("Hash", "Message")
+
 	displayed := 0
 	for i := len(compareResp.Commits) - 1; i >= 0 && displayed < constants.ChangelogLimit; i-- {
 		commit := compareResp.Commits[i]
 
-		// Get first line of commit message
 		message := commit.Commit.Message
+
+		// Get first line of commit message
 		for j, c := range message {
 			if c == '\n' {
 				message = message[:j]
@@ -174,51 +169,40 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 		// Truncate long messages. utf8.RuneCountInString is
 		// allocation-free for the count; the full rune slice
 		// is only materialized when we actually have to slice
-		// the string. The previous code allocated the rune
-		// slice twice (once for the count, once for the slice)
-		// on every commit.
+		// the string.
 		if utf8.RuneCountInString(message) > constants.MessageTruncateLimit {
 			runes := []rune(message)[:constants.MessageTruncateLimit-3]
 			message = string(runes) + "..."
 		}
 
-		_, printErr = fmt.Fprintf(os.Stdout, "  %s %s\n",
-			ui.CyanText(shortHash(commit.SHA, constants.DisplayHashLength)),
+		tbl.Row(
+			ui.Message.Accent(shortHash(commit.SHA, constants.DisplayHashLength)),
 			message,
 		)
-		if printErr != nil {
-			logrus.Warnf("Failed to write to stdout: %v", printErr)
-		}
 
 		displayed++
 	}
 
+	_, _ = fmt.Fprint(os.Stdout, tbl.Render(ui.Style.Palette()))
+
 	if compareResp.TotalCommits > constants.ChangelogLimit {
-		_, printErr = fmt.Fprintf(
-			os.Stdout,
-			"  ... and %d more commits\n",
+		ui.Message.Mutedf(
+			"  ... and %d more commits",
 			compareResp.TotalCommits-constants.ChangelogLimit,
 		)
-		if printErr != nil {
-			logrus.Warnf("Failed to write to stdout: %v", printErr)
-		}
 	}
 
-	_, printErr = fmt.Fprintln(os.Stdout, "─────────────────────────────────────────")
-	if printErr != nil {
-		logrus.Warnf("Failed to write to stdout: %v", printErr)
-	}
-
-	_, printErr = fmt.Fprintf(
-		os.Stdout,
-		"View full changelog: %s/neovim/neovim/compare/%s...%s\n\n",
-		constants.DefaultGitHubBaseURL,
-		shortHash(oldCommit, constants.DisplayHashLength),
-		shortHash(newCommit, constants.DisplayHashLength),
+	ui.Message.Mutedf(
+		"View full changelog: %s",
+		ui.Message.Accent(fmt.Sprintf(
+			"%s/neovim/neovim/compare/%s...%s",
+			constants.DefaultGitHubBaseURL,
+			shortHash(oldCommit, constants.DisplayHashLength),
+			shortHash(newCommit, constants.DisplayHashLength),
+		)),
 	)
-	if printErr != nil {
-		logrus.Warnf("Failed to write to stdout: %v", printErr)
-	}
+
+	ui.Message.Mutedf("")
 
 	return nil
 }

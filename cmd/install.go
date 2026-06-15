@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
@@ -57,46 +56,12 @@ func RunInstall(cmd *cobra.Command, args []string) error {
 	// Check if --pick flag is set
 	pick, _ := cmd.Flags().GetBool("pick")
 	if pick {
-		// Launch picker for remote versions
-		releases, err := GetVersionService().ListRemote(ctx, false)
+		selected, err := pickInstallVersion(ctx)
 		if err != nil {
-			return fmt.Errorf("error fetching releases: %w", err)
+			return err
 		}
 
-		if len(releases) == 0 {
-			return fmt.Errorf("%w for selection", ErrNoVersionsAvailable)
-		}
-
-		availableVersions := make([]string, 0, len(releases))
-		for _, release := range releases {
-			availableVersions = append(availableVersions, release.TagName())
-		}
-
-		prompt := promptui.Select{
-			Label: "Select version to install",
-			Items: availableVersions,
-		}
-
-		_, selectedVersion, err := prompt.Run()
-		if err != nil {
-			if errors.Is(err, promptui.ErrInterrupt) {
-				_, printErr := fmt.Fprintf(
-					os.Stdout,
-					"%s %s\n",
-					ui.WarningIcon(),
-					ui.WhiteText("Selection canceled."),
-				)
-				if printErr != nil {
-					logrus.Warnf("Failed to write to stdout: %v", printErr)
-				}
-
-				return nil
-			}
-
-			return fmt.Errorf("prompt failed: %w", err)
-		}
-
-		alias = selectedVersion
+		alias = selected
 	} else {
 		if len(args) == 0 {
 			return fmt.Errorf("%w", ErrVersionArgRequired)
@@ -106,6 +71,43 @@ func RunInstall(cmd *cobra.Command, args []string) error {
 	}
 
 	return runInstallForAlias(ctx, cmd, alias)
+}
+
+// pickInstallVersion shows the interactive version picker and
+// returns the tag the user chose.
+//
+// Cancellation: a user-driven cancel (Ctrl-C) is not an
+// error — we print a friendly "Selection canceled." line and
+// return ("", nil) so the caller exits cleanly. A non-TTY
+// environment is also not an error for this command path —
+// RunInstall treats both as "no selection made".
+func pickInstallVersion(ctx context.Context) (string, error) {
+	releases, err := GetVersionService().ListRemote(ctx, false)
+	if err != nil {
+		return "", fmt.Errorf("error fetching releases: %w", err)
+	}
+
+	if len(releases) == 0 {
+		return "", fmt.Errorf("%w for selection", ErrNoVersionsAvailable)
+	}
+
+	items := make([]ui.SelectItem, 0, len(releases))
+	for _, rel := range releases {
+		items = append(items, ui.SelectItem{Label: rel.TagName()})
+	}
+
+	selected, err := ui.Picker.NewPicker(nil, nil).Select("Select version to install", items)
+	if err != nil {
+		if errors.Is(err, ui.Picker.ErrCanceled()) {
+			ui.Message.Warnf("Selection canceled.")
+
+			return "", nil
+		}
+
+		return "", fmt.Errorf("prompt failed: %w", err)
+	}
+
+	return selected, nil
 }
 
 // runInstallForAlias performs the spinner-driven install of a single
@@ -135,7 +137,7 @@ func runInstallForAlias(
 		os.Stdout,
 		time.Duration(installSpinnerSpeed)*time.Millisecond,
 	)
-	progressSpinner.SetPrefix(ui.InfoIcon() + " ")
+	progressSpinner.SetPrefix(ui.Message.Icons().Info + " ")
 	progressSpinner.SetSuffix(fmt.Sprintf(" Installing %s...", alias))
 	progressSpinner.Start()
 
@@ -166,15 +168,7 @@ func runInstallForAlias(
 	// "spinner replaced by result" UX callers expect.
 	progressSpinner.Stop()
 
-	_, err = fmt.Fprintf(
-		os.Stdout,
-		"%s %s\n",
-		ui.SuccessIcon(),
-		ui.WhiteText("Installation successful!"),
-	)
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
+	ui.Message.Successf("Installation successful!")
 
 	return nil
 }
