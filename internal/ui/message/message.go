@@ -202,6 +202,56 @@ func (p *Printer) Dim(text string) string {
 	return p.types.Muted.Render(text)
 }
 
+// SuccessRow returns an icon-prefixed success row, suitable for
+// embedding inside a multi-line Panel.Section body. The icon is
+// the brand success glyph, rendered bold and in the success
+// color, followed by a space and the body-styled text. The
+// returned string already ends with a newline.
+//
+//	ui.Message.SuccessRow("Shell")
+func (p *Printer) SuccessRow(text string) string {
+	return p.styledIconLine(p.icons.Success, p.palette.Success) + p.types.Body.Render(text) + "\n"
+}
+
+// WarnRow is the warning counterpart of SuccessRow. Use it for
+// status rows that are "ok, but be aware" (a missing optional
+// dependency, a soft-configured PATH entry, etc.).
+//
+//	ui.Message.WarnRow("Dependencies")
+func (p *Printer) WarnRow(text string) string {
+	return p.styledIconLine(p.icons.Warn, p.palette.Warning) + p.types.Body.Render(text) + "\n"
+}
+
+// ErrorRow is the failure counterpart of SuccessRow. Use it for
+// rows that flag a fatal problem for the command being run.
+//
+//	ui.Message.ErrorRow("PATH")
+func (p *Printer) ErrorRow(text string) string {
+	return p.styledIconLine(p.icons.Error, p.palette.Error) + p.types.Body.Render(text) + "\n"
+}
+
+// Detail returns an indented, muted "sub-line" for use directly
+// under a SuccessRow / WarnRow / ErrorRow. The four-space
+// indent visually nests the detail under the parent's icon
+// (which occupies one cell plus a space).
+//
+//	ui.Message.ErrorRow("PATH")
+//	ui.Message.Detail("bin dir not in PATH: /Users/you/.local/bin")
+func (p *Printer) Detail(text string) string {
+	return p.types.Muted.Render("    "+text) + "\n"
+}
+
+// styledIconLine returns the bold + colored icon followed by a
+// single space. Centralizing the rule here keeps SuccessRow /
+// WarnRow / ErrorRow visually identical and lets future tweaks
+// (e.g. changing the icon-to-text gap) happen in one place.
+func (p *Printer) styledIconLine(icon string, color lipgloss.AdaptiveColor) string {
+	return lipgloss.NewStyle().
+		Bold(true).
+		Foreground(color).
+		Render(icon) + " "
+}
+
 // line is the single emit path. Centralizing the newline and
 // indentation rules here means every helper agrees on what a
 // "message line" looks like. It is unexported because callers

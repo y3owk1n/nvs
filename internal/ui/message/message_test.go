@@ -156,6 +156,75 @@ func TestDimWrapsText(t *testing.T) {
 	}
 }
 
+func TestStatusRowsIncludeIconsAndLabels(t *testing.T) {
+	t.Parallel()
+
+	icons := message.DefaultIcons()
+
+	printer := message.New(
+		style.Default(),
+		style.Types(style.Default()),
+		icons,
+		io.Discard, io.Discard,
+	)
+
+	cases := []struct {
+		name string
+		row  string
+		want string
+	}{
+		{"SuccessRow", printer.SuccessRow("Shell"), icons.Success},
+		{"WarnRow", printer.WarnRow("Dependencies"), icons.Warn},
+		{"ErrorRow", printer.ErrorRow("PATH"), icons.Error},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			if !strings.HasSuffix(testCase.row, "\n") {
+				t.Errorf("%s %q does not end with newline", testCase.name, testCase.row)
+			}
+
+			plain := strings.TrimRight(stripANSI(testCase.row), "\n")
+			if !strings.Contains(plain, testCase.want) {
+				t.Errorf(
+					"%s plain %q does not contain icon %q",
+					testCase.name,
+					plain,
+					testCase.want,
+				)
+			}
+
+			if !strings.Contains(plain, testCase.want+" ") {
+				t.Errorf("%s plain %q missing single-space gap after icon", testCase.name, plain)
+			}
+		})
+	}
+}
+
+func TestDetailIsIndentedAndMuted(t *testing.T) {
+	t.Parallel()
+
+	printer := message.New(
+		style.Default(),
+		style.Types(style.Default()),
+		message.DefaultIcons(),
+		io.Discard, io.Discard,
+	)
+
+	got := printer.Detail("bin directory not in PATH")
+
+	plain := strings.TrimRight(stripANSI(got), "\n")
+	if !strings.HasPrefix(plain, "    ") {
+		t.Errorf("Detail %q does not start with a 4-space indent", plain)
+	}
+
+	if !strings.HasSuffix(plain, "bin directory not in PATH") {
+		t.Errorf("Detail %q does not end with text", plain)
+	}
+}
+
 func stripANSI(value string) string {
 	out := make([]byte, 0, len(value))
 	inEscape := false
