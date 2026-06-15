@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
@@ -63,33 +62,21 @@ func RunRun(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("%w for selection", ErrNoVersionsAvailable)
 		}
 
-		availableVersions := make([]string, 0, len(versions))
+		promptItems := make([]ui.SelectItem, 0, len(versions))
 		for _, v := range versions {
-			availableVersions = append(availableVersions, v.Name())
+			promptItems = append(promptItems, ui.SelectItem{Label: v.Name()})
 		}
 
-		prompt := promptui.Select{
-			Label: "Select version to run",
-			Items: availableVersions,
-		}
-
-		_, selectedVersion, err := prompt.Run()
+		selectedVersion, err := ui.Picker.NewPicker(os.Stdin, os.Stdout).
+			Select("Select version to run", promptItems)
 		if err != nil {
-			if errors.Is(err, promptui.ErrInterrupt) {
-				_, printErr := fmt.Fprintf(
-					os.Stdout,
-					"%s %s\n",
-					ui.WarningIcon(),
-					ui.WhiteText("Selection canceled."),
-				)
-				if printErr != nil {
-					logrus.Warnf("Failed to write to stdout: %v", printErr)
-				}
+			if errors.Is(err, ui.Picker.ErrCanceled()) {
+				ui.Message.Warnf("Selection canceled.")
 
 				return nil
 			}
 
-			return fmt.Errorf("prompt failed: %w", err)
+			return fmt.Errorf("picker: %w", err)
 		}
 
 		versionAlias = selectedVersion
