@@ -2,6 +2,7 @@ package message_test
 
 import (
 	"bytes"
+	"io"
 	"strings"
 	"testing"
 
@@ -85,6 +86,73 @@ func TestPrinterPairAlignsKey(t *testing.T) {
 		if !strings.HasSuffix(stripANSI(lines[idx]), want) {
 			t.Errorf("line %d %q does not end with %q", idx, lines[idx], want)
 		}
+	}
+}
+
+func TestPairLineReturnsStyledString(t *testing.T) {
+	t.Parallel()
+
+	printer := message.New(
+		style.Default(),
+		style.Types(style.Default()),
+		message.DefaultIcons(),
+		io.Discard, io.Discard,
+	)
+
+	got := printer.PairLine("Latest tag", "v0.10.4")
+
+	if got == "" {
+		t.Fatal("PairLine returned empty string")
+	}
+
+	plain := strings.TrimRight(stripANSI(got), "\n")
+
+	if !strings.Contains(plain, "Latest tag") {
+		t.Errorf("PairLine plain %q does not contain key", plain)
+	}
+
+	if !strings.HasSuffix(plain, "v0.10.4") {
+		t.Errorf("PairLine plain %q does not end with value", plain)
+	}
+
+	// PairLine must end in a newline so it composes correctly
+	// when concatenated inside a multi-line body string.
+	if !strings.HasSuffix(got, "\n") {
+		t.Errorf("PairLine %q does not end with newline", got)
+	}
+}
+
+func TestHighlightWrapsText(t *testing.T) {
+	t.Parallel()
+
+	printer := message.New(
+		style.Default(),
+		style.Types(style.Default()),
+		message.DefaultIcons(),
+		io.Discard, io.Discard,
+	)
+
+	got := printer.Highlight("stable")
+
+	if !strings.Contains(stripANSI(got), "stable") {
+		t.Errorf("Highlight stripped %q does not contain text", got)
+	}
+}
+
+func TestDimWrapsText(t *testing.T) {
+	t.Parallel()
+
+	printer := message.New(
+		style.Default(),
+		style.Types(style.Default()),
+		message.DefaultIcons(),
+		io.Discard, io.Discard,
+	)
+
+	got := printer.Dim("Details: unavailable")
+
+	if !strings.Contains(stripANSI(got), "Details: unavailable") {
+		t.Errorf("Dim stripped %q does not contain text", got)
 	}
 }
 

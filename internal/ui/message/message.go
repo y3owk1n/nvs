@@ -168,6 +168,40 @@ func (p *Printer) Pair(key, value string) {
 	_, _ = fmt.Fprintf(p.out, "%s  %s\n", styledKey, styledVal)
 }
 
+// PairLine is the non-printing counterpart of Pair. It returns
+// the styled "key  value" string with a trailing newline, so a
+// caller can embed it inside a multi-line Panel.Section body
+// (or any other styled string) without doing I/O of its own.
+//
+//	ui.Message.PairLine("Version", "v0.10.4")
+func (p *Printer) PairLine(key, value string) string {
+	styledKey := p.types.Key.Render(key)
+	styledVal := p.types.Code.Render(value)
+
+	return styledKey + "  " + styledVal + "\n"
+}
+
+// Highlight returns text rendered in the brand primary color
+// and bold. Use it inside a Panel.Section body for the "this
+// is the version you are on" hero line.
+//
+//	ui.Message.Highlight("→") + " " + ui.Message.Highlight("stable")
+func (p *Printer) Highlight(text string) string {
+	return lipgloss.NewStyle().
+		Bold(true).
+		Foreground(p.palette.Primary).
+		Render(text)
+}
+
+// Dim returns text rendered in the muted color. Use it for
+// secondary facts (e.g. "Details: unavailable") inside a
+// Panel.Section body.
+//
+//	ui.Message.Dim("Details: unavailable")
+func (p *Printer) Dim(text string) string {
+	return p.types.Muted.Render(text)
+}
+
 // line is the single emit path. Centralizing the newline and
 // indentation rules here means every helper agrees on what a
 // "message line" looks like. It is unexported because callers

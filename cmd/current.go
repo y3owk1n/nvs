@@ -7,6 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/domain/vtypes"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -27,6 +28,18 @@ var currentCmd = &cobra.Command{
 	RunE:  RunCurrent,
 }
 
+// currentInfo is the structured result of RunCurrent. The shape
+// is the public JSON contract (TestRunCurrent_JSON asserts on
+// it), so the struct fields and their JSON tags must not
+// change shape.
+type currentInfo struct {
+	Name      string `json:"name"`
+	Type      string `json:"type"`
+	Version   string `json:"version,omitempty"`
+	Commit    string `json:"commit,omitempty"`
+	Published string `json:"published,omitempty"`
+}
+
 // RunCurrent executes the current command.
 func RunCurrent(cmd *cobra.Command, _ []string) error {
 	logrus.Debug("Executing current command")
@@ -43,17 +56,43 @@ func RunCurrent(cmd *cobra.Command, _ []string) error {
 		logrus.Warnf("Failed to read json flag: %v", flagErr)
 	}
 
-	type CurrentInfo struct {
-		Name      string `json:"name"`
-		Type      string `json:"type"`
-		Version   string `json:"version,omitempty"`
-		Commit    string `json:"commit,omitempty"`
-		Published string `json:"published,omitempty"`
+	var info currentInfo
+
+	body, err := populateCurrentInfo(cmd, current, &info)
+	if err != nil {
+		// populateCurrentInfo returns a wrapped error only in
+		// --json mode (so a script consumer can detect a
+		// partial result from the non-zero exit code). In text
+		// mode the user sees a "details unavailable" body
+		// instead, and a network failure does not abort the
+		// command.
+		return err
 	}
 
-	var info CurrentInfo
+	if jsonOutput {
+		return outputJSON(info)
+	}
 
-	// Handle active version
+	_, _ = fmt.Fprint(os.Stdout, ui.Banner.Logo())
+	_, _ = fmt.Fprint(os.Stdout, ui.Panel.Section("Current version", body))
+
+	return nil
+}
+
+// populateCurrentInfo classifies the active version, populates
+// the JSON-ready info struct, and returns the styled panel
+// body for the text output.
+//
+// In --json mode a network failure is returned as an error.
+// In text mode a network failure degrades gracefully to a
+// "details unavailable" body and returns nil.
+func populateCurrentInfo(
+	cmd *cobra.Command,
+	current vtypes.Version,
+	info *currentInfo,
+) (string, error) {
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+
 	switch current.Name() {
 	case constants.Stable:
 		logrus.Debug("Fetching latest stable release")
@@ -61,129 +100,53 @@ func RunCurrent(cmd *cobra.Command, _ []string) error {
 		info.Name = constants.Stable
 		info.Type = "stable"
 
-		// findErr is kept separate from the err reused below for
-		// stdout writes; the two failure modes are independent
-		// (network vs. terminal) and shouldn't clobber each other.
 		stable, findErr := GetVersionService().FindStable(cmd.Context())
 		if findErr != nil {
 			logrus.Warnf("Error fetching latest stable release: %v", findErr)
 
-			if !jsonOutput {
-				_, printErr := fmt.Fprintf(
-					os.Stdout,
-					"%s %s\n",
-					ui.InfoIcon(),
-					ui.WhiteText("stable (version details unavailable)"),
-				)
-				if printErr != nil {
-					logrus.Warnf("Failed to write to stdout: %v", printErr)
-				}
-			} else {
-				// In --json mode, scripts consume stdout as data
-				// and rely on the exit code for status. Returning
-				// here turns a fetch failure into a non-zero exit
-				// so the script can detect it, rather than
-				// silently emitting a partial object.
-				return fmt.Errorf("failed to fetch latest stable release: %w", findErr)
-			}
-		} else {
-			info.Version = stable.TagName()
-
-			if !jsonOutput {
-				_, err = fmt.Fprintf(
-					os.Stdout,
-					"%s %s\n",
-					ui.InfoIcon(),
-					ui.CyanText(constants.Stable),
-				)
-				if err != nil {
-					logrus.Warnf("Failed to write to stdout: %v", err)
-				}
-
-				_, err = fmt.Fprintf(
-					os.Stdout,
-					"  %s\n",
-					ui.WhiteText("Version: "+stable.TagName()),
-				)
-				if err != nil {
-					logrus.Warnf("Failed to write to stdout: %v", err)
-				}
+			if jsonOutput {
+				return "", fmt.Errorf("failed to fetch latest stable release: %w", findErr)
 			}
 
-			logrus.Debugf("Latest stable version: %s", stable.TagName())
+			return renderUnavailableBody(constants.Stable), nil
 		}
+
+		info.Version = stable.TagName()
+
+		logrus.Debugf("Latest stable version: %s", stable.TagName())
+
+		return renderStableBody(stable.TagName()), nil
 	case constants.Nightly:
 		logrus.Debug("Fetching latest nightly release")
 
 		info.Name = constants.Nightly
 		info.Type = "nightly"
 
-		// See the comment in the stable branch above for why
-		// findErr / printErr are separate from the outer err.
 		nightly, findErr := GetVersionService().FindNightly(cmd.Context())
 		if findErr != nil {
 			logrus.Warnf("Error fetching latest nightly release: %v", findErr)
 
-			if !jsonOutput {
-				_, printErr := fmt.Fprintf(
-					os.Stdout,
-					"%s %s\n",
-					ui.InfoIcon(),
-					ui.WhiteText("nightly (version details unavailable)"),
-				)
-				if printErr != nil {
-					logrus.Warnf("Failed to write to stdout: %v", printErr)
-				}
-			} else {
-				// See stable branch — emit non-zero exit so
-				// --json consumers can detect the partial result.
-				return fmt.Errorf("failed to fetch latest nightly release: %w", findErr)
-			}
-		} else {
-			shortCommit := nightly.CommitHash()
-			if len(shortCommit) > constants.ShortCommitLen {
-				shortCommit = shortCommit[:constants.ShortCommitLen]
+			if jsonOutput {
+				return "", fmt.Errorf("failed to fetch latest nightly release: %w", findErr)
 			}
 
-			publishedStr := nightly.PublishedAt().Format("2006-01-02")
-
-			info.Commit = shortCommit
-			info.Published = publishedStr
-
-			if !jsonOutput {
-				_, err = fmt.Fprintf(
-					os.Stdout,
-					"%s %s\n",
-					ui.InfoIcon(),
-					ui.CyanText("nightly"),
-				)
-				if err != nil {
-					logrus.Warnf("Failed to write to stdout: %v", err)
-				}
-
-				_, err = fmt.Fprintf(
-					os.Stdout,
-					"  %s\n",
-					ui.WhiteText("Published: "+publishedStr),
-				)
-				if err != nil {
-					logrus.Warnf("Failed to write to stdout: %v", err)
-				}
-
-				_, err = fmt.Fprintf(
-					os.Stdout,
-					"  %s\n",
-					ui.WhiteText("Commit: "+shortCommit),
-				)
-				if err != nil {
-					logrus.Warnf("Failed to write to stdout: %v", err)
-				}
-			}
-
-			logrus.Debugf("Latest nightly commit: %s, Published: %s", shortCommit, publishedStr)
+			return renderUnavailableBody(constants.Nightly), nil
 		}
+
+		shortCommit := nightly.CommitHash()
+		if len(shortCommit) > constants.ShortCommitLen {
+			shortCommit = shortCommit[:constants.ShortCommitLen]
+		}
+
+		publishedStr := nightly.PublishedAt().Format("2006-01-02")
+
+		info.Commit = shortCommit
+		info.Published = publishedStr
+
+		logrus.Debugf("Latest nightly commit: %s, Published: %s", shortCommit, publishedStr)
+
+		return renderNightlyBody(shortCommit, publishedStr), nil
 	default:
-		// Handle custom version or commit hash
 		isCommitHash := GetVersionService().IsCommitReference(current.Name())
 		logrus.Debugf("isCommitHash: %t", isCommitHash)
 
@@ -192,42 +155,62 @@ func RunCurrent(cmd *cobra.Command, _ []string) error {
 		if isCommitHash {
 			info.Type = "commit"
 
-			if !jsonOutput {
-				logrus.Debugf("Displaying custom commit hash: %s", current.Name())
+			logrus.Debugf("Displaying custom commit hash: %s", current.Name())
 
-				_, err = fmt.Fprintf(os.Stdout,
-					"%s %s\n",
-					ui.InfoIcon(),
-					ui.WhiteText(fmt.Sprintf("commit (%s)", current.Name())),
-				)
-				if err != nil {
-					logrus.Warnf("Failed to write to stdout: %v", err)
-				}
-			}
-		} else {
-			info.Type = "tag"
-
-			if !jsonOutput {
-				logrus.Debugf("Displaying custom version: %s", current.Name())
-
-				_, err = fmt.Fprintf(
-					os.Stdout,
-					"%s %s\n",
-					ui.InfoIcon(),
-					ui.WhiteText(current.Name()),
-				)
-				if err != nil {
-					logrus.Warnf("Failed to write to stdout: %v", err)
-				}
-			}
+			return renderCommitBody(current.Name()), nil
 		}
-	}
 
-	if jsonOutput {
-		return outputJSON(info)
-	}
+		info.Type = "tag"
 
-	return nil
+		logrus.Debugf("Displaying custom version: %s", current.Name())
+
+		return renderTagBody(current.Name()), nil
+	}
+}
+
+// renderStableBody returns the panel body for the "stable"
+// success case.
+func renderStableBody(tag string) string {
+	return ui.Message.Highlight("→") + " " + ui.Message.Highlight(constants.Stable) + "\n" +
+		"\n" +
+		ui.Message.PairLine("Latest tag", tag)
+}
+
+// renderNightlyBody returns the panel body for the "nightly"
+// success case.
+func renderNightlyBody(commit, published string) string {
+	return ui.Message.Highlight("→") + " " + ui.Message.Highlight(constants.Nightly) + "\n" +
+		"\n" +
+		ui.Message.PairLine("Latest commit", commit) +
+		ui.Message.PairLine("Published", published)
+}
+
+// renderTagBody returns the panel body for a custom tag (e.g.
+// "v0.10.4"). There is no upstream metadata to look up, so the
+// body is just the hero line.
+func renderTagBody(name string) string {
+	return ui.Message.Highlight("→") + " " + ui.Message.Highlight(name) + "\n"
+}
+
+// renderCommitBody returns the panel body for a custom commit
+// reference (e.g. "abc1234def"). The commit hash is wrapped in
+// "commit (...)" so the user knows at a glance it isn't a
+// version tag.
+func renderCommitBody(hash string) string {
+	return ui.Message.Highlight("→") + " " +
+		ui.Message.Highlight("commit ("+hash+")") + "\n"
+}
+
+// renderUnavailableBody returns the panel body shown when the
+// upstream release fetch fails in text mode. It preserves the
+// "this is the version" hero line so the user still sees
+// which alias they are on, and appends a dim "details
+// unavailable" hint so the empty body doesn't look like a
+// crash.
+func renderUnavailableBody(name string) string {
+	return ui.Message.Highlight("→") + " " + ui.Message.Highlight(name) + "\n" +
+		"\n" +
+		ui.Message.Dim("Details: unavailable")
 }
 
 func init() {
