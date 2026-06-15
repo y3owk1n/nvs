@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/log"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -32,19 +32,19 @@ var resetCmd = &cobra.Command{
 
 // RunReset executes the reset command.
 func RunReset(_ *cobra.Command, _ []string) error {
-	logrus.Debug("Starting reset command")
+	log.Debug("Starting reset command")
 
 	var err error
 
 	// Determine directories using getter functions
 	baseConfigDir := filepath.Dir(GetVersionsDir())
-	logrus.Debugf("Resolved configDir: %s", baseConfigDir)
+	log.Debugf("Resolved configDir: %s", baseConfigDir)
 
 	baseCacheDir := filepath.Dir(GetCacheFilePath())
-	logrus.Debugf("Resolved cacheDir: %s", baseCacheDir)
+	log.Debugf("Resolved cacheDir: %s", baseCacheDir)
 
 	baseBinDir := GetGlobalBinDir()
-	logrus.Debugf("Resolved binDir: %s", baseBinDir)
+	log.Debugf("Resolved binDir: %s", baseBinDir)
 
 	// Display a warning about the destructive nature of this command.
 	ui.Message.Warnf(
@@ -84,7 +84,7 @@ func RunReset(_ *cobra.Command, _ []string) error {
 	}
 
 	// Remove the configuration directory.
-	logrus.Debugf("Removing config directory: %s", baseConfigDir)
+	log.Debugf("Removing config directory: %s", baseConfigDir)
 
 	assertErr := assertSafeToRemovePath(baseConfigDir)
 	if assertErr != nil {
@@ -97,7 +97,7 @@ func RunReset(_ *cobra.Command, _ []string) error {
 	}
 
 	// Remove the cache directory.
-	logrus.Debugf("Removing cache directory: %s", baseCacheDir)
+	log.Debugf("Removing cache directory: %s", baseCacheDir)
 
 	assertErr = assertSafeToRemovePath(baseCacheDir)
 	if assertErr != nil {
@@ -111,7 +111,7 @@ func RunReset(_ *cobra.Command, _ []string) error {
 
 	// Remove the global nvim symlink if it exists.
 	nvimSymlink := filepath.Join(baseBinDir, "nvim")
-	logrus.Debugf("Removing nvim symlink: %s", nvimSymlink)
+	log.Debugf("Removing nvim symlink: %s", nvimSymlink)
 
 	// Use os.Remove (not os.RemoveAll) so we never recurse into
 	// a directory by accident; the symlink target is always a

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/vtypes"
+	"github.com/y3owk1n/nvs/internal/log"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -42,18 +42,18 @@ type currentInfo struct {
 
 // RunCurrent executes the current command.
 func RunCurrent(cmd *cobra.Command, _ []string) error {
-	logrus.Debug("Executing current command")
+	log.Debug("Executing current command")
 
 	current, err := GetVersionService().Current()
 	if err != nil {
 		return fmt.Errorf("error getting current version: %w", err)
 	}
 
-	logrus.Debugf("Current version detected: %s", current.Name())
+	log.Debugf("Current version detected: %s", current.Name())
 
 	jsonOutput, flagErr := cmd.Flags().GetBool("json")
 	if flagErr != nil {
-		logrus.Warnf("Failed to read json flag: %v", flagErr)
+		log.Warnf("Failed to read json flag: %v", flagErr)
 	}
 
 	var info currentInfo
@@ -95,14 +95,14 @@ func populateCurrentInfo(
 
 	switch current.Name() {
 	case constants.Stable:
-		logrus.Debug("Fetching latest stable release")
+		log.Debug("Fetching latest stable release")
 
 		info.Name = constants.Stable
 		info.Type = "stable"
 
 		stable, findErr := GetVersionService().FindStable(cmd.Context())
 		if findErr != nil {
-			logrus.Warnf("Error fetching latest stable release: %v", findErr)
+			log.Warnf("Error fetching latest stable release: %v", findErr)
 
 			if jsonOutput {
 				return "", fmt.Errorf("failed to fetch latest stable release: %w", findErr)
@@ -113,18 +113,18 @@ func populateCurrentInfo(
 
 		info.Version = stable.TagName()
 
-		logrus.Debugf("Latest stable version: %s", stable.TagName())
+		log.Debugf("Latest stable version: %s", stable.TagName())
 
 		return renderStableBody(stable.TagName()), nil
 	case constants.Nightly:
-		logrus.Debug("Fetching latest nightly release")
+		log.Debug("Fetching latest nightly release")
 
 		info.Name = constants.Nightly
 		info.Type = "nightly"
 
 		nightly, findErr := GetVersionService().FindNightly(cmd.Context())
 		if findErr != nil {
-			logrus.Warnf("Error fetching latest nightly release: %v", findErr)
+			log.Warnf("Error fetching latest nightly release: %v", findErr)
 
 			if jsonOutput {
 				return "", fmt.Errorf("failed to fetch latest nightly release: %w", findErr)
@@ -143,26 +143,26 @@ func populateCurrentInfo(
 		info.Commit = shortCommit
 		info.Published = publishedStr
 
-		logrus.Debugf("Latest nightly commit: %s, Published: %s", shortCommit, publishedStr)
+		log.Debugf("Latest nightly commit: %s, Published: %s", shortCommit, publishedStr)
 
 		return renderNightlyBody(shortCommit, publishedStr), nil
 	default:
 		isCommitHash := GetVersionService().IsCommitReference(current.Name())
-		logrus.Debugf("isCommitHash: %t", isCommitHash)
+		log.Debugf("isCommitHash: %t", isCommitHash)
 
 		info.Name = current.Name()
 
 		if isCommitHash {
 			info.Type = "commit"
 
-			logrus.Debugf("Displaying custom commit hash: %s", current.Name())
+			log.Debugf("Displaying custom commit hash: %s", current.Name())
 
 			return renderCommitBody(current.Name()), nil
 		}
 
 		info.Type = "tag"
 
-		logrus.Debugf("Displaying custom version: %s", current.Name())
+		log.Debugf("Displaying custom version: %s", current.Name())
 
 		return renderTagBody(current.Name()), nil
 	}

@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/release"
+	"github.com/y3owk1n/nvs/internal/log"
 	"github.com/y3owk1n/nvs/internal/ui"
 	"github.com/y3owk1n/nvs/internal/ui/table"
 )
@@ -37,7 +37,7 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 	// Check if the user passed --force to bypass the cache.
 	force, _ := cmd.Flags().GetBool("force")
 
-	logrus.Debug("Fetching available versions...")
+	log.Debug("Fetching available versions...")
 
 	// Use a spinner during the fetch so the "Fetching
 	// available versions..." line gets cleared and the
@@ -65,7 +65,7 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("error fetching releases: %w", err)
 	}
 
-	logrus.Debugf("Fetched %d releases", len(releasesResult))
+	log.Debugf("Fetched %d releases", len(releasesResult))
 
 	// Group releases into nightly, stable, and Others.
 	var groupNightly, groupStable, groupOthers []release.Release
@@ -80,7 +80,7 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	logrus.Debugf(
+	log.Debugf(
 		"nightly: %d, stable: %d, Others: %d",
 		len(groupNightly),
 		len(groupStable),
@@ -95,16 +95,16 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 
 	currentName := ""
 	if err != nil {
-		logrus.Debugf("No current version set: %v", err)
+		log.Debugf("No current version set: %v", err)
 	} else {
 		currentName = current.Name()
 	}
 
-	logrus.Debugf("Current version: %s", currentName)
+	log.Debugf("Current version: %s", currentName)
 
 	jsonOutput, err := cmd.Flags().GetBool("json")
 	if err != nil {
-		logrus.Warnf("Failed to read json flag: %v", err)
+		log.Warnf("Failed to read json flag: %v", err)
 	}
 
 	// Get the version service once. The rest of this function uses
@@ -128,7 +128,7 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 	{
 		details, listErr := svc.InstalledVersionIdentifiers()
 		if listErr != nil {
-			logrus.Debugf("failed to enumerate installed versions: %v", listErr)
+			log.Debugf("failed to enumerate installed versions: %v", listErr)
 		} else {
 			for name, identifier := range details {
 				installedSet[name] = struct{}{}
@@ -180,7 +180,7 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 
 		localStatus := baseStatus + upgradeIndicator
 
-		logrus.Debugf("Version: %s, Status: %s", key, localStatus)
+		log.Debugf("Version: %s, Status: %s", key, localStatus)
 
 		tag := rel.TagName()
 		if tag == "" {

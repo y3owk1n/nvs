@@ -8,12 +8,12 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/installer"
 	"github.com/y3owk1n/nvs/internal/domain/release"
 	"github.com/y3owk1n/nvs/internal/domain/vtypes"
 	"github.com/y3owk1n/nvs/internal/infra/github"
+	"github.com/y3owk1n/nvs/internal/log"
 )
 
 // Service orchestrates version management operations.
@@ -292,7 +292,7 @@ func (s *Service) Use(ctx context.Context, versionAlias string) (string, error) 
 	// Check if already current
 	current, err := s.versionManager.Current()
 	if err == nil && current.Name() == targetVersion.Name() {
-		logrus.Debugf("Already using version: %s", targetVersion.Name())
+		log.Debugf("Already using version: %s", targetVersion.Name())
 
 		return targetVersion.Identifier(), nil
 	}

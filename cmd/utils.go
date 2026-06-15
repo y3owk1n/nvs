@@ -11,7 +11,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/sirupsen/logrus"
+	"github.com/y3owk1n/nvs/internal/log"
 )
 
 // Windows error code for missing privilege to create symbolic links.
@@ -38,7 +38,7 @@ func copyDir(src, dst string) error {
 	defer func() {
 		err := os.RemoveAll(tempDst)
 		if err != nil {
-			logrus.Warnf("Failed to clean up temp directory %s: %v", tempDst, err)
+			log.Warnf("Failed to clean up temp directory %s: %v", tempDst, err)
 		}
 	}()
 
@@ -136,7 +136,7 @@ func copyDirContents(src, dst string) error {
 				}
 
 				if runtime.GOOS == "windows" && isWinPermError {
-					logrus.Warnf(
+					log.Warnf(
 						"Cannot create symlink on Windows without admin rights, copying target instead: %s",
 						srcPath,
 					)
@@ -193,7 +193,7 @@ func copyFile(src, dst string) error {
 	defer func() {
 		closeErr := srcFile.Close()
 		if closeErr != nil {
-			logrus.Warnf("Failed to close source file: %v", closeErr)
+			log.Warnf("Failed to close source file: %v", closeErr)
 		}
 	}()
 
@@ -210,7 +210,7 @@ func copyFile(src, dst string) error {
 	defer func() {
 		closeErr := dstFile.Close()
 		if closeErr != nil {
-			logrus.Warnf("Failed to close destination file: %v", closeErr)
+			log.Warnf("Failed to close destination file: %v", closeErr)
 		}
 	}()
 

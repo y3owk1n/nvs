@@ -6,13 +6,15 @@ Environment setup and customization options for **nvs**.
 
 ## Quick Reference
 
-| Variable            | Description         | Default (Unix)  |
-| ------------------- | ------------------- | --------------- |
-| `NVS_CONFIG_DIR`    | Configuration files | `~/.config/nvs` |
-| `NVS_CACHE_DIR`     | Cache files         | `~/.cache/nvs`  |
-| `NVS_BIN_DIR`       | Binary symlinks     | `~/.local/bin`  |
-| `NVS_GITHUB_MIRROR` | GitHub mirror URL   | (none)          |
-| `NVS_USE_GLOBAL_CACHE` | Use global cache for releases | `false` |
+| Variable               | Description                                | Default (Unix)  |
+| ---------------------- | ------------------------------------------ | --------------- |
+| `NVS_CONFIG_DIR`       | Configuration files                        | `~/.config/nvs` |
+| `NVS_CACHE_DIR`        | Cache files                                | `~/.cache/nvs`  |
+| `NVS_BIN_DIR`          | Binary symlinks                            | `~/.local/bin`  |
+| `NVS_GITHUB_MIRROR`    | GitHub mirror URL                          | (none)          |
+| `NVS_USE_GLOBAL_CACHE` | Use global cache for releases              | `false`         |
+| `NVS_LOG`              | Developer log level (debug/info/warn/...)  | `warn`          |
+| `NVS_LOG_FILE`         | Tee developer logs to a file               | (none)          |
 
 ---
 
@@ -23,6 +25,7 @@ Environment setup and customization options for **nvs**.
 - [Directory Structure](#directory-structure)
 - [GitHub Mirror](#github-mirror)
 - [PATH Configuration](#path-configuration)
+- [Logging](#logging)
 - [Nix / Home Manager](#nix--home-manager)
 - [Advanced Configuration](#advanced-configuration)
 
@@ -211,6 +214,54 @@ export NVS_USE_GLOBAL_CACHE=true
 
 ---
 
+### NVS_LOG
+
+**Purpose:** Sets the verbosity of the **developer-facing** log written to stderr. End-user output (the lines a `nvs <subcommand>` user actually reads) is independent of this setting and is governed by the `internal/ui/message` package.
+
+**Default:** `warn`
+
+**Recognized values** (case-insensitive):
+
+| Value              | Shows                              |
+| ------------------ | ---------------------------------- |
+| `debug` / `trace`  | Everything                         |
+| `info`             | Info, warn, error, fatal           |
+| `warn` (default)   | Warn, error, fatal                 |
+| `error` / `err`    | Error, fatal                       |
+| `fatal`            | Fatal only                         |
+
+**Example:**
+
+```bash
+export NVS_LOG=debug       # verbose, useful when filing a bug
+export NVS_LOG=error       # silence warnings during scripted runs
+```
+
+> [!NOTE]
+> `nvs -v` is a shortcut for `NVS_LOG=debug`. The flag and the env var
+> are equivalent; when both are set, `NVS_LOG` wins.
+
+---
+
+### NVS_LOG_FILE
+
+**Purpose:** Tee the developer log to a file in addition to stderr. Useful when the terminal UI (spinners, picker panels) would otherwise get in the way of reading the trace.
+
+**Default:** None
+
+**Example:**
+
+```bash
+export NVS_LOG=debug
+export NVS_LOG_FILE=/tmp/nvs.log
+nvs install stable
+tail -f /tmp/nvs.log
+```
+
+The file is opened in append mode with `0600` permissions. If the file cannot be opened, `nvs` exits with a non-zero status and a clear error — there is no silent fallback to a half-broken logger.
+
+---
+
 ## Directory Structure
 
 **nvs** creates the following directory structure:
@@ -279,6 +330,35 @@ fish_add_path $HOME/.local/bin
 ```powershell
 [Environment]::SetEnvironmentVariable("Path", "$env:LOCALAPPDATA\Programs;$env:Path", "User")
 ```
+
+---
+
+## Logging
+
+**nvs** keeps two distinct output streams:
+
+- **User-facing** — the short, always-on status/error messages the user reads. These go to stdout (in `--json` mode) or stderr (default). They are styled by the same palette as the rest of the CLI.
+- **Developer-facing** — structured key/value traces that help a developer (or a bug filer) follow what `nvs` is doing internally. These go to **stderr** by default at `warn` level. They are off by default so a normal `nvs <subcommand>` does not flood the terminal.
+
+| Stream          | Package                  | Default level | Toggle                          |
+| --------------- | ------------------------ | ------------- | ------------------------------- |
+| User-facing     | `internal/ui/message`    | always on     | (no toggle)                     |
+| Developer-facing| `internal/log`           | `warn`        | `-v` / `NVS_LOG` / `NVS_LOG_FILE` |
+
+To turn on the developer log for a single command:
+
+```bash
+nvs -v install stable
+NVS_LOG=debug nvs install stable
+```
+
+To capture it to a file (useful when the terminal UI hides the traces):
+
+```bash
+NVS_LOG=debug NVS_LOG_FILE=/tmp/nvs.log nvs install stable
+```
+
+See [NVS_LOG](#nvs_log) and [NVS_LOG_FILE](#nvs_log_file) for the full reference.
 
 ---
 

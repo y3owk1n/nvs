@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/release"
+	"github.com/y3owk1n/nvs/internal/log"
 )
 
 // Cache handles caching of GitHub releases.
@@ -68,7 +68,7 @@ func (c *Cache) GetIgnoreStale() ([]release.Release, error) {
 // serialized to avoid the temp-file race.
 func (c *Cache) Set(releases []release.Release) error {
 	if len(releases) == 0 {
-		logrus.Debug("Skipping cache write for empty release list")
+		log.Debug("Skipping cache write for empty release list")
 
 		return nil
 	}
@@ -126,7 +126,7 @@ func (c *Cache) Set(releases []release.Release) error {
 	if openErr == nil {
 		syncErr := cacheFile.Sync()
 		if syncErr != nil {
-			logrus.Warnf("Failed to fsync cache temp file: %v", syncErr)
+			log.Warnf("Failed to fsync cache temp file: %v", syncErr)
 		}
 
 		_ = cacheFile.Close()
@@ -138,7 +138,7 @@ func (c *Cache) Set(releases []release.Release) error {
 		return fmt.Errorf("rename cache temp file: %w", err)
 	}
 
-	logrus.Debugf("Cached %d releases to %s", len(releases), c.filePath)
+	log.Debugf("Cached %d releases to %s", len(releases), c.filePath)
 
 	return nil
 }
@@ -160,7 +160,7 @@ func (c *Cache) read() ([]release.Release, error) {
 		// cost and fall through to the network path instead.
 		removeErr := os.Remove(c.filePath)
 		if removeErr != nil && !errors.Is(removeErr, fs.ErrNotExist) {
-			logrus.Warnf(
+			log.Warnf(
 				"Failed to remove corrupted cache file %s: %v",
 				c.filePath,
 				removeErr,
@@ -174,7 +174,7 @@ func (c *Cache) read() ([]release.Release, error) {
 	for _, apiRelease := range apiReleases {
 		publishedAt, err := time.Parse(time.RFC3339, apiRelease.PublishedAt)
 		if err != nil {
-			logrus.Warnf(
+			log.Warnf(
 				"Skipping release %s due to invalid PublishedAt: %v",
 				apiRelease.TagName,
 				err,

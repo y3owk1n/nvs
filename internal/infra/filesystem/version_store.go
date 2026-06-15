@@ -13,9 +13,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/vtypes"
+	"github.com/y3owk1n/nvs/internal/log"
 )
 
 // VersionStore implements vtypes.Manager for filesystem-based storage.
@@ -153,7 +153,7 @@ func (s *VersionStore) Switch(version vtypes.Version) error {
 	if err != nil {
 		unlockErr := versionLock.Unlock()
 		if unlockErr != nil {
-			logrus.Warnf("failed to unlock version lock: %v", unlockErr)
+			log.Warnf("failed to unlock version lock: %v", unlockErr)
 		}
 
 		return fmt.Errorf("failed to acquire switch lock: %w", err)
@@ -163,12 +163,12 @@ func (s *VersionStore) Switch(version vtypes.Version) error {
 	defer func() {
 		unlockErr := switchLock.Unlock()
 		if unlockErr != nil {
-			logrus.Warnf("failed to unlock switch lock: %v", unlockErr)
+			log.Warnf("failed to unlock switch lock: %v", unlockErr)
 		}
 
 		unlockErr = versionLock.Unlock()
 		if unlockErr != nil {
-			logrus.Warnf("failed to unlock version lock for %s: %v", version.Name(), unlockErr)
+			log.Warnf("failed to unlock version lock for %s: %v", version.Name(), unlockErr)
 		}
 	}()
 
@@ -207,7 +207,7 @@ func (s *VersionStore) Switch(version vtypes.Version) error {
 		return fmt.Errorf("failed to create global nvim link: %w", err)
 	}
 
-	logrus.Debugf("Switched to version: %s", version.Name())
+	log.Debugf("Switched to version: %s", version.Name())
 
 	return nil
 }
@@ -237,7 +237,7 @@ func (s *VersionStore) Uninstall(version vtypes.Version, force bool) error {
 	defer func() {
 		unlockErr := lock.Unlock()
 		if unlockErr != nil {
-			logrus.Warnf("failed to unlock uninstall lock for %s: %v", version.Name(), unlockErr)
+			log.Warnf("failed to unlock uninstall lock for %s: %v", version.Name(), unlockErr)
 		}
 	}()
 
@@ -358,7 +358,7 @@ func findNvimLinkTarget(dir string) string {
 	})
 
 	if err != nil && !errors.Is(err, filepath.SkipAll) {
-		logrus.Warnf("Error walking directory: %v", err)
+		log.Warnf("Error walking directory: %v", err)
 	}
 
 	return binaryPath

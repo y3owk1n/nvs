@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/y3owk1n/nvs/internal/log"
 )
 
 // FileLock provides production-grade file-based locking.
@@ -81,7 +81,7 @@ func (fl *FileLock) Lock(ctx context.Context) error {
 		if !errors.Is(err, ErrLockBusy) {
 			closeErr := file.Close()
 			if closeErr != nil {
-				logrus.Warnf("failed to close lock file: %v", closeErr)
+				log.Warnf("failed to close lock file: %v", closeErr)
 			}
 
 			return err
@@ -94,7 +94,7 @@ func (fl *FileLock) Lock(ctx context.Context) error {
 		case <-ctx.Done():
 			closeErr := file.Close()
 			if closeErr != nil {
-				logrus.Warnf("failed to close lock file: %v", closeErr)
+				log.Warnf("failed to close lock file: %v", closeErr)
 			}
 
 			return fmt.Errorf("%w: %w", ErrLockTimeout, ctx.Err())
@@ -150,7 +150,7 @@ func (fl *FileLock) WithLock(ctx context.Context, operation func() error) error 
 	defer func() {
 		unlockErr := fl.Unlock()
 		if unlockErr != nil {
-			logrus.Warnf("failed to unlock: %v", unlockErr)
+			log.Warnf("failed to unlock: %v", unlockErr)
 		}
 	}()
 

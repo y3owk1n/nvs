@@ -11,8 +11,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/log"
 	"github.com/y3owk1n/nvs/internal/platform"
 )
 
@@ -47,7 +47,7 @@ func (s *Service) List() ([]string, error) {
 
 		info, err := os.Lstat(entryPath)
 		if err != nil {
-			logrus.Warnf("Failed to lstat %s: %v", entryPath, err)
+			log.Warnf("Failed to lstat %s: %v", entryPath, err)
 
 			continue
 		}
@@ -58,7 +58,7 @@ func (s *Service) List() ([]string, error) {
 		if info.Mode()&os.ModeSymlink != 0 {
 			resolvedPath, err := os.Readlink(entryPath)
 			if err != nil {
-				logrus.Warnf("Failed to resolve symlink %s: %v", entry.Name(), err)
+				log.Warnf("Failed to resolve symlink %s: %v", entry.Name(), err)
 
 				continue
 			}
@@ -70,7 +70,7 @@ func (s *Service) List() ([]string, error) {
 
 			targetInfo, err := os.Stat(resolvedPath)
 			if err != nil {
-				logrus.Warnf("Failed to stat resolved path for %s: %v", entry.Name(), err)
+				log.Warnf("Failed to stat resolved path for %s: %v", entry.Name(), err)
 
 				continue
 			}

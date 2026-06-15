@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/domain/vtypes"
+	"github.com/y3owk1n/nvs/internal/log"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -34,7 +34,7 @@ var uninstallCmd = &cobra.Command{
 
 // RunUninstall executes the uninstall command.
 func RunUninstall(cmd *cobra.Command, args []string) error {
-	logrus.Debug("Running uninstall command")
+	log.Debug("Running uninstall command")
 
 	var versionArg string
 
@@ -55,7 +55,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 		versionArg = args[0]
 	}
 
-	logrus.Debugf("Requested version: %s", versionArg)
+	log.Debugf("Requested version: %s", versionArg)
 
 	// Check if the version to uninstall is currently active.
 	//
@@ -95,7 +95,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 	case errors.Is(err, os.ErrNotExist):
 		// No current symlink at all — target cannot be current.
 	default:
-		logrus.Warnf(
+		ui.Message.Warnf(
 			"Could not determine current version; requiring explicit confirmation: %v",
 			err,
 		)
@@ -128,12 +128,12 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 		if !confirmed {
 			ui.Message.Infof("Aborted uninstall.")
 
-			logrus.Debug("Uninstall canceled by user")
+			log.Debug("Uninstall canceled by user")
 
 			return nil
 		}
 
-		logrus.Debugf("User confirmed removal of current version %s", versionArg)
+		log.Debugf("User confirmed removal of current version %s", versionArg)
 	}
 
 	// Uninstall using service
@@ -147,7 +147,7 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to uninstall version %s: %w", versionArg, err)
 	}
 
-	logrus.Debugf("Uninstalled version: %s", versionArg)
+	log.Debugf("Uninstalled version: %s", versionArg)
 
 	ui.Message.Successf("Uninstalled version: %s", ui.Message.Accent(versionArg))
 
@@ -213,7 +213,7 @@ func promptSwitchAfterUninstall(cmd *cobra.Command) error {
 		items = append(items, ui.SelectItem{Label: v.Name()})
 	}
 
-	logrus.Debugf("Switchable installed Neovim versions: %d", len(items))
+	log.Debugf("Switchable installed Neovim versions: %d", len(items))
 
 	selected, err := ui.Picker.NewPicker(nil, nil).
 		Select("Switchable Installed Neovim Versions", items)

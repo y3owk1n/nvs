@@ -431,34 +431,46 @@ nvs hook fish | source
 
 ### `nvs env`
 
-Print environment configuration. Useful for debugging or manual setup.
+Print the current nvs environment configuration. Useful for debugging or manual setup.
 
 ```bash
-nvs env                     # Show current config
+nvs env                     # Show current config (table)
 nvs env --json              # JSON output
-nvs env --source            # Output for shell eval
+nvs env --source            # Output for shell eval (POSIX)
 nvs env --source --shell zsh  # Specify shell explicitly
 ```
 
-**Output example:**
+**Output example (text):**
 
 ```text
-   VARIABLE     VALUE
-----------------------------------
- NVS_CONFIG_DIR  /home/user/.config/nvs
- NVS_CACHE_DIR   /home/user/.cache/nvs
- NVS_BIN_DIR     /home/user/.local/bin
+      VARIABLE          VALUE
+----------------------------------------
+  NVS_CONFIG_DIR    /home/user/.config/nvs
+  NVS_CACHE_DIR     /home/user/.cache/nvs
+  NVS_BIN_DIR       /home/user/.local/local/bin
+  NVS_GITHUB_MIRROR (unset, using github.com)
+  NVS_USE_GLOBAL_CACHE false
+  NVS_LOG            warn
+  NVS_LOG_FILE      (unset, stderr only)
 ```
 
-**JSON output example:**
+**Output example (JSON):**
 
 ```json
 {
   "NVS_CONFIG_DIR": "/home/user/.config/nvs",
   "NVS_CACHE_DIR": "/home/user/.cache/nvs",
-  "NVS_BIN_DIR": "/home/user/.local/bin"
+  "NVS_BIN_DIR": "/home/user/.local/bin",
+  "NVS_GITHUB_MIRROR": "",
+  "NVS_USE_GLOBAL_CACHE": "false",
+  "NVS_LOG": "warn",
+  "NVS_LOG_FILE": ""
 }
 ```
+
+`--source` exports **only** the path variables (`NVS_CONFIG_DIR`, `NVS_CACHE_DIR`, `NVS_BIN_DIR`). The behavior and logging vars are user preferences that belong in your shell profile, not in `eval "$(nvs env --source)"`.
+
+See [Configuration: Environment Variables](CONFIGURATION.md#environment-variables) for the meaning of each variable.
 
 ---
 

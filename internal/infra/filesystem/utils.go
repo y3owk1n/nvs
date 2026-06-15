@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/sirupsen/logrus"
+	"github.com/y3owk1n/nvs/internal/log"
 )
 
 // CopyFile copies the content of the file from src to dst,
@@ -19,7 +19,7 @@ func CopyFile(src, dst string, mode os.FileMode) (err error) {
 	defer func() {
 		cerr := inputFile.Close()
 		if cerr != nil {
-			logrus.Warnf("Failed to close source file %s: %v", src, cerr)
+			log.Warnf("Failed to close source file %s: %v", src, cerr)
 		}
 	}()
 

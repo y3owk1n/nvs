@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/app/config"
 	"github.com/y3owk1n/nvs/internal/app/versionsvc"
@@ -23,10 +22,16 @@ import (
 	"github.com/y3owk1n/nvs/internal/infra/filesystem"
 	"github.com/y3owk1n/nvs/internal/infra/github"
 	"github.com/y3owk1n/nvs/internal/infra/installer"
+	"github.com/y3owk1n/nvs/internal/log"
+	"github.com/y3owk1n/nvs/internal/ui/style"
 )
 
 var (
-	// verbose controls the log level.
+	// verbose raises the developer log to debug level. It is a
+	// shortcut for NVS_LOG=debug; the env var wins when both
+	// are set, on the principle that the more specific signal
+	// (a named level) overrides the less specific one (a
+	// boolean toggle).
 	verbose bool
 
 	// ctx is the global context used by the CLI.
@@ -55,7 +60,8 @@ var (
 )
 
 func init() {
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false,
+		"Enable verbose logging (shortcut for NVS_LOG=debug)")
 }
 
 // Execute initializes the configuration, sets up global flags, and executes the root command.
@@ -101,12 +107,45 @@ var signalOnce sync.Once
 func InitConfig() error {
 	var err error
 
-	// Set logging level based on the verbose flag.
+	// Initialize the developer logger first so every step
+	// below can emit traces.
+	//
+	// Resolution order for the level:
+	//   1. NVS_LOG env var (named level, most specific)
+	//   2. -v flag      (boolean shortcut for debug)
+	//   3. default       (WarnLevel — silent in normal use)
+	//
+	// NVS_LOG_FILE, if set, tees all output to that file so
+	// the terminal UI (spinners, panels) is not polluted by
+	// debug traces even when the user wants them.
+	level := log.WarnLevel
 	if verbose {
-		logrus.SetLevel(logrus.DebugLevel)
-		logrus.Debug("Verbose mode enabled")
-	} else {
-		logrus.SetLevel(logrus.InfoLevel)
+		level = log.DebugLevel
+	}
+
+	if envLevel := os.Getenv("NVS_LOG"); envLevel != "" {
+		parsed, parseErr := log.ParseLevel(envLevel)
+		if parseErr != nil {
+			_, _ = fmt.Fprintf(os.Stderr,
+				"nvs: invalid NVS_LOG=%q, defaulting to warn: %v\n",
+				envLevel, parseErr,
+			)
+		} else {
+			level = parsed
+		}
+	}
+
+	logErr := log.Init(log.Options{
+		Level:    level,
+		FilePath: os.Getenv("NVS_LOG_FILE"),
+		NoColor:  !style.ColorEnabled(),
+	})
+	if logErr != nil {
+		return fmt.Errorf("initialize logger: %w", logErr)
+	}
+
+	if verbose {
+		log.Debug("verbose mode enabled")
 	}
 
 	// Set up a signal handler to cancel the global context on an interrupt signal.
@@ -119,10 +158,10 @@ func InitConfig() error {
 
 			_, err := fmt.Fprintln(os.Stdout)
 			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
+				log.Warn("failed to write to stdout on signal", "err", err)
 			}
 
-			logrus.Debug("Interrupt received, canceling operations...")
+			log.Debug("interrupt received, canceling operations")
 			signal.Stop(sigCh)
 			cancel()
 		}()
@@ -132,7 +171,7 @@ func InitConfig() error {
 	var baseConfigDir string
 	if custom := os.Getenv("NVS_CONFIG_DIR"); custom != "" {
 		baseConfigDir = custom
-		logrus.Debugf("Using custom config directory from NVS_CONFIG_DIR: %s", baseConfigDir)
+		log.Debug("using custom config directory", "dir", baseConfigDir, "source", "NVS_CONFIG_DIR")
 	} else {
 		var (
 			configDir string
@@ -142,7 +181,7 @@ func InitConfig() error {
 		configDir, configErr = os.UserConfigDir()
 		if configErr == nil {
 			baseConfigDir = filepath.Join(configDir, "nvs")
-			logrus.Debugf("Using system config directory: %s", baseConfigDir)
+			log.Debug("using system config directory", "dir", baseConfigDir)
 		} else {
 			home, homeErr := os.UserHomeDir()
 			if homeErr != nil {
@@ -150,7 +189,7 @@ func InitConfig() error {
 			}
 
 			baseConfigDir = filepath.Join(home, ".nvs")
-			logrus.Debugf("Falling back to home directory for config: %s", baseConfigDir)
+			log.Debug("falling back to home directory for config", "dir", baseConfigDir)
 		}
 	}
 
@@ -160,7 +199,7 @@ func InitConfig() error {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
-	logrus.Debugf("Config directory ensured: %s", baseConfigDir)
+	log.Debug("config directory ensured", "dir", baseConfigDir)
 
 	// Set the directory for installed versions.
 	versionsDir = filepath.Join(baseConfigDir, "versions")
@@ -170,13 +209,13 @@ func InitConfig() error {
 		return fmt.Errorf("failed to create versions directory: %w", err)
 	}
 
-	logrus.Debugf("Versions directory ensured: %s", versionsDir)
+	log.Debug("versions directory ensured", "dir", versionsDir)
 
 	// Determine the base cache directory.
 	var baseCacheDir string
 	if custom := os.Getenv("NVS_CACHE_DIR"); custom != "" {
 		baseCacheDir = custom
-		logrus.Debugf("Using custom cache directory from NVS_CACHE_DIR: %s", baseCacheDir)
+		log.Debug("using custom cache directory", "dir", baseCacheDir, "source", "NVS_CACHE_DIR")
 	} else {
 		var (
 			cacheDir string
@@ -186,10 +225,10 @@ func InitConfig() error {
 		cacheDir, cacheErr = os.UserCacheDir()
 		if cacheErr == nil {
 			baseCacheDir = filepath.Join(cacheDir, "nvs")
-			logrus.Debugf("Using system cache directory: %s", baseCacheDir)
+			log.Debug("using system cache directory", "dir", baseCacheDir)
 		} else {
 			baseCacheDir = filepath.Join(baseConfigDir, "cache")
-			logrus.Debugf("Falling back to config directory for cache: %s", baseCacheDir)
+			log.Debug("falling back to config directory for cache", "dir", baseCacheDir)
 		}
 	}
 	// Ensure the cache directory exists.
@@ -199,14 +238,14 @@ func InitConfig() error {
 	}
 
 	cacheFilePath = filepath.Join(baseCacheDir, "releases.json")
-	logrus.Debugf("Cache directory ensured: %s", baseCacheDir)
-	logrus.Debugf("Cache file path set: %s", cacheFilePath)
+	log.Debug("cache directory ensured", "dir", baseCacheDir)
+	log.Debug("cache file path set", "path", cacheFilePath)
 
 	// Determine the base binary directory.
 	var baseBinDir string
 	if custom := os.Getenv("NVS_BIN_DIR"); custom != "" {
 		baseBinDir = custom
-		logrus.Debugf("Using custom binary directory from NVS_BIN_DIR: %s", baseBinDir)
+		log.Debug("using custom binary directory", "dir", baseBinDir, "source", "NVS_BIN_DIR")
 	} else {
 		if runtime.GOOS == constants.WindowsOS {
 			home, homeErr := os.UserHomeDir()
@@ -215,7 +254,7 @@ func InitConfig() error {
 			}
 
 			baseBinDir = filepath.Join(home, "AppData", "Local", "Programs")
-			logrus.Debugf("Using Windows binary directory: %s", baseBinDir)
+			log.Debug("using Windows binary directory", "dir", baseBinDir)
 		} else {
 			home, homeErr := os.UserHomeDir()
 			if homeErr != nil {
@@ -223,7 +262,7 @@ func InitConfig() error {
 			}
 
 			baseBinDir = filepath.Join(home, ".local", "bin")
-			logrus.Debugf("Using default binary directory: %s", baseBinDir)
+			log.Debug("using default binary directory", "dir", baseBinDir)
 		}
 	}
 	// Ensure the binary directory exists.
@@ -233,7 +272,7 @@ func InitConfig() error {
 	}
 
 	globalBinDir = baseBinDir
-	logrus.Debugf("Global binary directory ensured: %s", globalBinDir)
+	log.Debug("global binary directory ensured", "dir", globalBinDir)
 
 	// Read GitHub mirror URL from environment
 	githubMirror := os.Getenv("NVS_GITHUB_MIRROR")
@@ -254,7 +293,7 @@ func InitConfig() error {
 		}
 
 		normalizedMirrorURL = strings.TrimRight(parsedURL.String(), "/")
-		logrus.Debugf("Using GitHub mirror: %s", normalizedMirrorURL)
+		log.Debug("using GitHub mirror", "url", normalizedMirrorURL)
 	}
 
 	// Read global cache setting from environment
@@ -262,7 +301,7 @@ func InitConfig() error {
 
 	useGlobalCache := strings.EqualFold(envValue, "true") || envValue == "1"
 	if useGlobalCache {
-		logrus.Debug("Global cache enabled")
+		log.Debug("global cache enabled")
 	}
 
 	// Initialize services
@@ -303,7 +342,7 @@ func InitConfig() error {
 
 	configService = config.New()
 
-	logrus.Debug("Services initialized")
+	log.Debug("services initialized")
 
 	return nil
 }

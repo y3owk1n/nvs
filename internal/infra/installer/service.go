@@ -10,13 +10,13 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/installer"
 	"github.com/y3owk1n/nvs/internal/infra/archive"
 	"github.com/y3owk1n/nvs/internal/infra/builder"
 	"github.com/y3owk1n/nvs/internal/infra/downloader"
 	"github.com/y3owk1n/nvs/internal/infra/filesystem"
+	"github.com/y3owk1n/nvs/internal/log"
 )
 
 // Service implements installer.Installer.
@@ -55,7 +55,7 @@ func (s *Service) InstallRelease(
 
 	_, err := os.Stat(versionFile)
 	if err == nil {
-		logrus.Debugf("Version %s already exists, skipping install", installName)
+		log.Debugf("Version %s already exists, skipping install", installName)
 
 		return nil
 	}
@@ -79,7 +79,7 @@ func (s *Service) InstallRelease(
 	defer func() {
 		unlockErr := lock.Unlock()
 		if unlockErr != nil {
-			logrus.Warnf("failed to unlock install lock for %s: %v", installName, unlockErr)
+			log.Warnf("failed to unlock install lock for %s: %v", installName, unlockErr)
 		}
 	}()
 
@@ -87,7 +87,7 @@ func (s *Service) InstallRelease(
 	// Check for version.txt to ensure installation was complete
 	_, err = os.Stat(versionFile)
 	if err == nil {
-		logrus.Debugf("Version %s was installed by another process", installName)
+		log.Debugf("Version %s was installed by another process", installName)
 
 		return nil
 	}
@@ -134,7 +134,7 @@ func (s *Service) BuildFromCommit(
 	defer func() {
 		unlockErr := lock.Unlock()
 		if unlockErr != nil {
-			logrus.Warnf("failed to unlock build lock for %s: %v", versionName, unlockErr)
+			log.Warnf("failed to unlock build lock for %s: %v", versionName, unlockErr)
 		}
 	}()
 
@@ -170,7 +170,7 @@ func (s *Service) UpgradeRelease(
 	defer func() {
 		unlockErr := lock.Unlock()
 		if unlockErr != nil {
-			logrus.Warnf("failed to unlock upgrade lock for %s: %v", installName, unlockErr)
+			log.Warnf("failed to unlock upgrade lock for %s: %v", installName, unlockErr)
 		}
 	}()
 
@@ -203,7 +203,7 @@ func (s *Service) upgradeReleaseInternal(
 			// Upgrade succeeded, remove backup
 			removeErr := os.RemoveAll(backupPath)
 			if removeErr != nil {
-				logrus.Errorf("Failed to remove backup after successful upgrade: %v", removeErr)
+				log.Errorf("Failed to remove backup after successful upgrade: %v", removeErr)
 			}
 		} else {
 			// Upgrade failed, restore backup
@@ -211,7 +211,7 @@ func (s *Service) upgradeReleaseInternal(
 
 			removeErr := os.RemoveAll(versionPath)
 			if removeErr != nil {
-				logrus.Errorf("Failed to clean partial install during rollback: %v", removeErr)
+				log.Errorf("Failed to clean partial install during rollback: %v", removeErr)
 				rollbackErr = fmt.Errorf("failed to clean partial install: %w", removeErr)
 			}
 
@@ -219,7 +219,7 @@ func (s *Service) upgradeReleaseInternal(
 			if removeErr == nil {
 				renameErr := os.Rename(backupPath, versionPath)
 				if renameErr != nil {
-					logrus.Errorf("Failed to restore backup during rollback: %v", renameErr)
+					log.Errorf("Failed to restore backup during rollback: %v", renameErr)
 					rollbackErr = fmt.Errorf("failed to restore backup: %w", renameErr)
 				}
 			}
@@ -343,7 +343,7 @@ func (s *Service) installReleaseInternal(
 		// Clean up the created directory on seek failure
 		cleanupErr := os.RemoveAll(installPath)
 		if cleanupErr != nil {
-			logrus.Warnf("Failed to clean up directory after seek failure: %v", cleanupErr)
+			log.Warnf("Failed to clean up directory after seek failure: %v", cleanupErr)
 		}
 
 		return fmt.Errorf("failed to seek temp file: %w", err)
@@ -358,7 +358,7 @@ func (s *Service) installReleaseInternal(
 		// Clean up partial installation directory on failure
 		cleanupErr := os.RemoveAll(installPath)
 		if cleanupErr != nil {
-			logrus.Warnf("Failed to clean up partial install directory: %v", cleanupErr)
+			log.Warnf("Failed to clean up partial install directory: %v", cleanupErr)
 		}
 
 		return fmt.Errorf("extraction failed: %w", err)
@@ -369,7 +369,7 @@ func (s *Service) installReleaseInternal(
 
 	err = os.WriteFile(versionFile, []byte(rel.GetIdentifier()), constants.FilePerm)
 	if err != nil {
-		logrus.Warnf("Failed to write version file: %v", err)
+		log.Warnf("Failed to write version file: %v", err)
 	}
 
 	if progress != nil {

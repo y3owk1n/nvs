@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/vtypes"
+	"github.com/y3owk1n/nvs/internal/log"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -88,7 +88,7 @@ func RunRun(cmd *cobra.Command, args []string) error {
 		versionAlias = args[0]
 	}
 
-	logrus.Debugf("Requested version to run: %s", versionAlias)
+	log.Debugf("Requested version to run: %s", versionAlias)
 
 	// Check if version is installed
 	if !GetVersionService().IsVersionInstalled(versionAlias) {
@@ -106,7 +106,7 @@ func RunRun(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to find nvim binary: %w", err)
 	}
 
-	logrus.Debugf("Found nvim binary at: %s", nvimPath)
+	log.Debugf("Found nvim binary at: %s", nvimPath)
 
 	// Get arguments to pass to nvim
 	var (
@@ -140,7 +140,7 @@ func RunRun(cmd *cobra.Command, args []string) error {
 	nvimCmd.Stdout = os.Stdout
 	nvimCmd.Stderr = os.Stderr
 
-	logrus.Debugf("Running: %s %v", nvimPath, nvimArgs)
+	log.Debugf("Running: %s %v", nvimPath, nvimArgs)
 
 	err = nvimCmd.Run()
 	if err != nil {
@@ -262,7 +262,7 @@ func findNvimBinary(dir string) string {
 		return nil
 	})
 	if walkErr != nil {
-		logrus.Debugf("Error walking directory %s: %v", dir, walkErr)
+		log.Debugf("Error walking directory %s: %v", dir, walkErr)
 	}
 
 	return found

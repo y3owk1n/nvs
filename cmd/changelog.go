@@ -11,9 +11,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/infra/httpclient"
+	"github.com/y3owk1n/nvs/internal/log"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -52,7 +52,7 @@ func shortHash(hash string, n int) string {
 // ShowChangelog displays the commits between two versions.
 func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 	if oldCommit == "" || newCommit == "" {
-		logrus.Debug("Cannot show changelog: missing commit hash")
+		log.Debug("Cannot show changelog: missing commit hash")
 
 		return nil
 	}
@@ -71,7 +71,7 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 		return nil
 	}
 
-	logrus.Debugf(
+	log.Debugf(
 		"Fetching changelog from %s to %s",
 		shortHash(oldCommit, constants.ShortHashLength),
 		shortHash(newCommit, constants.ShortHashLength),
@@ -79,7 +79,7 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 
 	// Fetch comparison from GitHub API
 	// Note: GitHub API has rate limits (60 requests/hour for unauthenticated)
-	logrus.Debug("Fetching changelog from GitHub API (subject to rate limits)")
+	log.Debug("Fetching changelog from GitHub API (subject to rate limits)")
 
 	url := fmt.Sprintf(
 		"%s/%s...%s",
@@ -100,7 +100,7 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		logrus.Warnf("Failed to fetch changelog: %v", err)
+		ui.Message.Warnf("Failed to fetch changelog: %v", err)
 
 		return nil // Don't fail upgrade just because changelog fetch failed
 	}
@@ -108,12 +108,12 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 	defer func() {
 		closeErr := resp.Body.Close()
 		if closeErr != nil {
-			logrus.Warnf("Failed to close response body: %v", closeErr)
+			log.Warnf("Failed to close response body: %v", closeErr)
 		}
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		logrus.Debugf("GitHub API returned status %d", resp.StatusCode)
+		log.Debugf("GitHub API returned status %d", resp.StatusCode)
 
 		return nil
 	}
@@ -129,7 +129,7 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 
 	err = dec.Decode(&compareResp)
 	if err != nil {
-		logrus.Warnf("Failed to parse changelog: %v", err)
+		ui.Message.Warnf("Failed to parse changelog: %v", err)
 
 		return nil
 	}

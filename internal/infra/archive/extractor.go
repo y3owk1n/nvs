@@ -14,8 +14,8 @@ import (
 	"strings"
 
 	"github.com/h2non/filetype"
-	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/log"
 )
 
 // Extractor handles archive extraction operations.
@@ -48,14 +48,14 @@ func New() *Extractor {
 // streaming pre-pass; for zip archives, the count is taken
 // from the central directory (no pre-pass needed).
 func (e *Extractor) Extract(src *os.File, dest string, progress ProgressFunc) error {
-	logrus.Debugf("Starting extraction to: %s", dest)
+	log.Debugf("Starting extraction to: %s", dest)
 	// Detect archive format
 	format, err := detectFormat(src)
 	if err != nil {
 		return fmt.Errorf("archive detection failed: %w", err)
 	}
 
-	logrus.Debugf("Detected archive format: %s", format)
+	log.Debugf("Detected archive format: %s", format)
 
 	// Extract based on format
 	switch format {
@@ -257,7 +257,7 @@ func (e *Extractor) extractTarGz(
 			// progress callback is intentionally NOT invoked
 			// — including the entry in the count would
 			// under-report actual on-disk progress.
-			logrus.Debugf("Skipping unsupported entry type %d: %s", header.Typeflag, header.Name)
+			log.Debugf("Skipping unsupported entry type %d: %s", header.Typeflag, header.Name)
 		}
 
 		// Report progress for every regular file written.
@@ -384,7 +384,7 @@ func (e *Extractor) extractZip(src *os.File, dest string, progress ProgressFunc)
 	for idx, fileEntry := range zipReader.File {
 		// Skip symlinks to prevent symlink attacks
 		if fileEntry.FileInfo().Mode()&os.ModeSymlink != 0 {
-			logrus.Debugf("Skipping symlink entry: %s", fileEntry.Name)
+			log.Debugf("Skipping symlink entry: %s", fileEntry.Name)
 
 			continue
 		}
