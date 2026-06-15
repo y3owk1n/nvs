@@ -241,6 +241,63 @@ func (p *Printer) Detail(text string) string {
 	return p.types.Muted.Render("    "+text) + "\n"
 }
 
+// Success returns text in the success color. It is the
+// cell-content counterpart of Successf (no icon, no I/O).
+// Use it to color a cell that is semantically "positive
+// state" — e.g. an "Installed" status in a list table.
+//
+//	ui.Message.Success("Installed")
+func (p *Printer) Success(text string) string {
+	return lipgloss.NewStyle().Foreground(p.palette.Success).Render(text)
+}
+
+// Warn returns text in the warning color. It is the
+// cell-content counterpart of Warnf (no icon, no I/O).
+//
+//	ui.Message.Warn("Installed (upgrade)")
+func (p *Printer) Warn(text string) string {
+	return lipgloss.NewStyle().Foreground(p.palette.Warning).Render(text)
+}
+
+// Error returns text in the error color. It is the
+// cell-content counterpart of Errorf (no icon, no I/O).
+//
+//	ui.Message.Error("Not installed")
+func (p *Printer) Error(text string) string {
+	return lipgloss.NewStyle().Foreground(p.palette.Error).Render(text)
+}
+
+// Accent returns text in the accent color (cyan-ish in both
+// light and dark backgrounds). It is the right choice for
+// inline technical details — paths, commit hashes, URLs.
+//
+//	ui.Message.Accent("/Users/you/.local/bin")
+func (p *Printer) Accent(text string) string {
+	return lipgloss.NewStyle().Foreground(p.palette.Accent).Render(text)
+}
+
+// Text returns text in the default body color. It is the
+// cell-content counterpart of the default terminal color;
+// use it when a table cell needs to be explicitly in the
+// body color rather than the terminal default (e.g. so the
+// color survives a non-TTY / monochrome pipe).
+//
+//	ui.Message.Text("v0.10.4")
+func (p *Printer) Text(text string) string {
+	return lipgloss.NewStyle().Foreground(p.palette.Text).Render(text)
+}
+
+// Muted returns text in the muted color. It is the
+// cell-content counterpart of Mutedf (no I/O, no leading
+// indent). Use it to dim a cell that is semantically
+// secondary — e.g. commit hashes, publish dates, the
+// "Details" column of a remote-versions list.
+//
+//	ui.Message.Muted("Published: 2024-05-01, Commit: abc1234")
+func (p *Printer) Muted(text string) string {
+	return p.types.Muted.Render(text)
+}
+
 // styledIconLine returns the bold + colored icon followed by a
 // single space. Centralizing the rule here keeps SuccessRow /
 // WarnRow / ErrorRow visually identical and lets future tweaks

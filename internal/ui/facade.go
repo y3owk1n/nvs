@@ -25,6 +25,7 @@ import (
 	"github.com/y3owk1n/nvs/internal/ui/panel"
 	"github.com/y3owk1n/nvs/internal/ui/picker"
 	"github.com/y3owk1n/nvs/internal/ui/style"
+	uitable "github.com/y3owk1n/nvs/internal/ui/table"
 )
 
 // Message is the canonical printer for one-line human-readable
@@ -50,6 +51,11 @@ var Style = styleAPI{}
 // NewPicker(stdin, stdout) to construct one; it auto-detects
 // whether the input is a TTY.
 var Picker = pickerAPI{}
+
+// Table exposes the data-table primitive. Use Table.New(headers...)
+// to construct one, chain Row(...) / Current(idx) / Width(w)
+// / Wrap(b) calls, and finish with Render().
+var Table = tableAPI{}
 
 // bannerAPI is the public façade for the banner package. It
 // is a struct rather than a few free functions so future
@@ -122,4 +128,23 @@ func (pickerAPI) NewPicker(input io.Reader, output io.Writer) *picker.Picker {
 	}
 
 	return picker.New(input, output, hasTTY)
+}
+
+// tableAPI is the public façade for the table package. It
+// is a struct rather than a free function so future
+// table-wide configuration (e.g. a default width or theme
+// override) can be added without breaking call sites.
+type tableAPI struct{}
+
+// New returns a new ui/table.Table with the given column
+// headers. The caller chains Row(...) / Current(idx) /
+// Width(w) / Wrap(b) on the returned table and finishes
+// with Render().
+//
+//	ui.Table.New("VERSION", "STATUS").
+//	    Row("v0.10.0", "Installed").
+//	    Current(0).
+//	    Render(ui.Style.Palette())
+func (tableAPI) New(headers ...string) *uitable.Table {
+	return uitable.New(headers...)
 }
