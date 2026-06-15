@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/app/versionsvc"
@@ -47,237 +46,273 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 	defer cancel()
 
 	// Determine which aliases (versions) to upgrade.
-	var aliases []string
-
-	// Check if --pick flag is set
-	pick, _ := cmd.Flags().GetBool("pick")
-	if pick {
-		// Show picker for installed stable/nightly versions
-		availableVersions := []string{}
-		if GetVersionService().IsVersionInstalled(constants.Stable) {
-			availableVersions = append(availableVersions, constants.Stable)
-		}
-
-		if GetVersionService().IsVersionInstalled(constants.Nightly) {
-			availableVersions = append(availableVersions, constants.Nightly)
-		}
-
-		if len(availableVersions) == 0 {
-			return fmt.Errorf("%w for upgrade", ErrNoVersionsAvailable)
-		}
-
-		if len(availableVersions) == 1 {
-			// Only one available, use it directly
-			aliases = availableVersions
-		} else {
-			// Multiple available, let user pick
-			prompt := promptui.Select{
-				Label: "Select versions to upgrade",
-				Items: availableVersions,
-			}
-
-			_, selectedVersion, err := prompt.Run()
-			if err != nil {
-				if errors.Is(err, promptui.ErrInterrupt) {
-					_, printErr := fmt.Fprintf(
-						os.Stdout,
-						"%s %s\n",
-						ui.WarningIcon(),
-						ui.WhiteText("Selection canceled."),
-					)
-					if printErr != nil {
-						logrus.Warnf("Failed to write to stdout: %v", printErr)
-					}
-
-					return nil
-				}
-
-				return fmt.Errorf("prompt failed: %w", err)
-			}
-
-			aliases = []string{selectedVersion}
-		}
-	} else {
-		// If no argument is given, upgrade both stable and "nightly".
-		if len(args) == 0 {
-			aliases = []string{constants.Stable, constants.Nightly}
-		} else {
-			if args[0] != constants.Stable && args[0] != constants.Nightly {
-				return ErrInvalidUpgradeTarget
-			}
-
-			aliases = []string{args[0]}
-		}
+	aliases, err := resolveUpgradeAliases(cmd, args)
+	if err != nil {
+		return err
 	}
 
 	// Process each alias (version) for upgrade.
 	for _, alias := range aliases {
 		logrus.Debugf("Processing alias: %s", alias)
 
-		// For nightly, get current commit hash before upgrade (for changelog and rollback)
-		var (
-			oldCommitHash string
-			backupDir     string
-			backupCreated bool
-		)
-
-		if alias == constants.Nightly {
-			var identifierErr error
-
-			oldCommitHash, identifierErr = GetVersionService().GetInstalledVersionIdentifier(constants.Nightly)
-			if identifierErr != nil {
-				// Don't silently lose rollback safety: warn loudly so
-				// the user knows the upgrade will proceed without a
-				// backup.
-				logrus.Warnf(
-					"Could not read current nightly identifier; rollback backup will be skipped: %v",
-					identifierErr,
-				)
-			}
-
-			logrus.Debugf("Current nightly commit: %s", oldCommitHash)
-
-			// Backup current nightly for rollback support
-			if oldCommitHash != "" {
-				nightlyDir := filepath.Join(GetVersionsDir(), constants.Nightly)
-				backupDir = filepath.Join(
-					GetVersionsDir(),
-					"nightly-"+shortHash(oldCommitHash, constants.ShortHashLength),
-				)
-
-				// Atomically claim the backup slot. The previous
-				// implementation did Stat + copyDir, which raced
-				// when two nvs processes upgraded nightly at the
-				// same time: both would observe the backup dir
-				// missing and both would walk the copy, with
-				// partially-overlapping writes producing a
-				// corrupted backup.
-				//
-				// MkdirAll + a sentinel file opened with
-				// O_CREATE|O_EXCL gives us a single, race-free
-				// "did we win the claim?" decision. The winning
-				// process performs the copy; losers treat the
-				// backup as already done and skip the copy.
-				//
-				// The copy itself runs under the same per-version
-				// lock that the installer uses, so a concurrent
-				// use/uninstall/reinstall of nightly cannot mutate
-				// nightlyDir mid-walk.
-				backupErr := backupNightlyUnderLock(
-					nightlyDir,
-					backupDir,
-				)
-				if backupErr != nil {
-					logrus.Warnf(
-						"Failed to backup nightly for rollback: %v",
-						backupErr,
-					)
-				} else {
-					logrus.Debugf("Backed up nightly to %s", backupDir)
-
-					backupCreated = true
-				}
-			}
+		upgradeErr := runOneUpgrade(ctx, alias)
+		if upgradeErr != nil {
+			return upgradeErr
 		}
-
-		// Run the upgrade inside a closure so that a
-		// `defer progressSpinner.Stop()` is scoped to this
-		// iteration only. This ensures the spinner is always
-		// stopped, even on panic, before the loop continues to
-		// the next alias.
-		err := func() error {
-			progressSpinner := ui.NewSpinner(
-				os.Stdout,
-				constants.SpinnerSpeed*time.Millisecond,
-			)
-			progressSpinner.SetPrefix(ui.InfoIcon() + " ")
-			progressSpinner.SetSuffix(" Checking for updates...")
-			progressSpinner.Start()
-
-			defer progressSpinner.Stop()
-
-			return GetVersionService().Upgrade(ctx, alias, func(phase string, progress int) {
-				progressSpinner.SetSuffix(" " + ui.FormatPhaseProgress(phase, progress))
-			})
-		}()
-		if err != nil {
-			if errors.Is(err, versionsvc.ErrNotInstalled) {
-				logrus.Debugf("'%s' is not installed. Skipping upgrade.", alias)
-
-				_, printErr := fmt.Fprintf(os.Stdout,
-					"%s %s %s\n",
-					ui.WarningIcon(),
-					ui.CyanText(alias),
-					ui.WhiteText("is not installed. Skipping upgrade."),
-				)
-				if printErr != nil {
-					logrus.Warnf("Failed to write to stdout: %v", printErr)
-				}
-
-				continue
-			}
-
-			if errors.Is(err, versionsvc.ErrAlreadyUpToDate) {
-				logrus.Debugf("%s is already up-to-date", alias)
-
-				_, printErr := fmt.Fprintf(os.Stdout,
-					"%s %s %s\n",
-					ui.WarningIcon(),
-					ui.CyanText(alias),
-					ui.WhiteText("is already up-to-date"),
-				)
-				if printErr != nil {
-					logrus.Warnf("Failed to write to stdout: %v", printErr)
-				}
-
-				continue
-			}
-
-			// Clean up backup on failure
-			if backupCreated {
-				removeErr := os.RemoveAll(backupDir)
-				if removeErr != nil {
-					logrus.Warnf("Failed to clean up backup on upgrade failure: %v", removeErr)
-				}
-			}
-
-			logrus.Errorf("Upgrade failed for %s: %v", alias, err)
-
-			return fmt.Errorf("upgrade failed for %s: %w", alias, err)
-		}
-
-		// For nightly upgrades, add OLD version to history for rollback support
-		if alias == constants.Nightly && oldCommitHash != "" {
-			// Add the old commit (the one we backed up) to history
-			histErr := AddNightlyToHistory(oldCommitHash, constants.Nightly)
-			if histErr != nil {
-				logrus.Warnf("Failed to add nightly to history: %v", histErr)
-			}
-		}
-
-		// Inform the user that the upgrade succeeded.
-		_, printErr := fmt.Fprintf(os.Stdout,
-			"%s %s %s\n",
-			ui.SuccessIcon(),
-			ui.CyanText(alias),
-			ui.WhiteText("upgraded successfully!"),
-		)
-		if printErr != nil {
-			logrus.Warnf("Failed to write to stdout: %v", printErr)
-		}
-
-		// For nightly, show changelog
-		if alias == constants.Nightly && oldCommitHash != "" {
-			nightlyRelease, findErr := GetVersionService().FindNightly(ctx)
-			if findErr == nil && nightlyRelease.CommitHash() != oldCommitHash {
-				_ = ShowChangelog(ctx, oldCommitHash, nightlyRelease.CommitHash())
-			}
-		}
-
-		logrus.Debugf("%s upgraded successfully", alias)
 	}
 
 	return nil
+}
+
+// resolveUpgradeAliases implements the argument + --pick
+// parsing for upgrade. It returns the list of alias names
+// to upgrade in the order they should be processed, or an
+// error if the input is invalid.
+func resolveUpgradeAliases(cmd *cobra.Command, args []string) ([]string, error) {
+	pick, _ := cmd.Flags().GetBool("pick")
+	if pick {
+		return pickUpgradeAliases()
+	}
+
+	// If no argument is given, upgrade both stable and "nightly".
+	if len(args) == 0 {
+		return []string{constants.Stable, constants.Nightly}, nil
+	}
+
+	if args[0] != constants.Stable && args[0] != constants.Nightly {
+		return nil, ErrInvalidUpgradeTarget
+	}
+
+	return []string{args[0]}, nil
+}
+
+// stableNightlyAliasCount is the number of alias slots
+// the upgrade --pick picker considers. Both stable and
+// nightly are valid upgrade targets; nothing else is
+// (the upgrade command does not accept arbitrary tags).
+const stableNightlyAliasCount = 2
+
+// pickUpgradeAliases shows the interactive picker for the
+// installed stable / nightly aliases. If only one of the
+// two is installed, it is used directly; if both are
+// installed, the user picks one.
+func pickUpgradeAliases() ([]string, error) {
+	available := make([]string, 0, stableNightlyAliasCount)
+
+	if GetVersionService().IsVersionInstalled(constants.Stable) {
+		available = append(available, constants.Stable)
+	}
+
+	if GetVersionService().IsVersionInstalled(constants.Nightly) {
+		available = append(available, constants.Nightly)
+	}
+
+	if len(available) == 0 {
+		return nil, fmt.Errorf("%w for upgrade", ErrNoVersionsAvailable)
+	}
+
+	if len(available) == 1 {
+		return available, nil
+	}
+
+	items := make([]ui.SelectItem, 0, len(available))
+	for _, alias := range available {
+		items = append(items, ui.SelectItem{Label: alias})
+	}
+
+	selected, err := ui.Picker.NewPicker(nil, nil).Select("Select version to upgrade", items)
+	if err != nil {
+		if errors.Is(err, ui.Picker.ErrCanceled()) {
+			ui.Message.Warnf("Selection canceled.")
+
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("prompt failed: %w", err)
+	}
+
+	return []string{selected}, nil
+}
+
+// runOneUpgrade performs the upgrade of a single alias:
+// the optional pre-upgrade backup of nightly, the spinner-
+// driven install, the post-upgrade history entry, and the
+// per-alias success message.
+//
+// On a non-fatal error (alias not installed, already
+// up-to-date) it returns nil so the caller can continue
+// with the next alias. On any other error it returns the
+// wrapped error so the caller can short-circuit and the
+// caller can clean up the backup.
+func runOneUpgrade(ctx context.Context, alias string) error {
+	// For nightly, get current commit hash before upgrade (for changelog and rollback)
+	var (
+		oldCommitHash string
+		backupDir     string
+		backupCreated bool
+	)
+
+	if alias == constants.Nightly {
+		oldCommitHash = prepareNightlyBackup(&backupDir, &backupCreated)
+	}
+
+	// Run the upgrade inside a closure so that a
+	// `defer progressSpinner.Stop()` is scoped to this
+	// iteration only. This ensures the spinner is always
+	// stopped, even on panic, before the loop continues to
+	// the next alias.
+	err := func() error {
+		progressSpinner := ui.NewSpinner(
+			os.Stdout,
+			constants.SpinnerSpeed*time.Millisecond,
+		)
+		progressSpinner.SetPrefix(ui.Message.Icons().Info + " ")
+		progressSpinner.SetSuffix(" Checking for updates...")
+		progressSpinner.Start()
+
+		defer progressSpinner.Stop()
+
+		return GetVersionService().Upgrade(ctx, alias, func(phase string, progress int) {
+			progressSpinner.SetSuffix(" " + ui.FormatPhaseProgress(phase, progress))
+		})
+	}()
+	if err != nil {
+		if errors.Is(err, versionsvc.ErrNotInstalled) {
+			logrus.Debugf("'%s' is not installed. Skipping upgrade.", alias)
+
+			ui.Message.Warnf("%s is not installed. Skipping upgrade.", ui.Message.Accent(alias))
+
+			return nil
+		}
+
+		if errors.Is(err, versionsvc.ErrAlreadyUpToDate) {
+			logrus.Debugf("%s is already up-to-date", alias)
+
+			ui.Message.Warnf("%s is already up-to-date", ui.Message.Accent(alias))
+
+			return nil
+		}
+
+		// Clean up backup on failure
+		if backupCreated {
+			removeErr := os.RemoveAll(backupDir)
+			if removeErr != nil {
+				logrus.Warnf("Failed to clean up backup on upgrade failure: %v", removeErr)
+			}
+		}
+
+		logrus.Errorf("Upgrade failed for %s: %v", alias, err)
+
+		return fmt.Errorf("upgrade failed for %s: %w", alias, err)
+	}
+
+	// For nightly upgrades, add OLD version to history for rollback support
+	if alias == constants.Nightly && oldCommitHash != "" {
+		// Add the old commit (the one we backed up) to history
+		histErr := AddNightlyToHistory(oldCommitHash, constants.Nightly)
+		if histErr != nil {
+			logrus.Warnf("Failed to add nightly to history: %v", histErr)
+		}
+	}
+
+	// Inform the user that the upgrade succeeded.
+	ui.Message.Successf("%s upgraded successfully!", ui.Message.Accent(alias))
+
+	// For nightly, show changelog
+	if alias == constants.Nightly && oldCommitHash != "" {
+		showUpgradeChangelog(ctx, oldCommitHash)
+	}
+
+	logrus.Debugf("%s upgraded successfully", alias)
+
+	return nil
+}
+
+// prepareNightlyBackup reads the current nightly commit
+// hash and creates a rollback backup of the nightly
+// directory under the per-version lock. It returns the old
+// commit hash (or "" if it could not be read) and stores
+// the backup directory + a "did we actually create the
+// backup?" flag via the out parameters so the caller can
+// roll the backup back on a failed upgrade.
+//
+// The function is split out of runOneUpgrade so the
+// upgrade-loop body stays readable: the lock + sentinel
+// dance is its own concern.
+func prepareNightlyBackup(backupDir *string, backupCreated *bool) string {
+	oldCommitHash, identifierErr := GetVersionService().GetInstalledVersionIdentifier(constants.Nightly)
+	if identifierErr != nil {
+		// Don't silently lose rollback safety: warn loudly so
+		// the user knows the upgrade will proceed without a
+		// backup.
+		logrus.Warnf(
+			"Could not read current nightly identifier; rollback backup will be skipped: %v",
+			identifierErr,
+		)
+
+		return ""
+	}
+
+	logrus.Debugf("Current nightly commit: %s", oldCommitHash)
+
+	// Backup current nightly for rollback support
+	if oldCommitHash == "" {
+		return ""
+	}
+
+	nightlyDir := filepath.Join(GetVersionsDir(), constants.Nightly)
+	*backupDir = filepath.Join(
+		GetVersionsDir(),
+		"nightly-"+shortHash(oldCommitHash, constants.ShortHashLength),
+	)
+
+	// Atomically claim the backup slot. The previous
+	// implementation did Stat + copyDir, which raced
+	// when two nvs processes upgraded nightly at the
+	// same time: both would observe the backup dir
+	// missing and both would walk the copy, with
+	// partially-overlapping writes producing a
+	// corrupted backup.
+	//
+	// MkdirAll + a sentinel file opened with
+	// O_CREATE|O_EXCL gives us a single, race-free
+	// "did we win the claim?" decision. The winning
+	// process performs the copy; losers treat the
+	// backup as already done and skip the copy.
+	//
+	// The copy itself runs under the same per-version
+	// lock that the installer uses, so a concurrent
+	// use/uninstall/reinstall of nightly cannot mutate
+	// nightlyDir mid-walk.
+	backupErr := backupNightlyUnderLock(
+		nightlyDir,
+		*backupDir,
+	)
+	if backupErr != nil {
+		logrus.Warnf(
+			"Failed to backup nightly for rollback: %v",
+			backupErr,
+		)
+	} else {
+		logrus.Debugf("Backed up nightly to %s", *backupDir)
+
+		*backupCreated = true
+	}
+
+	return oldCommitHash
+}
+
+// showUpgradeChangelog looks up the current nightly
+// release and, if the commit hash differs from the old
+// one, shows the changelog between them. The function
+// swallows any error: a failed changelog lookup must not
+// fail the upgrade itself, since the upgrade is the
+// primary action the user asked for.
+func showUpgradeChangelog(ctx context.Context, oldCommitHash string) {
+	nightlyRelease, findErr := GetVersionService().FindNightly(ctx)
+	if findErr == nil && nightlyRelease.CommitHash() != oldCommitHash {
+		_ = ShowChangelog(ctx, oldCommitHash, nightlyRelease.CommitHash())
+	}
 }
 
 // init registers the upgradeCmd with the root command.
