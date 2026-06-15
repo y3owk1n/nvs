@@ -1,15 +1,12 @@
 package cmd
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
-	"github.com/manifoldco/promptui"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
@@ -61,33 +58,21 @@ func RunUse(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("%w for selection", ErrNoVersionsAvailable)
 		}
 
-		availableVersions := make([]string, 0, len(versions))
+		promptItems := make([]ui.SelectItem, 0, len(versions))
 		for _, v := range versions {
-			availableVersions = append(availableVersions, v.Name())
+			promptItems = append(promptItems, ui.SelectItem{Label: v.Name()})
 		}
 
-		prompt := promptui.Select{
-			Label: "Select version to use",
-			Items: availableVersions,
-		}
-
-		_, selectedVersion, err := prompt.Run()
+		selectedVersion, err := ui.Picker.NewPicker(os.Stdin, os.Stdout).
+			Select("Select version to use", promptItems)
 		if err != nil {
-			if errors.Is(err, promptui.ErrInterrupt) {
-				_, printErr := fmt.Fprintf(
-					os.Stdout,
-					"%s %s\n",
-					ui.WarningIcon(),
-					ui.WhiteText("Selection canceled."),
-				)
-				if printErr != nil {
-					logrus.Warnf("Failed to write to stdout: %v", printErr)
-				}
+			if errors.Is(err, ui.Picker.ErrCanceled()) {
+				ui.Message.Warnf("Selection canceled.")
 
 				return nil
 			}
 
-			return fmt.Errorf("prompt failed: %w", err)
+			return fmt.Errorf("picker: %w", err)
 		}
 
 		alias = selectedVersion
@@ -109,15 +94,10 @@ func RunUse(cmd *cobra.Command, args []string) error {
 			alias = pinnedVersion
 			logrus.Debugf("Using version %s from %s", alias, versionFile)
 
-			_, printErr := fmt.Fprintf(
-				os.Stdout,
-				"%s Using version from %s\n",
-				ui.InfoIcon(),
-				versionFile,
+			ui.Message.Infof(
+				"Using version from %s",
+				ui.Message.Accent(versionFile),
 			)
-			if printErr != nil {
-				logrus.Warnf("Failed to write to stdout: %v", printErr)
-			}
 		}
 	}
 
@@ -130,35 +110,26 @@ func RunUse(cmd *cobra.Command, args []string) error {
 		if running {
 			logrus.Debugf("Detected %d running Neovim instance(s)", count)
 
-			_, printErr := fmt.Fprintf(
-				os.Stdout,
-				"%s Neovim is currently running (%d instance(s)). Switching versions may cause issues.\n",
-				ui.WarningIcon(),
+			ui.Message.Warnf(
+				"Neovim is currently running (%d instance(s)). Switching versions may cause issues.",
 				count,
 			)
-			if printErr != nil {
-				logrus.Warnf("Failed to write to stdout: %v", printErr)
+
+			// Use ConfirmScriptable for the same reason the
+			// destructive prompts in reset/uninstall/path
+			// do: TTY users get a huh Yes/No form, pipe
+			// users get the scriptable "[y/N]:" fallback,
+			// and there is no need to keep a hand-rolled
+			// bufio.Reader path just for the non-TTY case.
+			confirmed, err := ui.Picker.ConfirmScriptable(
+				"Do you want to continue?",
+			)
+			if err != nil {
+				return fmt.Errorf("failed to read confirmation: %w", err)
 			}
 
-			// Prompt for confirmation
-			_, printErr = fmt.Fprint(os.Stdout, "Do you want to continue? [y/N]: ")
-			if printErr != nil {
-				logrus.Warnf("Failed to write to stdout: %v", printErr)
-			}
-
-			reader := bufio.NewReader(os.Stdin)
-
-			response, readErr := reader.ReadString('\n')
-			if readErr != nil {
-				return fmt.Errorf("failed to read response: %w", readErr)
-			}
-
-			response = strings.TrimSpace(strings.ToLower(response))
-			if response != "y" && response != "yes" {
-				_, printErr = fmt.Fprintf(os.Stdout, "%s Operation canceled.\n", ui.InfoIcon())
-				if printErr != nil {
-					logrus.Warnf("Failed to write to stdout: %v", printErr)
-				}
+			if !confirmed {
+				ui.Message.Infof("Operation canceled.")
 
 				return nil
 			}
@@ -191,15 +162,7 @@ func RunUse(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	_, err = fmt.Fprintf(
-		os.Stdout,
-		"%s %s\n",
-		ui.SuccessIcon(),
-		ui.WhiteText("Switched to "+resolvedVersion),
-	)
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
+	ui.Message.Successf("Switched to %s", ui.Message.Accent(resolvedVersion))
 
 	return nil
 }
