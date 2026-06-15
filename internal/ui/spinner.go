@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/term"
+	"github.com/charmbracelet/x/term"
 )
 
 // defaultSpinnerSpeed is the animation tick used when the caller
@@ -82,7 +82,7 @@ func NewSpinner(writer io.Writer, speed time.Duration) *Spinner {
 	}
 
 	if file, ok := writer.(*os.File); ok {
-		spinner.isTerminal = term.IsTerminal(int(file.Fd()))
+		spinner.isTerminal = term.IsTerminal(file.Fd())
 	}
 
 	return spinner

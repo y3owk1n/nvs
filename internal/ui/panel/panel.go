@@ -18,8 +18,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/term"
 	"github.com/y3owk1n/nvs/internal/ui/style"
-	"golang.org/x/term"
 )
 
 // DefaultMaxWidth caps panel width to keep multi-line output
@@ -113,7 +113,7 @@ func Section(palette style.Palette, title, content string) string {
 // returns DefaultMaxWidth so the panel still renders
 // correctly.
 func computeWidth() int {
-	width, _, err := term.GetSize(int(os.Stdout.Fd()))
+	width, _, err := term.GetSize(os.Stdout.Fd())
 	if err != nil || width <= 0 {
 		return DefaultMaxWidth
 	}

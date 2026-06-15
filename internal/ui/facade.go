@@ -19,12 +19,12 @@ import (
 	"io"
 	"os"
 
+	"github.com/charmbracelet/x/term"
 	"github.com/y3owk1n/nvs/internal/ui/banner"
 	"github.com/y3owk1n/nvs/internal/ui/message"
 	"github.com/y3owk1n/nvs/internal/ui/panel"
 	"github.com/y3owk1n/nvs/internal/ui/picker"
 	"github.com/y3owk1n/nvs/internal/ui/style"
-	"golang.org/x/term"
 )
 
 // Message is the canonical printer for one-line human-readable
@@ -118,7 +118,7 @@ func (pickerAPI) NewPicker(input io.Reader, output io.Writer) *picker.Picker {
 	hasTTY := false
 
 	if f, ok := input.(*os.File); ok {
-		hasTTY = term.IsTerminal(int(f.Fd()))
+		hasTTY = term.IsTerminal(f.Fd())
 	}
 
 	return picker.New(input, output, hasTTY)
