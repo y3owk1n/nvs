@@ -38,7 +38,7 @@ try {
 
     # Set download URLs based on architecture
     $repo = "y3owk1n/nvs"
-    $version = "1.13.2"
+    $version = "1.14.0"
     $binaryName = "nvs.exe"
     $installDir = "$env:LOCALAPPDATA\Programs\nvs"
     $installPath = "$installDir\$binaryName"
