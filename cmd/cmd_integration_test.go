@@ -1356,6 +1356,89 @@ func TestRunRollback_NoHistory(t *testing.T) {
 	t.Logf("RunRollback with no history result: %v", err)
 }
 
+// TestRunRollback_WithHistory exercises the table-rendering
+// path of RunRollback (no args). It seeds a fake nightly
+// history file and a matching set of nightly directories,
+// then calls RunRollback. The test asserts that the
+// rendering path returns no error — a regression here would
+// mean the migration to ui.Table broke the wiring inside
+// RunRollback. The visual format of the rendered table is
+// covered by the unit tests for internal/ui/table, so this
+// integration test only needs to assert the path runs.
+//
+// We deliberately do NOT try to capture stdout: ui.Message
+// caches its writer at package init, so a mid-test
+// os.Stdout swap does not redirect its output. The
+// rendering either succeeds or panics, which is exactly the
+// contract the migration is supposed to preserve.
+func TestRunRollback_WithHistory(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("NVS_CONFIG_DIR", tempDir)
+	t.Setenv("NVS_CACHE_DIR", tempDir)
+	t.Setenv("NVS_BIN_DIR", tempDir)
+
+	initErr := cmd.InitConfig()
+	if initErr != nil {
+		t.Fatal(initErr)
+	}
+
+	// Seed the versions directory and a history file. The
+	// commit short hash that the UI displays is the leading
+	// 7 hex chars of the full hash (constants.ShortHashLength).
+	versionsDir := cmd.GetVersionsDir()
+
+	currentCommit := "deadbeef1234567"
+	currentShort := currentCommit[:7] // "deadbee"
+
+	olderCommit := "cafef00d7654321"
+	olderShort := olderCommit[:7] // "cafef00"
+
+	oldestCommit := "abcdef0123456789"
+	oldestShort := oldestCommit[:7] // "abcdef0"
+
+	for _, short := range []string{currentShort, olderShort, oldestShort} {
+		err := os.MkdirAll(versionsDir+"/nightly-"+short, 0o755)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Make one of the nightlies the "current" symlink, matching
+	// the middle commit so the highlight path is exercised.
+	err := os.Symlink("nightly-"+currentShort, versionsDir+"/nightly")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Write a history file directly; the production reader
+	// sorts by installed_at desc, so list the newest first.
+	historyJSON := `{
+  "entries": [
+    {"commit_hash": "` + currentCommit + `", "installed_at": "2025-06-14T10:00:00Z", "tag_name": "nightly"},
+    {"commit_hash": "` + olderCommit + `", "installed_at": "2025-06-13T10:00:00Z", "tag_name": "nightly"},
+    {"commit_hash": "` + oldestCommit + `", "installed_at": "2025-06-12T10:00:00Z", "tag_name": "nightly"}
+  ],
+  "limit": 5
+}
+`
+
+	historyPath := filepath.Join(filepath.Dir(versionsDir), "nightly-history.json")
+
+	err = os.WriteFile(historyPath, []byte(historyJSON), 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cobraCmd := &cobra.Command{}
+	cobraCmd.SetContext(t.Context())
+
+	runErr := cmd.RunRollback(cobraCmd, []string{})
+	if runErr != nil {
+		t.Fatalf("RunRollback returned error: %v", runErr)
+	}
+}
+
 // TestRunRun_VersionNotInstalled tests run command with non-existent version.
 
 func TestRunRun_VersionNotInstalled(t *testing.T) {
