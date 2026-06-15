@@ -1,0 +1,193 @@
+// Package message is the canonical way to print human-readable
+// output from nvs commands. It centralizes the icon + color +
+// indentation rules so every command line in the binary looks
+// the same.
+//
+// The package is designed to be used as:
+//
+//	ui.Message.Info("Switched to %s", version)
+//	ui.Message.Success("Installed %s", version)
+//	ui.Message.Warn("Neovim is running; switch may misbehave")
+//	ui.Message.Error("Install failed: %v", err)
+//
+// All helpers write to os.Stdout (Info/Success/Warn) or
+// os.Stderr (Error) and respect lipgloss's color detection
+// (NO_COLOR, FORCE_COLOR, TTY).
+package message
+
+import (
+	"fmt"
+	"io"
+	"os"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/y3owk1n/nvs/internal/ui/style"
+)
+
+// Icons is the set of glyphs the message package uses. Keeping
+// them as a struct rather than free-floating constants means a
+// caller cannot accidentally use a different icon set in one
+// place vs another.
+type Icons struct {
+	Info    string
+	Success string
+	Warn    string
+	Error   string
+	Step    string
+	Bullet  string
+	Arrow   string
+}
+
+// DefaultIcons returns the standard glyph set. The values are
+// plain Unicode (no Nerd Font dependence) so the UI looks the
+// same on every terminal.
+func DefaultIcons() Icons {
+	return Icons{
+		Info:    "ℹ",
+		Success: "✓",
+		Warn:    "⚠",
+		Error:   "✖",
+		Step:    "▸",
+		Bullet:  "•",
+		Arrow:   "→",
+	}
+}
+
+// Printer is the entry point. It is safe to call from any
+// goroutine; the underlying io.Write calls are atomic for
+// short strings on POSIX, which is the only platform that
+// matters for terminal output.
+type Printer struct {
+	palette style.Palette
+	types   style.Type
+	icons   Icons
+	out     io.Writer
+	errOut  io.Writer
+}
+
+// New constructs a Printer. If out or errOut are nil, os.Stdout
+// and os.Stderr are used.
+func New(palette style.Palette, types style.Type, icons Icons, out, errOut io.Writer) *Printer {
+	if out == nil {
+		out = os.Stdout
+	}
+
+	if errOut == nil {
+		errOut = os.Stderr
+	}
+
+	return &Printer{
+		palette: palette,
+		types:   types,
+		icons:   icons,
+		out:     out,
+		errOut:  errOut,
+	}
+}
+
+// Default returns a Printer wired to the default palette, the
+// default typographic scale, the default icon set, os.Stdout,
+// and os.Stderr. Most callers should use this.
+func Default() *Printer {
+	palette := style.Default()
+	types := style.Types(palette)
+
+	return New(palette, types, DefaultIcons(), os.Stdout, os.Stderr)
+}
+
+// Infof prints a neutral informational message.
+//
+//	ui.Message.Infof("Fetching available versions…")
+func (p *Printer) Infof(format string, args ...any) {
+	p.line(p.out, p.icons.Info, fmt.Sprintf(format, args...), p.palette.Accent)
+}
+
+// Successf prints a positive-outcome message.
+//
+//	ui.Message.Successf("Switched to %s", version)
+func (p *Printer) Successf(format string, args ...any) {
+	p.line(p.out, p.icons.Success, fmt.Sprintf(format, args...), p.palette.Success)
+}
+
+// Warnf prints a non-fatal warning. It always writes to
+// os.Stdout (matching the existing nvs convention) so a
+// redirected stdout captures both the result and the warning.
+//
+//	ui.Message.Warnf("Neovim is currently running (1 instance).")
+func (p *Printer) Warnf(format string, args ...any) {
+	p.line(p.out, p.icons.Warn, fmt.Sprintf(format, args...), p.palette.Warning)
+}
+
+// Errorf prints a fatal error. Unlike Info/Success/Warn, Error
+// writes to os.Stderr so `nvs … 2>/dev/null` produces a clean
+// pipeline.
+//
+//	ui.Message.Errorf("Install failed: %v", err)
+func (p *Printer) Errorf(format string, args ...any) {
+	p.line(p.errOut, p.icons.Error, fmt.Sprintf(format, args...), p.palette.Error)
+}
+
+// Stepf prints a step indicator inside a multi-step command
+// (e.g. "▸ Resolving version…"). It is styled with the primary
+// accent so it stands out as the "current action".
+func (p *Printer) Stepf(format string, args ...any) {
+	p.line(p.out, p.icons.Step, fmt.Sprintf(format, args...), p.palette.Primary)
+}
+
+// Bulletf prints a bullet-prefixed secondary line. Use it for
+// follow-up facts under a section header.
+//
+//	ui.Message.Infof("Installed versions:")
+//	ui.Message.Bulletf("stable")
+//	ui.Message.Bulletf("nightly")
+func (p *Printer) Bulletf(format string, args ...any) {
+	styled := lipgloss.NewStyle().
+		Foreground(p.palette.Muted).
+		Render("  " + p.icons.Bullet + " " + fmt.Sprintf(format, args...))
+
+	_, _ = fmt.Fprintln(p.out, styled)
+}
+
+// Mutedf prints a dimmed, secondary line. Use it for hints,
+// explanations, or anything that should not compete with the
+// primary message.
+func (p *Printer) Mutedf(format string, args ...any) {
+	_, _ = fmt.Fprintln(p.out, p.types.Muted.Render(fmt.Sprintf(format, args...)))
+}
+
+// Pair prints a "Key  value" pair with the key right-aligned
+// in a fixed-width column. Use it for key/value lists (doctor
+// checks, current version details, etc.).
+//
+//	ui.Message.Pair("Version", "v0.10.4")
+//	ui.Message.Pair("Commit",  "abc1234")
+func (p *Printer) Pair(key, value string) {
+	styledKey := p.types.Key.Render(key)
+	styledVal := p.types.Code.Render(value)
+
+	_, _ = fmt.Fprintf(p.out, "%s  %s\n", styledKey, styledVal)
+}
+
+// line is the single emit path. Centralizing the newline and
+// indentation rules here means every helper agrees on what a
+// "message line" looks like. It is unexported because callers
+// always go through one of the named helpers above.
+func (p *Printer) line(
+	writer io.Writer,
+	icon string,
+	message string,
+	iconColor lipgloss.AdaptiveColor,
+) {
+	styledIcon := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(iconColor).
+		Render(icon)
+
+	styledMsg := p.types.Body.Render(message)
+
+	// One trailing space between the icon and the message and
+	// a single \n at the end. This matches what every existing
+	// nvs command does, so the new output preserves the
+	// spacing users are used to.
+	_, _ = fmt.Fprintf(writer, "%s %s\n", styledIcon, styledMsg)
+}
