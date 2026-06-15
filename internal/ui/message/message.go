@@ -95,6 +95,13 @@ func Default() *Printer {
 	return New(palette, types, DefaultIcons(), os.Stdout, os.Stderr)
 }
 
+// Icons returns the icon set this Printer uses. Callers that
+// need to embed an icon glyph in a context where the Printer
+// itself can't write a full line (e.g. as the prefix of an
+// external spinner or a banner) can read it from here instead
+// of re-deriving it from DefaultIcons().
+func (p *Printer) Icons() Icons { return p.icons }
+
 // Infof prints a neutral informational message.
 //
 //	ui.Message.Infof("Fetching available versions…")

@@ -16,6 +16,7 @@
 package ui
 
 import (
+	"errors"
 	"io"
 	"os"
 
@@ -129,6 +130,27 @@ func (pickerAPI) NewPicker(input io.Reader, output io.Writer) *picker.Picker {
 
 	return picker.New(input, output, hasTTY)
 }
+
+// ErrCanceled is the sentinel error returned by the picker
+// when the user hits Ctrl-C. Callers can check for it with
+// errors.Is.
+func (pickerAPI) ErrCanceled() error { return picker.ErrCanceled }
+
+// ErrNoTTY is the sentinel error returned by the picker
+// when stdin is not a terminal (piped input, CI, scripts).
+func (pickerAPI) ErrNoTTY() error { return picker.ErrNoTTY }
+
+// IsNoTTY is a small convenience wrapper that returns true
+// if err is or wraps picker.ErrNoTTY. It exists so call
+// sites do not have to import the picker package directly.
+func (pickerAPI) IsNoTTY(err error) bool { return errors.Is(err, picker.ErrNoTTY) }
+
+// SelectItem re-exports picker.SelectItem so call sites can
+// write ui.Picker.SelectItem{Label: …} without importing
+// internal/ui/picker directly. Keeping the type as a
+// top-level export on the ui package mirrors how Go's
+// standard library re-exports types from sub-packages.
+type SelectItem = picker.SelectItem
 
 // tableAPI is the public façade for the table package. It
 // is a struct rather than a free function so future
