@@ -2,11 +2,23 @@ package ui_test
 
 import (
 	"math"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/y3owk1n/nvs/internal/ui"
 )
+
+// ansiEscapeRe matches a CSI escape sequence: ESC [ … final-byte.
+// We strip these from the observed output so the plain-text
+// assertions remain readable even when the progress bar is
+// rendered with a theme color.
+var ansiEscapeRe = regexp.MustCompile("\x1b\\[[0-9;]*[a-zA-Z]")
+
+// stripANSI removes CSI escape sequences from s.
+func stripANSI(s string) string {
+	return ansiEscapeRe.ReplaceAllString(s, "")
+}
 
 // TestFormatProgressBar verifies the bytes that come out of
 // FormatProgressBar match what we expect from the bubbles
@@ -75,7 +87,7 @@ func TestFormatProgressBar(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			got := ui.FormatProgressBar(testCase.percent)
+			got := stripANSI(ui.FormatProgressBar(testCase.percent))
 			if got != testCase.want {
 				t.Errorf(
 					"FormatProgressBar(%d) = %q, want %q",
@@ -128,7 +140,7 @@ func TestFormatPhaseProgress(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			got := ui.FormatPhaseProgress(testCase.phase, testCase.percent)
+			got := stripANSI(ui.FormatPhaseProgress(testCase.phase, testCase.percent))
 			if got != testCase.want {
 				t.Errorf(
 					"FormatPhaseProgress(%q, %d) = %q, want %q",
