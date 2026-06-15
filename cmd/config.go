@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/y3owk1n/nvs/internal/log"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -37,11 +37,11 @@ var configCmd = &cobra.Command{
 
 // RunConfig executes the config command.
 func RunConfig(cmd *cobra.Command, args []string) error {
-	logrus.Debug("Executing config command")
+	log.Debug("Executing config command")
 
 	// If a configuration name is provided as an argument, launch Neovim with that configuration.
 	if len(args) == 1 {
-		logrus.Debugf("Launching Neovim with provided configuration: %s", args[0])
+		log.Debugf("Launching Neovim with provided configuration: %s", args[0])
 
 		ui.Message.Infof(
 			"Launching Neovim with configuration: %s",
@@ -63,14 +63,14 @@ func RunConfig(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(configs) == 0 {
-		logrus.Debug("No Neovim configurations found")
+		log.Debug("No Neovim configurations found")
 
 		ui.Message.Warnf("No Neovim configurations found")
 
 		return nil
 	}
 
-	logrus.Debugf("Available Neovim configurations: %v", configs)
+	log.Debugf("Available Neovim configurations: %v", configs)
 
 	// Build the picker items from the configs slice. The
 	// picker façade handles the TTY / non-TTY split — it
@@ -109,7 +109,7 @@ func RunConfig(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("picker: %w", err)
 	}
 
-	logrus.Debugf("User selected configuration: %s", selectedConfig)
+	log.Debugf("User selected configuration: %s", selectedConfig)
 
 	ui.Message.Infof(
 		"Launching Neovim with configuration: %s",

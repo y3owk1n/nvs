@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/domain/vtypes"
+	"github.com/y3owk1n/nvs/internal/log"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -37,7 +37,7 @@ type versionInfo struct {
 
 // RunList executes the list command.
 func RunList(cmd *cobra.Command, _ []string) error {
-	logrus.Debug("Executing list command")
+	log.Debug("Executing list command")
 
 	// Retrieve installed versions from the version service.
 	versions, err := GetVersionService().List()
@@ -45,13 +45,13 @@ func RunList(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("error listing versions: %w", err)
 	}
 
-	logrus.Debugf("Found %d installed versions", len(versions))
+	log.Debugf("Found %d installed versions", len(versions))
 
 	// If no versions are installed, display a message and exit.
 	if len(versions) == 0 {
 		ui.Message.Infof("No installed versions.")
 
-		logrus.Debug("No installed versions found")
+		log.Debug("No installed versions found")
 
 		return nil
 	}
@@ -59,9 +59,9 @@ func RunList(cmd *cobra.Command, _ []string) error {
 	// Get the current active version.
 	current, err := GetVersionService().Current()
 	if err != nil {
-		logrus.Warn("No current version set or unable to determine the current version")
+		log.Warn("No current version set or unable to determine the current version")
 	} else {
-		logrus.Debugf("Current version: %s", current.Name())
+		log.Debugf("Current version: %s", current.Name())
 	}
 
 	jsonOutput, _ := cmd.Flags().GetBool("json")

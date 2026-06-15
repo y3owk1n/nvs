@@ -15,10 +15,10 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
-	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/release"
 	"github.com/y3owk1n/nvs/internal/infra/httpclient"
+	"github.com/y3owk1n/nvs/internal/log"
 )
 
 // Client implements the release.Repository interface for GitHub.
@@ -209,7 +209,7 @@ func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, err
 	// Fast path: read in-memory cache without taking the fetch lock.
 	if !force {
 		if cached := c.memCacheSnapshot(); cached != nil {
-			logrus.Debug("Using in-memory cached releases")
+			log.Debug("Using in-memory cached releases")
 
 			return cached, nil
 		}
@@ -223,7 +223,7 @@ func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, err
 
 	if !force {
 		if cached := c.memCacheSnapshot(); cached != nil {
-			logrus.Debug("Using in-memory cached releases")
+			log.Debug("Using in-memory cached releases")
 
 			return cached, nil
 		}
@@ -233,14 +233,14 @@ func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, err
 	if !force {
 		cached, err := c.cache.Get()
 		if err == nil {
-			logrus.Debug("Using on-disk cached releases")
+			log.Debug("Using on-disk cached releases")
 			c.storeMemCache(cached)
 
 			return cached, nil
 		}
 
 		if !errors.Is(err, ErrCacheStale) {
-			logrus.Debugf("Cache read failed: %v", err)
+			log.Debugf("Cache read failed: %v", err)
 		}
 	}
 
@@ -251,18 +251,18 @@ func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, err
 	)
 
 	if c.useGlobalCache {
-		logrus.Debug("Fetching fresh releases from global cache")
+		log.Debug("Fetching fresh releases from global cache")
 
 		releases, err = c.FetchRemoteVersionsJSON(ctx)
 		if err != nil {
-			logrus.Warnf(
+			log.Warnf(
 				"Global cache fetch failed, falling back to GitHub API: %v",
 				err,
 			)
 			releases, err = c.fetchFromGitHubAPI(ctx)
 		}
 	} else {
-		logrus.Debug("Fetching fresh releases from GitHub")
+		log.Debug("Fetching fresh releases from GitHub")
 
 		releases, err = c.fetchFromGitHubAPI(ctx)
 	}
@@ -275,7 +275,7 @@ func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, err
 
 		stale, staleErr := c.cache.GetIgnoreStale()
 		if staleErr == nil {
-			logrus.Warnf(
+			log.Warnf(
 				"Fresh fetch failed (%v); serving stale cache (%d releases)",
 				err,
 				len(stale),
@@ -291,7 +291,7 @@ func (c *Client) GetAll(ctx context.Context, force bool) ([]release.Release, err
 	// Update cache (Set is a no-op for empty input)
 	setErr := c.cache.Set(releases)
 	if setErr != nil {
-		logrus.Warnf("Failed to update cache: %v", setErr)
+		log.Warnf("Failed to update cache: %v", setErr)
 	}
 
 	c.storeMemCache(releases)
@@ -416,7 +416,7 @@ func (c *Client) fetchGitHubAPIPage(
 		_ = resp.Body.Close()
 	}()
 
-	logrus.Debugf("GitHub API status code: %d", resp.StatusCode)
+	log.Debugf("GitHub API status code: %d", resp.StatusCode)
 
 	if resp.StatusCode == http.StatusForbidden {
 		return nil, false, fmt.Errorf("%w: please try again later", ErrRateLimitExceeded)
@@ -458,7 +458,7 @@ func (c *Client) convertReleases(apiReleases []apiRelease) []release.Release {
 	for _, apiRelease := range apiReleases {
 		publishedAt, err := time.Parse(time.RFC3339, apiRelease.PublishedAt)
 		if err != nil {
-			logrus.Debugf("Failed to parse published_at for %s: %v", apiRelease.TagName, err)
+			log.Debugf("Failed to parse published_at for %s: %v", apiRelease.TagName, err)
 		}
 
 		assets := make([]release.Asset, 0, len(apiRelease.Assets))
@@ -490,7 +490,7 @@ func filterReleases(releases []release.Release, minVersion string) []release.Rel
 
 	constraints, err := semver.NewConstraint(">=" + minVersion)
 	if err != nil {
-		logrus.Warnf("Invalid minVersion %s, returning all releases: %v", minVersion, err)
+		log.Warnf("Invalid minVersion %s, returning all releases: %v", minVersion, err)
 
 		return releases
 	}
@@ -509,7 +509,7 @@ func filterReleases(releases []release.Release, minVersion string) []release.Rel
 
 		version, err := semver.NewVersion(versionStr)
 		if err != nil {
-			logrus.Debugf("Skipping invalid version: %s", rel.TagName())
+			log.Debugf("Skipping invalid version: %s", rel.TagName())
 
 			continue
 		}

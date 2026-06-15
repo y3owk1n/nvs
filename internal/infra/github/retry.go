@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/log"
 )
 
 // retriableStatus reports whether an HTTP status is worth retrying.
@@ -114,7 +114,7 @@ func (c *Client) doWithRetry(ctx context.Context, url string) (*http.Response, e
 				return nil, fmt.Errorf("failed to fetch: %w", doErr)
 			}
 
-			logrus.Debugf("GitHub fetch attempt %d failed: %v", attempt+1, doErr)
+			log.Debugf("GitHub fetch attempt %d failed: %v", attempt+1, doErr)
 		} else {
 			if !retriableStatus(resp.StatusCode) {
 				return resp, nil
@@ -124,7 +124,7 @@ func (c *Client) doWithRetry(ctx context.Context, url string) (*http.Response, e
 				resp,
 				constants.GitHubInitialBackoff<<attempt,
 			)
-			logrus.Debugf(
+			log.Debugf(
 				"GitHub fetch attempt %d returned %d; sleeping %s",
 				attempt+1,
 				resp.StatusCode,

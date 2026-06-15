@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/log"
 )
 
 // FindNvimBinary walks through the given directory to find a Neovim binary.
@@ -48,7 +48,7 @@ func FindNvimBinary(dir string) string {
 		return nil
 	})
 	if err != nil && !errors.Is(err, filepath.SkipAll) {
-		logrus.Warnf("Failed to walk through nvim directory: %v", err)
+		log.Warnf("Failed to walk through nvim directory: %v", err)
 	}
 
 	return binaryPath

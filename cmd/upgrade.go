@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/app/versionsvc"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/infra/filesystem"
+	"github.com/y3owk1n/nvs/internal/log"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -39,7 +39,7 @@ var upgradeCmd = &cobra.Command{
 
 // RunUpgrade executes the upgrade command.
 func RunUpgrade(cmd *cobra.Command, args []string) error {
-	logrus.Debug("Starting upgrade command")
+	log.Debug("Starting upgrade command")
 
 	// Create a context with a 30-minute timeout for the upgrade process.
 	ctx, cancel := context.WithTimeout(cmd.Context(), constants.TimeoutMinutes*time.Minute)
@@ -53,7 +53,7 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 
 	// Process each alias (version) for upgrade.
 	for _, alias := range aliases {
-		logrus.Debugf("Processing alias: %s", alias)
+		log.Debugf("Processing alias: %s", alias)
 
 		upgradeErr := runOneUpgrade(ctx, alias)
 		if upgradeErr != nil {
@@ -178,7 +178,7 @@ func runOneUpgrade(ctx context.Context, alias string) error {
 	}()
 	if err != nil {
 		if errors.Is(err, versionsvc.ErrNotInstalled) {
-			logrus.Debugf("'%s' is not installed. Skipping upgrade.", alias)
+			log.Debugf("'%s' is not installed. Skipping upgrade.", alias)
 
 			ui.Message.Warnf("%s is not installed. Skipping upgrade.", ui.Message.Accent(alias))
 
@@ -186,7 +186,7 @@ func runOneUpgrade(ctx context.Context, alias string) error {
 		}
 
 		if errors.Is(err, versionsvc.ErrAlreadyUpToDate) {
-			logrus.Debugf("%s is already up-to-date", alias)
+			log.Debugf("%s is already up-to-date", alias)
 
 			ui.Message.Warnf("%s is already up-to-date", ui.Message.Accent(alias))
 
@@ -197,11 +197,16 @@ func runOneUpgrade(ctx context.Context, alias string) error {
 		if backupCreated {
 			removeErr := os.RemoveAll(backupDir)
 			if removeErr != nil {
-				logrus.Warnf("Failed to clean up backup on upgrade failure: %v", removeErr)
+				log.Warn("failed to clean up backup on upgrade failure", "err", removeErr)
 			}
 		}
 
-		logrus.Errorf("Upgrade failed for %s: %v", alias, err)
+		// The returned error is wrapped and propagated to
+		// cobra, which prints it once on stderr. Logging it
+		// again here would double the output, so we only
+		// trace the failure at debug level — visible under
+		// -v if the operator is trying to follow the path.
+		log.Debug("upgrade failed", "alias", alias, "err", err)
 
 		return fmt.Errorf("upgrade failed for %s: %w", alias, err)
 	}
@@ -211,7 +216,7 @@ func runOneUpgrade(ctx context.Context, alias string) error {
 		// Add the old commit (the one we backed up) to history
 		histErr := AddNightlyToHistory(oldCommitHash, constants.Nightly)
 		if histErr != nil {
-			logrus.Warnf("Failed to add nightly to history: %v", histErr)
+			log.Warnf("Failed to add nightly to history: %v", histErr)
 		}
 	}
 
@@ -223,7 +228,7 @@ func runOneUpgrade(ctx context.Context, alias string) error {
 		showUpgradeChangelog(ctx, oldCommitHash)
 	}
 
-	logrus.Debugf("%s upgraded successfully", alias)
+	log.Debugf("%s upgraded successfully", alias)
 
 	return nil
 }
@@ -245,7 +250,7 @@ func prepareNightlyBackup(backupDir *string, backupCreated *bool) string {
 		// Don't silently lose rollback safety: warn loudly so
 		// the user knows the upgrade will proceed without a
 		// backup.
-		logrus.Warnf(
+		ui.Message.Warnf(
 			"Could not read current nightly identifier; rollback backup will be skipped: %v",
 			identifierErr,
 		)
@@ -253,7 +258,7 @@ func prepareNightlyBackup(backupDir *string, backupCreated *bool) string {
 		return ""
 	}
 
-	logrus.Debugf("Current nightly commit: %s", oldCommitHash)
+	log.Debug("current nightly commit", "hash", oldCommitHash)
 
 	// Backup current nightly for rollback support
 	if oldCommitHash == "" {
@@ -289,12 +294,12 @@ func prepareNightlyBackup(backupDir *string, backupCreated *bool) string {
 		*backupDir,
 	)
 	if backupErr != nil {
-		logrus.Warnf(
+		ui.Message.Warnf(
 			"Failed to backup nightly for rollback: %v",
 			backupErr,
 		)
 	} else {
-		logrus.Debugf("Backed up nightly to %s", *backupDir)
+		log.Debugf("Backed up nightly to %s", *backupDir)
 
 		*backupCreated = true
 	}
@@ -349,7 +354,7 @@ func backupNightlyUnderLock(nightlyDir, backupDir string) error {
 	defer func() {
 		unlockErr := lock.Unlock()
 		if unlockErr != nil {
-			logrus.Warnf("Failed to unlock nightly lock: %v", unlockErr)
+			log.Warnf("Failed to unlock nightly lock: %v", unlockErr)
 		}
 	}()
 
@@ -360,7 +365,7 @@ func backupNightlyUnderLock(nightlyDir, backupDir string) error {
 
 	_, statErr := os.Stat(sentinel)
 	if statErr == nil {
-		logrus.Debugf("Backup already claimed at %s; skipping copy", backupDir)
+		log.Debugf("Backup already claimed at %s; skipping copy", backupDir)
 
 		return nil
 	}
@@ -381,7 +386,7 @@ func backupNightlyUnderLock(nightlyDir, backupDir string) error {
 	defer func() {
 		removeErr := os.RemoveAll(tempDir)
 		if removeErr != nil {
-			logrus.Warnf("Failed to clean up temp backup dir %s: %v", tempDir, removeErr)
+			log.Warnf("Failed to clean up temp backup dir %s: %v", tempDir, removeErr)
 		}
 	}()
 
@@ -413,7 +418,7 @@ func backupNightlyUnderLock(nightlyDir, backupDir string) error {
 
 	err = os.Chmod(tempDir, srcInfo.Mode())
 	if err != nil {
-		logrus.Debugf("Failed to set temp backup dir mode: %v", err)
+		log.Debugf("Failed to set temp backup dir mode: %v", err)
 	}
 
 	err = copyDirContents(nightlyDir, tempDir)

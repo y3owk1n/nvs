@@ -16,9 +16,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/installer"
+	"github.com/y3owk1n/nvs/internal/log"
 )
 
 const toolCheckTimeout = 30 * time.Second
@@ -67,20 +67,20 @@ func (b *SourceBuilder) BuildFromCommit(
 
 	// Generate unique build ID to avoid conflicts with concurrent builds
 	buildID := fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano())
-	logrus.Debugf("Build ID: %s", buildID)
+	log.Debugf("Build ID: %s", buildID)
 
 	// Create lock file to prevent cleanup of in-progress builds
 	lockFile := filepath.Join(os.TempDir(), fmt.Sprintf("neovim-src-%s.lock", buildID))
 
 	lockErr := os.WriteFile(lockFile, []byte(strconv.Itoa(os.Getpid())), constants.FilePerm)
 	if lockErr != nil {
-		logrus.Warnf("Failed to create lock file: %v", lockErr)
+		log.Warnf("Failed to create lock file: %v", lockErr)
 	}
 	// Ensure lock file is removed when function exits
 	defer func() {
 		removeErr := os.Remove(lockFile)
 		if removeErr != nil && !os.IsNotExist(removeErr) {
-			logrus.Warnf("Failed to remove lock file: %v", removeErr)
+			log.Warnf("Failed to remove lock file: %v", removeErr)
 		}
 	}()
 
@@ -109,7 +109,7 @@ func (b *SourceBuilder) BuildFromCommit(
 				os.TempDir(),
 				fmt.Sprintf("neovim-src-%s-%d", buildID, attempt),
 			)
-			logrus.Debugf("Temporary Neovim source directory: %s", localPath)
+			log.Debugf("Temporary Neovim source directory: %s", localPath)
 
 			// Ensure the temp dir is removed on every exit path,
 			// including context cancellation and panic. The
@@ -119,7 +119,7 @@ func (b *SourceBuilder) BuildFromCommit(
 			defer func() {
 				removeErr := os.RemoveAll(localPath)
 				if removeErr != nil && !os.IsNotExist(removeErr) {
-					logrus.Warnf("Failed to remove temporary directory: %v", removeErr)
+					log.Warnf("Failed to remove temporary directory: %v", removeErr)
 				}
 			}()
 
@@ -129,7 +129,7 @@ func (b *SourceBuilder) BuildFromCommit(
 			return resolvedHash, nil
 		}
 
-		logrus.Errorf("Build attempt %d failed: %v", attempt, err)
+		log.Errorf("Build attempt %d failed: %v", attempt, err)
 
 		// Check for context cancellation - return immediately without retrying
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
@@ -137,7 +137,7 @@ func (b *SourceBuilder) BuildFromCommit(
 		}
 
 		if attempt < constants.MaxAttempts {
-			logrus.Info("Retrying build with clean directory...")
+			log.Info("Retrying build with clean directory...")
 
 			// Use time.NewTimer + Stop instead of time.After so
 			// the timer can be released immediately when ctx
@@ -177,14 +177,14 @@ func (b *SourceBuilder) buildFromCommitInternal(
 		// Ensure clean directory for clone
 		removeErr := os.RemoveAll(localPath)
 		if removeErr != nil {
-			logrus.Warnf("Failed to remove temp directory: %v", removeErr)
+			log.Warnf("Failed to remove temp directory: %v", removeErr)
 		}
 
 		if progress != nil {
 			progress("Cloning repository (large repo, may take a while)", -1)
 		}
 
-		logrus.Debug("Cloning repository from ", constants.RepoURL)
+		log.Debug("Cloning repository from ", constants.RepoURL)
 
 		cmd := b.execCommand(ctx, "git", "clone", "--quiet", constants.RepoURL, localPath)
 		cmd.SetStdout(os.Stdout)
@@ -202,7 +202,7 @@ func (b *SourceBuilder) buildFromCommitInternal(
 			progress("Checking out master branch", -1)
 		}
 
-		logrus.Debug("Checking out master branch")
+		log.Debug("Checking out master branch")
 
 		checkoutCmd := b.execCommand(ctx, "git", "checkout", "--quiet", "master")
 		checkoutCmd.SetDir(localPath)
@@ -216,7 +216,7 @@ func (b *SourceBuilder) buildFromCommitInternal(
 			progress("Checking out commit", -1)
 		}
 
-		logrus.Debugf("Checking out commit %s", commit)
+		log.Debugf("Checking out commit %s", commit)
 
 		checkoutCmd := b.execCommand(ctx, "git", "checkout", "--quiet", commit)
 		checkoutCmd.SetDir(localPath)
@@ -245,14 +245,14 @@ func (b *SourceBuilder) buildFromCommitInternal(
 	}
 
 	commitHash := commitHashFull[:constants.ShortCommitLen]
-	logrus.Debugf("Current commit hash: %s", commitHash)
+	log.Debugf("Current commit hash: %s", commitHash)
 
 	// Clean build directory
 	buildPath := filepath.Join(localPath, "build")
 
 	_, err = os.Stat(buildPath)
 	if err == nil {
-		logrus.Debug("Removing existing build directory")
+		log.Debug("Removing existing build directory")
 
 		err = os.RemoveAll(buildPath)
 		if err != nil {
@@ -261,7 +261,7 @@ func (b *SourceBuilder) buildFromCommitInternal(
 	}
 
 	// Build Neovim
-	logrus.Debug("Building Neovim")
+	log.Debug("Building Neovim")
 
 	buildCmd := b.execCommand(ctx, "make", "CMAKE_BUILD_TYPE=Release")
 	buildCmd.SetDir(localPath)
@@ -280,7 +280,7 @@ func (b *SourceBuilder) buildFromCommitInternal(
 	}
 
 	// Install using cmake
-	logrus.Debugf("Installing to %s", targetDir)
+	log.Debugf("Installing to %s", targetDir)
 
 	installCmd := b.execCommand(ctx, "cmake", "--install", "build", "--prefix="+targetDir)
 	installCmd.SetDir(localPath)
@@ -310,7 +310,7 @@ func (b *SourceBuilder) buildFromCommitInternal(
 		progress("Build complete", constants.ProgressDone)
 	}
 
-	logrus.Info("Build and installation successful")
+	log.Info("Build and installation successful")
 
 	return commitHash, nil
 }
@@ -354,7 +354,7 @@ func (b *SourceBuilder) cleanupTempDirectories() {
 
 	entries, err := os.ReadDir(tempDir)
 	if err != nil {
-		logrus.Warnf("Failed to read temp directory for cleanup: %v", err)
+		log.Warnf("Failed to read temp directory for cleanup: %v", err)
 
 		return
 	}
@@ -389,7 +389,7 @@ func (b *SourceBuilder) cleanupTempDirectories() {
 
 			_, err = os.Stat(lockFilePath)
 			if err == nil {
-				logrus.Debugf("Skipping cleanup of locked directory: %s", dirPath)
+				log.Debugf("Skipping cleanup of locked directory: %s", dirPath)
 
 				continue
 			}
@@ -398,35 +398,35 @@ func (b *SourceBuilder) cleanupTempDirectories() {
 			// to avoid interfering with concurrent builds
 			info, err := entry.Info()
 			if err != nil {
-				logrus.Warnf("Failed to get info for temp directory %s: %v", dirPath, err)
+				log.Warnf("Failed to get info for temp directory %s: %v", dirPath, err)
 
 				continue
 			}
 
 			if time.Since(info.ModTime()) < 5*time.Minute {
-				logrus.Debugf("Skipping cleanup of recent temp directory: %s", dirPath)
+				log.Debugf("Skipping cleanup of recent temp directory: %s", dirPath)
 
 				continue
 			}
 
 			err = os.RemoveAll(dirPath)
 			if err != nil {
-				logrus.Warnf("Failed to remove leftover temp directory %s: %v", dirPath, err)
+				log.Warnf("Failed to remove leftover temp directory %s: %v", dirPath, err)
 			} else {
-				logrus.Debugf("Cleaned up leftover temp directory: %s", dirPath)
+				log.Debugf("Cleaned up leftover temp directory: %s", dirPath)
 			}
 		case strings.HasSuffix(entry.Name(), ".lock"):
 			lockFilePath := filepath.Join(tempDir, entry.Name())
 
 			info, err := entry.Info()
 			if err != nil {
-				logrus.Warnf("Failed to get info for lock file %s: %v", lockFilePath, err)
+				log.Warnf("Failed to get info for lock file %s: %v", lockFilePath, err)
 
 				continue
 			}
 
 			if time.Since(info.ModTime()) < 5*time.Minute {
-				logrus.Debugf("Skipping cleanup of recent lock file: %s", lockFilePath)
+				log.Debugf("Skipping cleanup of recent lock file: %s", lockFilePath)
 
 				continue
 			}
@@ -441,7 +441,7 @@ func (b *SourceBuilder) cleanupTempDirectories() {
 				pid, err := strconv.Atoi(strings.TrimSpace(string(pidData)))
 				if err == nil {
 					if isProcessAlive(pid) {
-						logrus.Debugf(
+						log.Debugf(
 							"Skipping cleanup of lock file for running process %d: %s",
 							pid,
 							lockFilePath,
@@ -454,9 +454,9 @@ func (b *SourceBuilder) cleanupTempDirectories() {
 
 			err = os.Remove(lockFilePath)
 			if err != nil {
-				logrus.Warnf("Failed to remove orphaned lock file %s: %v", lockFilePath, err)
+				log.Warnf("Failed to remove orphaned lock file %s: %v", lockFilePath, err)
 			} else {
-				logrus.Debugf("Cleaned up orphaned lock file: %s", lockFilePath)
+				log.Debugf("Cleaned up orphaned lock file: %s", lockFilePath)
 			}
 		}
 	}
@@ -663,7 +663,7 @@ func runCommandWithSpinnerAndOutput(
 			// eventually died on its own.
 			killErr := cmd.Kill()
 			if killErr != nil {
-				logrus.Debugf("failed to kill child process on ctx cancel: %v", killErr)
+				log.Debugf("failed to kill child process on ctx cancel: %v", killErr)
 			}
 
 			waitGroup.Wait()
@@ -700,7 +700,7 @@ func streamLines(r io.Reader, label string, onLine func(string)) {
 			continue
 		}
 
-		logrus.Debugf("%s: %s", label, line)
+		log.Debugf("%s: %s", label, line)
 
 		if onLine != nil {
 			onLine(line)
@@ -709,6 +709,6 @@ func streamLines(r io.Reader, label string, onLine func(string)) {
 
 	scanErr := scanner.Err()
 	if scanErr != nil {
-		logrus.Debugf("%s scanner error: %v", label, scanErr)
+		log.Debugf("%s scanner error: %v", label, scanErr)
 	}
 }

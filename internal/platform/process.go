@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/log"
 )
 
 // IsNeovimRunning checks if any Neovim process is currently running.
@@ -31,7 +31,7 @@ func isNeovimRunningUnix() (bool, int) {
 	output, err := cmd.Output()
 	if err != nil {
 		// pgrep returns exit code 1 if no processes found
-		logrus.Debugf("pgrep returned error (likely no processes): %v", err)
+		log.Debugf("pgrep returned error (likely no processes): %v", err)
 
 		return false, 0
 	}
@@ -46,7 +46,7 @@ func isNeovimRunningUnix() (bool, int) {
 		}
 	}
 
-	logrus.Debugf("Found %d nvim processes", count)
+	log.Debugf("Found %d nvim processes", count)
 
 	return count > 0, count
 }
@@ -67,7 +67,7 @@ func isNeovimRunningWindows() (bool, int) {
 
 	output, err := cmd.Output()
 	if err != nil {
-		logrus.Debugf("tasklist returned error: %v", err)
+		log.Debugf("tasklist returned error: %v", err)
 
 		return false, 0
 	}
@@ -89,7 +89,7 @@ func isNeovimRunningWindows() (bool, int) {
 		}
 	}
 
-	logrus.Debugf("Found %d nvim.exe processes", count)
+	log.Debugf("Found %d nvim.exe processes", count)
 
 	return count > 0, count
 }

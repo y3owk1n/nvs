@@ -7,10 +7,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/domain/vtypes"
+	"github.com/y3owk1n/nvs/internal/log"
 	"github.com/y3owk1n/nvs/internal/platform"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
@@ -92,7 +92,7 @@ func RunUse(cmd *cobra.Command, args []string) error {
 			}
 
 			alias = pinnedVersion
-			logrus.Debugf("Using version %s from %s", alias, versionFile)
+			log.Debugf("Using version %s from %s", alias, versionFile)
 
 			ui.Message.Infof(
 				"Using version from %s",
@@ -101,14 +101,14 @@ func RunUse(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	logrus.Debugf("Requested version: %s", alias)
+	log.Debugf("Requested version: %s", alias)
 
 	// Check for running Neovim instances unless --force is set
 	force, _ := cmd.Flags().GetBool("force")
 	if !force {
 		running, count := platform.IsNeovimRunning()
 		if running {
-			logrus.Debugf("Detected %d running Neovim instance(s)", count)
+			log.Debugf("Detected %d running Neovim instance(s)", count)
 
 			ui.Message.Warnf(
 				"Neovim is currently running (%d instance(s)). Switching versions may cause issues.",
@@ -141,7 +141,7 @@ func RunUse(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		// If version not found, install it first, then try to use again
 		if errors.Is(err, vtypes.ErrVersionNotFound) {
-			logrus.Infof("Version %s not found. Installing...", alias)
+			ui.Message.Infof("Version %s not found. Installing...", alias)
 			// Install the version using the shared install path. We
 			// must NOT call RunInstall(cmd, ...) here: it would
 			// re-read the --pick flag from this (use) command and

@@ -10,8 +10,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/log"
 )
 
 // UpdateSymlink creates a symlink (or junction/hardlink fallback on Windows).
@@ -71,7 +71,7 @@ func UpdateSymlink(target, link string, isDir bool) error {
 		return fmt.Errorf("failed to create %s for %s: %w", linkType, link, err)
 	}
 
-	logrus.Debugf("Created %s instead of symlink: %s -> %s", linkType, link, target)
+	log.Debugf("Created %s instead of symlink: %s -> %s", linkType, link, target)
 
 	return nil
 }

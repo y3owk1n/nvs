@@ -8,9 +8,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/log"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -44,7 +44,7 @@ type checkOutcome struct {
 func RunDoctor(cmd *cobra.Command, _ []string) error {
 	jsonOutput, err := cmd.Flags().GetBool("json")
 	if err != nil {
-		logrus.Warnf("Failed to read json flag: %v", err)
+		log.Warnf("Failed to read json flag: %v", err)
 	}
 
 	checks := []struct {
@@ -60,7 +60,7 @@ func RunDoctor(cmd *cobra.Command, _ []string) error {
 
 	outcomes := make([]checkOutcome, 0, len(checks))
 	for _, check := range checks {
-		logrus.Debugf("Running doctor check: %s", check.name)
+		log.Debugf("Running doctor check: %s", check.name)
 
 		warning, checkErr := check.check()
 
@@ -318,7 +318,7 @@ func checkPermissions() (string, error) {
 		defer func() {
 			removeErr := os.Remove(testFile)
 			if removeErr != nil && !os.IsNotExist(removeErr) {
-				logrus.Warnf("Failed to remove temp file %s: %v", testFile, removeErr)
+				log.Warnf("Failed to remove temp file %s: %v", testFile, removeErr)
 			}
 		}()
 

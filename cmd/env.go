@@ -11,206 +11,274 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/log"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
 // envCmd represents the "env" command.
-// It prints the NVS environment configuration variables: NVS_CONFIG_DIR, NVS_CACHE_DIR, and NVS_BIN_DIR.
-// If these variables are not explicitly set, default locations are determined using the user's system directories.
+// It prints the NVS environment configuration variables and
+// their resolved values: paths (NVS_CONFIG_DIR, NVS_CACHE_DIR,
+// NVS_BIN_DIR), behavior toggles (NVS_GITHUB_MIRROR,
+// NVS_USE_GLOBAL_CACHE), and logger settings (NVS_LOG,
+// NVS_LOG_FILE).
 //
 // Example usage:
 //
-//	nvs env
+//	nvs env                 # human-readable table
+//	nvs env --json          # machine-readable
+//	nvs env --source        # shell-eval'd export statements (paths only)
 //
-// This command will output a table displaying the values for NVS_CONFIG_DIR, NVS_CACHE_DIR, and NVS_BIN_DIR.
+// The --source mode emits only the path variables (the ones
+// nvs needs to find its on-disk state). Behavior and log
+// settings are user preferences and are deliberately not
+// exported, so a user who runs `eval "$(nvs env --source)"`
+// at shell startup does not unintentionally pin a debug log
+// level into every subsequent invocation.
 var envCmd = &cobra.Command{
 	Use:   "env",
 	Short: "Print NVS env configurations",
-	Long:  "Prints the env configuration used by NVS (NVS_CONFIG_DIR, NVS_CACHE_DIR, and NVS_BIN_DIR).",
-	RunE:  RunEnv,
+	Long: `Prints the env configuration used by NVS.
+
+Variables shown:
+  Paths     NVS_CONFIG_DIR, NVS_CACHE_DIR, NVS_BIN_DIR
+  Behavior  NVS_GITHUB_MIRROR, NVS_USE_GLOBAL_CACHE
+  Logging   NVS_LOG, NVS_LOG_FILE`,
+	RunE: RunEnv,
+}
+
+// envVar is one row in the env table. A separate struct (rather
+// than parallel slices) keeps the rendering loop readable and
+// lets us add per-row hints later (e.g. a "Default" column) with
+// only the affected call sites changing.
+type envVar struct {
+	Name  string
+	Value string
+	// IsPath is true for the three NVS_*_DIR vars. The
+	// --source path emits only these (see envCmd doc).
+	IsPath bool
 }
 
 // RunEnv executes the env command.
 func RunEnv(cmd *cobra.Command, _ []string) error {
-	logrus.Debug("Executing env command")
-
-	// Determine directories using getter functions
-	// NVS_CONFIG_DIR is the parent of versions directory
-	configDir := filepath.Dir(GetVersionsDir())
-	logrus.Debugf("Resolved configDir: %s", configDir)
-
-	// NVS_CACHE_DIR is the directory containing the cache file
-	cacheDir := filepath.Dir(GetCacheFilePath())
-	logrus.Debugf("Resolved cacheDir: %s", cacheDir)
-
-	// NVS_BIN_DIR is the global binary directory
-	binDir := GetGlobalBinDir()
-	logrus.Debugf("Resolved binDir: %s", binDir)
+	log.Debug("executing env command")
 
 	source, _ := cmd.Flags().GetBool("source")
 	shell, _ := cmd.Flags().GetString("shell")
 	jsonOutput, _ := cmd.Flags().GetBool("json")
-	logrus.Debugf("--source: %v, --shell: %q, --json: %v", source, shell, jsonOutput)
+	log.Debug("flags", "source", source, "shell", shell, "json", jsonOutput)
 
 	if source && jsonOutput {
 		return ErrMutuallyExclusiveFlags
 	}
 
+	vars := collectEnvVars()
+
 	if source {
-		// Let's try to detect the shell we're running in
-		if shell == "" {
-			shell = DetectShell()
-		}
-
-		logrus.Debugf("Using shell for output: %q", shell)
-
-		var err error
-
-		// fail if we can't determine the required directories
-		if configDir == "" || configDir == constants.UnavailableDir ||
-			cacheDir == "" || cacheDir == constants.UnavailableDir ||
-			binDir == "" {
-			logrus.Error("One or more required directories could not be determined")
-
-			return ErrRequiredDirsNotDetermined
-		}
-
-		// add binDir to PATH if it's not already there, avoid duplicates
-		//
-		// The previous code used strings.Contains on the raw PATH
-		// string, which produces false positives when binDir is a
-		// prefix or substring of some other PATH entry (e.g.
-		// binDir = "/home/u/bin", PATH = "/home/u/bin-extra:/usr/bin"
-		// would have matched). The correct check splits PATH on
-		// the platform's path-list separator and does exact-match
-		// comparison on each entry.
-		addPath := !pathListContains(os.Getenv("PATH"), binDir)
-		logrus.Debugf("binDir already in PATH: %v (addPath=%v)", !addPath, addPath)
-
-		// explicitly default to error `unsupported`, add in more shell in future
-		switch shell {
-		case "fish":
-			// shellQuote uses POSIX-style single-quote escaping
-			// (works in fish too). It is required because Go's
-			// %q produces a double-quoted Go string that fish
-			// would interpret as allowing $-expansion, e.g. a
-			// path containing a literal '$' would be re-expanded
-			// by the shell. Single-quote escaping prevents all
-			// expansion in both POSIX shells and fish.
-			_, err = fmt.Fprintf(
-				os.Stdout,
-				"set -gx NVS_CONFIG_DIR %s;\n",
-				shellQuote(configDir),
-			)
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
-			}
-
-			_, err = fmt.Fprintf(
-				os.Stdout,
-				"set -gx NVS_CACHE_DIR %s;\n",
-				shellQuote(cacheDir),
-			)
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
-			}
-
-			_, err = fmt.Fprintf(
-				os.Stdout,
-				"set -gx NVS_BIN_DIR %s;\n",
-				shellQuote(binDir),
-			)
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
-			}
-
-			if addPath {
-				_, err = fmt.Fprintf(
-					os.Stdout,
-					"set -gx PATH %s $PATH;\n",
-					shellQuote(binDir),
-				)
-				if err != nil {
-					logrus.Warnf("Failed to write to stdout: %v", err)
-				}
-			}
-		case "bash", "zsh", "sh", "":
-			_, err = fmt.Fprintf(
-				os.Stdout,
-				"export NVS_CONFIG_DIR=%s\n",
-				shellQuote(configDir),
-			)
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
-			}
-
-			_, err = fmt.Fprintf(
-				os.Stdout,
-				"export NVS_CACHE_DIR=%s\n",
-				shellQuote(cacheDir),
-			)
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
-			}
-
-			_, err = fmt.Fprintf(
-				os.Stdout,
-				"export NVS_BIN_DIR=%s\n",
-				shellQuote(binDir),
-			)
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
-			}
-
-			if addPath {
-				_, err = fmt.Fprintf(
-					os.Stdout,
-					"export PATH=%s:$PATH\n",
-					shellQuote(binDir),
-				)
-				if err != nil {
-					logrus.Warnf("Failed to write to stdout: %v", err)
-				}
-			}
-		default:
-			logrus.Errorf("Unsupported shell type %q", shell)
-
-			return fmt.Errorf("%q: %w", shell, ErrUnsupportedShell)
-		}
-
-		return nil
+		return renderEnvSource(vars, shell)
 	}
 
 	if jsonOutput {
-		data := map[string]string{
-			"NVS_CONFIG_DIR": configDir,
-			"NVS_CACHE_DIR":  cacheDir,
-			"NVS_BIN_DIR":    binDir,
+		data := make(map[string]string, len(vars))
+		for _, v := range vars {
+			data[v.Name] = v.Value
 		}
 
 		return outputJSON(data)
 	}
 
-	// Create a table to display the configuration variables.
-	//
-	// The default (no --source, no --json) view is the
-	// human-readable summary, so it routes through the new
-	// ui.Table primitive for visual consistency with the
-	// other commands. Each row is "VARIABLE  <value>", with
-	// the value rendered in the Accent (primary) color so the
-	// path is the data the user is actually reading.
-	tbl := ui.Table.New("Variable", "Value")
+	return renderEnvText(vars)
+}
 
-	tbl.Row("NVS_CONFIG_DIR", ui.Message.Accent(configDir))
-	tbl.Row("NVS_CACHE_DIR", ui.Message.Accent(cacheDir))
-	tbl.Row("NVS_BIN_DIR", ui.Message.Accent(binDir))
+// collectEnvVars resolves every env var nvs cares about to its
+// current effective value. For unset optional vars we substitute
+// a human-readable placeholder ("(unset)" or the default) so the
+// table never has empty cells — a blank value is easy to misread
+// as "set to empty string", which is a different thing.
+func collectEnvVars() []envVar {
+	configDir := filepath.Dir(GetVersionsDir())
+	cacheDir := filepath.Dir(GetCacheFilePath())
+	binDir := GetGlobalBinDir()
+
+	log.Debug("resolved paths", "config", configDir, "cache", cacheDir, "bin", binDir)
+
+	githubMirror := os.Getenv("NVS_GITHUB_MIRROR")
+	if githubMirror == "" {
+		githubMirror = "(unset, using github.com)"
+	}
+
+	useGlobalCache := "false"
+	if envValue := os.Getenv("NVS_USE_GLOBAL_CACHE"); strings.EqualFold(envValue, "true") ||
+		envValue == "1" {
+		useGlobalCache = "true"
+	}
+
+	// Show the EFFECTIVE log level (after parsing, after
+	// fallbacks) rather than the raw env var, so an invalid
+	// value like NVS_LOG=potato reports the level that is
+	// actually in use (warn) rather than the value the user
+	// typed.
+	logLevel := log.GetLevel().String()
+
+	logFile := os.Getenv("NVS_LOG_FILE")
+	if logFile == "" {
+		logFile = "(unset, stderr only)"
+	}
+
+	return []envVar{
+		{Name: "NVS_CONFIG_DIR", Value: configDir, IsPath: true},
+		{Name: "NVS_CACHE_DIR", Value: cacheDir, IsPath: true},
+		{Name: "NVS_BIN_DIR", Value: binDir, IsPath: true},
+		{Name: "NVS_GITHUB_MIRROR", Value: githubMirror},
+		{Name: "NVS_USE_GLOBAL_CACHE", Value: useGlobalCache},
+		{Name: "NVS_LOG", Value: logLevel},
+		{Name: "NVS_LOG_FILE", Value: logFile},
+	}
+}
+
+// renderEnvText writes the default human-readable view: a
+// banner followed by a two-column table. Values are rendered in
+// the Accent color so the data the user is looking for stands
+// out from the variable names.
+func renderEnvText(vars []envVar) error {
+	tbl := ui.Table.New("Variable", "Value")
+	for _, v := range vars {
+		tbl.Row(v.Name, ui.Message.Accent(v.Value))
+	}
 
 	_, _ = fmt.Fprint(os.Stdout, ui.Banner.Logo())
 	_, _ = fmt.Fprintln(os.Stdout)
 	_, _ = fmt.Fprint(os.Stdout, tbl.Render(ui.Style.Palette()))
+
+	return nil
+}
+
+// renderEnvSource emits shell-eval'd export statements for the
+// path variables. Only path vars are exported — behavior and
+// log settings are user preferences that should be set in the
+// user's shell profile, not pinned by `eval "$(nvs env --source)"`.
+func renderEnvSource(vars []envVar, shell string) error {
+	if shell == "" {
+		shell = DetectShell()
+	}
+
+	log.Debug("source mode shell", "shell", shell)
+
+	// Validate that every path var was resolvable. A missing
+	// path here means InitConfig found no usable filesystem
+	// location for one of the three nvs dirs — surfacing it
+	// loudly is better than silently writing a broken eval.
+	for _, envVarEntry := range vars {
+		if !envVarEntry.IsPath {
+			continue
+		}
+
+		if envVarEntry.Value == "" || envVarEntry.Value == constants.UnavailableDir {
+			log.Debug("required directory could not be determined", "var", envVarEntry.Name)
+
+			return ErrRequiredDirsNotDetermined
+		}
+	}
+
+	binDir := envVarValue(vars, "NVS_BIN_DIR")
+	addPath := !pathListContains(os.Getenv("PATH"), binDir)
+
+	log.Debug("source mode PATH state", "bin_dir_in_path", !addPath, "will_prepend", addPath)
+
+	switch shell {
+	case "fish":
+		return emitFishSource(vars, binDir, addPath)
+	case "bash", "zsh", "sh", "":
+		return emitPosixSource(vars, binDir, addPath)
+	default:
+		// Don't log+return: cobra prints the returned error
+		// once on stderr. Tracing it here would duplicate
+		// the output. Operator-grade trace stays at debug.
+		log.Debug("unsupported shell", "shell", shell)
+
+		return fmt.Errorf("%q: %w", shell, ErrUnsupportedShell)
+	}
+}
+
+// envVarValue returns the value for the named variable. Used by
+// renderEnvSource so the path-export loop can stay generic and
+// the PATH-prepend logic can still pick out the bin dir.
+func envVarValue(vars []envVar, name string) string {
+	for _, envVarEntry := range vars {
+		if envVarEntry.Name == name {
+			return envVarEntry.Value
+		}
+	}
+
+	return ""
+}
+
+// emitFishSource writes fish-style `set -gx NAME VALUE;` lines
+// for every path var, then prepends binDir to PATH if it is not
+// already on the list. Errors writing to stdout are logged but
+// not returned: stdout is a pipe to the user's shell, and there
+// is nothing useful the caller can do if the pipe has closed.
+func emitFishSource(vars []envVar, binDir string, addPath bool) error {
+	for _, envVarEntry := range vars {
+		if !envVarEntry.IsPath {
+			continue
+		}
+
+		_, err := fmt.Fprintf(
+			os.Stdout,
+			"set -gx %s %s;\n",
+			envVarEntry.Name,
+			shellQuote(envVarEntry.Value),
+		)
+		if err != nil {
+			log.Warn("write stdout failed", "err", err)
+		}
+	}
+
+	if addPath {
+		_, err := fmt.Fprintf(
+			os.Stdout,
+			"set -gx PATH %s $PATH;\n",
+			shellQuote(binDir),
+		)
+		if err != nil {
+			log.Warn("write stdout failed", "err", err)
+		}
+	}
+
+	return nil
+}
+
+// emitPosixSource is the POSIX-shell (bash/zsh/sh) counterpart
+// of emitFishSource.
+func emitPosixSource(vars []envVar, binDir string, addPath bool) error {
+	for _, envVarEntry := range vars {
+		if !envVarEntry.IsPath {
+			continue
+		}
+
+		_, err := fmt.Fprintf(
+			os.Stdout,
+			"export %s=%s\n",
+			envVarEntry.Name,
+			shellQuote(envVarEntry.Value),
+		)
+		if err != nil {
+			log.Warn("write stdout failed", "err", err)
+		}
+	}
+
+	if addPath {
+		_, err := fmt.Fprintf(
+			os.Stdout,
+			"export PATH=%s:$PATH\n",
+			shellQuote(binDir),
+		)
+		if err != nil {
+			log.Warn("write stdout failed", "err", err)
+		}
+	}
 
 	return nil
 }
@@ -251,7 +319,7 @@ func DetectShell() string {
 		return detectShellWindows()
 	}
 
-	logrus.Debug("Attempting to detect shell via parent process")
+	log.Debug("Attempting to detect shell via parent process")
 	// Check parent process command (ps -p $$)
 	cmd := exec.CommandContext(
 		context.Background(),
@@ -265,7 +333,7 @@ func DetectShell() string {
 	out, err := cmd.Output()
 	if err == nil {
 		shell := strings.TrimSpace(string(out))
-		logrus.Debugf("ps output: %q", shell)
+		log.Debugf("ps output: %q", shell)
 
 		shell = filepath.Base(shell)
 
@@ -276,36 +344,36 @@ func DetectShell() string {
 		shell = strings.ToLower(shell)
 
 		if shell != "" {
-			logrus.Debugf("Detected shell from ps: %q", shell)
+			log.Debugf("Detected shell from ps: %q", shell)
 
 			return shell
 		}
 	} else {
-		logrus.Warnf("ps command failed: %v", err)
+		log.Warnf("ps command failed: %v", err)
 	}
 
 	// Fallback to SHELL env var
-	logrus.Debug("Falling back to SHELL env var")
+	log.Debug("Falling back to SHELL env var")
 
 	if sh := os.Getenv("SHELL"); sh != "" {
 		base := filepath.Base(sh)
-		logrus.Debugf("Detected shell from $SHELL: %q", base)
+		log.Debugf("Detected shell from $SHELL: %q", base)
 
 		return base
 	}
 
-	logrus.Warn("Could not detect shell")
+	log.Warn("Could not detect shell")
 
 	return ""
 }
 
 // detectShellWindows detects the shell on Windows systems.
 func detectShellWindows() string {
-	logrus.Debug("Detecting shell on Windows")
+	log.Debug("Detecting shell on Windows")
 
 	// Check for PowerShell
 	if psModulePath := os.Getenv("PSModulePath"); psModulePath != "" {
-		logrus.Debug("Detected PowerShell via PSModulePath")
+		log.Debug("Detected PowerShell via PSModulePath")
 
 		return "powershell"
 	}
@@ -314,7 +382,7 @@ func detectShellWindows() string {
 	if comspec := os.Getenv("COMSPEC"); comspec != "" {
 		base := strings.ToLower(filepath.Base(comspec))
 		if base == "cmd.exe" {
-			logrus.Debug("Detected cmd.exe via COMSPEC")
+			log.Debug("Detected cmd.exe via COMSPEC")
 
 			return "cmd"
 		}
@@ -341,7 +409,7 @@ func detectShellWindows() string {
 				processName := strings.Trim(strings.TrimSpace(fields[0]), "\"")
 				processName = strings.ToLower(processName)
 
-				logrus.Debugf("Parent process: %s", processName)
+				log.Debugf("Parent process: %s", processName)
 
 				switch processName {
 				case "powershell.exe":
@@ -354,10 +422,10 @@ func detectShellWindows() string {
 			}
 		}
 	} else {
-		logrus.Warnf("tasklist command failed: %v", err)
+		log.Warnf("tasklist command failed: %v", err)
 	}
 
-	logrus.Warn("Could not detect shell on Windows")
+	log.Warn("Could not detect shell on Windows")
 
 	return ""
 }

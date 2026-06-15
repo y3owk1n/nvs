@@ -7,9 +7,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/log"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -33,14 +33,14 @@ var pathCmd = &cobra.Command{
 
 // RunPath executes the path command.
 func RunPath(_ *cobra.Command, _ []string) error {
-	logrus.Debug("Running path command")
+	log.Debug("Running path command")
 
 	// On Windows, automatic PATH modifications are not implemented.
 	if runtime.GOOS == constants.WindowsOS {
 		// Use GetGlobalBinDir() to get the path
 		nvimBinDir := filepath.Join(GetGlobalBinDir(), "nvim", "bin")
 
-		logrus.Debug("Detected Windows OS")
+		log.Debug("Detected Windows OS")
 
 		ui.Message.Warnf("Automatic PATH setup is not implemented for Windows.")
 		ui.Message.Infof(
@@ -53,7 +53,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 	// Check if the global binary directory is already in the PATH.
 	pathEnv := os.Getenv("PATH")
-	logrus.Debug("Current PATH: ", pathEnv)
+	log.Debug("Current PATH: ", pathEnv)
 
 	// Check if GetGlobalBinDir() is already in PATH. Hoist the
 	// Clean() of GetGlobalBinDir() out of the loop — it is
@@ -74,7 +74,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	}
 
 	if found {
-		logrus.Debugf("PATH already contains %s", GetGlobalBinDir())
+		log.Debugf("PATH already contains %s", GetGlobalBinDir())
 
 		ui.Message.Infof(
 			"Your PATH already contains %s.",
@@ -91,7 +91,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 		// Verify the default shell exists
 		_, err := os.Stat(shell)
 		if os.IsNotExist(err) {
-			logrus.Warnf(
+			ui.Message.Warnf(
 				"Default shell %s does not exist, PATH setup may not work correctly",
 				shell,
 			)
@@ -101,7 +101,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	// If running in a Nix-managed shell, advise manual configuration.
 	isNixShell := os.Getenv("NIX_SHELL") != "" || strings.Contains(shell, "/nix/store")
 	if isNixShell {
-		logrus.Debug("Detected Nix shell environment")
+		log.Debug("Detected Nix shell environment")
 
 		ui.Message.Warnf(
 			"It appears your shell is managed by Nix. Automatic PATH modifications may not work as expected.",
@@ -114,11 +114,11 @@ func RunPath(_ *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	logrus.Debug("Detected shell: ", shell)
+	log.Debug("Detected shell: ", shell)
 
 	// Get the base name of the shell executable (e.g. bash, zsh, fish).
 	shellName := filepath.Base(shell)
-	logrus.Debug("Shell name: ", shellName)
+	log.Debug("Shell name: ", shellName)
 
 	// Determine the rc file path and export command based on the shell.
 	var rcFile, exportCmd string
@@ -132,7 +132,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 		home, err = os.UserHomeDir()
 		if err != nil {
-			logrus.Warnf("Failed to get home directory: %v", err)
+			log.Warnf("Failed to get home directory: %v", err)
 
 			ui.Message.Warnf(
 				"Cannot determine home directory. Please set HOME environment variable.",
@@ -156,7 +156,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 		exportCmd = "set -gx PATH $PATH " + GetGlobalBinDir()
 	default:
-		logrus.Debug("Unsupported shell: ", shellName)
+		log.Debug("Unsupported shell: ", shellName)
 
 		ui.Message.Warnf(
 			"Shell '%s' is not automatically supported. Please add %s to your PATH manually.",
@@ -167,8 +167,8 @@ func RunPath(_ *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	logrus.Debug("Using rcFile: ", rcFile)
-	logrus.Debug("Export command: ", exportCmd)
+	log.Debug("Using rcFile: ", rcFile)
+	log.Debug("Export command: ", exportCmd)
 
 	// Display the diff of the changes that will be applied.
 	//
@@ -219,7 +219,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	_, statErr := os.Stat(rcFile)
 	switch {
 	case os.IsNotExist(statErr):
-		logrus.Debug("Creating new rcFile")
+		log.Debug("Creating new rcFile")
 
 		err := os.WriteFile(
 			rcFile,
@@ -233,7 +233,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("failed to stat %s: %w", rcFile, statErr)
 	default:
 		// Otherwise, append the export command if it is not already present.
-		logrus.Debug("Appending to existing rcFile")
+		log.Debug("Appending to existing rcFile")
 
 		data, err := os.ReadFile(rcFile)
 		if err != nil {
@@ -251,7 +251,7 @@ func RunPath(_ *cobra.Command, _ []string) error {
 			defer func() {
 				err := file.Close()
 				if err != nil {
-					logrus.Errorf("Failed to close %s: %v", rcFile, err)
+					log.Errorf("Failed to close %s: %v", rcFile, err)
 				}
 			}()
 

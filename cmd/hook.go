@@ -5,9 +5,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/log"
 )
 
 // hookCmd represents the "hook" command.
@@ -46,7 +46,7 @@ func RunHook(_ *cobra.Command, args []string) error {
 	}
 
 	shell = strings.ToLower(shell)
-	logrus.Debugf("Generating hook for shell: %s", shell)
+	log.Debugf("Generating hook for shell: %s", shell)
 
 	hookScript, err := constants.HookScript(shell)
 	if err != nil {

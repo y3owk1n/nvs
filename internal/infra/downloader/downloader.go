@@ -11,9 +11,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/infra/httpclient"
+	"github.com/y3owk1n/nvs/internal/log"
 )
 
 // Downloader handles file downloads with progress tracking.
@@ -38,7 +38,7 @@ func (d *Downloader) Download(
 	dest *os.File,
 	progress ProgressFunc,
 ) error {
-	logrus.Debugf("Downloading from URL: %s", url)
+	log.Debugf("Downloading from URL: %s", url)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -55,7 +55,7 @@ func (d *Downloader) Download(
 	defer func() {
 		err := resp.Body.Close()
 		if err != nil {
-			logrus.Warnf("failed to close response body: %v", err)
+			log.Warnf("failed to close response body: %v", err)
 		}
 	}()
 
@@ -89,7 +89,7 @@ func (d *Downloader) DownloadWithChecksumVerification(
 	dest *os.File,
 	progress ProgressFunc,
 ) error {
-	logrus.Debugf("Downloading from URL: %s", url)
+	log.Debugf("Downloading from URL: %s", url)
 
 	expectedHash, err := d.fetchExpectedHash(ctx, checksumURL, assetName)
 	if err != nil {
@@ -111,7 +111,7 @@ func (d *Downloader) DownloadWithChecksumVerification(
 	defer func() {
 		err := resp.Body.Close()
 		if err != nil {
-			logrus.Warnf("failed to close response body: %v", err)
+			log.Warnf("failed to close response body: %v", err)
 		}
 	}()
 
@@ -205,7 +205,7 @@ func (d *Downloader) fetchExpectedHash(
 	defer func() {
 		err := resp.Body.Close()
 		if err != nil {
-			logrus.Warnf("failed to close response body: %v", err)
+			log.Warnf("failed to close response body: %v", err)
 		}
 	}()
 

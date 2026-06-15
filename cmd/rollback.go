@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/log"
 	"github.com/y3owk1n/nvs/internal/platform"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
@@ -68,7 +68,7 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 		if err == nil {
 			validEntries = append(validEntries, entry)
 		} else {
-			logrus.Debugf(
+			log.Debugf(
 				"Removing orphaned history entry: %s",
 				shortHash(entry.CommitHash, constants.ShortHashLength),
 			)
@@ -81,7 +81,7 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 
 		saveErr := saveNightlyHistory(history)
 		if saveErr != nil {
-			logrus.Warnf("Failed to save cleaned history: %v", saveErr)
+			log.Warnf("Failed to save cleaned history: %v", saveErr)
 		}
 	}
 
@@ -104,7 +104,7 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 	}
 
 	entry := history.Entries[index]
-	logrus.Debugf("Rolling back to nightly commit %s", entry.CommitHash)
+	log.Debugf("Rolling back to nightly commit %s", entry.CommitHash)
 
 	// The rollback is essentially switching to a stored nightly version
 	// We need to check if this version directory still exists
@@ -129,7 +129,7 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 	// Get current nightly's commit hash before removing (to potentially back it up)
 	currentCommit, err := GetVersionService().GetInstalledVersionIdentifier("nightly")
 	if err != nil {
-		logrus.Debugf("Could not get current nightly identifier: %v", err)
+		log.Debugf("Could not get current nightly identifier: %v", err)
 	}
 
 	// Remove current nightly symlink/directory if it exists
@@ -139,7 +139,7 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 			// It's a symlink, just remove it
 			err := os.Remove(currentNightly)
 			if err != nil {
-				logrus.Warnf("Failed to remove symlink: %v", err)
+				log.Warnf("Failed to remove symlink: %v", err)
 			}
 		} else if info.IsDir() {
 			// It's a real directory - back it up so the user can
@@ -172,7 +172,7 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 			renameErr := os.Rename(currentNightly, backupDir)
 			switch {
 			case renameErr == nil:
-				logrus.Debugf("Backed up current nightly to %s", backupDir)
+				log.Debugf("Backed up current nightly to %s", backupDir)
 			case os.IsExist(renameErr):
 				// Backup already exists from a previous run;
 				// safe to remove the current nightly.
@@ -200,7 +200,7 @@ func RunRollback(cmd *cobra.Command, args []string) error {
 	if currentCommit != "" && currentCommit != entry.CommitHash {
 		histErr := AddNightlyToHistory(currentCommit, "nightly")
 		if histErr != nil {
-			logrus.Warnf("Failed to add previous nightly to history: %v", histErr)
+			log.Warnf("Failed to add previous nightly to history: %v", histErr)
 		}
 	}
 
@@ -304,11 +304,11 @@ func AddNightlyToHistory(commitHash, tagName string) error {
 				"nightly-"+shortHash(history.Entries[i].CommitHash, constants.ShortHashLength),
 			)
 
-			logrus.Debugf("Removing old nightly backup: %s", oldDir)
+			log.Debugf("Removing old nightly backup: %s", oldDir)
 
 			err := os.RemoveAll(oldDir)
 			if err != nil {
-				logrus.Warnf("Failed to remove old nightly %s: %v", oldDir, err)
+				log.Warnf("Failed to remove old nightly %s: %v", oldDir, err)
 			}
 		}
 
@@ -389,7 +389,7 @@ func saveNightlyHistory(history *NightlyHistory) error {
 	if openErr == nil {
 		syncErr := tempFile.Sync()
 		if syncErr != nil {
-			logrus.Warnf("Failed to fsync temp history file: %v", syncErr)
+			log.Warnf("Failed to fsync temp history file: %v", syncErr)
 		}
 
 		_ = tempFile.Close()
@@ -426,7 +426,7 @@ func resolveNightlyBackupDir(currentCommit string) string {
 		"nightly-"+time.Now().UTC().Format("20060102-150405"),
 	)
 
-	logrus.Warnf(
+	ui.Message.Warnf(
 		"Current nightly has no readable identifier; backing up to timestamped directory %s",
 		timestamped,
 	)

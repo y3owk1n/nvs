@@ -7,9 +7,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/log"
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
@@ -45,7 +45,7 @@ var installCmd = &cobra.Command{
 
 // RunInstall executes the install command.
 func RunInstall(cmd *cobra.Command, args []string) error {
-	logrus.Debug("Starting installation command")
+	log.Debug("Starting installation command")
 
 	// Create a context with a timeout to prevent hanging installations.
 	ctx, cancel := context.WithTimeout(cmd.Context(), constants.TimeoutMinutes*time.Minute)
@@ -127,7 +127,7 @@ func runInstallForAlias(
 ) error {
 	_ = cmd
 
-	logrus.Debugf("Requested version: %s", alias)
+	log.Debugf("Requested version: %s", alias)
 
 	// Create and start a spinner for progress. The spinner
 	// detects non-terminal writers internally and becomes a
