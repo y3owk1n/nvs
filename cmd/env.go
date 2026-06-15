@@ -11,13 +11,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fatih/color"
-	"github.com/olekukonko/tablewriter"
-	"github.com/olekukonko/tablewriter/renderer"
-	"github.com/olekukonko/tablewriter/tw"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/ui"
 )
 
 // envCmd represents the "env" command.
@@ -198,54 +195,22 @@ func RunEnv(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Create a table to display the configuration variables.
-	table := tablewriter.NewTable(os.Stdout,
-		tablewriter.WithRenderer(renderer.NewBlueprint(tw.Rendition{
-			Borders:  tw.BorderNone,
-			Settings: tw.Settings{Separators: tw.Separators{BetweenRows: tw.Off}},
-		})),
-		tablewriter.WithConfig(tablewriter.Config{
-			Header: tw.CellConfig{
-				Alignment: tw.CellAlignment{Global: tw.AlignLeft},
-			},
-			Row: tw.CellConfig{
-				Alignment: tw.CellAlignment{Global: tw.AlignLeft},
-			},
-		}),
-	)
-	table.Header([]string{"Variable", "Value"})
+	//
+	// The default (no --source, no --json) view is the
+	// human-readable summary, so it routes through the new
+	// ui.Table primitive for visual consistency with the
+	// other commands. Each row is "VARIABLE  <value>", with
+	// the value rendered in the Accent (primary) color so the
+	// path is the data the user is actually reading.
+	tbl := ui.Table.New("Variable", "Value")
 
-	// Append each configuration variable and its value (with colored output).
-	var err error
+	tbl.Row("NVS_CONFIG_DIR", ui.Message.Accent(configDir))
+	tbl.Row("NVS_CACHE_DIR", ui.Message.Accent(cacheDir))
+	tbl.Row("NVS_BIN_DIR", ui.Message.Accent(binDir))
 
-	err = table.Append([]string{
-		"NVS_CONFIG_DIR",
-		color.New(color.Bold, color.FgCyan).Sprint(configDir),
-	})
-	if err != nil {
-		return err
-	}
-
-	err = table.Append([]string{
-		"NVS_CACHE_DIR",
-		color.New(color.Bold, color.FgCyan).Sprint(cacheDir),
-	})
-	if err != nil {
-		return err
-	}
-
-	err = table.Append([]string{
-		"NVS_BIN_DIR",
-		color.New(color.Bold, color.FgCyan).Sprint(binDir),
-	})
-	if err != nil {
-		return err
-	}
-
-	// Render the table to stdout.
-	err = table.Render()
-	if err != nil {
-		return err
-	}
+	_, _ = fmt.Fprint(os.Stdout, ui.Banner.Logo())
+	_, _ = fmt.Fprintln(os.Stdout)
+	_, _ = fmt.Fprint(os.Stdout, tbl.Render(ui.Style.Palette()))
 
 	return nil
 }
