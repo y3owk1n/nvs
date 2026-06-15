@@ -15,6 +15,9 @@ Environment setup and customization options for **nvs**.
 | `NVS_USE_GLOBAL_CACHE` | Use global cache for releases              | `false`         |
 | `NVS_LOG`              | Developer log level (debug/info/warn/...)  | `warn`          |
 | `NVS_LOG_FILE`         | Tee developer logs to a file               | (none)          |
+| `NVS_COLOR_*`          | Theme any palette color (see [Theming](#theming)) | (built-in palette) |
+| `NO_COLOR`             | Disable all ANSI color output              | (unset)         |
+| `FORCE_COLOR`          | Force ANSI color even on non-TTY           | (unset)         |
 
 ---
 
@@ -22,6 +25,7 @@ Environment setup and customization options for **nvs**.
 
 - [Shell Setup](#shell-setup)
 - [Environment Variables](#environment-variables)
+- [Theming](#theming)
 - [Directory Structure](#directory-structure)
 - [GitHub Mirror](#github-mirror)
 - [PATH Configuration](#path-configuration)
@@ -111,6 +115,8 @@ nvs env --source --shell powershell
 
 ## Environment Variables
 
+All `NVS_*` environment variables are validated at startup. An invalid value (e.g. a typo, a path with a control character, an unparseable log level) is reported once on stderr and the corresponding default is used — the program does not refuse to run, but the user is told why their setting had no effect.
+
 ### NVS_CONFIG_DIR
 
 **Purpose:** Configuration storage (version records, settings)
@@ -196,6 +202,14 @@ export NVS_GITHUB_MIRROR="https://mirror.ghproxy.com"
 
 **Default:** `false`
 
+**Recognized values** (case-insensitive):
+
+| Truthy              | Falsy               |
+| ------------------- | ------------------- |
+| `1`, `true`, `yes`, `on` | `0`, `false`, `no`, `off` |
+
+Anything else warns on stderr and is treated as `false`.
+
 **Example:**
 
 ```bash
@@ -259,6 +273,122 @@ tail -f /tmp/nvs.log
 ```
 
 The file is opened in append mode with `0600` permissions. If the file cannot be opened, `nvs` exits with a non-zero status and a clear error — there is no silent fallback to a half-broken logger.
+
+---
+
+## Theming
+
+nvs colors its output through a single nine-slot palette. Every slot is overridable via the `NVS_COLOR_<NAME>` family of environment variables, so you can re-skin the CLI to match your terminal theme without recompiling.
+
+### Default palette: Pastel Twilight
+
+The shipped defaults are the [base16](https://github.com/chriskempson/base16) **Pastel Twilight** theme — a deep violet twilight sky lit by soft pastel accents. The "Dark" variant is the theme as designed; the "Light" variant is the same palette darkened so it reads on light backgrounds.
+
+| Slot        | Light (light bg)   | Dark (dark bg)     | Hex (dark)                                |
+| ----------- | ------------------ | ------------------ | ----------------------------------------- |
+| `PRIMARY`   | Darker lavender    | Lavender dreams    | `#c9a0e9`                                 |
+| `TEXT`      | Horizon shadows    | Moonlight glow     | `#e0def4`                                 |
+| `MUTED`     | Gentle twilight    | Moonlit clouds     | `#9a96b5`                                 |
+| `SUBTLE`    | Faded midtone      | Muted gray         | `#5a5672`                                 |
+| `BORDER`    | Horizon shadows    | Distant hills      | `#3a364d`                                 |
+| `ACCENT`    | Darker dusk blue   | Dusk blue          | `#80b8e8`                                 |
+| `SUCCESS`   | Darker pastel mint | Pastel mint        | `#abe9b3`                                 |
+| `WARNING`   | Darker lantern     | Gentle lantern     | `#f9e2af`                                 |
+| `ERROR`     | Darker blush pink  | Blush pink         | `#f28fad`                                 |
+
+Run `nvs env` (the `Theming` section) to see the resolved values, or `nvs env --json` to consume them from a script.
+
+### Palette slot semantics
+
+| Slot        | Used for                                                   |
+| ----------- | ---------------------------------------------------------- |
+| `PRIMARY`   | Brand accent, wordmark, current/active markers             |
+| `TEXT`      | Default body text                                          |
+| `MUTED`     | Secondary text (descriptions, captions)                    |
+| `SUBTLE`    | Tertiary text (timestamps, hints, dimmed labels)           |
+| `BORDER`    | Panel/box outline                                          |
+| `ACCENT`    | Secondary highlight (paths, commit hashes, version strings)|
+| `SUCCESS`   | Positive outcomes (install ok, switch ok)                  |
+| `WARNING`   | Non-fatal issues (already up to date, missing optional dep)|
+| `ERROR`     | Fatal outcomes (install failed, permission denied)         |
+
+### Override syntax
+
+For every slot `<NAME>`, three variables control the color:
+
+| Variable                  | Effect                                                       |
+| ------------------------- | ------------------------------------------------------------ |
+| `NVS_COLOR_<NAME>`        | Sets **both** the light-background and dark-background variant |
+| `NVS_COLOR_<NAME>_LIGHT`  | Sets only the light-background variant (overrides the base)  |
+| `NVS_COLOR_<NAME>_DARK`   | Sets only the dark-background variant (overrides the base)   |
+
+`_LIGHT` and `_DARK` take precedence over the base variable. Precedence (highest first):
+
+1. `NVS_COLOR_<NAME>_LIGHT`
+2. `NVS_COLOR_<NAME>_DARK`
+3. `NVS_COLOR_<NAME>`
+
+**Examples:**
+
+```bash
+# One-liner: paint every nvs prompt in the Catppuccin Mocha mauve.
+export NVS_COLOR_PRIMARY="#cba6f7"
+
+# Two-tone: a soft primary in dark mode, deeper primary in light mode.
+export NVS_COLOR_PRIMARY_DARK="#cba6f7"
+export NVS_COLOR_PRIMARY_LIGHT="#8839ef"
+
+# Use a named color (one of: black, red, green, yellow, blue, magenta, cyan, white, gray, grey).
+export NVS_COLOR_SUCCESS="green"
+
+# Use an ANSI 256 number.
+export NVS_COLOR_ACCENT="212"
+```
+
+### Accepted color formats
+
+Each value is validated. If the value is not a recognized color, nvs warns on stderr and falls back to the default — the whole palette does not break because of one typo.
+
+| Format        | Example            | Notes                                                          |
+| ------------- | ------------------ | -------------------------------------------------------------- |
+| Hex 3-digit   | `abc`, `#abc`      | Expands to `aabbcc`. The `#` is optional.                      |
+| Hex 6-digit   | `abcdef`, `#abcdef`| Standard RGB. The `#` is optional.                             |
+| Hex 8-digit   | `abcdef12`, `#abcdef12` | RGBA; the trailing 2 hex digits are the alpha.            |
+| Named         | `red`, `RED`, `Red`| One of: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, `gray`, `grey` (case-insensitive). |
+| ANSI 256      | `0`..`255`         | The xterm 256-color palette.                                   |
+
+A value like `chartreuse` or `#xyz` is rejected, nvs prints `nvs: NVS_COLOR_PRIMARY="..." is not a valid color (...)` once, and the slot keeps its default.
+
+### Picker (huh) follows the palette
+
+The interactive picker (used for `nvs install --pick`, confirmations, etc.) draws its colors from the same palette:
+
+- focused title / selector / button → `Primary.Dark` (i.e. `NVS_COLOR_PRIMARY` / `NVS_COLOR_PRIMARY_DARK`)
+- unselected option → `Text.Dark` (i.e. `NVS_COLOR_TEXT` / `NVS_COLOR_TEXT_DARK`)
+- blurred title → `Subtle.Dark` (i.e. `NVS_COLOR_SUBTLE` / `NVS_COLOR_SUBTLE_DARK`)
+- focused-button foreground (text on the primary background) → `Text.Light` (i.e. `NVS_COLOR_TEXT_LIGHT`)
+
+So there are **no** separate `NVS_PICKER_*` variables: override the corresponding `NVS_COLOR_*` slot and the picker follows automatically.
+
+### Inspecting the active theme
+
+```bash
+nvs env              # human-readable table with the current effective values
+nvs env --json       # machine-readable (e.g. for dotfiles / theme-sync scripts)
+```
+
+Both forms include a `Theming` section listing every `NVS_COLOR_*` slot with its resolved `Light: ..., Dark: ...` value.
+
+### Disabling color entirely
+
+The standard tooling conventions win over every `NVS_COLOR_*` override:
+
+```bash
+NO_COLOR=1   nvs install stable    # disable all ANSI escapes
+FORCE_COLOR=1 nvs list | less      # force color even when piped
+```
+
+See [`NO_COLOR`](https://no-color.org) and [`FORCE_COLOR`](https://force-color.org) for the cross-tool specs.
 
 ---
 

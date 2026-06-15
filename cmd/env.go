@@ -11,18 +11,21 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
 	"github.com/y3owk1n/nvs/internal/log"
 	"github.com/y3owk1n/nvs/internal/ui"
+	"github.com/y3owk1n/nvs/internal/ui/style"
 )
 
 // envCmd represents the "env" command.
 // It prints the NVS environment configuration variables and
 // their resolved values: paths (NVS_CONFIG_DIR, NVS_CACHE_DIR,
 // NVS_BIN_DIR), behavior toggles (NVS_GITHUB_MIRROR,
-// NVS_USE_GLOBAL_CACHE), and logger settings (NVS_LOG,
-// NVS_LOG_FILE).
+// NVS_USE_GLOBAL_CACHE), logger settings (NVS_LOG,
+// NVS_LOG_FILE), and the active theme (NVS_COLOR_* and
+// NVS_PICKER_*).
 //
 // Example usage:
 //
@@ -31,11 +34,11 @@ import (
 //	nvs env --source        # shell-eval'd export statements (paths only)
 //
 // The --source mode emits only the path variables (the ones
-// nvs needs to find its on-disk state). Behavior and log
-// settings are user preferences and are deliberately not
+// nvs needs to find its on-disk state). Behavior, log, and
+// theme settings are user preferences and are deliberately not
 // exported, so a user who runs `eval "$(nvs env --source)"`
 // at shell startup does not unintentionally pin a debug log
-// level into every subsequent invocation.
+// level or a custom palette into every subsequent invocation.
 var envCmd = &cobra.Command{
 	Use:   "env",
 	Short: "Print NVS env configurations",
@@ -44,7 +47,8 @@ var envCmd = &cobra.Command{
 Variables shown:
   Paths     NVS_CONFIG_DIR, NVS_CACHE_DIR, NVS_BIN_DIR
   Behavior  NVS_GITHUB_MIRROR, NVS_USE_GLOBAL_CACHE
-  Logging   NVS_LOG, NVS_LOG_FILE`,
+  Logging   NVS_LOG, NVS_LOG_FILE
+  Theming   NVS_COLOR_*, NVS_PICKER_* (resolved to the active palette)`,
 	RunE: RunEnv,
 }
 
@@ -53,6 +57,13 @@ Variables shown:
 // lets us add per-row hints later (e.g. a "Default" column) with
 // only the affected call sites changing.
 type envVar struct {
+	// Section groups related variables under a header in the
+	// human-readable table (Paths / Behavior / Logging /
+	// Theming). Empty Section means "use no header" — kept as
+	// a valid value so future flat sections do not need a
+	// rename.
+	Section string
+
 	Name  string
 	Value string
 	// IsPath is true for the three NVS_*_DIR vars. The
@@ -108,9 +119,14 @@ func collectEnvVars() []envVar {
 		githubMirror = "(unset, using github.com)"
 	}
 
+	// Show the EFFECTIVE boolean state, after validation. If
+	// the user set NVS_USE_GLOBAL_CACHE to a typo, parseBoolEnv
+	// has already warned at startup; here we just report the
+	// effective value.
+	resolved, _ := parseBoolEnv("NVS_USE_GLOBAL_CACHE", os.Getenv("NVS_USE_GLOBAL_CACHE"))
+
 	useGlobalCache := "false"
-	if envValue := os.Getenv("NVS_USE_GLOBAL_CACHE"); strings.EqualFold(envValue, "true") ||
-		envValue == "1" {
+	if resolved {
 		useGlobalCache = "true"
 	}
 
@@ -126,25 +142,79 @@ func collectEnvVars() []envVar {
 		logFile = "(unset, stderr only)"
 	}
 
+	return appendTheming(
+		[]envVar{
+			{Section: "Paths", Name: "NVS_CONFIG_DIR", Value: configDir, IsPath: true},
+			{Section: "Paths", Name: "NVS_CACHE_DIR", Value: cacheDir, IsPath: true},
+			{Section: "Paths", Name: "NVS_BIN_DIR", Value: binDir, IsPath: true},
+			{Section: "Behavior", Name: "NVS_GITHUB_MIRROR", Value: githubMirror},
+			{Section: "Behavior", Name: "NVS_USE_GLOBAL_CACHE", Value: useGlobalCache},
+			{Section: "Logging", Name: "NVS_LOG", Value: logLevel},
+			{Section: "Logging", Name: "NVS_LOG_FILE", Value: logFile},
+		},
+		collectThemingVars(),
+	)
+}
+
+// collectThemingVars resolves the effective value of every
+// NVS_COLOR_<NAME> slot. For each color the value shows both
+// the light and dark variants so the user can see at a glance
+// what each terminal background will render.
+//
+// The picker (huh) is intentionally NOT listed separately:
+// every picker color is a derived value of a palette slot
+// (see style.PickerColors) and is shown through the
+// corresponding NVS_COLOR_* row above.
+func collectThemingVars() []envVar {
+	palette := style.Default()
+
 	return []envVar{
-		{Name: "NVS_CONFIG_DIR", Value: configDir, IsPath: true},
-		{Name: "NVS_CACHE_DIR", Value: cacheDir, IsPath: true},
-		{Name: "NVS_BIN_DIR", Value: binDir, IsPath: true},
-		{Name: "NVS_GITHUB_MIRROR", Value: githubMirror},
-		{Name: "NVS_USE_GLOBAL_CACHE", Value: useGlobalCache},
-		{Name: "NVS_LOG", Value: logLevel},
-		{Name: "NVS_LOG_FILE", Value: logFile},
+		{Section: "Theming", Name: "NVS_COLOR_PRIMARY", Value: adaptiveColorValue(palette.Primary)},
+		{Section: "Theming", Name: "NVS_COLOR_TEXT", Value: adaptiveColorValue(palette.Text)},
+		{Section: "Theming", Name: "NVS_COLOR_MUTED", Value: adaptiveColorValue(palette.Muted)},
+		{Section: "Theming", Name: "NVS_COLOR_SUBTLE", Value: adaptiveColorValue(palette.Subtle)},
+		{Section: "Theming", Name: "NVS_COLOR_BORDER", Value: adaptiveColorValue(palette.Border)},
+		{Section: "Theming", Name: "NVS_COLOR_ACCENT", Value: adaptiveColorValue(palette.Accent)},
+		{Section: "Theming", Name: "NVS_COLOR_SUCCESS", Value: adaptiveColorValue(palette.Success)},
+		{Section: "Theming", Name: "NVS_COLOR_WARNING", Value: adaptiveColorValue(palette.Warning)},
+		{Section: "Theming", Name: "NVS_COLOR_ERROR", Value: adaptiveColorValue(palette.Error)},
 	}
 }
 
+// adaptiveColorValue formats an AdaptiveColor as
+// "Light: <hex>, Dark: <hex>". The bracket-less format keeps
+// the table narrow and is unambiguous about which side is
+// which — the same format the env-var reference in
+// docs/CONFIGURATION.md uses for the defaults table.
+func adaptiveColorValue(c lipgloss.AdaptiveColor) string {
+	return "Light: " + c.Light + ", Dark: " + c.Dark
+}
+
+// appendTheming returns base with theming appended. Kept as a
+// free function (rather than a method on a named slice type) so
+// the table-building site reads like a single expression
+// without paying for a new exported type.
+func appendTheming(base, theming []envVar) []envVar {
+	out := make([]envVar, 0, len(base)+len(theming))
+	out = append(out, base...)
+	out = append(out, theming...)
+
+	return out
+}
+
 // renderEnvText writes the default human-readable view: a
-// banner followed by a two-column table. Values are rendered in
-// the Accent color so the data the user is looking for stands
-// out from the variable names.
+// banner followed by a three-column table (Section | Variable |
+// Value). Values are rendered in the Accent color so the data
+// the user is looking for stands out from the variable names.
+//
+// The Section column groups related vars (Paths / Behavior /
+// Logging / Theming) so the table stays readable as more
+// variables are added. Empty Section is rendered as a blank
+// cell — reserved for future flat sections.
 func renderEnvText(vars []envVar) error {
-	tbl := ui.Table.New("Variable", "Value")
+	tbl := ui.Table.New("Section", "Variable", "Value")
 	for _, v := range vars {
-		tbl.Row(v.Name, ui.Message.Accent(v.Value))
+		tbl.Row(v.Section, v.Name, ui.Message.Accent(v.Value))
 	}
 
 	_, _ = fmt.Fprint(os.Stdout, ui.Banner.Logo())
