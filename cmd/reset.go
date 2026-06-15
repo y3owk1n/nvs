@@ -49,57 +49,36 @@ func RunReset(_ *cobra.Command, _ []string) error {
 	logrus.Debugf("Resolved binDir: %s", baseBinDir)
 
 	// Display a warning about the destructive nature of this command.
-	_, err = fmt.Fprintf(
-		os.Stdout,
-		"%s %s\n",
-		ui.WarningIcon(),
-		ui.RedText(
-			"WARNING: This will remove all NVS data, including downloaded versions and cache.",
-		),
+	ui.Message.Warnf(
+		"WARNING: This will remove all NVS data, including downloaded versions and cache.",
 	)
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
 
-	_, err = fmt.Fprintf(
-		os.Stdout,
-		"%s %s\n",
-		ui.InfoIcon(),
-		ui.WhiteText("Directories to be removed:"),
-	)
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
+	ui.Message.Infof("Directories to be removed:")
 
-	_, err = fmt.Fprintf(os.Stdout, "  - %s\n", ui.CyanText(baseConfigDir))
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
-
-	_, err = fmt.Fprintf(os.Stdout, "  - %s\n", ui.CyanText(baseCacheDir))
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
-
-	_, err = fmt.Fprintf(
-		os.Stdout,
-		"  - %s (if it exists)\n",
-		ui.CyanText(filepath.Join(baseBinDir, "nvim")),
-	)
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
+	// One Bulletf per directory to be removed. Bulletf renders
+	// "  • <text>" with the muted palette, which gives the
+	// three paths a consistent, scannable block.
+	ui.Message.Bulletf("%s", baseConfigDir)
+	ui.Message.Bulletf("%s", baseCacheDir)
+	ui.Message.Bulletf("%s (if it exists)", filepath.Join(baseBinDir, "nvim"))
 
 	// Prompt the user for confirmation.
-	_, err = fmt.Fprintf(
+	//
+	// We use a manual bufio.Reader here (not ui.Picker.Confirm)
+	// for the same reason uninstall does: `echo y | nvs reset`
+	// is a legitimate scriptable invocation, and the picker
+	// returns ErrNoTTY in that case. The prompt itself is
+	// styled via ui.Message.Muted so it visually fits the
+	// modern minimal style; we write it with fmt.Fprint (no
+	// trailing newline) so the user's input lands on the same
+	// line.
+	_, _ = fmt.Fprint(
 		os.Stdout,
-		"\n%s %s ",
-		ui.PromptIcon(),
-		"Are you sure you want to proceed? (y/N): ",
+		"\n",
+		ui.Message.Muted(
+			ui.Message.Icons().Step+" Are you sure you want to proceed? (y/N): ",
+		),
 	)
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
 
 	reader := bufio.NewReader(os.Stdin)
 
@@ -112,15 +91,7 @@ func RunReset(_ *cobra.Command, _ []string) error {
 	logrus.Debugf("User input: %q", input)
 
 	if input != "y" {
-		_, err = fmt.Fprintf(
-			os.Stdout,
-			"%s %s\n",
-			ui.InfoIcon(),
-			ui.WhiteText("Aborted by user."),
-		)
-		if err != nil {
-			logrus.Warnf("Failed to write to stdout: %v", err)
-		}
+		ui.Message.Infof("Aborted by user.")
 
 		return nil
 	}
@@ -171,15 +142,7 @@ func RunReset(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("failed to remove nvim symlink: %w", err)
 	}
 
-	_, err = fmt.Fprintf(
-		os.Stdout,
-		"%s %s\n",
-		ui.SuccessIcon(),
-		ui.WhiteText("Reset complete. All NVS data has been removed."),
-	)
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
+	ui.Message.Successf("Reset complete. All NVS data has been removed.")
 
 	return nil
 }
