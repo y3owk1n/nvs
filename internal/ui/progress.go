@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/ui/style"
 )
 
 // progressBarWidth is the bar's total width in terminal
@@ -64,11 +65,10 @@ func FormatPhaseProgress(phase string, percent int) string {
 }
 
 // defaultProgressBar returns a freshly-constructed
-// bubbles/progress Model with the nvs look: a solid
-// primary-green fill, 40-cell width, no rounded border
-// (bubbles' default surrounds the bar with `┃ … ┃` which
-// adds visual weight we don't need for a status line), and
-// a percentage suffix.
+// bubbles/progress Model with the nvs look: a theme-colored
+// fill, 40-cell width, no rounded border (bubbles' default
+// surrounds the bar with `┃ … ┃` which adds visual weight
+// we don't need for a status line), and a percentage suffix.
 //
 // Allocating a fresh Model per call is intentional: it
 // keeps FormatProgressBar safe to call from concurrent
@@ -78,7 +78,9 @@ func FormatPhaseProgress(phase string, percent int) string {
 // allocation matters, we can switch to a sync.Pool of
 // pre-constructed Models.
 func defaultProgressBar() progress.Model {
-	return progress.New(
+	palette := style.Default()
+
+	model := progress.New(
 		progress.WithWidth(progressBarWidth),
 		// The default solid-fill rune is '█' and the
 		// default empty rune is '░' — exactly what we
@@ -92,8 +94,17 @@ func defaultProgressBar() progress.Model {
 		// then render the first UTF-8 byte as a
 		// Latin-1 character.)
 		progress.WithFillCharacters(progressBarFullRune, progressBarEmptyRune),
+		// Fill the completed portion with the theme's
+		// primary color and the remaining portion with
+		// the subtle/muted color so the bar participates
+		// in the nvs design system.
+		progress.WithSolidFill(palette.Primary.Dark),
 		// No border: bubbles' default surrounds the bar
 		// with `┃ … ┃` which adds visual weight that
 		// doesn't earn its keep in a status line.
 	)
+
+	model.EmptyColor = palette.Subtle.Dark
+
+	return model
 }

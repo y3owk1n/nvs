@@ -29,10 +29,10 @@ import (
 
 // Palette holds the semantic colors used by the nvs UI.
 //
-// The default palette is the "Pastel Twilight" base16 theme:
-// a deep violet twilight sky (#1f1d2e) lit by soft pastel
-// accents (lavender, dusk blue, pastel mint, blush pink,
-// lantern yellow). The "Dark" variant is the theme's
+// The default palette is the "Pastel Twilight" base16 theme
+// designed by me: a deep violet twilight sky (#1f1d2e) lit
+// by soft pastel accents (lavender, dusk blue, pastel mint,
+// blush pink, lantern yellow). The "Dark" variant is the theme's
 // intended-on-dark-background colors; the "Light" variant is
 // the same palette darkened to read on light backgrounds.
 //

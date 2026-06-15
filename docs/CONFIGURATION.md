@@ -6,18 +6,18 @@ Environment setup and customization options for **nvs**.
 
 ## Quick Reference
 
-| Variable               | Description                                | Default (Unix)  |
-| ---------------------- | ------------------------------------------ | --------------- |
-| `NVS_CONFIG_DIR`       | Configuration files                        | `~/.config/nvs` |
-| `NVS_CACHE_DIR`        | Cache files                                | `~/.cache/nvs`  |
-| `NVS_BIN_DIR`          | Binary symlinks                            | `~/.local/bin`  |
-| `NVS_GITHUB_MIRROR`    | GitHub mirror URL                          | (none)          |
-| `NVS_USE_GLOBAL_CACHE` | Use global cache for releases              | `false`         |
-| `NVS_LOG`              | Developer log level (debug/info/warn/...)  | `warn`          |
-| `NVS_LOG_FILE`         | Tee developer logs to a file               | (none)          |
+| Variable               | Description                                       | Default (Unix)     |
+| ---------------------- | ------------------------------------------------- | ------------------ |
+| `NVS_CONFIG_DIR`       | Configuration files                               | `~/.config/nvs`    |
+| `NVS_CACHE_DIR`        | Cache files                                       | `~/.cache/nvs`     |
+| `NVS_BIN_DIR`          | Binary symlinks                                   | `~/.local/bin`     |
+| `NVS_GITHUB_MIRROR`    | GitHub mirror URL                                 | (none)             |
+| `NVS_USE_GLOBAL_CACHE` | Use global cache for releases                     | `false`            |
+| `NVS_LOG`              | Developer log level (debug/info/warn/...)         | `warn`             |
+| `NVS_LOG_FILE`         | Tee developer logs to a file                      | (none)             |
 | `NVS_COLOR_*`          | Theme any palette color (see [Theming](#theming)) | (built-in palette) |
-| `NO_COLOR`             | Disable all ANSI color output              | (unset)         |
-| `FORCE_COLOR`          | Force ANSI color even on non-TTY           | (unset)         |
+| `NO_COLOR`             | Disable all ANSI color output                     | (unset)            |
+| `FORCE_COLOR`          | Force ANSI color even on non-TTY                  | (unset)            |
 
 ---
 
@@ -204,8 +204,8 @@ export NVS_GITHUB_MIRROR="https://mirror.ghproxy.com"
 
 **Recognized values** (case-insensitive):
 
-| Truthy              | Falsy               |
-| ------------------- | ------------------- |
+| Truthy                   | Falsy                     |
+| ------------------------ | ------------------------- |
 | `1`, `true`, `yes`, `on` | `0`, `false`, `no`, `off` |
 
 Anything else warns on stderr and is treated as `false`.
@@ -236,13 +236,13 @@ export NVS_USE_GLOBAL_CACHE=true
 
 **Recognized values** (case-insensitive):
 
-| Value              | Shows                              |
-| ------------------ | ---------------------------------- |
-| `debug` / `trace`  | Everything                         |
-| `info`             | Info, warn, error, fatal           |
-| `warn` (default)   | Warn, error, fatal                 |
-| `error` / `err`    | Error, fatal                       |
-| `fatal`            | Fatal only                         |
+| Value             | Shows                    |
+| ----------------- | ------------------------ |
+| `debug` / `trace` | Everything               |
+| `info`            | Info, warn, error, fatal |
+| `warn` (default)  | Warn, error, fatal       |
+| `error` / `err`   | Error, fatal             |
+| `fatal`           | Fatal only               |
 
 **Example:**
 
@@ -282,45 +282,45 @@ nvs colors its output through a single nine-slot palette. Every slot is overrida
 
 ### Default palette: Pastel Twilight
 
-The shipped defaults are the [base16](https://github.com/chriskempson/base16) **Pastel Twilight** theme — a deep violet twilight sky lit by soft pastel accents. The "Dark" variant is the theme as designed; the "Light" variant is the same palette darkened so it reads on light backgrounds.
+The shipped defaults are the **Pastel Twilight** theme — a deep violet twilight sky lit by soft pastel accents. The "Dark" variant is the theme as designed; the "Light" variant is the same palette darkened so it reads on light backgrounds.
 
-| Slot        | Light (light bg)   | Dark (dark bg)     | Hex (dark)                                |
-| ----------- | ------------------ | ------------------ | ----------------------------------------- |
-| `PRIMARY`   | Darker lavender    | Lavender dreams    | `#c9a0e9`                                 |
-| `TEXT`      | Horizon shadows    | Moonlight glow     | `#e0def4`                                 |
-| `MUTED`     | Gentle twilight    | Moonlit clouds     | `#9a96b5`                                 |
-| `SUBTLE`    | Faded midtone      | Muted gray         | `#5a5672`                                 |
-| `BORDER`    | Horizon shadows    | Distant hills      | `#3a364d`                                 |
-| `ACCENT`    | Darker dusk blue   | Dusk blue          | `#80b8e8`                                 |
-| `SUCCESS`   | Darker pastel mint | Pastel mint        | `#abe9b3`                                 |
-| `WARNING`   | Darker lantern     | Gentle lantern     | `#f9e2af`                                 |
-| `ERROR`     | Darker blush pink  | Blush pink         | `#f28fad`                                 |
+| Slot      | Light (light bg)   | Dark (dark bg)  | Hex (dark) |
+| --------- | ------------------ | --------------- | ---------- |
+| `PRIMARY` | Darker lavender    | Lavender dreams | `#c9a0e9`  |
+| `TEXT`    | Horizon shadows    | Moonlight glow  | `#e0def4`  |
+| `MUTED`   | Gentle twilight    | Moonlit clouds  | `#9a96b5`  |
+| `SUBTLE`  | Faded midtone      | Muted gray      | `#5a5672`  |
+| `BORDER`  | Horizon shadows    | Distant hills   | `#3a364d`  |
+| `ACCENT`  | Darker dusk blue   | Dusk blue       | `#80b8e8`  |
+| `SUCCESS` | Darker pastel mint | Pastel mint     | `#abe9b3`  |
+| `WARNING` | Darker lantern     | Gentle lantern  | `#f9e2af`  |
+| `ERROR`   | Darker blush pink  | Blush pink      | `#f28fad`  |
 
 Run `nvs env` (the `Theming` section) to see the resolved values, or `nvs env --json` to consume them from a script.
 
 ### Palette slot semantics
 
-| Slot        | Used for                                                   |
-| ----------- | ---------------------------------------------------------- |
-| `PRIMARY`   | Brand accent, wordmark, current/active markers             |
-| `TEXT`      | Default body text                                          |
-| `MUTED`     | Secondary text (descriptions, captions)                    |
-| `SUBTLE`    | Tertiary text (timestamps, hints, dimmed labels)           |
-| `BORDER`    | Panel/box outline                                          |
-| `ACCENT`    | Secondary highlight (paths, commit hashes, version strings)|
-| `SUCCESS`   | Positive outcomes (install ok, switch ok)                  |
-| `WARNING`   | Non-fatal issues (already up to date, missing optional dep)|
-| `ERROR`     | Fatal outcomes (install failed, permission denied)         |
+| Slot      | Used for                                                    |
+| --------- | ----------------------------------------------------------- |
+| `PRIMARY` | Brand accent, wordmark, current/active markers              |
+| `TEXT`    | Default body text                                           |
+| `MUTED`   | Secondary text (descriptions, captions)                     |
+| `SUBTLE`  | Tertiary text (timestamps, hints, dimmed labels)            |
+| `BORDER`  | Panel/box outline                                           |
+| `ACCENT`  | Secondary highlight (paths, commit hashes, version strings) |
+| `SUCCESS` | Positive outcomes (install ok, switch ok)                   |
+| `WARNING` | Non-fatal issues (already up to date, missing optional dep) |
+| `ERROR`   | Fatal outcomes (install failed, permission denied)          |
 
 ### Override syntax
 
 For every slot `<NAME>`, three variables control the color:
 
-| Variable                  | Effect                                                       |
-| ------------------------- | ------------------------------------------------------------ |
-| `NVS_COLOR_<NAME>`        | Sets **both** the light-background and dark-background variant |
-| `NVS_COLOR_<NAME>_LIGHT`  | Sets only the light-background variant (overrides the base)  |
-| `NVS_COLOR_<NAME>_DARK`   | Sets only the dark-background variant (overrides the base)   |
+| Variable                 | Effect                                                         |
+| ------------------------ | -------------------------------------------------------------- |
+| `NVS_COLOR_<NAME>`       | Sets **both** the light-background and dark-background variant |
+| `NVS_COLOR_<NAME>_LIGHT` | Sets only the light-background variant (overrides the base)    |
+| `NVS_COLOR_<NAME>_DARK`  | Sets only the dark-background variant (overrides the base)     |
 
 `_LIGHT` and `_DARK` take precedence over the base variable. Precedence (highest first):
 
@@ -349,13 +349,13 @@ export NVS_COLOR_ACCENT="212"
 
 Each value is validated. If the value is not a recognized color, nvs warns on stderr and falls back to the default — the whole palette does not break because of one typo.
 
-| Format        | Example            | Notes                                                          |
-| ------------- | ------------------ | -------------------------------------------------------------- |
-| Hex 3-digit   | `abc`, `#abc`      | Expands to `aabbcc`. The `#` is optional.                      |
-| Hex 6-digit   | `abcdef`, `#abcdef`| Standard RGB. The `#` is optional.                             |
-| Hex 8-digit   | `abcdef12`, `#abcdef12` | RGBA; the trailing 2 hex digits are the alpha.            |
-| Named         | `red`, `RED`, `Red`| One of: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, `gray`, `grey` (case-insensitive). |
-| ANSI 256      | `0`..`255`         | The xterm 256-color palette.                                   |
+| Format      | Example                 | Notes                                                                                                             |
+| ----------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Hex 3-digit | `abc`, `#abc`           | Expands to `aabbcc`. The `#` is optional.                                                                         |
+| Hex 6-digit | `abcdef`, `#abcdef`     | Standard RGB. The `#` is optional.                                                                                |
+| Hex 8-digit | `abcdef12`, `#abcdef12` | RGBA; the trailing 2 hex digits are the alpha.                                                                    |
+| Named       | `red`, `RED`, `Red`     | One of: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, `gray`, `grey` (case-insensitive). |
+| ANSI 256    | `0`..`255`              | The xterm 256-color palette.                                                                                      |
 
 A value like `chartreuse` or `#xyz` is rejected, nvs prints `nvs: NVS_COLOR_PRIMARY="..." is not a valid color (...)` once, and the slot keeps its default.
 
@@ -470,10 +470,10 @@ fish_add_path $HOME/.local/bin
 - **User-facing** — the short, always-on status/error messages the user reads. These go to stdout (in `--json` mode) or stderr (default). They are styled by the same palette as the rest of the CLI.
 - **Developer-facing** — structured key/value traces that help a developer (or a bug filer) follow what `nvs` is doing internally. These go to **stderr** by default at `warn` level. They are off by default so a normal `nvs <subcommand>` does not flood the terminal.
 
-| Stream          | Package                  | Default level | Toggle                          |
-| --------------- | ------------------------ | ------------- | ------------------------------- |
-| User-facing     | `internal/ui/message`    | always on     | (no toggle)                     |
-| Developer-facing| `internal/log`           | `warn`        | `-v` / `NVS_LOG` / `NVS_LOG_FILE` |
+| Stream           | Package               | Default level | Toggle                            |
+| ---------------- | --------------------- | ------------- | --------------------------------- |
+| User-facing      | `internal/ui/message` | always on     | (no toggle)                       |
+| Developer-facing | `internal/log`        | `warn`        | `-v` / `NVS_LOG` / `NVS_LOG_FILE` |
 
 To turn on the developer log for a single command:
 

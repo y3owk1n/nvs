@@ -380,6 +380,7 @@ go tool pprof mem.prof
 ### Why File Locking?
 
 Multiple `nvs` processes may run concurrently (e.g., parallel installs, simultaneous `use` and `uninstall` operations). Without coordination, race conditions can corrupt:
+
 - Symlinks (concurrent `Switch` operations)
 - Version directories (concurrent `Install`/`Uninstall`)
 - Build artifacts (concurrent `BuildFromCommit`)
@@ -387,6 +388,7 @@ Multiple `nvs` processes may run concurrently (e.g., parallel installs, simultan
 ### Lock Implementation
 
 Uses cross-platform advisory file locking:
+
 - **Unix**: `flock()` system call
 - **Windows**: `LockFileEx` API
 
@@ -395,26 +397,29 @@ Lock files are **not deleted** after use to prevent inode reuse race conditions.
 ### Lock Strategy
 
 **Per-version locking**: Each version has its own lock file:
+
 ```
 {versions_dir}/.nvs-version-{version_name}.lock
 ```
 
 This allows:
+
 - Concurrent operations on **different** versions
 - Exclusive access for operations on the **same** version
 
 ### Protected Operations
 
-| Operation | Lock File | Purpose |
-|-----------|-----------|---------|
-| `Switch` | `.nvs-version-{version}.lock` | Prevent concurrent symlink updates |
-| `Install` | `.nvs-version-{version}.lock` | Prevent concurrent installs of same version |
-| `Uninstall` | `.nvs-version-{version}.lock` | Coordinate with Switch/Install |
-| `BuildFromCommit` | `.nvs-version-{commit}.lock` | Prevent concurrent builds of same commit |
+| Operation         | Lock File                     | Purpose                                     |
+| ----------------- | ----------------------------- | ------------------------------------------- |
+| `Switch`          | `.nvs-version-{version}.lock` | Prevent concurrent symlink updates          |
+| `Install`         | `.nvs-version-{version}.lock` | Prevent concurrent installs of same version |
+| `Uninstall`       | `.nvs-version-{version}.lock` | Coordinate with Switch/Install              |
+| `BuildFromCommit` | `.nvs-version-{commit}.lock`  | Prevent concurrent builds of same commit    |
 
 ### Example Race Scenarios Prevented
 
 **Scenario 1: Switch + Uninstall**
+
 ```
 Process A: nvs use v1.0.0    → acquires lock for v1.0.0
 Process B: nvs uninstall v1.0.0 → waits for lock
@@ -423,6 +428,7 @@ Process B: acquires lock → checks if current → removes directory
 ```
 
 **Scenario 2: Concurrent Install**
+
 ```
 Process A: nvs install v1.0.0 → acquires lock for v1.0.0
 Process B: nvs install v1.0.0 → waits for lock
@@ -435,10 +441,12 @@ Process B: acquires lock → sees version already exists
 **Standard operations** (Switch, Uninstall, Install): **30 seconds**
 
 **Build operations** (BuildFromCommit): **15 minutes**
-  - Builds can take several minutes with auto-retry logic
-  - Extended timeout prevents premature failures during long builds
+
+- Builds can take several minutes with auto-retry logic
+- Extended timeout prevents premature failures during long builds
 
 If a lock cannot be acquired within the timeout, the operation fails with:
+
 ```
 timeout waiting for file lock
 ```
@@ -452,17 +460,20 @@ Both `Install` and `BuildFromCommit` implement a fast-path check:
 3. **After locking**: Double-check (another process may have installed)
 
 This prevents unnecessary waiting when:
+
 - Version is already installed
 - Another process completes installation while waiting
 
 ### Production Considerations
 
 **Build Retry + Locking:**
+
 - Build operations auto-retry up to 3 times on failure
 - Lock is held across all retry attempts
 - Extended 15-minute timeout accommodates retry loops
 
 **Example Build Scenario:**
+
 ```
 Process A: nvs install --from-source abc123
   → acquires lock
