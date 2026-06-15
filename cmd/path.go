@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -33,12 +32,8 @@ var pathCmd = &cobra.Command{
 }
 
 // RunPath executes the path command.
-//
-//nolint:funlen
 func RunPath(_ *cobra.Command, _ []string) error {
 	logrus.Debug("Running path command")
-
-	var err error
 
 	// On Windows, automatic PATH modifications are not implemented.
 	if runtime.GOOS == constants.WindowsOS {
@@ -47,28 +42,11 @@ func RunPath(_ *cobra.Command, _ []string) error {
 
 		logrus.Debug("Detected Windows OS")
 
-		_, err = fmt.Fprintf(os.Stdout,
-			"%s %s\n",
-			ui.WarningIcon(),
-			ui.WhiteText("Automatic PATH setup is not implemented for Windows."),
+		ui.Message.Warnf("Automatic PATH setup is not implemented for Windows.")
+		ui.Message.Infof(
+			"Please add %s to your PATH environment variable manually.",
+			ui.Message.Accent(nvimBinDir),
 		)
-		if err != nil {
-			logrus.Warnf("Failed to write to stdout: %v", err)
-		}
-
-		_, err = fmt.Fprintf(os.Stdout,
-			"%s %s\n",
-			ui.InfoIcon(),
-			ui.WhiteText(
-				fmt.Sprintf(
-					"Please add %s to your PATH environment variable manually.",
-					ui.CyanText(nvimBinDir),
-				),
-			),
-		)
-		if err != nil {
-			logrus.Warnf("Failed to write to stdout: %v", err)
-		}
 
 		return nil
 	}
@@ -98,16 +76,10 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	if found {
 		logrus.Debugf("PATH already contains %s", GetGlobalBinDir())
 
-		_, err = fmt.Fprintf(os.Stdout,
-			"%s %s\n",
-			ui.InfoIcon(),
-			ui.WhiteText(
-				fmt.Sprintf("Your PATH already contains %s.", ui.CyanText(GetGlobalBinDir())),
-			),
+		ui.Message.Infof(
+			"Your PATH already contains %s.",
+			ui.Message.Accent(GetGlobalBinDir()),
 		)
-		if err != nil {
-			logrus.Warnf("Failed to write to stdout: %v", err)
-		}
 
 		return nil
 	}
@@ -131,30 +103,13 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	if isNixShell {
 		logrus.Debug("Detected Nix shell environment")
 
-		_, err = fmt.Fprintf(os.Stdout,
-			"%s %s\n",
-			ui.WarningIcon(),
-			ui.WhiteText(
-				"It appears your shell is managed by Nix. Automatic PATH modifications may not work as expected.",
-			),
+		ui.Message.Warnf(
+			"It appears your shell is managed by Nix. Automatic PATH modifications may not work as expected.",
 		)
-		if err != nil {
-			logrus.Warnf("Failed to write to stdout: %v", err)
-		}
-
-		_, err = fmt.Fprintf(os.Stdout,
-			"%s %s\n",
-			ui.InfoIcon(),
-			ui.WhiteText(
-				fmt.Sprintf(
-					"Please update your Nix configuration manually to include %s in your PATH.",
-					ui.CyanText(GetGlobalBinDir()),
-				),
-			),
+		ui.Message.Infof(
+			"Please update your Nix configuration manually to include %s in your PATH.",
+			ui.Message.Accent(GetGlobalBinDir()),
 		)
-		if err != nil {
-			logrus.Warnf("Failed to write to stdout: %v", err)
-		}
 
 		return nil
 	}
@@ -179,17 +134,9 @@ func RunPath(_ *cobra.Command, _ []string) error {
 		if err != nil {
 			logrus.Warnf("Failed to get home directory: %v", err)
 
-			_, err = fmt.Fprintf(
-				os.Stdout,
-				"%s %s\n",
-				ui.WarningIcon(),
-				ui.WhiteText(
-					"Cannot determine home directory. Please set HOME environment variable.",
-				),
+			ui.Message.Warnf(
+				"Cannot determine home directory. Please set HOME environment variable.",
 			)
-			if err != nil {
-				logrus.Warnf("Failed to write to stdout: %v", err)
-			}
 
 			return nil
 		}
@@ -211,20 +158,11 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	default:
 		logrus.Debug("Unsupported shell: ", shellName)
 
-		_, err = fmt.Fprintf(os.Stdout,
-			"%s %s\n",
-			ui.WarningIcon(),
-			ui.WhiteText(
-				fmt.Sprintf(
-					"Shell '%s' is not automatically supported. Please add %s to your PATH manually.",
-					ui.CyanText(shellName),
-					ui.CyanText(GetGlobalBinDir()),
-				),
-			),
+		ui.Message.Warnf(
+			"Shell '%s' is not automatically supported. Please add %s to your PATH manually.",
+			ui.Message.Accent(shellName),
+			ui.Message.Accent(GetGlobalBinDir()),
 		)
-		if err != nil {
-			logrus.Warnf("Failed to write to stdout: %v", err)
-		}
 
 		return nil
 	}
@@ -233,57 +171,46 @@ func RunPath(_ *cobra.Command, _ []string) error {
 	logrus.Debug("Export command: ", exportCmd)
 
 	// Display the diff of the changes that will be applied.
-	_, err = fmt.Fprintf(os.Stdout,
-		"%s %s\n\n",
-		ui.InfoIcon(),
-		ui.WhiteText(
-			fmt.Sprintf("The following diff will be applied to %s:", ui.CyanText(rcFile)),
-		),
+	//
+	// The "diff" is two lines — a comment and an export — that
+	// would be appended to the user's rc file. We render it
+	// inline (no Panel) because the panel border on a 2-line
+	// diff is more visual weight than the data warrants. The
+	// "+" prefix is styled with ui.Message.Success (green) so
+	// the user reads the addition as "what will be added" at
+	// a glance; the path inside the export line is Accent
+	// (primary) so the new path stands out as the actual
+	// data.
+	ui.Message.Infof(
+		"The following diff will be applied to %s:",
+		ui.Message.Accent(rcFile),
 	)
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
 
-	_, err = fmt.Fprintf(
+	_, _ = fmt.Fprintf(
 		os.Stdout,
-		"%s\n",
-		ui.GreenText(fmt.Sprintf("+ %s\n+ %s", exportCmdComment, exportCmd)),
+		"  %s %s\n  %s export PATH=\"$PATH:%s\"\n",
+		ui.Message.Success("+"),
+		exportCmdComment,
+		ui.Message.Success("+"),
+		ui.Message.Accent(GetGlobalBinDir()),
 	)
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
 
 	// Prompt the user for confirmation.
-	_, err = fmt.Fprintf(
-		os.Stdout,
-		"\n%s %s ",
-		ui.PromptIcon(),
-		"Do you want to proceed? (y/N): ",
+	//
+	// ConfirmScriptable auto-detects TTY vs piped input (see
+	// ui.Picker.ConfirmScriptable). In a TTY, the user gets
+	// the huh Yes/No form; in a pipe, the scriptable y/N
+	// fallback. Either way, the destructive "modify my shell
+	// rc file" intent is confirmed or denied cleanly.
+	confirmed, err := ui.Picker.ConfirmScriptable(
+		"Do you want to proceed?",
 	)
 	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
+		return fmt.Errorf("failed to read confirmation: %w", err)
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		return fmt.Errorf("failed to read input: %w", err)
-	}
-
-	input = strings.TrimSpace(strings.ToLower(input))
-	logrus.Debug("User input: ", input)
-
-	if input != "y" {
-		_, err = fmt.Fprintf(
-			os.Stdout,
-			"%s %s\n",
-			ui.InfoIcon(),
-			ui.WhiteText("Aborted by user."),
-		)
-		if err != nil {
-			logrus.Warnf("Failed to write to stdout: %v", err)
-		}
+	if !confirmed {
+		ui.Message.Infof("Aborted by user.")
 
 		return nil
 	}
@@ -335,26 +262,14 @@ func RunPath(_ *cobra.Command, _ []string) error {
 		}
 	}
 
-	_, err = fmt.Fprintf(
-		os.Stdout,
-		"%s %s\n",
-		ui.SuccessIcon(),
-		ui.WhiteText(
-			fmt.Sprintf("Done applying changes to %s:", ui.CyanText(rcFile)),
-		),
+	ui.Message.Successf(
+		"Done applying changes to %s.",
+		ui.Message.Accent(rcFile),
 	)
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
-
-	_, err = fmt.Fprintf(os.Stdout,
-		"%s Please restart your terminal or source %s to apply changes.\n",
-		ui.WarningIcon(),
-		ui.CyanText(rcFile),
+	ui.Message.Warnf(
+		"Please restart your terminal or source %s to apply changes.",
+		ui.Message.Accent(rcFile),
 	)
-	if err != nil {
-		logrus.Warnf("Failed to write to stdout: %v", err)
-	}
 
 	return nil
 }
