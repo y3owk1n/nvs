@@ -135,9 +135,22 @@ func InitConfig() error {
 		}
 	}
 
+	// NVS_LOG_FILE is optional (the empty value means "no
+	// file"). Validate it before handing to the logger so a
+	// bad value produces a clear warning instead of an
+	// opaque "open log file" error from log.Init.
+	var logFilePath string
+	if raw := os.Getenv("NVS_LOG_FILE"); raw != "" {
+		if clean, ok := validPath("NVS_LOG_FILE", raw); ok {
+			logFilePath = clean
+		}
+		// On invalid, logFilePath stays ""; validPath has
+		// already written the warning.
+	}
+
 	logErr := log.Init(log.Options{
 		Level:    level,
-		FilePath: os.Getenv("NVS_LOG_FILE"),
+		FilePath: logFilePath,
 		NoColor:  !style.ColorEnabled(),
 	})
 	if logErr != nil {
@@ -169,7 +182,7 @@ func InitConfig() error {
 
 	// Determine the base configuration directory.
 	var baseConfigDir string
-	if custom := os.Getenv("NVS_CONFIG_DIR"); custom != "" {
+	if custom, ok := validPath("NVS_CONFIG_DIR", os.Getenv("NVS_CONFIG_DIR")); ok {
 		baseConfigDir = custom
 		log.Debug("using custom config directory", "dir", baseConfigDir, "source", "NVS_CONFIG_DIR")
 	} else {
@@ -213,7 +226,7 @@ func InitConfig() error {
 
 	// Determine the base cache directory.
 	var baseCacheDir string
-	if custom := os.Getenv("NVS_CACHE_DIR"); custom != "" {
+	if custom, ok := validPath("NVS_CACHE_DIR", os.Getenv("NVS_CACHE_DIR")); ok {
 		baseCacheDir = custom
 		log.Debug("using custom cache directory", "dir", baseCacheDir, "source", "NVS_CACHE_DIR")
 	} else {
@@ -243,7 +256,7 @@ func InitConfig() error {
 
 	// Determine the base binary directory.
 	var baseBinDir string
-	if custom := os.Getenv("NVS_BIN_DIR"); custom != "" {
+	if custom, ok := validPath("NVS_BIN_DIR", os.Getenv("NVS_BIN_DIR")); ok {
 		baseBinDir = custom
 		log.Debug("using custom binary directory", "dir", baseBinDir, "source", "NVS_BIN_DIR")
 	} else {
@@ -296,10 +309,15 @@ func InitConfig() error {
 		log.Debug("using GitHub mirror", "url", normalizedMirrorURL)
 	}
 
-	// Read global cache setting from environment
-	envValue := os.Getenv("NVS_USE_GLOBAL_CACHE")
+	// Read global cache setting from environment.
+	//
+	// parseBoolEnv treats anything outside the recognized set
+	// (1/true/yes/on and 0/false/no/off) as invalid: it
+	// warns to stderr and resolves to false, matching the
+	// previous lenient behavior of the inline check.
+	resolved, _ := parseBoolEnv("NVS_USE_GLOBAL_CACHE", os.Getenv("NVS_USE_GLOBAL_CACHE"))
 
-	useGlobalCache := strings.EqualFold(envValue, "true") || envValue == "1"
+	useGlobalCache := resolved
 	if useGlobalCache {
 		log.Debug("global cache enabled")
 	}

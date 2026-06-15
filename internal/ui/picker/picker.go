@@ -20,6 +20,7 @@ import (
 
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/y3owk1n/nvs/internal/ui/style"
 )
 
 // ErrCanceled is returned by Select and Confirm when the user
@@ -39,18 +40,6 @@ var ErrNoTTY = errors.New("picker: stdin is not a TTY")
 // variable so the err113 linter does not flag the package
 // for using fmt.Errorf to define a static error.
 var errNoItems = errors.New("picker: no items to select from")
-
-// Colors used by nvsTheme. These are simple hex literals (not
-// AdaptiveColor) because huh themes are evaluated on a single
-// background; the nvs UI's auto dark/light switch happens at
-// the lipgloss level for the rest of the output, and a
-// fixed-mid-saturation green reads well on both.
-const (
-	huhPrimary    = "#80C342"
-	huhMuted      = "#6B7280"
-	huhText       = "#E5E7EB"
-	huhBackground = "#1F2937"
-)
 
 // Picker is the entry point. The zero value is NOT usable;
 // always construct one with New() so the underlying huh.Form
@@ -76,7 +65,7 @@ type Picker struct {
 // a non-interactive message.
 func New(input io.Reader, output io.Writer, hasTTY bool) *Picker {
 	return &Picker{
-		theme:  nvsTheme(),
+		theme:  nvsTheme(style.PickerColors()),
 		input:  input,
 		output: output,
 		hasTTY: hasTTY,
@@ -104,7 +93,7 @@ func (item SelectItem) formattedKey() string {
 
 	return item.Label + "  " + lipgloss.NewStyle().
 		Italic(true).
-		Foreground(lipgloss.Color(huhMuted)).
+		Foreground(lipgloss.Color(style.PickerColors().Muted)).
 		Render("— "+item.Description)
 }
 
@@ -274,23 +263,27 @@ func (p *Picker) ConfirmScriptable(title string) (bool, error) {
 // is the right move only if every command needs them — having
 // one style across the whole tool is the whole point of a
 // design system.
-func nvsTheme() *huh.Theme {
+//
+// colors is read at Picker construction time, so it picks up
+// whatever the NVS_PICKER_<NAME> environment variables were at
+// the moment nvs started.
+func nvsTheme(colors style.PickerPalette) *huh.Theme {
 	theme := huh.ThemeBase()
 
-	theme.Focused.Title = theme.Focused.Title.Foreground(lipgloss.Color(huhPrimary))
+	theme.Focused.Title = theme.Focused.Title.Foreground(lipgloss.Color(colors.Primary))
 	theme.Focused.SelectSelector = theme.Focused.SelectSelector.Foreground(
-		lipgloss.Color(huhPrimary),
+		lipgloss.Color(colors.Primary),
 	)
 	theme.Focused.SelectedOption = theme.Focused.SelectedOption.Foreground(
-		lipgloss.Color(huhPrimary),
+		lipgloss.Color(colors.Primary),
 	)
 	theme.Focused.UnselectedOption = theme.Focused.UnselectedOption.Foreground(
-		lipgloss.Color(huhText),
+		lipgloss.Color(colors.Text),
 	)
 	theme.Focused.FocusedButton = theme.Focused.FocusedButton.
-		Background(lipgloss.Color(huhPrimary)).
-		Foreground(lipgloss.Color(huhBackground))
-	theme.Blurred.Title = theme.Blurred.Title.Foreground(lipgloss.Color(huhMuted))
+		Background(lipgloss.Color(colors.Primary)).
+		Foreground(lipgloss.Color(colors.Background))
+	theme.Blurred.Title = theme.Blurred.Title.Foreground(lipgloss.Color(colors.Muted))
 
 	return theme
 }
