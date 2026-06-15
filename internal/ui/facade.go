@@ -145,6 +145,19 @@ func (pickerAPI) ErrNoTTY() error { return picker.ErrNoTTY }
 // sites do not have to import the picker package directly.
 func (pickerAPI) IsNoTTY(err error) bool { return errors.Is(err, picker.ErrNoTTY) }
 
+// ConfirmScriptable is a TTY-aware wrapper around Picker.Confirm
+// that also handles the non-TTY case. In a TTY, it delegates to
+// huh's interactive Yes/No form. In a non-TTY (pipe, CI, file),
+// it emits a one-line "[y/N]: " prompt and reads a line from
+// stdin, accepting "y" or "yes" (case-insensitive, trimmed) as
+// a positive answer. Anything else (empty line, EOF, typo)
+// counts as a "no" — matching the safe default for destructive
+// operations. See picker.Picker.ConfirmScriptable for the
+// full contract.
+func (pickerAPI) ConfirmScriptable(title string) (bool, error) {
+	return Picker.NewPicker(nil, nil).ConfirmScriptable(title)
+}
+
 // SelectItem re-exports picker.SelectItem so call sites can
 // write ui.Picker.SelectItem{Label: …} without importing
 // internal/ui/picker directly. Keeping the type as a

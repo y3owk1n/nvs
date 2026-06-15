@@ -16,9 +16,11 @@
 package picker
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
@@ -191,6 +193,81 @@ func (p *Picker) Confirm(title string) (bool, error) {
 	}
 
 	return confirmed, nil
+}
+
+// nonTTYPromptIcon is the glyph used in the non-TTY fallback
+// prompt. It is a plain ASCII '?' (not a styled icon) because
+// the non-TTY path is meant to be parsed by scripts and CI,
+// which must not have to handle an SGR-styled icon at the
+// start of a one-line prompt.
+const nonTTYPromptIcon = "?"
+
+// promptAffirmatives is the set of case-insensitive, trimmed
+// inputs that count as a "yes" in the non-TTY path. The set is
+// intentionally short: "y" and "yes" cover every common shell
+// convention (the Go module default uses "y" as a shortcut,
+// POSIX getopt uses "y" as the affirmative letter, and
+// `man 1 yes` is the standard "y" command on macOS/Linux).
+// Anything else — including an empty line, EOF, or a typo —
+// counts as a "no", matching the safe default of Confirm
+// and the existing bufio.Reader behavior the picker replaces.
+var promptAffirmatives = map[string]struct{}{
+	"y":   {},
+	"yes": {},
+}
+
+// ConfirmScriptable is a TTY-aware variant of Confirm that
+// keeps the operation scriptable. It is the right method for
+// destructive-operation prompts (uninstall, reset, ...) that
+// need to remain usable from `echo y | nvs …` while upgrading
+// the interactive UX to huh's full Confirm form.
+//
+// Behavior:
+//
+//   - TTY input: delegates to Confirm — huh renders a styled
+//     Yes/No toggle with arrow-key navigation, default = "No",
+//     Y / N / Ctrl-C shortcuts, and the picker theme.
+//   - Non-TTY input: emits a one-line "<icon> <title> [y/N]: "
+//     prompt to p.output and reads a line from p.input via a
+//     fresh bufio.Reader. The answer is trimmed and lower-
+//     cased; if it matches promptAffirmatives ("y" or "yes")
+//     the method returns (true, nil). Anything else (empty
+//     line, EOF, typo, ...) returns (false, nil). The only
+//     error path is a non-EOF read error, which is wrapped
+//     with the underlying cause for the caller's logs.
+//
+// Why not delegate the non-TTY case to the caller? Keeping
+// it inside the picker means the y/yes recognition logic,
+// the prompt format, and the future policy for "what counts
+// as a confirmation" all live in one place — which is the
+// same one place that owns the TTY form. Splitting the two
+// would invite drift (one prompt saying "(y/N)", another
+// saying "[Y/n]"; one accepting "yeah" and the other not).
+func (p *Picker) ConfirmScriptable(title string) (bool, error) {
+	if p.hasTTY {
+		return p.Confirm(title)
+	}
+
+	_, _ = fmt.Fprintf(
+		p.output,
+		"%s %s [y/N]: ",
+		nonTTYPromptIcon,
+		title,
+	)
+
+	reader := bufio.NewReader(p.input)
+
+	line, err := reader.ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return false, fmt.Errorf("read confirmation: %w", err)
+	}
+
+	answer := strings.ToLower(strings.TrimSpace(line))
+	if _, ok := promptAffirmatives[answer]; ok {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // nvsTheme returns the huh theme that matches the rest of the

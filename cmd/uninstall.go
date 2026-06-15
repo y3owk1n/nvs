@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"os"
@@ -106,30 +105,27 @@ func RunUninstall(cmd *cobra.Command, args []string) error {
 
 	// If the version is currently active, prompt for confirmation.
 	//
-	// We keep the bufio.Reader y/N prompt (rather than
-	// upgrading to ui.Picker.Confirm) so the command still
-	// works when stdin is piped (e.g. `echo y | nvs uninstall
-	// v0.6.0`). ui.Picker.Confirm refuses to run in non-TTY
-	// mode by design; the y/N text path accepts piped input
-	// cleanly, which is the existing behavior callers may
-	// rely on.
+	// ConfirmScriptable auto-detects TTY vs piped input:
+	//   - TTY: full huh Yes/No toggle (arrow keys, Y/N, Ctrl-C,
+	//     the picker theme).
+	//   - Pipe: a one-line "[y/N]: " prompt, accepting "y" or
+	//     "yes" (case-insensitive) as a positive answer.
+	// Either way the user can cancel cleanly, and scripts like
+	// `echo y | nvs uninstall v0.6.0` keep working.
 	if isCurrent {
 		ui.Message.Warnf(
-			"The version %s is currently in use. Do you really want to uninstall it? (y/N): ",
+			"The version %s is currently in use.",
 			ui.Message.Accent(versionArg),
 		)
 
-		reader := bufio.NewReader(os.Stdin)
-
-		var input string
-
-		input, err = reader.ReadString('\n')
-		if err != nil {
-			return fmt.Errorf("failed to read input: %w", err)
+		confirmed, confirmErr := ui.Picker.ConfirmScriptable(
+			"Do you really want to uninstall it?",
+		)
+		if confirmErr != nil {
+			return fmt.Errorf("failed to read confirmation: %w", confirmErr)
 		}
 
-		input = strings.TrimSpace(input)
-		if strings.ToLower(input) != "y" {
+		if !confirmed {
 			ui.Message.Infof("Aborted uninstall.")
 
 			logrus.Debug("Uninstall canceled by user")

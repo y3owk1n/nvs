@@ -1,13 +1,11 @@
 package cmd
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -64,33 +62,22 @@ func RunReset(_ *cobra.Command, _ []string) error {
 
 	// Prompt the user for confirmation.
 	//
-	// We use a manual bufio.Reader here (not ui.Picker.Confirm)
-	// for the same reason uninstall does: `echo y | nvs reset`
-	// is a legitimate scriptable invocation, and the picker
-	// returns ErrNoTTY in that case. The prompt itself is
-	// styled via ui.Message.Muted so it visually fits the
-	// modern minimal style; we write it with fmt.Fprint (no
-	// trailing newline) so the user's input lands on the same
-	// line.
-	_, _ = fmt.Fprint(
-		os.Stdout,
-		"\n",
-		ui.Message.Muted(
-			ui.Message.Icons().Step+" Are you sure you want to proceed? (y/N): ",
-		),
+	// ConfirmScriptable auto-detects TTY vs piped input:
+	//   - TTY: full huh Yes/No toggle (arrow keys, Y/N, Ctrl-C,
+	//     the picker theme).
+	//   - Pipe: a one-line "[y/N]: " prompt, accepting "y" or
+	//     "yes" (case-insensitive) as a positive answer.
+	// Either way the user can cancel cleanly, and scripts like
+	// `echo y | nvs reset` keep working — the same reason we
+	// avoid ui.Picker.Confirm alone.
+	confirmed, err := ui.Picker.ConfirmScriptable(
+		"Are you sure you want to proceed?",
 	)
-
-	reader := bufio.NewReader(os.Stdin)
-
-	input, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("failed to read input: %w", err)
+		return fmt.Errorf("failed to read confirmation: %w", err)
 	}
 
-	input = strings.TrimSpace(strings.ToLower(input))
-	logrus.Debugf("User input: %q", input)
-
-	if input != "y" {
+	if !confirmed {
 		ui.Message.Infof("Aborted by user.")
 
 		return nil
