@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/term"
 )
@@ -126,7 +125,19 @@ func (s *Spinner) SetSuffix(suffix string) {
 // Start begins the spinner animation. If the spinner is
 // already running, or the writer is not a terminal, Start is a
 // no-op. Start does not block: the animation runs on a
-// background goroutine.
+// background goroutine, but the very first frame is written
+// synchronously before Start returns.
+//
+// Synchronously writing frame 0 is what makes the "loading"
+// line visible from t=0. Without it, the first frame would
+// only land at t=speed (e.g. 100ms), so any operation that
+// completes faster than the first tick — typical for a
+// cache-hit `list-remote`, a fast local read, etc. — would
+// finish with the user never having seen the spinner line at
+// all. The line-erase that Stop emits would then clear an
+// empty line, leaving no visible loading state behind for
+// the user to recognize. Painting frame 0 before spawning
+// the goroutine eliminates that race.
 func (s *Spinner) Start() {
 	if !s.isTerminal {
 		return
@@ -142,6 +153,8 @@ func (s *Spinner) Start() {
 	s.started = true
 	s.done = make(chan struct{})
 	s.mu.Unlock()
+
+	s.writeFrame()
 
 	s.wg.Add(1)
 
@@ -215,65 +228,73 @@ func (s *Spinner) run() {
 		case <-s.done:
 			return
 		case <-ticker.C:
-			s.mu.Lock()
-			prefix := s.prefix
-			suffix := s.suffix
-			s.mu.Unlock()
-
-			// Render the current frame first, THEN advance.
-			// This keeps the first frame written (at the
-			// start of a Start/Stop cycle) at frame 0 of
-			// the chosen set, matching the contract the
-			// self-rolled spinner exposed. (The
-			// alternative — Update first, then render —
-			// would skip frame 0 on the very first tick,
-			// which the public format contract pins down.)
-			frame := s.model.View()
-
-			// Advance the bubbles model one frame. The
-			// returned tea.Cmd is the next tick, which we
-			// deliberately ignore — our own time.Ticker
-			// owns the animation cadence so we keep the
-			// "speed" parameter meaningful (bubbles'
-			// spinner.Spinner.FPS would otherwise lock us
-			// to its hard-coded FPS).
-			updated, _ := s.model.Update(spinner.TickMsg{
-				Time: time.Now(),
-				ID:   s.model.ID(),
-			})
-			s.model = updated
-
-			// Clear the current line and write the new
-			// content. The same erase sequence is used on
-			// every frame, so the visible window stays a
-			// single line even if the suffix changes length
-			// between ticks (for example, the progress bar
-			// growing from 0% to 100%).
-			//
-			// As in Stop, we swallow the write error: a
-			// closed pipe at this point just means the
-			// user is no longer watching, and the spinner
-			// will exit on the next tick.
-			//
-			// The frame format is:
-			//   "\r\033[K" + prefix + spinner-char + " " + suffix
-			// which matches the previous self-rolled
-			// contract: prefix immediately after the line
-			// erase, the spinner char in its own column, a
-			// single space, then the suffix.
-			//nolint:errcheck
-			fmt.Fprintf(
-				s.writer,
-				"\r\033[K%s%s %s",
-				prefix,
-				frame,
-				suffix,
-			)
-
-			// Defensive: keep the tea import in use so a
-			// future refactor that swaps to tea.Tick
-			// doesn't have to re-add the import.
-			_ = tea.Quit
+			s.writeFrame()
 		}
 	}
+}
+
+// writeFrame paints one spinner frame to the writer. It reads
+// the current prefix/suffix, renders the current bubbles model
+// frame, advances the model by one tick, and writes the whole
+// thing to writer prefixed with the line-erase sequence.
+//
+// Called from run() on every animation tick, and from Start()
+// once before the goroutine spawns, so the very first frame
+// reaches the terminal synchronously — see the Start doc
+// comment for why this matters.
+func (s *Spinner) writeFrame() {
+	s.mu.Lock()
+	prefix := s.prefix
+	suffix := s.suffix
+	s.mu.Unlock()
+
+	// Render the current frame first, THEN advance.
+	// This keeps the first frame written (at the
+	// start of a Start/Stop cycle) at frame 0 of
+	// the chosen set, matching the contract the
+	// self-rolled spinner exposed. (The
+	// alternative — Update first, then render —
+	// would skip frame 0 on the very first tick,
+	// which the public format contract pins down.)
+	frame := s.model.View()
+
+	// Advance the bubbles model one frame. The
+	// returned tea.Cmd is the next tick, which we
+	// deliberately ignore — our own time.Ticker
+	// owns the animation cadence so we keep the
+	// "speed" parameter meaningful (bubbles'
+	// spinner.Spinner.FPS would otherwise lock us
+	// to its hard-coded FPS).
+	updated, _ := s.model.Update(spinner.TickMsg{
+		Time: time.Now(),
+		ID:   s.model.ID(),
+	})
+	s.model = updated
+
+	// Clear the current line and write the new
+	// content. The same erase sequence is used on
+	// every frame, so the visible window stays a
+	// single line even if the suffix changes length
+	// between ticks (for example, the progress bar
+	// growing from 0% to 100%).
+	//
+	// As in Stop, we swallow the write error: a
+	// closed pipe at this point just means the
+	// user is no longer watching, and the spinner
+	// will exit on the next tick.
+	//
+	// The frame format is:
+	//   "\r\033[K" + prefix + spinner-char + " " + suffix
+	// which matches the previous self-rolled
+	// contract: prefix immediately after the line
+	// erase, the spinner char in its own column, a
+	// single space, then the suffix.
+	//nolint:errcheck
+	fmt.Fprintf(
+		s.writer,
+		"\r\033[K%s%s %s",
+		prefix,
+		frame,
+		suffix,
+	)
 }

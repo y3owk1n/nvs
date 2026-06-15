@@ -39,10 +39,28 @@ func RunListRemote(cmd *cobra.Command, _ []string) error {
 
 	logrus.Debug("Fetching available versions...")
 
-	ui.Message.Infof("Fetching available versions...")
+	// Use a spinner during the fetch so the "Fetching
+	// available versions..." line gets cleared and the
+	// banner+table below takes its place — matching the UX
+	// of `nvs install` / `nvs upgrade`, where the loading
+	// state is replaced by the result on the same line.
+	//
+	// The closure scopes `defer fetchSpinner.Stop()` so the
+	// line-erase runs before the function returns the
+	// result, regardless of whether ListRemote errored.
+	fetchSpinner := ui.NewSpinner(
+		os.Stdout,
+		time.Duration(constants.SpinnerSpeed)*time.Millisecond,
+	)
+	fetchSpinner.SetPrefix(ui.Message.Icons().Info + " ")
+	fetchSpinner.SetSuffix(" Fetching available versions...")
+	fetchSpinner.Start()
 
-	// Retrieve the remote releases via version service
-	releasesResult, err := GetVersionService().ListRemote(cmd.Context(), force)
+	releasesResult, err := func() ([]release.Release, error) {
+		defer fetchSpinner.Stop()
+
+		return GetVersionService().ListRemote(cmd.Context(), force)
+	}()
 	if err != nil {
 		return fmt.Errorf("error fetching releases: %w", err)
 	}
