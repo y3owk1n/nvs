@@ -31,16 +31,17 @@ type mockCommand struct {
 }
 
 const (
-	gitCmd      = "git"
-	whichCmd    = "which"
-	gitTool     = "git"
-	makeTool    = "make"
-	cmakeTool   = "cmake"
-	gettextTool = "gettext"
-	ninjaTool   = "ninja"
-	curlTool    = "curl"
-	gitClone    = "clone"
-	gitRevParse = "rev-parse"
+	gitCmd        = "git"
+	whichCmd      = "which"
+	gitTool       = "git"
+	makeTool      = "make"
+	cmakeTool     = "cmake"
+	gettextTool   = "gettext"
+	ninjaTool     = "ninja"
+	curlTool      = "curl"
+	gitClone      = "clone"
+	gitRevParse   = "rev-parse"
+	testCommitSHA = "abc1234567890"
 )
 
 func (m *mockCommand) Run() error {
@@ -159,7 +160,7 @@ func TestBuildFromCommit_ProgressReporting(t *testing.T) {
 	mockExec := func(ctx context.Context, name string, args ...string) builder.Commander {
 		// Mock git rev-parse to return a valid commit hash
 		if name == gitCmd && len(args) > 0 && args[0] == gitRevParse {
-			return &mockCommand{stdoutStr: "abc1234567890"}
+			return &mockCommand{stdoutStr: testCommitSHA}
 		}
 		// Mock successful tool checks
 		if name == whichCmd &&
@@ -290,7 +291,7 @@ func TestBuildFromCommit_ContextCancellationDuringRetry(t *testing.T) {
 
 		// Simulate git operations for other commands
 		if name == gitCmd && len(args) > 0 && args[0] == gitRevParse {
-			return &mockCommand{stdoutStr: "abc1234567890"}
+			return &mockCommand{stdoutStr: testCommitSHA}
 		}
 
 		return &mockCommand{}
@@ -334,7 +335,7 @@ func TestBuildFromCommit_ContextCancellationDuringBuild(t *testing.T) {
 		// Simulate git operations succeeding
 		if name == gitCmd {
 			if len(args) > 0 && args[0] == "rev-parse" {
-				return &mockCommand{stdoutStr: "abc1234567890"}
+				return &mockCommand{stdoutStr: testCommitSHA}
 			}
 
 			return &mockCommand{}
@@ -384,7 +385,7 @@ func TestBuildFromCommit_ContextCancellationWithProgress(t *testing.T) {
 		// Simulate git operations succeeding
 		if name == gitCmd {
 			if len(args) > 0 && args[0] == "rev-parse" {
-				return &mockCommand{stdoutStr: "abc1234567890"}
+				return &mockCommand{stdoutStr: testCommitSHA}
 			}
 
 			return &mockCommand{}
@@ -460,7 +461,7 @@ func TestBuildFromCommit_ContextNotCancelledBeforeRetrySleep(t *testing.T) {
 
 		// Simulate git rev-parse to return a valid commit hash
 		if name == gitCmd && len(args) > 0 && args[0] == gitRevParse {
-			return &mockCommand{stdoutStr: "abc1234567890"}
+			return &mockCommand{stdoutStr: testCommitSHA}
 		}
 
 		return &mockCommand{}
@@ -556,7 +557,7 @@ func TestBuildFromCommit_NoTempDirLeakOnContextCancel(t *testing.T) {
 		// Simulate git rev-parse to return a valid commit hash so
 		// the build proceeds past the checkout step.
 		if name == gitCmd && len(args) > 0 && args[0] == gitRevParse {
-			return &mockCommand{stdoutStr: "abc1234567890"}
+			return &mockCommand{stdoutStr: testCommitSHA}
 		}
 
 		// Make returns context.Canceled to trigger the leak path

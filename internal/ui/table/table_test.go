@@ -12,6 +12,11 @@ import (
 	"github.com/y3owk1n/nvs/internal/ui/table"
 )
 
+const (
+	testInstalled = "Installed"
+	testV0100     = "v0.10.0"
+)
+
 // TestMain forces lipgloss's color profile to TrueColor so
 // the assertions on emitted SGR codes (e.g. the bold-weight
 // check in TestCurrentRowIsBolded) work in `go test`, which
@@ -72,12 +77,12 @@ func TestRowAppendsCellValues(t *testing.T) {
 
 	palette := style.Default()
 	tbl := table.New("Tag", "Status", "Details")
-	tbl.Row("v0.10.0", "Installed", "stable version: v0.10.0")
+	tbl.Row(testV0100, testInstalled, "stable version: v0.10.0")
 	tbl.Row("v0.9.5", "Not Installed", "")
 
 	out := stripANSI(tbl.Render(palette))
 
-	for _, want := range []string{"v0.10.0", "Installed", "stable version: v0.10.0", "v0.9.5", "Not Installed"} {
+	for _, want := range []string{testV0100, testInstalled, "stable version: v0.10.0", "v0.9.5", "Not Installed"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("rendered output %q does not contain %q", out, want)
 		}
@@ -126,15 +131,15 @@ func TestCurrentRowIsBolded(t *testing.T) {
 
 	palette := style.Default()
 	tbl := table.New("VERSION", "STATUS")
-	tbl.Row("v0.10.0", "Installed")
-	tbl.Row("v0.9.5", "Installed")
+	tbl.Row(testV0100, testInstalled)
+	tbl.Row("v0.9.5", testInstalled)
 	tbl.Current(1) // mark row 1 as current
 
 	rendered := tbl.Render(palette)
 	plain := stripANSI(rendered)
 
 	// Sanity: the cell values are still there.
-	for _, want := range []string{"v0.10.0", "v0.9.5", "Installed"} {
+	for _, want := range []string{testV0100, "v0.9.5", testInstalled} {
 		if !strings.Contains(plain, want) {
 			t.Errorf("rendered plain %q does not contain %q", plain, want)
 		}
@@ -158,12 +163,12 @@ func TestNoCurrentRowDoesNotBold(t *testing.T) {
 
 	palette := style.Default()
 	tbl := table.New("VERSION", "STATUS")
-	tbl.Row("v0.10.0", "Installed")
+	tbl.Row(testV0100, testInstalled)
 
 	rendered := tbl.Render(palette)
 	plain := stripANSI(rendered)
 
-	if !strings.Contains(plain, "v0.10.0") {
+	if !strings.Contains(plain, testV0100) {
 		t.Fatalf("rendered plain %q does not contain row", plain)
 	}
 
@@ -183,7 +188,7 @@ func TestNoCurrentRowDoesNotBold(t *testing.T) {
 	var bodyLine string
 
 	for _, line := range lines {
-		if strings.Contains(line, "v0.10.0") {
+		if strings.Contains(line, testV0100) {
 			bodyLine = line
 
 			break
@@ -217,7 +222,7 @@ func TestHeaderSeparatorIsPresent(t *testing.T) {
 
 	palette := style.Default()
 	tbl := table.New("Tag")
-	tbl.Row("v0.10.0")
+	tbl.Row(testV0100)
 
 	plain := stripANSI(tbl.Render(palette))
 
@@ -260,7 +265,7 @@ func TestWidthCapsTableWidth(t *testing.T) {
 	palette := style.Default()
 	tbl := table.New("A", "B", "C", "D")
 	tbl.Width(40)
-	tbl.Row("v0.10.0", "Installed", "stable version: v0.10.0", "extra")
+	tbl.Row(testV0100, testInstalled, "stable version: v0.10.0", "extra")
 
 	plain := stripANSI(tbl.Render(palette))
 	for line := range strings.SplitSeq(plain, "\n") {
@@ -285,7 +290,7 @@ func TestWrapFalseDoesNotBreakCells(t *testing.T) {
 
 	palette := style.Default()
 	tbl := table.New("Tag", "Status")
-	tbl.Row("v0.10.0", "Installed")
+	tbl.Row(testV0100, testInstalled)
 
 	plain := stripANSI(tbl.Render(palette))
 
@@ -308,7 +313,7 @@ func TestNewDoesNotMutateHeaderSlice(t *testing.T) {
 
 	headers := []string{"Tag", "Status"}
 	tbl := table.New(headers...)
-	tbl.Row("v0.10.0", "Installed")
+	tbl.Row(testV0100, testInstalled)
 
 	// Mutate the caller's slice after construction.
 	headers[0] = "MUTATED"
@@ -333,7 +338,7 @@ func TestRowDoesNotMutateCellsSlice(t *testing.T) {
 	t.Parallel()
 
 	tbl := table.New("A", "B")
-	cells := []string{"v0.10.0", "Installed"}
+	cells := []string{testV0100, testInstalled}
 	tbl.Row(cells...)
 	cells[0] = "MUTATED"
 

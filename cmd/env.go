@@ -19,6 +19,11 @@ import (
 	"github.com/y3owk1n/nvs/internal/ui/style"
 )
 
+const (
+	sectionPaths   = "Paths"
+	sectionTheming = "Theming"
+)
+
 // envCmd represents the "env" command.
 // It prints the NVS environment configuration variables and
 // their resolved values: paths (NVS_CONFIG_DIR, NVS_CACHE_DIR,
@@ -125,10 +130,7 @@ func collectEnvVars() []envVar {
 	// effective value.
 	resolved, _ := parseBoolEnv("NVS_USE_GLOBAL_CACHE", os.Getenv("NVS_USE_GLOBAL_CACHE"))
 
-	useGlobalCache := "false"
-	if resolved {
-		useGlobalCache = "true"
-	}
+	useGlobalCache := strconv.FormatBool(resolved)
 
 	// Show the EFFECTIVE log level (after parsing, after
 	// fallbacks) rather than the raw env var, so an invalid
@@ -144,9 +146,9 @@ func collectEnvVars() []envVar {
 
 	return appendTheming(
 		[]envVar{
-			{Section: "Paths", Name: "NVS_CONFIG_DIR", Value: configDir, IsPath: true},
-			{Section: "Paths", Name: "NVS_CACHE_DIR", Value: cacheDir, IsPath: true},
-			{Section: "Paths", Name: "NVS_BIN_DIR", Value: binDir, IsPath: true},
+			{Section: sectionPaths, Name: "NVS_CONFIG_DIR", Value: configDir, IsPath: true},
+			{Section: sectionPaths, Name: "NVS_CACHE_DIR", Value: cacheDir, IsPath: true},
+			{Section: sectionPaths, Name: "NVS_BIN_DIR", Value: binDir, IsPath: true},
 			{Section: "Behavior", Name: "NVS_GITHUB_MIRROR", Value: githubMirror},
 			{Section: "Behavior", Name: "NVS_USE_GLOBAL_CACHE", Value: useGlobalCache},
 			{Section: "Logging", Name: "NVS_LOG", Value: logLevel},
@@ -169,15 +171,47 @@ func collectThemingVars() []envVar {
 	palette := style.Default()
 
 	return []envVar{
-		{Section: "Theming", Name: "NVS_COLOR_PRIMARY", Value: adaptiveColorValue(palette.Primary)},
-		{Section: "Theming", Name: "NVS_COLOR_TEXT", Value: adaptiveColorValue(palette.Text)},
-		{Section: "Theming", Name: "NVS_COLOR_MUTED", Value: adaptiveColorValue(palette.Muted)},
-		{Section: "Theming", Name: "NVS_COLOR_SUBTLE", Value: adaptiveColorValue(palette.Subtle)},
-		{Section: "Theming", Name: "NVS_COLOR_BORDER", Value: adaptiveColorValue(palette.Border)},
-		{Section: "Theming", Name: "NVS_COLOR_ACCENT", Value: adaptiveColorValue(palette.Accent)},
-		{Section: "Theming", Name: "NVS_COLOR_SUCCESS", Value: adaptiveColorValue(palette.Success)},
-		{Section: "Theming", Name: "NVS_COLOR_WARNING", Value: adaptiveColorValue(palette.Warning)},
-		{Section: "Theming", Name: "NVS_COLOR_ERROR", Value: adaptiveColorValue(palette.Error)},
+		{
+			Section: sectionTheming,
+			Name:    "NVS_COLOR_PRIMARY",
+			Value:   adaptiveColorValue(palette.Primary),
+		},
+		{Section: sectionTheming, Name: "NVS_COLOR_TEXT", Value: adaptiveColorValue(palette.Text)},
+		{
+			Section: sectionTheming,
+			Name:    "NVS_COLOR_MUTED",
+			Value:   adaptiveColorValue(palette.Muted),
+		},
+		{
+			Section: sectionTheming,
+			Name:    "NVS_COLOR_SUBTLE",
+			Value:   adaptiveColorValue(palette.Subtle),
+		},
+		{
+			Section: sectionTheming,
+			Name:    "NVS_COLOR_BORDER",
+			Value:   adaptiveColorValue(palette.Border),
+		},
+		{
+			Section: sectionTheming,
+			Name:    "NVS_COLOR_ACCENT",
+			Value:   adaptiveColorValue(palette.Accent),
+		},
+		{
+			Section: sectionTheming,
+			Name:    "NVS_COLOR_SUCCESS",
+			Value:   adaptiveColorValue(palette.Success),
+		},
+		{
+			Section: sectionTheming,
+			Name:    "NVS_COLOR_WARNING",
+			Value:   adaptiveColorValue(palette.Warning),
+		},
+		{
+			Section: sectionTheming,
+			Name:    "NVS_COLOR_ERROR",
+			Value:   adaptiveColorValue(palette.Error),
+		},
 	}
 }
 

@@ -205,18 +205,18 @@ func TestParseBoolEnvAccepts(t *testing.T) {
 		input string
 		want  bool
 	}{
-		{"true", "true", true},
+		{"true", envTrue, true},
 		{"True", "True", true},
 		{"TRUE", "TRUE", true},
-		{"yes", "yes", true},
+		{"yes", envYes, true},
 		{"Yes", "Yes", true},
 		{"on", "on", true},
 		{"ON", "ON", true},
 		{"one", "1", true},
-		{"false", "false", false},
+		{"false", envFalse, false},
 		{"FALSE", "FALSE", false},
 		{"no", "no", false},
-		{"off", "off", false},
+		{"off", envOff, false},
 		{"zero", "0", false},
 	}
 

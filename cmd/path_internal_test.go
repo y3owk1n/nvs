@@ -2,6 +2,8 @@ package cmd
 
 import "testing"
 
+const binDir = "/home/u/.local/bin"
+
 func TestLineHasPathComponent(t *testing.T) {
 	t.Parallel()
 
@@ -13,20 +15,20 @@ func TestLineHasPathComponent(t *testing.T) {
 	}{
 		{
 			name:   "exact match at line start",
-			line:   "/home/u/.local/bin",
-			target: "/home/u/.local/bin",
+			line:   binDir,
+			target: binDir,
 			want:   true,
 		},
 		{
 			name:   "exact match in export statement (bash)",
 			line:   `export PATH="$PATH:/home/u/.local/bin"`,
-			target: "/home/u/.local/bin",
+			target: binDir,
 			want:   true,
 		},
 		{
 			name:   "exact match in fish set",
 			line:   `set -gx PATH $PATH /home/u/.local/bin`,
-			target: "/home/u/.local/bin",
+			target: binDir,
 			want:   true,
 		},
 		{
@@ -38,7 +40,7 @@ func TestLineHasPathComponent(t *testing.T) {
 		{
 			name:   "subpath of longer directory should NOT match (the bug)",
 			line:   `export PATH="$PATH:/home/u/.local/bin-extra"`,
-			target: "/home/u/.local/bin",
+			target: binDir,
 			want:   false,
 		},
 		{
@@ -49,7 +51,7 @@ func TestLineHasPathComponent(t *testing.T) {
 			// implies the user does not need a fresh export.
 			name:   "subpath with extra component delimited by '/' matches as prefix",
 			line:   `export PATH="$PATH:/home/u/.local/bin/nvim"`,
-			target: "/home/u/.local/bin",
+			target: binDir,
 			want:   true,
 		},
 		{
@@ -58,37 +60,37 @@ func TestLineHasPathComponent(t *testing.T) {
 			// happens to contain the target still matches.
 			name:   "appears in a non-PATH comment (still matches as path component)",
 			line:   "# I removed /home/u/.local/bin from PATH",
-			target: "/home/u/.local/bin",
+			target: binDir,
 			want:   true,
 		},
 		{
 			name:   "appears as longer token in PATH line should NOT match",
 			line:   `export PATH="$PATH:/home/u/.local/binaries"`,
-			target: "/home/u/.local/bin",
+			target: binDir,
 			want:   false,
 		},
 		{
 			name:   "preceded by alpha char should NOT match",
 			line:   `export PATH="$PATH:prefix/home/u/.local/bin"`,
-			target: "/home/u/.local/bin",
+			target: binDir,
 			want:   false,
 		},
 		{
 			name:   "delimited by quotes is fine",
 			line:   `export PATH="/home/u/.local/bin"`,
-			target: "/home/u/.local/bin",
+			target: binDir,
 			want:   true,
 		},
 		{
 			name:   "underscore is treated as path-component char (no match)",
 			line:   `export PATH="$PATH:/home/u/.local/bin_old"`,
-			target: "/home/u/.local/bin",
+			target: binDir,
 			want:   false,
 		},
 		{
 			name:   "empty line",
 			line:   "",
-			target: "/home/u/.local/bin",
+			target: binDir,
 			want:   false,
 		},
 	}
@@ -116,7 +118,6 @@ func TestRcFileContainsPathComponent(t *testing.T) {
 	t.Parallel()
 
 	const (
-		binDir = "/home/u/.local/bin"
 		subDir = "/home/u/.local/bin-extra"
 	)
 

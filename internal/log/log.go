@@ -22,7 +22,7 @@
 // Package name "log" is the conventional name for a logger in
 // the Go ecosystem; the import path (internal/log) makes the
 // dependency clear at the call site.
-package log //nolint:revive
+package log
 
 import (
 	"errors"

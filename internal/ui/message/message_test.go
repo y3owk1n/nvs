@@ -225,6 +225,15 @@ func TestDetailIsIndentedAndMuted(t *testing.T) {
 	}
 }
 
+const (
+	testCellS = "Success"
+	testCellW = "Warn"
+	testCellE = "Error"
+	testCellA = "Accent"
+	testCellT = "Text"
+	testCellM = "Muted"
+)
+
 // TestCellHelpersReturnPlainTextAfterStrip verifies that the
 // cell-color helpers (Success, Warn, Error, Accent, Text,
 // Muted) are non-I/O: they return a string that, after
@@ -245,12 +254,12 @@ func TestCellHelpersReturnPlainTextAfterStrip(t *testing.T) {
 		name string
 		cell string
 	}{
-		{"Success", printer.Success("Installed")},
-		{"Warn", printer.Warn("Installed (upgrade)")},
-		{"Error", printer.Error("Not Installed")},
-		{"Accent", printer.Accent("/Users/me/.local/bin")},
-		{"Text", printer.Text("v0.10.4")},
-		{"Muted", printer.Muted("Published: 2024-05-01, Commit: abc1234")},
+		{testCellS, printer.Success("Installed")},
+		{testCellW, printer.Warn("Installed (upgrade)")},
+		{testCellE, printer.Error("Not Installed")},
+		{testCellA, printer.Accent("/Users/me/.local/bin")},
+		{testCellT, printer.Text("v0.10.4")},
+		{testCellM, printer.Muted("Published: 2024-05-01, Commit: abc1234")},
 	}
 
 	for _, testCase := range cases {
@@ -267,12 +276,12 @@ func TestCellHelpersReturnPlainTextAfterStrip(t *testing.T) {
 			// icon injection (those are reserved for the
 			// *Row helpers).
 			wantText := map[string]string{
-				"Success": "Installed",
-				"Warn":    "Installed (upgrade)",
-				"Error":   "Not Installed",
-				"Accent":  "/Users/me/.local/bin",
-				"Text":    "v0.10.4",
-				"Muted":   "Published: 2024-05-01, Commit: abc1234",
+				testCellS: "Installed",
+				testCellW: "Installed (upgrade)",
+				testCellE: "Not Installed",
+				testCellA: "/Users/me/.local/bin",
+				testCellT: "v0.10.4",
+				testCellM: "Published: 2024-05-01, Commit: abc1234",
 			}[testCase.name]
 
 			if plain != wantText {

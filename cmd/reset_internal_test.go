@@ -9,6 +9,13 @@ import (
 	"github.com/y3owk1n/nvs/internal/constants"
 )
 
+const (
+	testEtc      = "/etc"
+	testDriveC   = `C:\`
+	testDriveD   = `D:/`
+	testUsersDir = `C:\Users`
+)
+
 func TestAssertSafeToRemovePath(t *testing.T) {
 	t.Parallel()
 
@@ -66,7 +73,7 @@ func TestAssertSafeToRemovePath(t *testing.T) {
 		// Top-level system directories
 		{
 			name:    "Unix top-level /etc",
-			path:    "/etc",
+			path:    testEtc,
 			wantErr: true,
 		},
 		{
@@ -122,17 +129,17 @@ func TestAssertSafeToRemovePath_Windows(t *testing.T) {
 	}{
 		{
 			name:    "drive root C:\\",
-			path:    `C:\`,
+			path:    testDriveC,
 			wantErr: true,
 		},
 		{
 			name:    "drive root D:/",
-			path:    `D:/`,
+			path:    testDriveD,
 			wantErr: true,
 		},
 		{
 			name:    "top-level C:\\Users",
-			path:    `C:\Users`,
+			path:    testUsersDir,
 			wantErr: true,
 		},
 		{
@@ -238,11 +245,11 @@ func TestIsDriveRoot(t *testing.T) {
 		path string
 		want bool
 	}{
-		{`C:\`, true},
-		{`D:/`, true},
+		{testDriveC, true},
+		{testDriveD, true},
 		{`Z:\`, true},
-		{`C:\Users`, false},
-		{`/etc`, false},
+		{testUsersDir, false},
+		{testEtc, false},
 		{`C:`, false},
 		{``, false},
 		{`\\`, false},
@@ -267,11 +274,11 @@ func TestIsFilesystemRoot(t *testing.T) {
 			path string
 			want bool
 		}{
-			{`C:\`, true},
+			{testDriveC, true},
 			{`/`, false}, // / is not a Windows drive root
 			{`\`, true},
 			{`\\`, true}, // UNC root
-			{`C:\Users`, false},
+			{testUsersDir, false},
 		}
 
 		for _, test := range cases {
@@ -293,7 +300,7 @@ func TestIsFilesystemRoot(t *testing.T) {
 	}
 
 	// Unix.
-	for _, sample := range []string{"/", "//", "/*not-root*", "/etc"} {
+	for _, sample := range []string{"/", "//", "/*not-root*", testEtc} {
 		want := sample == "/" || sample == "//"
 		if got := isFilesystemRoot(sample); got != want {
 			t.Errorf("isFilesystemRoot(%q) = %v, want %v", sample, got, want)
@@ -309,10 +316,10 @@ func TestAssertSafeToRemovePath_FilepathCleanNormalization(t *testing.T) {
 	t.Parallel()
 
 	// "/etc/" cleans to "/etc" (top-level, should be rejected).
-	cleaned := filepath.Clean("/etc/")
+	cleaned := filepath.Clean(testEtc + "/")
 
 	got := assertSafeToRemovePath(cleaned)
 	if got == nil {
-		t.Errorf("assertSafeToRemovePath(filepath.Clean(%q)) = nil, want error", "/etc/")
+		t.Errorf("assertSafeToRemovePath(filepath.Clean(%q)) = nil, want error", testEtc+"/")
 	}
 }

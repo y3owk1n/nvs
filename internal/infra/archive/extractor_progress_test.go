@@ -13,6 +13,13 @@ import (
 	"github.com/y3owk1n/nvs/internal/infra/archive"
 )
 
+const (
+	testATxt  = "a.txt"
+	testBTxt  = "b.txt"
+	testAlpha = "alpha"
+	testBravo = "bravo"
+)
+
 // buildTarGz creates a tar.gz archive in memory with the given
 // (name, content) entries. The returned bytes are the full
 // archive ready to be written to disk or fed to a reader.
@@ -135,11 +142,11 @@ func TestExtractor_ExtractTarGz_ProgressReaches100(t *testing.T) {
 	t.Parallel()
 
 	entries := map[string]string{
-		"a.txt": "alpha",
-		"b.txt": "bravo",
-		"c.txt": "charlie",
-		"d.txt": "delta",
-		"e.txt": "echo",
+		testATxt: testAlpha,
+		testBTxt: testBravo,
+		"c.txt":  "charlie",
+		"d.txt":  "delta",
+		"e.txt":  "echo",
 	}
 	archiveBytes := buildTarGz(t, entries)
 
@@ -183,10 +190,10 @@ func TestExtractor_ExtractZip_ProgressReaches100(t *testing.T) {
 	t.Parallel()
 
 	entries := map[string]string{
-		"a.txt": "alpha",
-		"b.txt": "bravo",
-		"c.txt": "charlie",
-		"d.txt": "delta",
+		testATxt: testAlpha,
+		testBTxt: testBravo,
+		"c.txt":  "charlie",
+		"d.txt":  "delta",
 	}
 	archiveBytes := buildZip(t, entries)
 
@@ -228,8 +235,8 @@ func TestExtractor_ExtractTarGz_ProgressNilSafe(t *testing.T) {
 	t.Parallel()
 
 	entries := map[string]string{
-		"a.txt": "alpha",
-		"b.txt": "bravo",
+		testATxt: testAlpha,
+		testBTxt: testBravo,
 	}
 	archiveBytes := buildTarGz(t, entries)
 
