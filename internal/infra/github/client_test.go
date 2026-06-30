@@ -15,6 +15,21 @@ import (
 	"github.com/y3owk1n/nvs/internal/infra/github"
 )
 
+const (
+	testDownloadURL = "https://github.com/neovim/neovim/releases/download/v0.10.0/nvim.tar.gz"
+	testMirrorURL   = "https://mirror.example.com"
+	testAssetPat    = "linux-x86_64.tar.gz"
+	testKeyTagName  = "tag_name"
+	testKeyPreRel   = "prerelease"
+	testKeyAssets   = "assets"
+	testCommitHash  = "abc123"
+	testPubAt       = "2024-12-01T10:00:00Z"
+	testNightlyTag  = "nightly"
+	testV090        = "v0.9.0"
+	testKeyTarget   = "target_commitish"
+	testKeyPubAt    = "published_at"
+)
+
 func TestApplyMirrorToURL(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -24,20 +39,20 @@ func TestApplyMirrorToURL(t *testing.T) {
 	}{
 		{
 			name:      "no mirror",
-			url:       "https://github.com/neovim/neovim/releases/download/v0.10.0/nvim.tar.gz",
+			url:       testDownloadURL,
 			mirrorURL: "",
-			want:      "https://github.com/neovim/neovim/releases/download/v0.10.0/nvim.tar.gz",
+			want:      testDownloadURL,
 		},
 		{
 			name:      "with mirror",
-			url:       "https://github.com/neovim/neovim/releases/download/v0.10.0/nvim.tar.gz",
-			mirrorURL: "https://mirror.example.com",
+			url:       testDownloadURL,
+			mirrorURL: testMirrorURL,
 			want:      "https://mirror.example.com/neovim/neovim/releases/download/v0.10.0/nvim.tar.gz",
 		},
 		{
 			name:      "non-github url unchanged",
 			url:       "https://example.com/file.tar.gz",
-			mirrorURL: "https://mirror.example.com",
+			mirrorURL: testMirrorURL,
 			want:      "https://example.com/file.tar.gz",
 		},
 	}
@@ -99,7 +114,7 @@ func TestGetAssetURL(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			rel := release.New("v0.10.0", false, "abc123", time.Now(), testCase.assets)
+			rel := release.New(cacheTestTag, false, testCommitHash, time.Now(), testCase.assets)
 			url, _, err := github.GetAssetURL(rel)
 
 			if testCase.wantErr {
@@ -172,7 +187,7 @@ func TestGetChecksumURL(t *testing.T) {
 					64,
 				),
 			},
-			assetPattern: "linux-x86_64.tar.gz",
+			assetPattern: testAssetPat,
 			wantURL:      "https://example.com/linux.tar.gz.sha256",
 			wantErr:      false,
 		},
@@ -186,7 +201,7 @@ func TestGetChecksumURL(t *testing.T) {
 				),
 				release.NewAsset("shasum.txt", "https://example.com/shasum.txt", 256),
 			},
-			assetPattern: "linux-x86_64.tar.gz",
+			assetPattern: testAssetPat,
 			wantURL:      "https://example.com/shasum.txt",
 			wantErr:      false,
 		},
@@ -199,14 +214,14 @@ func TestGetChecksumURL(t *testing.T) {
 					1000,
 				),
 			},
-			assetPattern: "linux-x86_64.tar.gz",
+			assetPattern: testAssetPat,
 			wantErr:      true,
 		},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			rel := release.New("v0.10.0", false, "abc123", time.Now(), testCase.assets)
+			rel := release.New(cacheTestTag, false, testCommitHash, time.Now(), testCase.assets)
 			got, err := github.GetChecksumURL(rel, testCase.assetPattern)
 
 			if testCase.wantErr {
@@ -236,11 +251,11 @@ func TestClient_FindStable(t *testing.T) {
 	// Pre-populate cache with test data
 	cacheData := []map[string]any{
 		{
-			"tag_name":         "v0.10.0",
-			"prerelease":       false,
-			"target_commitish": "abc123",
-			"published_at":     "2024-12-01T10:00:00Z",
-			"assets": []map[string]any{
+			testKeyTagName: cacheTestTag,
+			testKeyPreRel:  false,
+			testKeyTarget:  testCommitHash,
+			testKeyPubAt:   testPubAt,
+			testKeyAssets: []map[string]any{
 				{
 					"name":                 "nvim-linux-x86_64.tar.gz",
 					"browser_download_url": "https://example.com/nvim.tar.gz",
@@ -249,11 +264,11 @@ func TestClient_FindStable(t *testing.T) {
 			},
 		},
 		{
-			"tag_name":         "nightly",
-			"prerelease":       true,
-			"target_commitish": "def456",
-			"published_at":     "2024-12-02T10:00:00Z",
-			"assets":           []map[string]any{},
+			testKeyTagName: testNightlyTag,
+			testKeyPreRel:  true,
+			testKeyTarget:  "def456",
+			testKeyPubAt:   "2024-12-02T10:00:00Z",
+			testKeyAssets:  []map[string]any{},
 		},
 	}
 
@@ -266,7 +281,7 @@ func TestClient_FindStable(t *testing.T) {
 		t.Fatalf("FindStable() error = %v", err)
 	}
 
-	if stable.TagName() != "v0.10.0" {
+	if stable.TagName() != cacheTestTag {
 		t.Errorf("FindStable() TagName = %v, want v0.10.0", stable.TagName())
 	}
 
@@ -281,18 +296,18 @@ func TestClient_FindNightly(t *testing.T) {
 	// Pre-populate cache with test data
 	cacheData := []map[string]any{
 		{
-			"tag_name":         "v0.10.0",
-			"prerelease":       false,
-			"target_commitish": "abc123",
-			"published_at":     "2024-12-01T10:00:00Z",
-			"assets":           []map[string]any{},
+			testKeyTagName: cacheTestTag,
+			testKeyPreRel:  false,
+			testKeyTarget:  testCommitHash,
+			testKeyPubAt:   testPubAt,
+			testKeyAssets:  []map[string]any{},
 		},
 		{
-			"tag_name":         "nightly",
-			"prerelease":       true,
-			"target_commitish": "def456",
-			"published_at":     "2024-12-02T10:00:00Z",
-			"assets":           []map[string]any{},
+			testKeyTagName: testNightlyTag,
+			testKeyPreRel:  true,
+			testKeyTarget:  "def456",
+			testKeyPubAt:   "2024-12-02T10:00:00Z",
+			testKeyAssets:  []map[string]any{},
 		},
 	}
 
@@ -305,7 +320,7 @@ func TestClient_FindNightly(t *testing.T) {
 		t.Fatalf("FindNightly() error = %v", err)
 	}
 
-	if nightly.TagName() != "nightly" {
+	if nightly.TagName() != testNightlyTag {
 		t.Errorf("FindNightly() TagName = %v, want nightly", nightly.TagName())
 	}
 
@@ -320,18 +335,18 @@ func TestClient_FindByTag(t *testing.T) {
 	// Pre-populate cache with test data
 	cacheData := []map[string]any{
 		{
-			"tag_name":         "v0.10.0",
-			"prerelease":       false,
-			"target_commitish": "abc123",
-			"published_at":     "2024-12-01T10:00:00Z",
-			"assets":           []map[string]any{},
+			testKeyTagName: cacheTestTag,
+			testKeyPreRel:  false,
+			testKeyTarget:  testCommitHash,
+			testKeyPubAt:   testPubAt,
+			testKeyAssets:  []map[string]any{},
 		},
 		{
-			"tag_name":         "v0.9.0",
-			"prerelease":       false,
-			"target_commitish": "xyz789",
-			"published_at":     "2024-11-01T10:00:00Z",
-			"assets":           []map[string]any{},
+			testKeyTagName: testV090,
+			testKeyPreRel:  false,
+			testKeyTarget:  "xyz789",
+			testKeyPubAt:   "2024-11-01T10:00:00Z",
+			testKeyAssets:  []map[string]any{},
 		},
 	}
 
@@ -345,8 +360,8 @@ func TestClient_FindByTag(t *testing.T) {
 		wantTag string
 		wantErr bool
 	}{
-		{"existing tag", "v0.10.0", "v0.10.0", false},
-		{"older tag", "v0.9.0", "v0.9.0", false},
+		{"existing tag", cacheTestTag, cacheTestTag, false},
+		{"older tag", testV090, testV090, false},
 		{"non-existent tag", "v0.8.0", "", true},
 	}
 
@@ -391,7 +406,7 @@ func TestClient_MirrorURL(t *testing.T) {
 		want      string
 	}{
 		{"no mirror", "", ""},
-		{"with mirror", "https://mirror.example.com", "https://mirror.example.com"},
+		{"with mirror", testMirrorURL, testMirrorURL},
 	}
 
 	for _, testCase := range tests {
@@ -410,9 +425,9 @@ func TestClient_ApplyMirror(t *testing.T) {
 	tempDir := t.TempDir()
 	cacheFile := filepath.Join(tempDir, "cache.json")
 
-	client := github.NewClient(cacheFile, time.Hour, "", "https://mirror.example.com", false)
+	client := github.NewClient(cacheFile, time.Hour, "", testMirrorURL, false)
 
-	url := "https://github.com/neovim/neovim/releases/download/v0.10.0/nvim.tar.gz"
+	url := testDownloadURL
 	want := "https://mirror.example.com/neovim/neovim/releases/download/v0.10.0/nvim.tar.gz"
 
 	if got := client.ApplyMirror(url); got != want {
@@ -438,11 +453,11 @@ func TestClient_GetAll_InMemoryCache(t *testing.T) {
 
 	originalData := []map[string]any{
 		{
-			"tag_name":         memCacheTag,
-			"prerelease":       false,
-			"target_commitish": "abc123",
-			"published_at":     "2024-12-01T10:00:00Z",
-			"assets":           []map[string]any{},
+			testKeyTagName: memCacheTag,
+			testKeyPreRel:  false,
+			testKeyTarget:  testCommitHash,
+			testKeyPubAt:   testPubAt,
+			testKeyAssets:  []map[string]any{},
 		},
 	}
 	cacheFile := writeCacheFile(t, originalData)
@@ -469,11 +484,11 @@ func TestClient_GetAll_InMemoryCache(t *testing.T) {
 	// surface this in the second call.
 	modifiedData := []map[string]any{
 		{
-			"tag_name":         modifiedTag,
-			"prerelease":       false,
-			"target_commitish": "fff999",
-			"published_at":     "2025-01-01T10:00:00Z",
-			"assets":           []map[string]any{},
+			testKeyTagName: modifiedTag,
+			testKeyPreRel:  false,
+			testKeyTarget:  "fff999",
+			testKeyPubAt:   "2025-01-01T10:00:00Z",
+			testKeyAssets:  []map[string]any{},
 		},
 	}
 
@@ -516,11 +531,11 @@ func TestClient_GetAll_ConcurrentColdCache(t *testing.T) {
 
 	originalData := []map[string]any{
 		{
-			"tag_name":         tag,
-			"prerelease":       false,
-			"target_commitish": "abc123",
-			"published_at":     "2024-12-01T10:00:00Z",
-			"assets":           []map[string]any{},
+			testKeyTagName: tag,
+			testKeyPreRel:  false,
+			testKeyTarget:  testCommitHash,
+			testKeyPubAt:   testPubAt,
+			testKeyAssets:  []map[string]any{},
 		},
 	}
 	cacheFile := writeCacheFile(t, originalData)
@@ -575,11 +590,11 @@ func TestClient_GetAll_ConcurrentMutationSafe(t *testing.T) {
 
 	originalData := []map[string]any{
 		{
-			"tag_name":         tag,
-			"prerelease":       false,
-			"target_commitish": "abc123",
-			"published_at":     "2024-12-01T10:00:00Z",
-			"assets":           []map[string]any{},
+			testKeyTagName: tag,
+			testKeyPreRel:  false,
+			testKeyTarget:  testCommitHash,
+			testKeyPubAt:   testPubAt,
+			testKeyAssets:  []map[string]any{},
 		},
 	}
 	cacheFile := writeCacheFile(t, originalData)
@@ -633,11 +648,11 @@ func TestClient_GetAll_ForceBypassesMemCache(t *testing.T) {
 
 	originalData := []map[string]any{
 		{
-			"tag_name":         memCacheTag,
-			"prerelease":       false,
-			"target_commitish": "abc123",
-			"published_at":     "2024-12-01T10:00:00Z",
-			"assets":           []map[string]any{},
+			testKeyTagName: memCacheTag,
+			testKeyPreRel:  false,
+			testKeyTarget:  testCommitHash,
+			testKeyPubAt:   testPubAt,
+			testKeyAssets:  []map[string]any{},
 		},
 	}
 	cacheFile := writeCacheFile(t, originalData)
@@ -653,11 +668,11 @@ func TestClient_GetAll_ForceBypassesMemCache(t *testing.T) {
 	// Overwrite the disk cache.
 	modifiedData := []map[string]any{
 		{
-			"tag_name":         modifiedTag,
-			"prerelease":       false,
-			"target_commitish": "fff999",
-			"published_at":     "2025-01-01T10:00:00Z",
-			"assets":           []map[string]any{},
+			testKeyTagName: modifiedTag,
+			testKeyPreRel:  false,
+			testKeyTarget:  "fff999",
+			testKeyPubAt:   "2025-01-01T10:00:00Z",
+			testKeyAssets:  []map[string]any{},
 		},
 	}
 

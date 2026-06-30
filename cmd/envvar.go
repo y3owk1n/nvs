@@ -80,6 +80,13 @@ func hasControlChar(s string) bool {
 	return false
 }
 
+const (
+	envTrue  = "true"
+	envFalse = "false"
+	envYes   = "yes"
+	envOff   = "off"
+)
+
 // parseBoolEnv parses a boolean env var value. It returns the
 // resolved boolean and a "set" flag; the flag is false when
 // the env var is unset, empty, or invalid. Invalid values
@@ -98,10 +105,10 @@ func parseBoolEnv(envName, value string) (bool, bool) {
 	}
 
 	switch strings.ToLower(trimmed) {
-	case "1", "true", "yes", "on":
+	case "1", envTrue, envYes, "on":
 		return true, true
 
-	case "0", "false", "no", "off":
+	case "0", envFalse, "no", envOff:
 		return false, true
 
 	default:

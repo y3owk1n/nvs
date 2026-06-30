@@ -13,6 +13,11 @@ import (
 // returns a single-element slice.
 const pathListSep = string(os.PathListSeparator)
 
+const (
+	testFoo = "/foo"
+	testBar = "/bar"
+)
+
 func TestPathListContains(t *testing.T) {
 	t.Parallel()
 
@@ -20,10 +25,10 @@ func TestPathListContains(t *testing.T) {
 	// using the platform separator so the same test data
 	// works on Unix ('/foo:/bar:/baz') and Windows
 	// ('C:/foo;C:/bar;C:/baz').
-	manyItems := "/foo" + pathListSep + "/bar" + pathListSep + "/baz"
-	manyItemsWithSubstring := "/foo-extra" + pathListSep + "/bar"
+	manyItems := testFoo + pathListSep + testBar + pathListSep + "/baz"
+	manyItemsWithSubstring := testFoo + "-extra" + pathListSep + testBar
 	manyItemsWithPrefix := "/foobar" + pathListSep + "/baz"
-	trailingEmpty := "/foo" + pathListSep + "/bar" + pathListSep
+	trailingEmpty := testFoo + pathListSep + testBar + pathListSep
 
 	tests := []struct {
 		name string
@@ -34,31 +39,31 @@ func TestPathListContains(t *testing.T) {
 		{
 			name: "empty list",
 			list: "",
-			item: "/foo",
+			item: testFoo,
 			want: false,
 		},
 		{
 			name: "single match",
-			list: "/foo",
-			item: "/foo",
+			list: testFoo,
+			item: testFoo,
 			want: true,
 		},
 		{
 			name: "single no match",
-			list: "/bar",
-			item: "/foo",
+			list: testBar,
+			item: testFoo,
 			want: false,
 		},
 		{
 			name: "first of many",
 			list: manyItems,
-			item: "/foo",
+			item: testFoo,
 			want: true,
 		},
 		{
 			name: "middle of many",
 			list: manyItems,
-			item: "/bar",
+			item: testBar,
 			want: true,
 		},
 		{
@@ -79,7 +84,7 @@ func TestPathListContains(t *testing.T) {
 			// reported as a hit).
 			name: "substring does not match",
 			list: manyItemsWithSubstring,
-			item: "/foo",
+			item: testFoo,
 			want: false,
 		},
 		{
@@ -87,7 +92,7 @@ func TestPathListContains(t *testing.T) {
 			// equal to it.
 			name: "prefix does not match",
 			list: manyItemsWithPrefix,
-			item: "/foo",
+			item: testFoo,
 			want: false,
 		},
 		{
@@ -96,7 +101,7 @@ func TestPathListContains(t *testing.T) {
 			// entries.
 			name: "trailing empty entry",
 			list: trailingEmpty,
-			item: "/bar",
+			item: testBar,
 			want: true,
 		},
 	}

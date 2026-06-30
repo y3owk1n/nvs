@@ -8,6 +8,17 @@ import (
 	"github.com/y3owk1n/nvs/internal/domain/vtypes"
 )
 
+const (
+	testStable  = "stable"
+	testV0100   = "v0.10.0"
+	testNightly = "nightly"
+	test1a2b3c4 = "1a2b3c4"
+	testV095    = "v0.9.5"
+	testMaster  = "master"
+	testMain    = "main"
+	testAbc1234 = "abc1234"
+)
+
 func TestNew(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -22,46 +33,46 @@ func TestNew(t *testing.T) {
 	}{
 		{
 			name:        "stable version",
-			versionName: "stable",
+			versionName: testStable,
 			versionType: vtypes.TypeStable,
-			identifier:  "v0.10.0",
+			identifier:  testV0100,
 			commitHash:  "",
-			wantName:    "stable",
+			wantName:    testStable,
 			wantType:    vtypes.TypeStable,
-			wantID:      "v0.10.0",
+			wantID:      testV0100,
 			wantCommit:  "",
 		},
 		{
 			name:        "nightly version",
-			versionName: "nightly",
+			versionName: testNightly,
 			versionType: vtypes.TypeNightly,
 			identifier:  "nightly-2024-12-04",
 			commitHash:  "abc123def456",
-			wantName:    "nightly",
+			wantName:    testNightly,
 			wantType:    vtypes.TypeNightly,
 			wantID:      "nightly-2024-12-04",
 			wantCommit:  "abc123def456",
 		},
 		{
 			name:        "commit hash",
-			versionName: "1a2b3c4",
+			versionName: test1a2b3c4,
 			versionType: vtypes.TypeCommit,
-			identifier:  "1a2b3c4",
+			identifier:  test1a2b3c4,
 			commitHash:  "1a2b3c4d5e6f7890abcdef1234567890abcdef12",
-			wantName:    "1a2b3c4",
+			wantName:    test1a2b3c4,
 			wantType:    vtypes.TypeCommit,
-			wantID:      "1a2b3c4",
+			wantID:      test1a2b3c4,
 			wantCommit:  "1a2b3c4d5e6f7890abcdef1234567890abcdef12",
 		},
 		{
 			name:        "specific tag",
-			versionName: "v0.9.5",
+			versionName: testV095,
 			versionType: vtypes.TypeTag,
-			identifier:  "v0.9.5",
+			identifier:  testV095,
 			commitHash:  "",
-			wantName:    "v0.9.5",
+			wantName:    testV095,
 			wantType:    vtypes.TypeTag,
-			wantID:      "v0.9.5",
+			wantID:      testV095,
 			wantCommit:  "",
 		},
 	}
@@ -100,8 +111,8 @@ func TestTypeString(t *testing.T) {
 		t    vtypes.Type
 		want string
 	}{
-		{"stable", vtypes.TypeStable, "stable"},
-		{"nightly", vtypes.TypeNightly, "nightly"},
+		{testStable, vtypes.TypeStable, testStable},
+		{testNightly, vtypes.TypeNightly, testNightly},
 		{"commit", vtypes.TypeCommit, "commit"},
 		{"tag", vtypes.TypeTag, "tag"},
 		{"unknown", vtypes.Type(999), "unknown"},
@@ -123,11 +134,11 @@ func TestIsCommitReference(t *testing.T) {
 		want  bool
 	}{
 		// Valid branch names
-		{"master branch", "master", true},
-		{"main branch", "main", true},
+		{"master branch", testMaster, true},
+		{"main branch", testMain, true},
 
 		// Valid commit hashes (different lengths)
-		{"7 char hex", "abc1234", true},
+		{"7 char hex", testAbc1234, true},
 		{"8 char hex", "abc12345", true},
 		{"40 char hex (full SHA)", "1234567890abcdef1234567890abcdef12345678", true},
 		{"mixed case hex", "AbC1234", true},
@@ -140,9 +151,9 @@ func TestIsCommitReference(t *testing.T) {
 		{"empty string", "", false},
 		{"contains invalid char g", "abc123g", false},
 		{"contains space", "abc 123", false},
-		{"stable keyword", "stable", false},
-		{"nightly keyword", "nightly", false},
-		{"version tag", "v0.10.0", false},
+		{"stable keyword", testStable, false},
+		{"nightly keyword", testNightly, false},
+		{"version tag", testV0100, false},
 		{"contains dash", "abc-123", false},
 		{"contains underscore", "abc_123", false},
 	}
@@ -168,13 +179,13 @@ func TestIsValidVersionName(t *testing.T) {
 		{"empty string", "", false},
 		{"single dot", ".", false},
 		{"double dot", "..", false},
-		{"literal stable", "stable", true},
-		{"literal nightly", "nightly", true},
-		{"release tag vX.Y.Z", "v0.10.0", true},
+		{"literal stable", testStable, true},
+		{"literal nightly", testNightly, true},
+		{"release tag vX.Y.Z", testV0100, true},
 		{"release tag with pre-release", "v0.10.0-beta1", true},
-		{"master branch", "master", true},
-		{"main branch", "main", true},
-		{"7-char hex", "abc1234", true},
+		{"master branch", testMaster, true},
+		{"main branch", testMain, true},
+		{"7-char hex", testAbc1234, true},
 		{"40-char hex", "1234567890abcdef1234567890abcdef12345678", true},
 
 		// Path-traversal payloads
@@ -232,9 +243,9 @@ func TestValidateVersionName(t *testing.T) {
 		input   string
 		wantErr bool
 	}{
-		{"valid stable", "stable", false},
-		{"valid v0.10.0", "v0.10.0", false},
-		{"valid commit hash", "abc1234", false},
+		{"valid stable", testStable, false},
+		{"valid v0.10.0", testV0100, false},
+		{"valid commit hash", testAbc1234, false},
 		{"invalid: empty", "", true},
 		{"invalid: parent escape", "../etc/passwd", true},
 		{"invalid: absolute", "/etc/passwd", true},
@@ -289,13 +300,13 @@ func TestNormalizeVersionForPath(t *testing.T) {
 		input string
 		want  string
 	}{
-		{"stable alias", "stable", "stable"},
-		{"nightly alias", "nightly", "nightly"},
-		{"commit hash preserved", "abc1234", "abc1234"},
-		{"master branch preserved", "master", "master"},
-		{"main branch preserved", "main", "main"},
-		{"bare version gets v prefix", "0.10.0", "v0.10.0"},
-		{"already-prefixed version preserved", "v0.10.0", "v0.10.0"},
+		{"stable alias", testStable, testStable},
+		{"nightly alias", testNightly, testNightly},
+		{"commit hash preserved", testAbc1234, testAbc1234},
+		{"master branch preserved", testMaster, testMaster},
+		{"main branch preserved", testMain, testMain},
+		{"bare version gets v prefix", "0.10.0", testV0100},
+		{"already-prefixed version preserved", testV0100, testV0100},
 	}
 
 	for _, test := range tests {

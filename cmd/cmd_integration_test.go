@@ -21,6 +21,16 @@ import (
 	"github.com/y3owk1n/nvs/internal/domain/vtypes"
 )
 
+const (
+	testV100   = "v1.0.0"
+	testStable = "stable"
+)
+
+const (
+	testNightly = "nightly"
+	testV110    = "v1.1.0"
+)
+
 // mockVersionManagerForIntegration implements vtypes.Manager for integration testing.
 type mockVersionManagerForIntegration struct {
 	installed map[string]bool
@@ -106,7 +116,7 @@ type mockReleaseRepoForIntegration struct {
 }
 
 func (m *mockReleaseRepoForIntegration) FindStable(ctx context.Context) (release.Release, error) {
-	if rel, ok := m.releases["stable"]; ok {
+	if rel, ok := m.releases[testStable]; ok {
 		return rel, nil
 	}
 
@@ -114,7 +124,7 @@ func (m *mockReleaseRepoForIntegration) FindStable(ctx context.Context) (release
 }
 
 func (m *mockReleaseRepoForIntegration) FindNightly(ctx context.Context) (release.Release, error) {
-	if rel, ok := m.releases["nightly"]; ok {
+	if rel, ok := m.releases[testNightly]; ok {
 		return rel, nil
 	}
 
@@ -160,7 +170,7 @@ func TestRunList(t *testing.T) {
 	}
 
 	// Create some version dirs
-	versions := []string{"v1.0.0", "v1.1.0"}
+	versions := []string{testV100, testV110}
 	for _, v := range versions {
 		err := os.Mkdir(filepath.Join(cmd.GetVersionsDir(), v), 0o755)
 		if err != nil {
@@ -541,7 +551,7 @@ func TestRunUse_InstallAndSwitch(t *testing.T) {
 
 	mockReleaseRepo := &mockReleaseRepoForIntegration{
 		releases: map[string]release.Release{
-			"stable": release.New("stable", false, "abc123", time.Now(), assets),
+			testStable: release.New(testStable, false, "abc123", time.Now(), assets),
 		},
 	}
 
@@ -562,24 +572,30 @@ func TestRunUse_InstallAndSwitch(t *testing.T) {
 
 	cmd.SetVersionServiceForTesting(mockService)
 
-	targetVersion := "stable"
+	targetVersion := testStable
 
 	cobraCmd := &cobra.Command{}
+	cobraCmd.Flags().Bool("force", false, "")
 	cobraCmd.SetContext(t.Context())
 
 	// This should install stable and switch to it
+	err = cobraCmd.Flags().Set("force", "true")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	err = cmd.RunUse(cobraCmd, []string{targetVersion})
 	if err != nil {
 		t.Errorf("RunUse install and switch failed: %v", err)
 	}
 
 	// Verify stable is now "installed" (in our mock)
-	if !mockManager.installed["stable"] {
+	if !mockManager.installed[testStable] {
 		t.Errorf("Stable was not installed")
 	}
 
 	// Verify it's current (check our mock)
-	if mockManager.current.Name() != "stable" {
+	if mockManager.current.Name() != testStable {
 		t.Errorf("Current is not stable, got %s", mockManager.current.Name())
 	}
 }
@@ -599,6 +615,7 @@ func TestFullWorkflow(t *testing.T) {
 	}
 
 	cobraCmd := &cobra.Command{}
+	cobraCmd.Flags().Bool("force", false, "")
 	cobraCmd.SetContext(t.Context())
 
 	// 1. Test initial state - no versions installed
@@ -648,6 +665,8 @@ func TestFullWorkflow(t *testing.T) {
 	}
 
 	// 5. Test switching to the version
+	_ = cobraCmd.Flags().Set("force", "true")
+
 	err = cmd.RunUse(cobraCmd, []string{targetVersion})
 	if err != nil {
 		t.Errorf("RunUse failed: %v", err)
@@ -772,9 +791,9 @@ func TestRunListRemote(t *testing.T) {
 
 	mockReleaseRepo := &mockReleaseRepoForIntegration{
 		releases: map[string]release.Release{
-			"stable":  release.New("stable", false, "abc123", time.Now(), assets),
-			"nightly": release.New("nightly", true, "def456", time.Now(), assets),
-			"v0.10.0": release.New("v0.10.0", false, "", time.Now(), assets),
+			testStable:  release.New(testStable, false, "abc123", time.Now(), assets),
+			testNightly: release.New(testNightly, true, "def456", time.Now(), assets),
+			"v0.10.0":   release.New("v0.10.0", false, "", time.Now(), assets),
 		},
 	}
 
@@ -828,7 +847,7 @@ func TestRunListRemote_Force(t *testing.T) {
 
 	mockReleaseRepo := &mockReleaseRepoForIntegration{
 		releases: map[string]release.Release{
-			"stable": release.New("stable", false, "abc123", time.Now(), assets),
+			testStable: release.New(testStable, false, "abc123", time.Now(), assets),
 		},
 	}
 
@@ -879,19 +898,19 @@ func TestRunListRemote_WithInstalledVersions(t *testing.T) {
 
 	// Mark stable as installed
 	mockManager := &mockVersionManagerForIntegration{
-		installed: map[string]bool{"stable": true},
-		current:   vtypes.New("stable", vtypes.TypeTag, "stable", ""),
+		installed: map[string]bool{testStable: true},
+		current:   vtypes.New(testStable, vtypes.TypeTag, testStable, ""),
 	}
 	mockInstaller := &mockInstallerForIntegration{
-		installed: map[string]bool{"stable": true},
+		installed: map[string]bool{testStable: true},
 	}
 
 	assets := createPlatformAssets()
 
 	mockReleaseRepo := &mockReleaseRepoForIntegration{
 		releases: map[string]release.Release{
-			"stable":  release.New("stable", false, "abc123", time.Now(), assets),
-			"nightly": release.New("nightly", true, "def456", time.Now(), assets),
+			testStable:  release.New(testStable, false, "abc123", time.Now(), assets),
+			testNightly: release.New(testNightly, true, "def456", time.Now(), assets),
 		},
 	}
 
@@ -957,7 +976,7 @@ func TestRunUpgrade_NotInstalled(t *testing.T) {
 
 	mockReleaseRepo := &mockReleaseRepoForIntegration{
 		releases: map[string]release.Release{
-			"stable": release.New("stable", false, "abc123", time.Now(), assets),
+			testStable: release.New(testStable, false, "abc123", time.Now(), assets),
 		},
 	}
 
@@ -981,7 +1000,7 @@ func TestRunUpgrade_NotInstalled(t *testing.T) {
 	cobraCmd.SetContext(t.Context())
 
 	// Should skip (not error) when version not installed
-	err = cmd.RunUpgrade(cobraCmd, []string{"stable"})
+	err = cmd.RunUpgrade(cobraCmd, []string{testStable})
 	if err != nil {
 		t.Errorf("RunUpgrade should skip not installed version, got error: %v", err)
 	}
@@ -1013,8 +1032,8 @@ func TestRunUpgrade_BothVersions(t *testing.T) {
 
 	mockReleaseRepo := &mockReleaseRepoForIntegration{
 		releases: map[string]release.Release{
-			"stable":  release.New("stable", false, "abc123", time.Now(), assets),
-			"nightly": release.New("nightly", true, "def456", time.Now(), assets),
+			testStable:  release.New(testStable, false, "abc123", time.Now(), assets),
+			testNightly: release.New(testNightly, true, "def456", time.Now(), assets),
 		},
 	}
 
@@ -1142,8 +1161,8 @@ func TestReadVersionFile(t *testing.T) {
 		t.Errorf("ReadVersionFile failed: %v", err)
 	}
 
-	if version != "v1.0.0" {
-		t.Errorf("Version = %q, want %q", version, "v1.0.0")
+	if version != testV100 {
+		t.Errorf("Version = %q, want %q", version, testV100)
 	}
 
 	if foundFile != versionFile {
@@ -1196,7 +1215,7 @@ func TestAddNightlyToHistory(t *testing.T) {
 	}
 
 	commitHash := "abc1234567890"
-	tagName := "nightly"
+	tagName := testNightly
 
 	err := cmd.AddNightlyToHistory(commitHash, tagName)
 	if err != nil {
@@ -1415,9 +1434,9 @@ func TestRunRollback_WithHistory(t *testing.T) {
 	// sorts by installed_at desc, so list the newest first.
 	historyJSON := `{
   "entries": [
-    {"commit_hash": "` + currentCommit + `", "installed_at": "2025-06-14T10:00:00Z", "tag_name": "nightly"},
-    {"commit_hash": "` + olderCommit + `", "installed_at": "2025-06-13T10:00:00Z", "tag_name": "nightly"},
-    {"commit_hash": "` + oldestCommit + `", "installed_at": "2025-06-12T10:00:00Z", "tag_name": "nightly"}
+    {"commit_hash": "` + currentCommit + `", "installed_at": "2025-06-14T10:00:00Z", "tag_name": "` + testNightly + `"},
+    {"commit_hash": "` + olderCommit + `", "installed_at": "2025-06-13T10:00:00Z", "tag_name": "` + testNightly + `"},
+    {"commit_hash": "` + oldestCommit + `", "installed_at": "2025-06-12T10:00:00Z", "tag_name": "` + testNightly + `"}
   ],
   "limit": 5
 }
@@ -1526,7 +1545,7 @@ func TestRunUninstall_CurrentAborted(t *testing.T) {
 	}
 
 	// Create a version directory
-	versionName := "v1.0.0"
+	versionName := testV100
 	versionDir := filepath.Join(cmd.GetVersionsDir(), versionName)
 
 	err := os.MkdirAll(versionDir, 0o755)
@@ -1612,7 +1631,7 @@ func TestRunCurrent_WithStable(t *testing.T) {
 	}
 
 	// Create stable version directory
-	versionDir := filepath.Join(cmd.GetVersionsDir(), "stable")
+	versionDir := filepath.Join(cmd.GetVersionsDir(), testStable)
 
 	err := os.MkdirAll(versionDir, 0o755)
 	if err != nil {
@@ -1653,7 +1672,7 @@ func TestRunCurrent_WithNightly(t *testing.T) {
 	}
 
 	// Create nightly version directory
-	versionDir := filepath.Join(cmd.GetVersionsDir(), "nightly")
+	versionDir := filepath.Join(cmd.GetVersionsDir(), testNightly)
 
 	err := os.MkdirAll(versionDir, 0o755)
 	if err != nil {
@@ -1764,7 +1783,7 @@ func TestRunList_JSON(t *testing.T) {
 	}
 
 	// Create some version dirs
-	versions := []string{"v1.0.0", "v1.1.0"}
+	versions := []string{testV100, testV110}
 	for _, v := range versions {
 		err := os.Mkdir(filepath.Join(cmd.GetVersionsDir(), v), 0o755)
 		if err != nil {
@@ -2106,9 +2125,9 @@ func TestRunUse_Pick(t *testing.T) {
 
 	// Create some installed versions
 	installedVersions := map[string]bool{
-		"v1.0.0": true,
-		"v1.1.0": true,
-		"stable": true,
+		testV100:   true,
+		testV110:   true,
+		testStable: true,
 	}
 
 	mockManager := &mockVersionManagerForIntegration{
@@ -2123,7 +2142,7 @@ func TestRunUse_Pick(t *testing.T) {
 
 	mockReleaseRepo := &mockReleaseRepoForIntegration{
 		releases: map[string]release.Release{
-			"stable": release.New("stable", false, "abc123", time.Now(), assets),
+			testStable: release.New(testStable, false, "abc123", time.Now(), assets),
 		},
 	}
 
@@ -2194,9 +2213,9 @@ func TestRunInstall_Pick(t *testing.T) {
 
 	mockReleaseRepo := &mockReleaseRepoForIntegration{
 		releases: map[string]release.Release{
-			"stable":  release.New("stable", false, "abc123", time.Now(), assets),
-			"nightly": release.New("nightly", true, "def456", time.Now(), assets),
-			"v0.10.0": release.New("v0.10.0", false, "", time.Now(), assets),
+			testStable:  release.New(testStable, false, "abc123", time.Now(), assets),
+			testNightly: release.New(testNightly, true, "def456", time.Now(), assets),
+			"v0.10.0":   release.New("v0.10.0", false, "", time.Now(), assets),
 		},
 	}
 
@@ -2256,14 +2275,14 @@ func TestRunPin_Pick(t *testing.T) {
 
 	// Create some installed versions
 	installedVersions := map[string]bool{
-		"v1.0.0": true,
-		"v1.1.0": true,
-		"stable": true,
+		testV100:   true,
+		testV110:   true,
+		testStable: true,
 	}
 
 	mockManager := &mockVersionManagerForIntegration{
 		installed: installedVersions,
-		current:   vtypes.New("stable", vtypes.TypeTag, "stable", ""),
+		current:   vtypes.New(testStable, vtypes.TypeTag, testStable, ""),
 	}
 	mockInstaller := &mockInstallerForIntegration{
 		installed: installedVersions,
@@ -2273,7 +2292,7 @@ func TestRunPin_Pick(t *testing.T) {
 
 	mockReleaseRepo := &mockReleaseRepoForIntegration{
 		releases: map[string]release.Release{
-			"stable": release.New("stable", false, "abc123", time.Now(), assets),
+			testStable: release.New(testStable, false, "abc123", time.Now(), assets),
 		},
 	}
 
@@ -2334,8 +2353,8 @@ func TestRunRun_Pick(t *testing.T) {
 
 	// Create some installed versions with fake binaries
 	installedVersions := map[string]bool{
-		"v1.0.0": true,
-		"v1.1.0": true,
+		testV100: true,
+		testV110: true,
 	}
 
 	mockManager := &mockVersionManagerForIntegration{
@@ -2350,7 +2369,7 @@ func TestRunRun_Pick(t *testing.T) {
 
 	mockReleaseRepo := &mockReleaseRepoForIntegration{
 		releases: map[string]release.Release{
-			"v1.0.0": release.New("v1.0.0", false, "abc123", time.Now(), assets),
+			testV100: release.New(testV100, false, "abc123", time.Now(), assets),
 		},
 	}
 
@@ -2371,7 +2390,7 @@ func TestRunRun_Pick(t *testing.T) {
 	cmd.SetVersionServiceForTesting(mockService)
 
 	// Create fake version directory and binary for v1.0.0
-	versionDir := filepath.Join(cmd.GetVersionsDir(), "v1.0.0")
+	versionDir := filepath.Join(cmd.GetVersionsDir(), testV100)
 
 	err = os.MkdirAll(versionDir, 0o755)
 	if err != nil {
@@ -2430,8 +2449,8 @@ func TestRunUninstall_Pick(t *testing.T) {
 
 	// Create some installed versions
 	installedVersions := map[string]bool{
-		"v1.0.0": true,
-		"v1.1.0": true,
+		testV100: true,
+		testV110: true,
 	}
 
 	mockManager := &mockVersionManagerForIntegration{
@@ -2446,7 +2465,7 @@ func TestRunUninstall_Pick(t *testing.T) {
 
 	mockReleaseRepo := &mockReleaseRepoForIntegration{
 		releases: map[string]release.Release{
-			"v1.0.0": release.New("v1.0.0", false, "abc123", time.Now(), assets),
+			testV100: release.New(testV100, false, "abc123", time.Now(), assets),
 		},
 	}
 
@@ -2506,18 +2525,18 @@ func TestRunUpgrade_Pick(t *testing.T) {
 
 	// Mark stable as installed
 	mockManager := &mockVersionManagerForIntegration{
-		installed: map[string]bool{"stable": true},
+		installed: map[string]bool{testStable: true},
 		current:   vtypes.Version{},
 	}
 	mockInstaller := &mockInstallerForIntegration{
-		installed: map[string]bool{"stable": true},
+		installed: map[string]bool{testStable: true},
 	}
 
 	assets := createPlatformAssets()
 
 	mockReleaseRepo := &mockReleaseRepoForIntegration{
 		releases: map[string]release.Release{
-			"stable": release.New("stable", false, "abc123", time.Now(), assets),
+			testStable: release.New(testStable, false, "abc123", time.Now(), assets),
 		},
 	}
 

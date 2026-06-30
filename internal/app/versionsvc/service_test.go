@@ -20,7 +20,11 @@ var (
 	errInstallFailed = errors.New("installation failed")
 )
 
-const testVersionTag = "v0.10.0"
+const (
+	testTmp         = "/tmp"
+	testVersionTag  = "v0.10.0"
+	testVersionTag2 = "v0.9.5"
+)
 
 type mockReleaseRepo struct {
 	stable         release.Release
@@ -150,14 +154,14 @@ func (m *mockInstaller) UpgradeRelease(
 
 func TestService_Use_Stable(t *testing.T) {
 	repo := &mockReleaseRepo{
-		stable: release.New("v0.10.0", false, "abc123", time.Time{}, nil),
+		stable: release.New(testVersionTag, false, "abc123", time.Time{}, nil),
 	}
 	manager := &mockVersionManager{
 		installed: map[string]vtypes.Version{
 			constants.Stable: vtypes.New(
 				constants.Stable,
 				vtypes.TypeStable,
-				"v0.10.0",
+				testVersionTag,
 				"abc123",
 			),
 		},
@@ -176,7 +180,7 @@ func TestService_Use_Stable(t *testing.T) {
 		repo,
 		manager,
 		install,
-		&versionsvc.Config{VersionsDir: "/tmp"},
+		&versionsvc.Config{VersionsDir: testTmp},
 	)
 	if newErr != nil {
 		t.Fatalf("Failed to create service: %v", newErr)
@@ -213,7 +217,7 @@ func TestService_Use_Stable(t *testing.T) {
 		)
 	}
 
-	if resolvedVersion != "v0.10.0" {
+	if resolvedVersion != testVersionTag {
 		t.Errorf("Expected resolved version 'v0.10.0', got '%s'", resolvedVersion)
 	}
 }
@@ -229,7 +233,7 @@ func TestService_Use_Nightly_NotAvailable(t *testing.T) {
 		repo,
 		manager,
 		install,
-		&versionsvc.Config{VersionsDir: "/tmp"},
+		&versionsvc.Config{VersionsDir: testTmp},
 	)
 	if newErr != nil {
 		t.Fatalf("Failed to create service: %v", newErr)
@@ -244,27 +248,27 @@ func TestService_Use_Nightly_NotAvailable(t *testing.T) {
 func TestService_Use_Tag(t *testing.T) {
 	repo := &mockReleaseRepo{
 		tags: map[string]release.Release{
-			"v0.9.5": release.New("v0.9.5", false, "ghi789", time.Time{}, nil),
+			testVersionTag2: release.New(testVersionTag2, false, "ghi789", time.Time{}, nil),
 		},
 	}
 	manager := &mockVersionManager{
 		installed: map[string]vtypes.Version{
-			"v0.9.5": vtypes.New("v0.9.5", vtypes.TypeTag, "v0.9.5", ""),
+			testVersionTag2: vtypes.New(testVersionTag2, vtypes.TypeTag, testVersionTag2, ""),
 		},
 	}
 	install := &mockInstaller{installed: make(map[string]vtypes.Version)}
 
-	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: "/tmp"})
+	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: testTmp})
 	if err != nil {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	_, err = service.Use(t.Context(), "v0.9.5")
+	_, err = service.Use(t.Context(), testVersionTag2)
 	if err != nil {
 		t.Fatalf("Use v0.9.5 failed: %v", err)
 	}
 
-	if manager.current.Name() != "v0.9.5" {
+	if manager.current.Name() != testVersionTag2 {
 		t.Errorf("Expected current version name 'v0.9.5', got '%s'", manager.current.Name())
 	}
 
@@ -275,13 +279,13 @@ func TestService_Use_Tag(t *testing.T) {
 
 func TestService_ListRemote_ForceFalse(t *testing.T) {
 	repo := &mockReleaseRepo{
-		stable:  release.New("v0.10.0", false, "abc123", time.Time{}, nil),
+		stable:  release.New(testVersionTag, false, "abc123", time.Time{}, nil),
 		nightly: release.New("nightly-2024-12-04", true, "def456", time.Time{}, nil),
 	}
 	manager := &mockVersionManager{}
 	install := &mockInstaller{installed: make(map[string]vtypes.Version)}
 
-	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: "/tmp"})
+	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: testTmp})
 	if err != nil {
 		t.Fatalf("Failed to create service: %v", err)
 	}
@@ -298,13 +302,13 @@ func TestService_ListRemote_ForceFalse(t *testing.T) {
 
 func TestService_ListRemote_ForceTrue(t *testing.T) {
 	repo := &mockReleaseRepo{
-		stable:  release.New("v0.10.0", false, "abc123", time.Time{}, nil),
+		stable:  release.New(testVersionTag, false, "abc123", time.Time{}, nil),
 		nightly: release.New("nightly-2024-12-04", true, "def456", time.Time{}, nil),
 	}
 	manager := &mockVersionManager{}
 	install := &mockInstaller{installed: make(map[string]vtypes.Version)}
 
-	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: "/tmp"})
+	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: testTmp})
 	if err != nil {
 		t.Fatalf("Failed to create service: %v", err)
 	}
@@ -321,14 +325,14 @@ func TestService_ListRemote_ForceTrue(t *testing.T) {
 
 func TestService_Use_VersionNotFound(t *testing.T) {
 	repo := &mockReleaseRepo{
-		stable: release.New("v0.10.0", false, "abc123", time.Time{}, nil),
+		stable: release.New(testVersionTag, false, "abc123", time.Time{}, nil),
 	}
 	manager := &mockVersionManager{
 		installed: make(map[string]vtypes.Version), // nightly not installed
 	}
 	install := &mockInstaller{installed: make(map[string]vtypes.Version)}
 
-	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: "/tmp"})
+	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: testTmp})
 	if err != nil {
 		t.Fatalf("Failed to create service: %v", err)
 	}
@@ -384,7 +388,7 @@ func TestService_List(t *testing.T) {
 	repo := &mockReleaseRepo{}
 	manager := &mockVersionManager{
 		installed: map[string]vtypes.Version{
-			constants.Stable: vtypes.New(constants.Stable, vtypes.TypeStable, "v0.10.0", ""),
+			constants.Stable: vtypes.New(constants.Stable, vtypes.TypeStable, testVersionTag, ""),
 			constants.Nightly: vtypes.New(
 				constants.Nightly,
 				vtypes.TypeNightly,
@@ -395,7 +399,7 @@ func TestService_List(t *testing.T) {
 	}
 	install := &mockInstaller{installed: make(map[string]vtypes.Version)}
 
-	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: "/tmp"})
+	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: testTmp})
 	if err != nil {
 		t.Fatalf("Failed to create service: %v", err)
 	}
@@ -413,11 +417,11 @@ func TestService_List(t *testing.T) {
 func TestService_Current(t *testing.T) {
 	repo := &mockReleaseRepo{}
 	manager := &mockVersionManager{
-		current: vtypes.New(constants.Stable, vtypes.TypeStable, "v0.10.0", ""),
+		current: vtypes.New(constants.Stable, vtypes.TypeStable, testVersionTag, ""),
 	}
 	install := &mockInstaller{installed: make(map[string]vtypes.Version)}
 
-	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: "/tmp"})
+	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: testTmp})
 	if err != nil {
 		t.Fatalf("Failed to create service: %v", err)
 	}
@@ -436,23 +440,23 @@ func TestService_Uninstall(t *testing.T) {
 	repo := &mockReleaseRepo{}
 	manager := &mockVersionManager{
 		installed: map[string]vtypes.Version{
-			"v0.10.0": vtypes.New("v0.10.0", vtypes.TypeTag, "v0.10.0", ""),
+			testVersionTag: vtypes.New(testVersionTag, vtypes.TypeTag, testVersionTag, ""),
 		},
 	}
 	install := &mockInstaller{installed: make(map[string]vtypes.Version)}
 
-	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: "/tmp"})
+	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: testTmp})
 	if err != nil {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	err = service.Uninstall("v0.10.0", true)
+	err = service.Uninstall(testVersionTag, true)
 	if err != nil {
 		t.Fatalf("Uninstall failed: %v", err)
 	}
 
 	// Verify version was removed from manager
-	if _, exists := manager.installed["v0.10.0"]; exists {
+	if _, exists := manager.installed[testVersionTag]; exists {
 		t.Error("Version should have been removed from manager")
 	}
 }
@@ -464,7 +468,7 @@ func TestService_Uninstall_NotInstalled(t *testing.T) {
 	}
 	install := &mockInstaller{installed: make(map[string]vtypes.Version)}
 
-	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: "/tmp"})
+	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: testTmp})
 	if err != nil {
 		t.Fatalf("Failed to create service: %v", err)
 	}
@@ -479,12 +483,12 @@ func TestService_IsVersionInstalled(t *testing.T) {
 	repo := &mockReleaseRepo{}
 	manager := &mockVersionManager{
 		installed: map[string]vtypes.Version{
-			constants.Stable: vtypes.New(constants.Stable, vtypes.TypeStable, "v0.10.0", ""),
+			constants.Stable: vtypes.New(constants.Stable, vtypes.TypeStable, testVersionTag, ""),
 		},
 	}
 	install := &mockInstaller{installed: make(map[string]vtypes.Version)}
 
-	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: "/tmp"})
+	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: testTmp})
 	if err != nil {
 		t.Fatalf("Failed to create service: %v", err)
 	}
@@ -508,8 +512,13 @@ func TestService_InstalledVersionNames(t *testing.T) {
 	repo := &mockReleaseRepo{}
 	manager := &mockVersionManager{
 		installed: map[string]vtypes.Version{
-			constants.Stable: vtypes.New(constants.Stable, vtypes.TypeStable, "v0.10.0", "abc123"),
-			"v0.10.0":        vtypes.New("v0.10.0", vtypes.TypeTag, "v0.10.0", "abc123"),
+			constants.Stable: vtypes.New(
+				constants.Stable,
+				vtypes.TypeStable,
+				testVersionTag,
+				"abc123",
+			),
+			testVersionTag: vtypes.New(testVersionTag, vtypes.TypeTag, testVersionTag, "abc123"),
 			constants.Nightly: vtypes.New(
 				constants.Nightly,
 				vtypes.TypeNightly,
@@ -520,7 +529,7 @@ func TestService_InstalledVersionNames(t *testing.T) {
 	}
 	install := &mockInstaller{installed: make(map[string]vtypes.Version)}
 
-	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: "/tmp"})
+	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: testTmp})
 	if err != nil {
 		t.Fatalf("Failed to create service: %v", err)
 	}
@@ -536,7 +545,7 @@ func TestService_InstalledVersionNames(t *testing.T) {
 		got[name] = struct{}{}
 	}
 
-	for _, want := range []string{constants.Stable, "v0.10.0", constants.Nightly} {
+	for _, want := range []string{constants.Stable, testVersionTag, constants.Nightly} {
 		if _, ok := got[want]; !ok {
 			t.Errorf("expected %q in installed set, got %v", want, names)
 		}
@@ -554,7 +563,7 @@ func TestService_InstalledVersionNames_Empty(t *testing.T) {
 	}
 	install := &mockInstaller{installed: make(map[string]vtypes.Version)}
 
-	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: "/tmp"})
+	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: testTmp})
 	if err != nil {
 		t.Fatalf("Failed to create service: %v", err)
 	}
@@ -571,12 +580,12 @@ func TestService_InstalledVersionNames_Empty(t *testing.T) {
 
 func TestService_FindStable(t *testing.T) {
 	repo := &mockReleaseRepo{
-		stable: release.New("v0.10.0", false, "abc123", time.Time{}, nil),
+		stable: release.New(testVersionTag, false, "abc123", time.Time{}, nil),
 	}
 	manager := &mockVersionManager{}
 	install := &mockInstaller{installed: make(map[string]vtypes.Version)}
 
-	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: "/tmp"})
+	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: testTmp})
 	if err != nil {
 		t.Fatalf("Failed to create service: %v", err)
 	}
@@ -586,7 +595,7 @@ func TestService_FindStable(t *testing.T) {
 		t.Fatalf("FindStable failed: %v", err)
 	}
 
-	if stable.TagName() != "v0.10.0" {
+	if stable.TagName() != testVersionTag {
 		t.Errorf("Expected tag 'v0.10.0', got '%s'", stable.TagName())
 	}
 }
@@ -598,7 +607,7 @@ func TestService_FindNightly(t *testing.T) {
 	manager := &mockVersionManager{}
 	install := &mockInstaller{installed: make(map[string]vtypes.Version)}
 
-	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: "/tmp"})
+	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: testTmp})
 	if err != nil {
 		t.Fatalf("Failed to create service: %v", err)
 	}
@@ -618,7 +627,7 @@ func TestService_IsCommitReference(t *testing.T) {
 	manager := &mockVersionManager{}
 	install := &mockInstaller{installed: make(map[string]vtypes.Version)}
 
-	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: "/tmp"})
+	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: testTmp})
 	if err != nil {
 		t.Fatalf("Failed to create service: %v", err)
 	}
@@ -637,7 +646,7 @@ func TestService_IsCommitReference(t *testing.T) {
 		t.Error("Expected 'stable' to NOT be a commit reference")
 	}
 
-	if service.IsCommitReference("v0.10.0") {
+	if service.IsCommitReference(testVersionTag) {
 		t.Error("Expected 'v0.10.0' to NOT be a commit reference")
 	}
 }
@@ -646,12 +655,12 @@ func TestService_GetInstalledVersionIdentifier(t *testing.T) {
 	repo := &mockReleaseRepo{}
 	manager := &mockVersionManager{
 		identifiers: map[string]string{
-			constants.Stable: "v0.10.0",
+			constants.Stable: testVersionTag,
 		},
 	}
 	install := &mockInstaller{installed: make(map[string]vtypes.Version)}
 
-	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: "/tmp"})
+	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: testTmp})
 	if err != nil {
 		t.Fatalf("Failed to create service: %v", err)
 	}
@@ -721,12 +730,12 @@ func TestService_Upgrade_Success(t *testing.T) {
 			constants.Stable: vtypes.New(
 				constants.Stable,
 				vtypes.TypeStable,
-				"v0.10.0",
+				testVersionTag,
 				"old456",
 			),
 		},
 		identifiers: map[string]string{
-			constants.Stable: "v0.10.0",
+			constants.Stable: testVersionTag,
 		},
 	}
 	install := &mockInstallerWithErrors{installed: make(map[string]vtypes.Version)}
@@ -766,12 +775,12 @@ func TestService_Upgrade_InstallFailure(t *testing.T) {
 			constants.Stable: vtypes.New(
 				constants.Stable,
 				vtypes.TypeStable,
-				"v0.10.0",
+				testVersionTag,
 				"old456",
 			),
 		},
 		identifiers: map[string]string{
-			constants.Stable: "v0.10.0",
+			constants.Stable: testVersionTag,
 		},
 	}
 	install := &mockInstallerWithErrors{
@@ -804,7 +813,7 @@ func TestService_Upgrade_NotInstalled(t *testing.T) {
 	}
 	install := &mockInstallerWithErrors{installed: make(map[string]vtypes.Version)}
 
-	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: "/tmp"})
+	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: testTmp})
 	if err != nil {
 		t.Fatalf("Failed to create service: %v", err)
 	}
@@ -821,19 +830,19 @@ func TestService_Upgrade_NotInstalled(t *testing.T) {
 
 func TestService_Upgrade_AlreadyUpToDate(t *testing.T) {
 	repo := &mockReleaseRepo{
-		stable: release.New("v0.10.0", false, "abc123", time.Time{}, nil),
+		stable: release.New(testVersionTag, false, "abc123", time.Time{}, nil),
 	}
 	manager := &mockVersionManager{
 		installed: map[string]vtypes.Version{
 			constants.Stable: vtypes.New(
 				constants.Stable,
 				vtypes.TypeStable,
-				"v0.10.0",
+				testVersionTag,
 				"abc123",
 			),
 		},
 		identifiers: map[string]string{
-			constants.Stable: "v0.10.0",
+			constants.Stable: testVersionTag,
 		},
 	}
 	install := &mockInstallerWithErrors{installed: make(map[string]vtypes.Version)}
@@ -867,12 +876,12 @@ func TestService_Upgrade_InvalidVersion(t *testing.T) {
 	manager := &mockVersionManager{}
 	install := &mockInstallerWithErrors{installed: make(map[string]vtypes.Version)}
 
-	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: "/tmp"})
+	service, err := versionsvc.New(repo, manager, install, &versionsvc.Config{VersionsDir: testTmp})
 	if err != nil {
 		t.Fatalf("Failed to create service: %v", err)
 	}
 
-	err = service.Upgrade(t.Context(), "v0.10.0", nil)
+	err = service.Upgrade(t.Context(), testVersionTag, nil)
 	if err == nil {
 		t.Fatal("Expected error when upgrading invalid version")
 	}

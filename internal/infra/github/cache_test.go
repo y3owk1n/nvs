@@ -11,6 +11,11 @@ import (
 	"github.com/y3owk1n/nvs/internal/infra/github"
 )
 
+const (
+	cacheTestTag = "v0.10.0"
+	cacheNightly = "nightly"
+)
+
 func TestCache_GetSet(t *testing.T) {
 	tempDir := t.TempDir()
 	cacheFile := filepath.Join(tempDir, "cache.json")
@@ -19,10 +24,10 @@ func TestCache_GetSet(t *testing.T) {
 
 	// Create test releases
 	releases := []release.Release{
-		release.New("v0.10.0", false, "abc123", time.Now(), []release.Asset{
+		release.New(cacheTestTag, false, "abc123", time.Now(), []release.Asset{
 			release.NewAsset("nvim-linux.tar.gz", "https://example.com/nvim.tar.gz", 1000),
 		}),
-		release.New("nightly", true, "def456", time.Now(), []release.Asset{}),
+		release.New(cacheNightly, true, "def456", time.Now(), []release.Asset{}),
 	}
 
 	// Test Set
@@ -48,11 +53,11 @@ func TestCache_GetSet(t *testing.T) {
 	}
 
 	// Verify release data
-	if got[0].TagName() != "v0.10.0" {
+	if got[0].TagName() != cacheTestTag {
 		t.Errorf("First release TagName = %v, want v0.10.0", got[0].TagName())
 	}
 
-	if got[1].TagName() != "nightly" {
+	if got[1].TagName() != cacheNightly {
 		t.Errorf("Second release TagName = %v, want nightly", got[1].TagName())
 	}
 }
@@ -77,7 +82,7 @@ func TestCache_Get_Stale(t *testing.T) {
 	cache := github.NewCache(cacheFile, time.Nanosecond)
 
 	releases := []release.Release{
-		release.New("v0.10.0", false, "abc123", time.Now(), []release.Asset{}),
+		release.New(cacheTestTag, false, "abc123", time.Now(), []release.Asset{}),
 	}
 
 	err := cache.Set(releases)
@@ -161,7 +166,7 @@ func TestCache_Set_AtomicWrite(t *testing.T) {
 	cache := github.NewCache(cacheFile, time.Hour)
 
 	releases := []release.Release{
-		release.New("v0.10.0", false, "abc123", time.Now(), []release.Asset{}),
+		release.New(cacheTestTag, false, "abc123", time.Now(), []release.Asset{}),
 	}
 
 	err := cache.Set(releases)
@@ -191,7 +196,7 @@ func TestCache_Set_PreservesAssets(t *testing.T) {
 	}
 
 	releases := []release.Release{
-		release.New("v0.10.0", false, "abc123", time.Now(), assets),
+		release.New(cacheTestTag, false, "abc123", time.Now(), assets),
 	}
 
 	err := cache.Set(releases)

@@ -7,6 +7,8 @@ import (
 	"github.com/y3owk1n/nvs/internal/ui"
 )
 
+const testDate = "2024-12-01"
+
 func TestTimeFormat(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -16,7 +18,7 @@ func TestTimeFormat(t *testing.T) {
 		{
 			name:  "valid RFC3339 timestamp",
 			input: "2024-12-01T10:30:00Z",
-			want:  "2024-12-01",
+			want:  testDate,
 		},
 		{
 			name:  "valid RFC3339 with timezone",
@@ -35,8 +37,8 @@ func TestTimeFormat(t *testing.T) {
 		},
 		{
 			name:  "partial date returns original",
-			input: "2024-12-01",
-			want:  "2024-12-01",
+			input: testDate,
+			want:  testDate,
 		},
 	}
 
