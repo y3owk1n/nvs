@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.1](https://github.com/y3owk1n/nvs/compare/v1.14.0...v1.14.1) (2026-06-30)
+
+
+### Bug Fixes
+
+* fixing lint, fmt, test after deps upgrade ([#226](https://github.com/y3owk1n/nvs/issues/226)) ([6c7843c](https://github.com/y3owk1n/nvs/commit/6c7843c08eea36433ec651755d82c0f09d61bcb4))
+
 ## [1.14.0](https://github.com/y3owk1n/nvs/compare/v1.13.2...v1.14.0) (2026-06-15)
 
 
