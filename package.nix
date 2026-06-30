@@ -19,23 +19,23 @@ if usePrebuilt then
       {
         "aarch64-darwin" = {
           url = "https://github.com/y3owk1n/nvs/releases/download/v${version}/nvs-darwin-arm64";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/nvs/releases/download/v1.14.0/nvs-darwin-arm64)`
-          sha256 = "sha256-WTRDT2Kji+rXq4dBWXpsZ3SwlCEbLPEdzLqZLN3/Jpc=";
+          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/nvs/releases/download/v1.14.1/nvs-darwin-arm64)`
+          sha256 = "sha256-HnaWPSf21iaouAjrKehuiOdTLiQS8u3UwQxgYMoyiSk=";
         };
         "x86_64-darwin" = {
           url = "https://github.com/y3owk1n/nvs/releases/download/v${version}/nvs-darwin-amd64";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/nvs/releases/download/v1.14.0/nvs-darwin-amd64)`
-          sha256 = "sha256-0VETcYJA8tYPkol4hlAxnN6vAssi3ORDJDA3V1K3L2Y=";
+          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/nvs/releases/download/v1.14.1/nvs-darwin-amd64)`
+          sha256 = "sha256-TsWpzS9zZKfApsNhf6tz9mj/3/lQjbs1CnKvkJ3Vkps=";
         };
         "aarch64-linux" = {
           url = "https://github.com/y3owk1n/nvs/releases/download/v${version}/nvs-linux-arm64";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/nvs/releases/download/v1.14.0/nvs-linux-arm64)`
-          sha256 = "sha256-6oK0Ks6w4E2gQfORcuMz8N+CXWVUWCh7WVFZx9iYm9k=";
+          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/nvs/releases/download/v1.14.1/nvs-linux-arm64)`
+          sha256 = "sha256-s26iNYXIkV2pG3IpjrzF+2Y/HGlwTWUbA6gOUqe5PLw=";
         };
         "x86_64-linux" = {
           url = "https://github.com/y3owk1n/nvs/releases/download/v${version}/nvs-linux-amd64";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/nvs/releases/download/v1.14.0/nvs-linux-amd64)`
-          sha256 = "sha256-tCjO9y8M2O1wgTKR4PbdxEw/KLOW5/ZU6WdPnme38tw=";
+          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/nvs/releases/download/v1.14.1/nvs-linux-amd64)`
+          sha256 = "sha256-zTik0M6LxWff5I22e7xf7GRZdnlvjMuNBJdGQF2yMss=";
         };
       }
       .${stdenv.hostPlatform.system} or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
