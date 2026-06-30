@@ -12,6 +12,7 @@
     "ninja@1.13.1",
     "go@1.26.3",
     "golangci-lint@2.12.2",
-    "just-lsp@0.4.7"
+    "just-lsp@0.4.7",
+    "golangci-lint-langserver@0.0.12"
   ]
 }
