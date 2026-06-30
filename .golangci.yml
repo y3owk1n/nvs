@@ -14,6 +14,7 @@ linters:
   default: all
   disable:
     - contextcheck # too many false-positive
+    - gomodguard
     - cyclop # duplicate of gocyclo
     - depguard # import restrictions
     - dupl # Too strict
