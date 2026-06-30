@@ -37,7 +37,7 @@ jobs:
       # Install Golangci directly on Windows
       - name: Setup Golangci
         if: runner.os == 'Windows'
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v2.9.0
 
