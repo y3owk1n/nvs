@@ -7,7 +7,7 @@
     "golines@0.15.0",
     "just@1.53.0",
     "cmake@4.1.2",
-    "gettext@0.25.1",
+    "gettext@1.0",
     "curl@8.17.0",
     "ninja@1.13.1",
     "go@1.26.0",
