@@ -5,7 +5,7 @@
     "gotools@0.44.0",
     "gofumpt@0.10.0",
     "golines@0.15.0",
-    "just@1.46.0",
+    "just@1.53.0",
     "cmake@4.1.2",
     "gettext@0.25.1",
     "curl@8.17.0",
