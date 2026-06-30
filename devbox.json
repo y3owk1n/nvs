@@ -11,7 +11,7 @@
     "curl@8.17.0",
     "ninja@1.13.1",
     "go@1.26.3",
-    "golangci-lint@2.9.0",
+    "golangci-lint@2.12.2",
     "just-lsp@0.3.3"
   ]
 }
