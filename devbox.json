@@ -10,7 +10,7 @@
     "gettext@1.0",
     "curl@8.17.0",
     "ninja@1.13.1",
-    "go@1.26.3",
+    "go@1.26.4",
     "golangci-lint@2.12.2",
     "just-lsp@0.4.7",
     "golangci-lint-langserver@0.0.12",
