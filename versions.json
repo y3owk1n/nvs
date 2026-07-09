@@ -6,66 +6,66 @@
       {
         "Name": "nvim-linux-arm64.appimage",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-arm64.appimage",
-        "Size": 20142600
+        "Size": 20134408
       },
       {
         "Name": "nvim-linux-arm64.appimage.zsync",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-arm64.appimage.zsync",
-        "Size": 69073
+        "Size": 69045
       },
       {
         "Name": "nvim-linux-arm64.tar.gz",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-arm64.tar.gz",
-        "Size": 21325593
+        "Size": 21326895
       },
       {
         "Name": "nvim-linux-x86_64.appimage",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-x86_64.appimage",
-        "Size": 20163064
+        "Size": 20167160
       },
       {
         "Name": "nvim-linux-x86_64.appimage.zsync",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-x86_64.appimage.zsync",
-        "Size": 69145
+        "Size": 69159
       },
       {
         "Name": "nvim-linux-x86_64.tar.gz",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-x86_64.tar.gz",
-        "Size": 21194242
+        "Size": 21195543
       },
       {
         "Name": "nvim-macos-arm64.tar.gz",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-macos-arm64.tar.gz",
-        "Size": 9878850
+        "Size": 9879569
       },
       {
         "Name": "nvim-macos-x86_64.tar.gz",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-macos-x86_64.tar.gz",
-        "Size": 10130445
+        "Size": 10131625
       },
       {
         "Name": "nvim-win-arm64.msi",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-win-arm64.msi",
-        "Size": 18932444
+        "Size": 18924252
       },
       {
         "Name": "nvim-win-arm64.zip",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-win-arm64.zip",
-        "Size": 19197072
+        "Size": 19193512
       },
       {
         "Name": "nvim-win64.msi",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-win64.msi",
-        "Size": 18735836
+        "Size": 18694876
       },
       {
         "Name": "nvim-win64.zip",
         "BrowserDownloadURL": "https://github.com/neovim/neovim/releases/download/nightly/nvim-win64.zip",
-        "Size": 18976228
+        "Size": 18938965
       }
     ],
-    "PublishedAt": "2026-07-08T06:08:33Z",
-    "CommitHash": "6a6431cb99f411a85ffb3157023cd4726614485d"
+    "PublishedAt": "2026-07-09T06:43:47Z",
+    "CommitHash": "7c9222f45eb731301bc1421cca96313a2034c12a"
   },
   {
     "TagName": "v0.12.4",
