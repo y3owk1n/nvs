@@ -84,3 +84,6 @@ lint:
 # Point flake, package.nix and install scripts at VERSION using hashes from ./build
 update-release-refs VERSION:
     scripts/update-release-refs.sh {{ VERSION }}
+
+vuln:
+    govulncheck ./...

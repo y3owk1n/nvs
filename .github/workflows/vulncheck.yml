@@ -1,0 +1,25 @@
+name: Vulnerability Check
+
+on:
+  pull_request:
+    branches: ["*"]
+  schedule:
+    - cron: "0 7 * * 1" # Weekly on Monday at 7:00 AM UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  govulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Devbox
+        uses: jetify-com/devbox-install-action@v0.15.0
+        with:
+          enable-cache: true
+
+      - name: Run govulncheck
+        run: devbox run -- just vuln
