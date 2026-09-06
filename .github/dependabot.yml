@@ -1,19 +1,23 @@
 version: 2
 updates:
-  # Enable Dependabot updates for Go
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
-      interval: "weekly" # Check for updates weekly
+      interval: "weekly"
+    groups:
+      go-deps:
+        patterns: ["*"]
 
-  # Enable Dependabot updates for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly" # Check for updates weekly
+      interval: "weekly"
+    groups:
+      actions:
+        patterns: ["*"]
 
-  # Enable Dependabot updates for Nix Flakes
+  # nixpkgs moves daily, so weekly bumps produced a PR every week.
   - package-ecosystem: "nix"
     directory: "/"
     schedule:
-      interval: "weekly" # Check for updates weekly
+      interval: "monthly"
