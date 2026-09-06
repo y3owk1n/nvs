@@ -61,7 +61,7 @@ func NewClient(
 	useGlobalCache bool,
 ) *Client {
 	return &Client{
-		httpClient:     httpclient.NewClient(constants.ClientTimeoutSec * time.Second),
+		httpClient:     httpclient.NewClient(constants.APITimeout),
 		cache:          NewCache(cacheFilePath, cacheTTL),
 		minVersion:     minVersion,
 		mirrorURL:      mirrorURL,

@@ -24,7 +24,7 @@ type Downloader struct {
 // New creates a new Downloader instance.
 func New() *Downloader {
 	return &Downloader{
-		httpClient: httpclient.NewClient(constants.DefaultTimeout),
+		httpClient: httpclient.NewClient(constants.DownloadTimeout),
 	}
 }
 

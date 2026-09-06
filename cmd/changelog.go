@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"time"
 	"unicode/utf8"
 
 	"github.com/y3owk1n/nvs/internal/constants"
@@ -101,7 +100,7 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 
-	client := httpclient.NewClient(constants.HTTPTimeoutSeconds * time.Second)
+	client := httpclient.NewClient(constants.APITimeout)
 
 	resp, err := client.Do(req)
 	if err != nil {

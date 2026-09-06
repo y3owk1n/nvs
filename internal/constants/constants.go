@@ -68,8 +68,9 @@ const (
 	// Nightly is the nightly version alias.
 	Nightly = "nightly"
 
-	// TimeoutMinutes is the timeout in minutes for installation.
-	TimeoutMinutes = 30
+	// InstallTimeout bounds a whole install, use, run or upgrade command,
+	// including source builds.
+	InstallTimeout = 30 * time.Minute
 
 	// ShortCommitLen is the number of characters to shorten commit hashes to.
 	ShortCommitLen = 7
@@ -91,10 +92,8 @@ const (
 	DefaultAPIBaseURL = "https://api.github.com"
 	// DefaultGitHubBaseURL is the default GitHub base URL for downloads.
 	DefaultGitHubBaseURL = "https://github.com"
-	// ClientTimeoutSec is the client timeout in seconds.
-	ClientTimeoutSec = 15
-	// HTTPTimeoutSeconds is the timeout in seconds for HTTP requests.
-	HTTPTimeoutSeconds = 30
+	// APITimeout bounds a single GitHub API request.
+	APITimeout = 15 * time.Second
 
 	// MaxGitHubRetries is the number of times to retry a transient
 	// GitHub API request before giving up. The actual request budget
@@ -194,8 +193,8 @@ const (
 	ScannerMaxLine = 1 << 20
 	// Sha256HashLen is the length of SHA256 hash.
 	Sha256HashLen = 64
-	// DefaultTimeout is the default timeout for downloads.
-	DefaultTimeout = 5 * time.Minute
+	// DownloadTimeout bounds a single asset download.
+	DownloadTimeout = 5 * time.Minute
 	// BufSize is the buffer size for extraction.
 	BufSize = 262144
 	// ZipFormat is the zip format string.
