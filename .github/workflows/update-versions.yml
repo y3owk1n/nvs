@@ -16,6 +16,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
+          ref: versions
           token: ${{ secrets.PAT }}
 
       - name: Fetch Neovim releases
@@ -76,7 +77,8 @@ jobs:
       - name: Push changes
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
+          branch: versions
           commit_message: |
-            chore(versions): update versions.json [skip ci]
+            chore(versions): update versions.json
 
             This is an automated commit.
