@@ -61,6 +61,27 @@ jobs:
         if: matrix.check == 'test' && runner.os != 'Windows'
         run: devbox run -- just test-all
 
+      - name: Report coverage
+        if: matrix.check == 'test' && runner.os == 'Linux'
+        run: |
+          devbox run -- just test-coverage-all | tee coverage.log
+          {
+            echo "## Coverage (unit + integration)"
+            echo
+            echo '```'
+            awk '/^ok/ && /coverage:/ {sub("github.com/y3owk1n/nvs/?", "", $2); print ($2 == "" ? "." : $2), $(NF-2)}' coverage.log | column -t
+            echo
+            devbox run -- go tool cover -func=coverage-all.txt | tail -1 | awk '{print "total", $NF}' | column -t
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage profile
+        if: matrix.check == 'test' && runner.os == 'Linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-all
+          path: coverage-all.txt
+
       - name: Run just build
         if: matrix.check == 'build' && runner.os != 'Windows'
         run: devbox run -- just build
