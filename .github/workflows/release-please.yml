@@ -58,3 +58,24 @@ jobs:
                   gh release upload "${{ steps.release.outputs.tag_name }}" "$file.sha256"
               fi
           done
+
+      # Point the Nix flake and install scripts at the new release
+      - name: Update release references
+        if: ${{ steps.release.outputs.release_created }}
+        run: devbox run -- just update-release-refs ${{ steps.release.outputs.tag_name }}
+
+      - name: Open PR with updated references
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          TAG: ${{ steps.release.outputs.tag_name }}
+        run: |
+          branch="chore/release-refs-${TAG}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add flake.nix package.nix install.sh install.ps1
+          git commit -m "chore(build): point flake and install scripts at ${TAG}"
+          git push -u origin "$branch"
+          gh pr create --title "chore(build): point flake and install scripts at ${TAG}" \
+            --body "Automated follow-up to the ${TAG} release. Updates latestVersion, prebuilt binary hashes, vendorHash and the install script versions."
