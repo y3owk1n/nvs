@@ -1,43 +1,18 @@
-# Optimized build targets with minimal binary size
-build:
+# Cross-compile every release target into ./build with a local version string
+build: (release-ci "local-build")
+
+# Cross-compile every release target into ./build stamped with VERSION_OVERRIDE
+release-ci VERSION_OVERRIDE: \
+    (build-target "darwin" "arm64" VERSION_OVERRIDE) \
+    (build-target "darwin" "amd64" VERSION_OVERRIDE) \
+    (build-target "linux" "arm64" VERSION_OVERRIDE) \
+    (build-target "linux" "amd64" VERSION_OVERRIDE) \
+    (build-target "windows" "amd64" VERSION_OVERRIDE) \
+    (build-target "windows" "arm64" VERSION_OVERRIDE)
+
+build-target os arch version:
     mkdir -p build
-    # Build for darwin-arm64
-    env GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-darwin-arm64 ./main.go
-
-    # Build for darwin-amd64
-    env GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-darwin-amd64 ./main.go
-
-    # Build for linux-arm64
-    env GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-linux-arm64 ./main.go
-
-    # Build for linux-amd64
-    env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-linux-amd64 ./main.go
-
-    # Build for windows-amd64
-    env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-windows-amd64.exe ./main.go
-
-    # Build for windows-arm64
-    env GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version=local-build" -trimpath -o ./build/nvs-windows-arm64.exe ./main.go
-
-release-ci VERSION_OVERRIDE:
-    mkdir -p build
-    # Build for darwin-arm64
-    env GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version={{ VERSION_OVERRIDE }}" -trimpath -o ./build/nvs-darwin-arm64 ./main.go
-
-    # Build for darwin-amd64
-    env GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version={{ VERSION_OVERRIDE }}" -trimpath -o ./build/nvs-darwin-amd64 ./main.go
-
-    # Build for linux-arm64
-    env GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version={{ VERSION_OVERRIDE }}" -trimpath -o ./build/nvs-linux-arm64 ./main.go
-
-    # Build for linux-amd64
-    env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version={{ VERSION_OVERRIDE }}" -trimpath -o ./build/nvs-linux-amd64 ./main.go
-
-    # Build for windows-amd64
-    env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version={{ VERSION_OVERRIDE }}" -trimpath -o ./build/nvs-windows-amd64.exe ./main.go
-
-    # Build for windows-arm64
-    env GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version={{ VERSION_OVERRIDE }}" -trimpath -o ./build/nvs-windows-arm64.exe ./main.go
+    env GOOS={{ os }} GOARCH={{ arch }} CGO_ENABLED=0 go build -ldflags "-s -w -X github.com/y3owk1n/nvs/cmd.Version={{ version }}" -trimpath -o ./build/nvs-{{ os }}-{{ arch }}{{ if os == "windows" { ".exe" } else { "" } }} ./main.go
 
 test: test-unit test-integration
 
