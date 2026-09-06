@@ -20,7 +20,7 @@ set_hash() {
   grep -q "$sri" package.nix || { echo "failed to set hash for $asset" >&2; exit 1; }
 }
 
-for asset in nvs-darwin-arm64 nvs-darwin-amd64 nvs-linux-arm64 nvs-linux-amd64; do
+for asset in nvs-darwin-arm64 nvs-linux-arm64 nvs-linux-amd64; do
   set_hash "$asset" "$(to_sri "$(cat "$build_dir/$asset.sha256")")"
 done
 

@@ -8,7 +8,8 @@
     let
       eachSystem = nixpkgs.lib.genAttrs [
         "aarch64-darwin"
-        # "x86_64-darwin" # EOL for nixpkgs 26.11+
+        # x86_64-darwin is EOL in nixpkgs 26.11+. Intel Mac users can
+        # still install the prebuilt binary with install.sh.
         "aarch64-linux"
         "x86_64-linux"
       ];
