@@ -166,7 +166,7 @@ const (
 	// RepoURL is the repository URL.
 	RepoURL = "https://github.com/neovim/neovim.git"
 	// GlobalCacheURL is the URL for the global cache JSON file.
-	GlobalCacheURL = "https://raw.githubusercontent.com/y3owk1n/nvs/main/versions.json"
+	GlobalCacheURL = "https://github.com/y3owk1n/nvs/releases/download/versions-cache/versions.json"
 
 	// ProgressComplete is the value for completed progress.
 	ProgressComplete = 100
