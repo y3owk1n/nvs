@@ -273,7 +273,7 @@ func TestClient_FindStable(t *testing.T) {
 	}
 
 	cacheFile := writeCacheFile(t, cacheData)
-	client := github.NewClient(cacheFile, time.Hour, "", "", false)
+	client := github.NewClient(cacheFile, time.Hour, "", "", "", false)
 	ctx := t.Context()
 
 	stable, err := client.FindStable(ctx)
@@ -312,7 +312,7 @@ func TestClient_FindNightly(t *testing.T) {
 	}
 
 	cacheFile := writeCacheFile(t, cacheData)
-	client := github.NewClient(cacheFile, time.Hour, "", "", false)
+	client := github.NewClient(cacheFile, time.Hour, "", "", "", false)
 	ctx := t.Context()
 
 	nightly, err := client.FindNightly(ctx)
@@ -351,7 +351,7 @@ func TestClient_FindByTag(t *testing.T) {
 	}
 
 	cacheFile := writeCacheFile(t, cacheData)
-	client := github.NewClient(cacheFile, time.Hour, "", "", false)
+	client := github.NewClient(cacheFile, time.Hour, "", "", "", false)
 	ctx := t.Context()
 
 	tests := []struct {
@@ -411,7 +411,7 @@ func TestClient_MirrorURL(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			client := github.NewClient(cacheFile, time.Hour, "", testCase.mirrorURL, false)
+			client := github.NewClient(cacheFile, time.Hour, "", testCase.mirrorURL, "", false)
 
 			if got := client.MirrorURL(); got != testCase.want {
 				t.Errorf("MirrorURL() = %v, want %v", got, testCase.want)
@@ -425,7 +425,7 @@ func TestClient_ApplyMirror(t *testing.T) {
 	tempDir := t.TempDir()
 	cacheFile := filepath.Join(tempDir, "cache.json")
 
-	client := github.NewClient(cacheFile, time.Hour, "", testMirrorURL, false)
+	client := github.NewClient(cacheFile, time.Hour, "", testMirrorURL, "", false)
 
 	url := testDownloadURL
 	want := "https://mirror.example.com/neovim/neovim/releases/download/v0.10.0/nvim.tar.gz"
@@ -461,7 +461,7 @@ func TestClient_GetAll_InMemoryCache(t *testing.T) {
 		},
 	}
 	cacheFile := writeCacheFile(t, originalData)
-	client := github.NewClient(cacheFile, time.Hour, "", "", false)
+	client := github.NewClient(cacheFile, time.Hour, "", "", "", false)
 	ctx := t.Context()
 
 	// First call: should read the disk cache and populate the
@@ -539,7 +539,7 @@ func TestClient_GetAll_ConcurrentColdCache(t *testing.T) {
 		},
 	}
 	cacheFile := writeCacheFile(t, originalData)
-	client := github.NewClient(cacheFile, time.Hour, "", "", false)
+	client := github.NewClient(cacheFile, time.Hour, "", "", "", false)
 	ctx := t.Context()
 
 	var waitGroup sync.WaitGroup
@@ -598,7 +598,7 @@ func TestClient_GetAll_ConcurrentMutationSafe(t *testing.T) {
 		},
 	}
 	cacheFile := writeCacheFile(t, originalData)
-	client := github.NewClient(cacheFile, time.Hour, "", "", false)
+	client := github.NewClient(cacheFile, time.Hour, "", "", "", false)
 	ctx := t.Context()
 
 	// Prime the in-memory cache.
@@ -656,7 +656,7 @@ func TestClient_GetAll_ForceBypassesMemCache(t *testing.T) {
 		},
 	}
 	cacheFile := writeCacheFile(t, originalData)
-	client := github.NewClient(cacheFile, time.Hour, "", "", false)
+	client := github.NewClient(cacheFile, time.Hour, "", "", "", false)
 	ctx := t.Context()
 
 	// Prime the in-memory cache.

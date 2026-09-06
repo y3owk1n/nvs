@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/y3owk1n/nvs/internal/constants"
+	"github.com/y3owk1n/nvs/internal/infra/github"
 	"github.com/y3owk1n/nvs/internal/infra/httpclient"
 	"github.com/y3owk1n/nvs/internal/log"
 	"github.com/y3owk1n/nvs/internal/ui"
@@ -95,6 +96,10 @@ func ShowChangelog(ctx context.Context, oldCommit, newCommit string) error {
 
 	req.Header.Set("User-Agent", "nvs")
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+	if token := github.TokenFromEnv(); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 
 	client := httpclient.NewClient(constants.HTTPTimeoutSeconds * time.Second)
 

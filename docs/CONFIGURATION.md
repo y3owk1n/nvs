@@ -12,6 +12,7 @@ Environment setup and customization options for **nvs**.
 | `NVS_CACHE_DIR`        | Cache files                                       | `~/.cache/nvs`     |
 | `NVS_BIN_DIR`          | Binary symlinks                                   | `~/.local/bin`     |
 | `NVS_GITHUB_MIRROR`    | GitHub mirror URL                                 | (none)             |
+| `NVS_GITHUB_TOKEN`     | Token for GitHub API requests                     | `$GITHUB_TOKEN`    |
 | `NVS_USE_GLOBAL_CACHE` | Use global cache for releases                     | `false`            |
 | `NVS_LOG`              | Developer log level (debug/info/warn/...)         | `warn`             |
 | `NVS_LOG_FILE`         | Tee developer logs to a file                      | (none)             |
@@ -193,6 +194,23 @@ export NVS_GITHUB_MIRROR="https://mirror.ghproxy.com"
 
 > [!NOTE]
 > The mirror only affects download URLs. API calls still go to GitHub directly.
+
+---
+
+### NVS_GITHUB_TOKEN
+
+**Purpose:** Authenticate GitHub API requests to lift the 60 requests/hour unauthenticated rate limit.
+
+**Default:** Falls back to `GITHUB_TOKEN` if set, otherwise unauthenticated.
+
+**Example:**
+
+```bash
+export NVS_GITHUB_TOKEN="$(gh auth token)"
+```
+
+> [!NOTE]
+> The token is only sent to `api.github.com`. Release downloads and mirrors never receive it. No scopes are required for public repositories.
 
 ---
 

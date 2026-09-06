@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/y3owk1n/nvs/internal/constants"
@@ -95,6 +96,10 @@ var errExhaustedRetries = errors.New("exhausted retries")
 // server's Retry-After / X-Ratelimit-Reset headers are respected.
 // The user-agent and the vnd.github+json Accept header are set on
 // every attempt.
+// apiHost is the only host that receives the Authorization header.
+// Release downloads and mirrors never see the token.
+var apiHost = strings.TrimPrefix(constants.DefaultAPIBaseURL, "https://")
+
 func (c *Client) doWithRetry(ctx context.Context, url string) (*http.Response, error) {
 	var lastErr error
 
@@ -106,6 +111,10 @@ func (c *Client) doWithRetry(ctx context.Context, url string) (*http.Response, e
 
 		req.Header.Set("User-Agent", "nvs")
 		req.Header.Set("Accept", "application/vnd.github+json")
+
+		if c.token != "" && req.URL.Host == apiHost {
+			req.Header.Set("Authorization", "Bearer "+c.token)
+		}
 
 		resp, doErr := c.httpClient.Do(req)
 		if doErr != nil {
