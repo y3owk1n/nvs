@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
@@ -40,7 +39,7 @@ directory or parent directories.`,
 // RunUse executes the use command.
 func RunUse(cmd *cobra.Command, args []string) error {
 	// Create a context with a timeout for the operation.
-	ctx, cancel := context.WithTimeout(cmd.Context(), constants.TimeoutMinutes*time.Minute)
+	ctx, cancel := context.WithTimeout(cmd.Context(), constants.InstallTimeout)
 	defer cancel()
 
 	var alias string

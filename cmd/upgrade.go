@@ -42,7 +42,7 @@ func RunUpgrade(cmd *cobra.Command, args []string) error {
 	log.Debug("Starting upgrade command")
 
 	// Create a context with a 30-minute timeout for the upgrade process.
-	ctx, cancel := context.WithTimeout(cmd.Context(), constants.TimeoutMinutes*time.Minute)
+	ctx, cancel := context.WithTimeout(cmd.Context(), constants.InstallTimeout)
 	defer cancel()
 
 	// Determine which aliases (versions) to upgrade.

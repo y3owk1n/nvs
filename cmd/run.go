@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/y3owk1n/nvs/internal/constants"
@@ -44,7 +43,7 @@ Examples:
 
 // RunRun executes the run command.
 func RunRun(cmd *cobra.Command, args []string) error {
-	ctx, cancel := context.WithTimeout(cmd.Context(), constants.TimeoutMinutes*time.Minute)
+	ctx, cancel := context.WithTimeout(cmd.Context(), constants.InstallTimeout)
 	defer cancel()
 
 	var versionAlias string

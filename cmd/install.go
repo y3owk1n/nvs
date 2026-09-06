@@ -48,7 +48,7 @@ func RunInstall(cmd *cobra.Command, args []string) error {
 	log.Debug("Starting installation command")
 
 	// Create a context with a timeout to prevent hanging installations.
-	ctx, cancel := context.WithTimeout(cmd.Context(), constants.TimeoutMinutes*time.Minute)
+	ctx, cancel := context.WithTimeout(cmd.Context(), constants.InstallTimeout)
 	defer cancel()
 
 	var alias string

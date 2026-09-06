@@ -26,11 +26,6 @@ import (
 	"time"
 )
 
-// DefaultTimeout is the per-request timeout used when a caller does
-// not specify one. It is the same as the previous ad-hoc
-// constants.ClientTimeoutSec default in the GitHub client.
-const DefaultTimeout = 15 * time.Second
-
 // maxIdleConns and idleConnTimeout are the tuning knobs applied on
 // top of http.DefaultTransport. They live in named constants so the
 // literal does not trip the magic-number linter.
