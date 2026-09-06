@@ -23,9 +23,6 @@ jobs:
       # Checkout the repository.
       - uses: actions/checkout@v7
         if: ${{ steps.release.outputs.release_created }}
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.head_ref }}
 
       # Install Devbox
       - name: Install Devbox
