@@ -22,11 +22,6 @@ if usePrebuilt then
           # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/nvs/releases/download/v1.14.1/nvs-darwin-arm64)`
           sha256 = "sha256-HnaWPSf21iaouAjrKehuiOdTLiQS8u3UwQxgYMoyiSk=";
         };
-        "x86_64-darwin" = {
-          url = "https://github.com/y3owk1n/nvs/releases/download/v${version}/nvs-darwin-amd64";
-          # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/nvs/releases/download/v1.14.1/nvs-darwin-amd64)`
-          sha256 = "sha256-TsWpzS9zZKfApsNhf6tz9mj/3/lQjbs1CnKvkJ3Vkps=";
-        };
         "aarch64-linux" = {
           url = "https://github.com/y3owk1n/nvs/releases/download/v${version}/nvs-linux-arm64";
           # run `nix hash convert --hash-algo sha256 (nix-prefetch-url https://github.com/y3owk1n/nvs/releases/download/v1.14.1/nvs-linux-arm64)`
