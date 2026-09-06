@@ -342,3 +342,45 @@ func TestMaxGitHubResponseBytes_BoundsDecode(t *testing.T) {
 		)
 	}
 }
+
+func TestDoWithRetry_SendsTokenOnlyToAPIHost(t *testing.T) {
+	var got string
+
+	server := httptest.NewServer(http.HandlerFunc(
+		func(writer http.ResponseWriter, req *http.Request) {
+			got = req.Header.Get("Authorization")
+
+			writer.WriteHeader(http.StatusOK)
+		},
+	))
+	defer server.Close()
+
+	client := &Client{httpClient: httpclient.NewClient(5 * time.Second), token: "secret"}
+
+	resp, err := client.doWithRetry(t.Context(), server.URL)
+	if err != nil {
+		t.Fatalf("doWithRetry error: %v", err)
+	}
+
+	_ = resp.Body.Close()
+
+	if got != "" {
+		t.Errorf("Authorization sent to non-API host: %q", got)
+	}
+
+	prev := apiHost
+	apiHost = resp.Request.URL.Host
+
+	defer func() { apiHost = prev }()
+
+	resp, err = client.doWithRetry(t.Context(), server.URL)
+	if err != nil {
+		t.Fatalf("doWithRetry error: %v", err)
+	}
+
+	_ = resp.Body.Close()
+
+	if got != "Bearer secret" {
+		t.Errorf("Authorization = %q, want %q", got, "Bearer secret")
+	}
+}

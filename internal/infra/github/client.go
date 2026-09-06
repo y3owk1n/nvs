@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"runtime"
 	"slices"
 	"strings"
@@ -27,6 +28,7 @@ type Client struct {
 	cache          *Cache
 	minVersion     string
 	mirrorURL      string // Optional mirror URL for GitHub (e.g., https://mirror.ghproxy.com)
+	token          string // Optional token sent as a Bearer header to the GitHub API only
 	useGlobalCache bool   // Whether to use global cache
 
 	// memCacheMu guards memCacheReleases and memCacheLoaded. The
@@ -50,11 +52,12 @@ type Client struct {
 
 // NewClient creates a new GitHub client with caching.
 // mirrorURL is optional - pass empty string to use default GitHub URLs.
+// token is optional - pass empty string for unauthenticated API requests.
 // useGlobalCache enables fetching from global cache.
 func NewClient(
 	cacheFilePath string,
 	cacheTTL time.Duration,
-	minVersion, mirrorURL string,
+	minVersion, mirrorURL, token string,
 	useGlobalCache bool,
 ) *Client {
 	return &Client{
@@ -62,8 +65,19 @@ func NewClient(
 		cache:          NewCache(cacheFilePath, cacheTTL),
 		minVersion:     minVersion,
 		mirrorURL:      mirrorURL,
+		token:          token,
 		useGlobalCache: useGlobalCache,
 	}
+}
+
+// TokenFromEnv returns the GitHub API token from NVS_GITHUB_TOKEN, falling
+// back to GITHUB_TOKEN so CI environments authenticate without extra setup.
+func TokenFromEnv() string {
+	if token := os.Getenv("NVS_GITHUB_TOKEN"); token != "" {
+		return token
+	}
+
+	return os.Getenv("GITHUB_TOKEN")
 }
 
 // ApplyMirrorToURL replaces the default GitHub URL with the mirror URL if configured.

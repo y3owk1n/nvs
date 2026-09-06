@@ -322,12 +322,18 @@ func InitConfig() error {
 		log.Debug("global cache enabled")
 	}
 
+	githubToken := github.TokenFromEnv()
+	if githubToken != "" {
+		log.Debug("using GitHub token for API requests")
+	}
+
 	// Initialize services
 	githubClient := github.NewClient(
 		cacheFilePath,
 		constants.CacheTTL,
 		"0.5.0",
 		normalizedMirrorURL,
+		githubToken,
 		useGlobalCache,
 	)
 	versionManager := filesystem.New(&filesystem.Config{

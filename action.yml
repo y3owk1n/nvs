@@ -14,6 +14,10 @@ inputs:
     description: "Use global cache for releases to reduce API calls"
     required: false
     default: "false"
+  github-token:
+    description: "Token for GitHub API requests, avoids unauthenticated rate limits"
+    required: false
+    default: ${{ github.token }}
 runs:
   using: "composite"
   steps:
@@ -38,6 +42,7 @@ runs:
       shell: bash
       env:
         NVS_USE_GLOBAL_CACHE: ${{ inputs.use-global-cache }}
+        NVS_GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         eval "$(nvs env --source)"
         nvs install ${{ inputs.version }}
@@ -47,6 +52,7 @@ runs:
       shell: bash
       env:
         NVS_USE_GLOBAL_CACHE: ${{ inputs.use-global-cache }}
+        NVS_GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         eval "$(nvs env --source)"
         nvs use ${{ inputs.version }}
@@ -56,6 +62,7 @@ runs:
       shell: bash
       env:
         NVS_USE_GLOBAL_CACHE: ${{ inputs.use-global-cache }}
+        NVS_GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         eval "$(nvs env --source)"
         NVS_BIN_DIR=$(nvs env --json | sed -n 's/.*"NVS_BIN_DIR":"\([^"]*\)".*/\1/p')
@@ -66,6 +73,7 @@ runs:
       shell: pwsh
       env:
         NVS_USE_GLOBAL_CACHE: ${{ inputs.use-global-cache }}
+        NVS_GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         $envJson = nvs env --json | ConvertFrom-Json
         $nvsBinDir = $envJson.NVS_BIN_DIR
