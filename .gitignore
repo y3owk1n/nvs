@@ -38,3 +38,6 @@ current
 
 # Binary
 nvs
+coverage-all.txt
+coverage-all.html
+coverage.log
