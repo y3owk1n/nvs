@@ -13,11 +13,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          token: ${{ secrets.PAT }}
-
       - name: Fetch Neovim releases
         run: |
           set -euo pipefail
@@ -73,10 +68,8 @@ jobs:
           release_count=$(jq 'length' versions.json)
           echo "Fetched $release_count releases"
 
-      - name: Push changes
-        uses: stefanzweifel/git-auto-commit-action@v7
-        with:
-          commit_message: |
-            chore(versions): update versions.json [skip ci]
-
-            This is an automated commit.
+      - name: Upload to rolling release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release upload versions-cache versions.json --clobber
