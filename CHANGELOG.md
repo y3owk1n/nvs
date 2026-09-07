@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.0](https://github.com/y3owk1n/nvs/compare/v1.14.1...v1.15.0) (2026-09-07)
+
+
+### Features
+
+* **github:** authenticate API requests with NVS_GITHUB_TOKEN ([#245](https://github.com/y3owk1n/nvs/issues/245)) ([cc28e3a](https://github.com/y3owk1n/nvs/commit/cc28e3a1cab2b3b32c57560c3053856ab09dacaf))
+
 ## [1.14.1](https://github.com/y3owk1n/nvs/compare/v1.14.0...v1.14.1) (2026-06-30)
 
 
